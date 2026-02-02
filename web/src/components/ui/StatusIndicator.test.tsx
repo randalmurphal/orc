@@ -70,7 +70,7 @@ describe('StatusIndicator', () => {
 			[TaskStatus.FINALIZING]: 'Finalizing',
 			[TaskStatus.COMPLETED]: 'Completed',
 			[TaskStatus.FAILED]: 'Failed',
-			[TaskStatus.RESOLVED]: 'Resolved',
+			[TaskStatus.CLOSED]: 'Closed',
 		};
 
 		Object.entries(statusLabels).forEach(([status, label]) => {

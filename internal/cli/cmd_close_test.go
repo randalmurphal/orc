@@ -17,9 +17,9 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// withResolveTestDir creates a temp directory with task structure, changes to it,
+// withCloseTestDir creates a temp directory with task structure, changes to it,
 // and restores the original working directory when the test completes.
-func withResolveTestDir(t *testing.T) string {
+func withCloseTestDir(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
 
@@ -47,8 +47,8 @@ func withResolveTestDir(t *testing.T) string {
 	return tmpDir
 }
 
-// createResolveTestBackend creates a backend in the given directory.
-func createResolveTestBackend(t *testing.T, dir string) storage.Backend {
+// createCloseTestBackend creates a backend in the given directory.
+func createCloseTestBackend(t *testing.T, dir string) storage.Backend {
 	t.Helper()
 	backend, err := storage.NewDatabaseBackend(dir, nil)
 	if err != nil {
@@ -57,12 +57,12 @@ func createResolveTestBackend(t *testing.T, dir string) storage.Backend {
 	return backend
 }
 
-func TestResolveCommand_Structure(t *testing.T) {
-	cmd := newResolveCmd()
+func TestCloseCommand_Structure(t *testing.T) {
+	cmd := newCloseCmd()
 
 	// Verify command structure
-	if cmd.Use != "resolve <task-id>" {
-		t.Errorf("command Use = %q, want %q", cmd.Use, "resolve <task-id>")
+	if cmd.Use != "close <task-id>" {
+		t.Errorf("command Use = %q, want %q", cmd.Use, "close <task-id>")
 	}
 
 	// Verify flags exist
@@ -85,8 +85,8 @@ func TestResolveCommand_Structure(t *testing.T) {
 	}
 }
 
-func TestResolveCommand_RequiresArg(t *testing.T) {
-	cmd := newResolveCmd()
+func TestCloseCommand_RequiresArg(t *testing.T) {
+	cmd := newCloseCmd()
 
 	// Should require exactly one argument
 	if err := cmd.Args(cmd, []string{}); err == nil {
@@ -100,11 +100,11 @@ func TestResolveCommand_RequiresArg(t *testing.T) {
 	}
 }
 
-func TestResolveCommand_FailedTask(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+func TestCloseCommand_FailedTask(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create backend and save test data
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 
 	// Create a failed task
 	tk := task.NewProtoTask("TASK-001", "Test task")
@@ -116,15 +116,15 @@ func TestResolveCommand_FailedTask(t *testing.T) {
 	// Close backend before running command
 	_ = backend.Close()
 
-	// Run resolve with --force to skip confirmation
-	cmd := newResolveCmd()
+	// Run close with --force to skip confirmation
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-001", "--force"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve command failed: %v", err)
+		t.Fatalf("close command failed: %v", err)
 	}
 
 	// Reload task and verify status
-	backend = createResolveTestBackend(t, tmpDir)
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-001")
@@ -132,31 +132,31 @@ func TestResolveCommand_FailedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
-	// Verify metadata (resolved_at is stored in metadata, not as a separate field)
-	if reloaded.Metadata["resolved"] != "true" {
-		t.Errorf("metadata resolved = %q, want 'true'", reloaded.Metadata["resolved"])
+	// Verify metadata (closed_at is stored in metadata, not as a separate field)
+	if reloaded.Metadata["closed"] != "true" {
+		t.Errorf("metadata closed = %q, want 'true'", reloaded.Metadata["closed"])
 	}
 
-	if reloaded.Metadata["resolved_at"] == "" {
-		t.Error("expected resolved_at metadata to be set")
+	if reloaded.Metadata["closed_at"] == "" {
+		t.Error("expected closed_at metadata to be set")
 	}
 
-	// Verify resolved_at is a valid timestamp
-	_, err = time.Parse(time.RFC3339, reloaded.Metadata["resolved_at"])
+	// Verify closed_at is a valid timestamp
+	_, err = time.Parse(time.RFC3339, reloaded.Metadata["closed_at"])
 	if err != nil {
-		t.Errorf("resolved_at is not valid RFC3339: %v", err)
+		t.Errorf("closed_at is not valid RFC3339: %v", err)
 	}
 }
 
-func TestResolveCommand_WithMessage(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+func TestCloseCommand_WithMessage(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create backend and save test data
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 
 	// Create a failed task
 	tk := task.NewProtoTask("TASK-001", "Test task")
@@ -168,15 +168,15 @@ func TestResolveCommand_WithMessage(t *testing.T) {
 	// Close backend before running command
 	_ = backend.Close()
 
-	// Run resolve with message
-	cmd := newResolveCmd()
+	// Run close with message
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-001", "--force", "-m", "Fixed manually by updating config"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve command failed: %v", err)
+		t.Fatalf("close command failed: %v", err)
 	}
 
 	// Reload task and verify message
-	backend = createResolveTestBackend(t, tmpDir)
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-001")
@@ -185,16 +185,16 @@ func TestResolveCommand_WithMessage(t *testing.T) {
 	}
 
 	expectedMsg := "Fixed manually by updating config"
-	if reloaded.Metadata["resolution_message"] != expectedMsg {
-		t.Errorf("metadata resolution_message = %q, want %q",
-			reloaded.Metadata["resolution_message"], expectedMsg)
+	if reloaded.Metadata["close_message"] != expectedMsg {
+		t.Errorf("metadata close_message = %q, want %q",
+			reloaded.Metadata["close_message"], expectedMsg)
 	}
 }
 
-// TestResolveCommand_WithoutForceStillRequiresFailed verifies that without --force,
-// resolve still requires status=failed (preserves current behavior).
-func TestResolveCommand_WithoutForceStillRequiresFailed(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+// TestCloseCommand_WithoutForceStillRequiresFailed verifies that without --force,
+// close still requires status=failed (preserves current behavior).
+func TestCloseCommand_WithoutForceStillRequiresFailed(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Test various non-failed statuses WITHOUT --force
 	statuses := []orcv1.TaskStatus{
@@ -209,7 +209,7 @@ func TestResolveCommand_WithoutForceStillRequiresFailed(t *testing.T) {
 	for _, status := range statuses {
 		t.Run(status.String(), func(t *testing.T) {
 			// Create backend and save task with this status
-			backend := createResolveTestBackend(t, tmpDir)
+			backend := createCloseTestBackend(t, tmpDir)
 			tk := task.NewProtoTask("TASK-001", "Test task")
 			tk.Status = status
 			if err := backend.SaveTask(tk); err != nil {
@@ -217,8 +217,8 @@ func TestResolveCommand_WithoutForceStillRequiresFailed(t *testing.T) {
 			}
 			_ = backend.Close()
 
-			// Run resolve WITHOUT --force - should fail
-			cmd := newResolveCmd()
+			// Run close WITHOUT --force - should fail
+			cmd := newCloseCmd()
 			cmd.SetArgs([]string{"TASK-001"}) // No --force flag
 			err := cmd.Execute()
 			if err == nil {
@@ -233,13 +233,13 @@ func TestResolveCommand_WithoutForceStillRequiresFailed(t *testing.T) {
 	}
 }
 
-// TestResolveCommand_BlockedTask_GuidesToCorrectCommand verifies that running
-// orc resolve on a blocked task (without --force) provides helpful guidance.
-func TestResolveCommand_BlockedTask_GuidesToCorrectCommand(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+// TestCloseCommand_BlockedTask_GuidesToCorrectCommand verifies that running
+// orc close on a blocked task (without --force) provides helpful guidance.
+func TestCloseCommand_BlockedTask_GuidesToCorrectCommand(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create backend and save a blocked task
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-BLOCKED", "Test blocked task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 	if err := backend.SaveTask(tk); err != nil {
@@ -247,8 +247,8 @@ func TestResolveCommand_BlockedTask_GuidesToCorrectCommand(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve WITHOUT --force - should fail with helpful guidance
-	cmd := newResolveCmd()
+	// Run close WITHOUT --force - should fail with helpful guidance
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-BLOCKED"}) // No --force
 	err := cmd.Execute()
 	if err == nil {
@@ -277,9 +277,9 @@ func TestResolveCommand_BlockedTask_GuidesToCorrectCommand(t *testing.T) {
 		t.Errorf("error message should suggest 'orc resume TASK-BLOCKED', got: %s", errMsg)
 	}
 
-	// Verify error message explains what resolve is for
-	if !strings.Contains(errMsg, "marking failed tasks") {
-		t.Errorf("error message should explain resolve is for failed tasks, got: %s", errMsg)
+	// Verify error message explains what close is for
+	if !strings.Contains(errMsg, "closing failed tasks") {
+		t.Errorf("error message should explain close is for failed tasks, got: %s", errMsg)
 	}
 
 	// Verify error message mentions using --force
@@ -288,10 +288,10 @@ func TestResolveCommand_BlockedTask_GuidesToCorrectCommand(t *testing.T) {
 	}
 }
 
-func TestResolveCommand_TaskNotFound(t *testing.T) {
-	withResolveTestDir(t)
+func TestCloseCommand_TaskNotFound(t *testing.T) {
+	withCloseTestDir(t)
 
-	cmd := newResolveCmd()
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-999", "--force"})
 	err := cmd.Execute()
 	if err == nil {
@@ -299,11 +299,11 @@ func TestResolveCommand_TaskNotFound(t *testing.T) {
 	}
 }
 
-func TestResolveCommand_PreservesExistingMetadata(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+func TestCloseCommand_PreservesExistingMetadata(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create backend and save test data
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 
 	// Create a failed task with existing metadata
 	tk := task.NewProtoTask("TASK-001", "Test task")
@@ -319,15 +319,15 @@ func TestResolveCommand_PreservesExistingMetadata(t *testing.T) {
 	// Close backend before running command
 	_ = backend.Close()
 
-	// Run resolve
-	cmd := newResolveCmd()
+	// Run close
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-001", "--force", "-m", "Test message"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve command failed: %v", err)
+		t.Fatalf("close command failed: %v", err)
 	}
 
 	// Reload task and verify all metadata
-	backend = createResolveTestBackend(t, tmpDir)
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-001")
@@ -344,11 +344,11 @@ func TestResolveCommand_PreservesExistingMetadata(t *testing.T) {
 	}
 
 	// New metadata should be added
-	if reloaded.Metadata["resolved"] != "true" {
-		t.Errorf("resolved = %q, want 'true'", reloaded.Metadata["resolved"])
+	if reloaded.Metadata["closed"] != "true" {
+		t.Errorf("closed = %q, want 'true'", reloaded.Metadata["closed"])
 	}
-	if reloaded.Metadata["resolution_message"] != "Test message" {
-		t.Errorf("resolution_message = %q, want 'Test message'", reloaded.Metadata["resolution_message"])
+	if reloaded.Metadata["close_message"] != "Test message" {
+		t.Errorf("close_message = %q, want 'Test message'", reloaded.Metadata["close_message"])
 	}
 }
 
@@ -466,8 +466,8 @@ func TestWorktreeStatus_HasWorktreeIssues(t *testing.T) {
 	}
 }
 
-// setupTestRepoForResolve creates a git repository for testing checkWorktreeStatus.
-func setupTestRepoForResolve(t *testing.T) string {
+// setupTestRepoForClose creates a git repository for testing checkWorktreeStatus.
+func setupTestRepoForClose(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
 
@@ -507,7 +507,7 @@ func setupTestRepoForResolve(t *testing.T) string {
 }
 
 func TestCheckWorktreeStatus_WorktreeWithInjectedHooks(t *testing.T) {
-	tmpDir := setupTestRepoForResolve(t)
+	tmpDir := setupTestRepoForClose(t)
 
 	cfg := git.DefaultConfig()
 	cfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
@@ -560,7 +560,7 @@ func TestCheckWorktreeStatus_WorktreeWithInjectedHooks(t *testing.T) {
 }
 
 func TestCheckWorktreeStatus_CleanWorktree(t *testing.T) {
-	tmpDir := setupTestRepoForResolve(t)
+	tmpDir := setupTestRepoForClose(t)
 
 	cfg := git.DefaultConfig()
 	cfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
@@ -612,7 +612,7 @@ func TestCheckWorktreeStatus_CleanWorktree(t *testing.T) {
 }
 
 func TestCheckWorktreeStatus_DirtyWorktree(t *testing.T) {
-	tmpDir := setupTestRepoForResolve(t)
+	tmpDir := setupTestRepoForClose(t)
 
 	cfg := git.DefaultConfig()
 	cfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
@@ -658,7 +658,7 @@ func TestCheckWorktreeStatus_DirtyWorktree(t *testing.T) {
 }
 
 func TestCheckWorktreeStatus_NonExistentWorktree(t *testing.T) {
-	tmpDir := setupTestRepoForResolve(t)
+	tmpDir := setupTestRepoForClose(t)
 
 	cfg := git.DefaultConfig()
 	cfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
@@ -685,10 +685,10 @@ func TestCheckWorktreeStatus_NonExistentWorktree(t *testing.T) {
 // Tests required by spec: Testing Requirements
 // =============================================================================
 
-// TestResolveCommand_DetectsDirtyWorktree verifies that orc resolve detects
+// TestCloseCommand_DetectsDirtyWorktree verifies that orc close detects
 // uncommitted changes in a task's worktree.
-func TestResolveCommand_DetectsDirtyWorktree(t *testing.T) {
-	tmpDir := setupTestRepoForResolve(t)
+func TestCloseCommand_DetectsDirtyWorktree(t *testing.T) {
+	tmpDir := setupTestRepoForClose(t)
 
 	cfg := git.DefaultConfig()
 	cfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
@@ -738,10 +738,10 @@ func TestResolveCommand_DetectsDirtyWorktree(t *testing.T) {
 	}
 }
 
-// TestResolveCommand_DetectsRebaseInProgress verifies that orc resolve detects
+// TestCloseCommand_DetectsRebaseInProgress verifies that orc close detects
 // an in-progress rebase in a task's worktree.
-func TestResolveCommand_DetectsRebaseInProgress(t *testing.T) {
-	tmpDir := setupTestRepoForResolve(t)
+func TestCloseCommand_DetectsRebaseInProgress(t *testing.T) {
+	tmpDir := setupTestRepoForClose(t)
 
 	cfg := git.DefaultConfig()
 	cfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
@@ -817,10 +817,10 @@ func TestResolveCommand_DetectsRebaseInProgress(t *testing.T) {
 	_, _ = ctx.RunGit("rebase", "--abort")
 }
 
-// TestResolveCommand_DetectsMergeInProgress verifies that orc resolve detects
+// TestCloseCommand_DetectsMergeInProgress verifies that orc close detects
 // an in-progress merge in a task's worktree.
-func TestResolveCommand_DetectsMergeInProgress(t *testing.T) {
-	tmpDir := setupTestRepoForResolve(t)
+func TestCloseCommand_DetectsMergeInProgress(t *testing.T) {
+	tmpDir := setupTestRepoForClose(t)
 
 	cfg := git.DefaultConfig()
 	cfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
@@ -891,10 +891,10 @@ func TestResolveCommand_DetectsMergeInProgress(t *testing.T) {
 	_, _ = ctx.RunGit("merge", "--abort")
 }
 
-// TestResolveCommand_CleanupFlag verifies that --cleanup aborts in-progress
+// TestCloseCommand_CleanupFlag verifies that --cleanup aborts in-progress
 // operations and discards uncommitted changes.
-func TestResolveCommand_CleanupFlag(t *testing.T) {
-	tmpDir := setupTestRepoForResolve(t)
+func TestCloseCommand_CleanupFlag(t *testing.T) {
+	tmpDir := setupTestRepoForClose(t)
 
 	// Create .orc directory with config.yaml for project detection
 	orcDir := filepath.Join(tmpDir, ".orc")
@@ -954,15 +954,15 @@ func TestResolveCommand_CleanupFlag(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Change to project dir and run resolve with --cleanup
+	// Change to project dir and run close with --cleanup
 	origDir, _ := os.Getwd()
 	_ = os.Chdir(tmpDir)
 	defer func() { _ = os.Chdir(origDir) }()
 
-	cmd := newResolveCmd()
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-CLEANUP", "--force", "--cleanup"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve command failed: %v", err)
+		t.Fatalf("close command failed: %v", err)
 	}
 
 	// Verify worktree is now clean
@@ -982,13 +982,13 @@ func TestResolveCommand_CleanupFlag(t *testing.T) {
 	}
 }
 
-// TestResolveCommand_NoWorktree verifies that orc resolve works when
+// TestCloseCommand_NoWorktree verifies that orc close works when
 // the task doesn't have an associated worktree.
-func TestResolveCommand_NoWorktree(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+func TestCloseCommand_NoWorktree(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create backend and save a failed task (no worktree)
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 
 	tk := task.NewProtoTask("TASK-NO-WT", "Test task without worktree")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
@@ -997,15 +997,15 @@ func TestResolveCommand_NoWorktree(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve - should succeed without worktree
-	cmd := newResolveCmd()
+	// Run close - should succeed without worktree
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-NO-WT", "--force"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve command failed: %v", err)
+		t.Fatalf("close command failed: %v", err)
 	}
 
-	// Verify task was resolved
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-NO-WT")
@@ -1013,18 +1013,18 @@ func TestResolveCommand_NoWorktree(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
-	if reloaded.Metadata["resolved"] != "true" {
-		t.Errorf("metadata resolved = %q, want 'true'", reloaded.Metadata["resolved"])
+	if reloaded.Metadata["closed"] != "true" {
+		t.Errorf("metadata closed = %q, want 'true'", reloaded.Metadata["closed"])
 	}
 }
 
-// TestResolveCommand_ForceSkipsChecks verifies that --force skips
+// TestCloseCommand_ForceSkipsChecks verifies that --force skips
 // worktree state checks entirely.
-func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
-	tmpDir := setupTestRepoForResolve(t)
+func TestCloseCommand_ForceSkipsChecks(t *testing.T) {
+	tmpDir := setupTestRepoForClose(t)
 
 	// Create .orc directory with config.yaml for project detection
 	orcDir := filepath.Join(tmpDir, ".orc")
@@ -1078,18 +1078,18 @@ func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Change to project dir and run resolve with --force
+	// Change to project dir and run close with --force
 	origDir, _ := os.Getwd()
 	_ = os.Chdir(tmpDir)
 	defer func() { _ = os.Chdir(origDir) }()
 
-	cmd := newResolveCmd()
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-FORCE", "--force"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve command failed: %v", err)
+		t.Fatalf("close command failed: %v", err)
 	}
 
-	// Verify task was resolved (even though worktree is dirty)
+	// Verify task was closed (even though worktree is dirty)
 	backend, _ = storage.NewDatabaseBackend(tmpDir, nil)
 	defer func() { _ = backend.Close() }()
 
@@ -1098,8 +1098,8 @@ func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
 	// Verify dirty file still exists (--force doesn't clean up)
@@ -1113,10 +1113,10 @@ func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 	}
 }
 
-// TestResolveCommand_CleanWorktree verifies that orc resolve doesn't
+// TestCloseCommand_CleanWorktree verifies that orc close doesn't
 // display warnings when the worktree is clean.
-func TestResolveCommand_CleanWorktree(t *testing.T) {
-	tmpDir := setupTestRepoForResolve(t)
+func TestCloseCommand_CleanWorktree(t *testing.T) {
+	tmpDir := setupTestRepoForClose(t)
 
 	// Create .orc directory with config.yaml for project detection
 	orcDir := filepath.Join(tmpDir, ".orc")
@@ -1170,18 +1170,18 @@ func TestResolveCommand_CleanWorktree(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Change to project dir and run resolve
+	// Change to project dir and run close
 	origDir, _ := os.Getwd()
 	_ = os.Chdir(tmpDir)
 	defer func() { _ = os.Chdir(origDir) }()
 
-	cmd := newResolveCmd()
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-CLEAN-WT", "--force"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve command failed: %v", err)
+		t.Fatalf("close command failed: %v", err)
 	}
 
-	// Verify task was resolved
+	// Verify task was closed
 	backend, _ = storage.NewDatabaseBackend(tmpDir, nil)
 	defer func() { _ = backend.Close() }()
 
@@ -1190,8 +1190,8 @@ func TestResolveCommand_CleanWorktree(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
 	// Verify no worktree issues recorded in metadata
@@ -1210,12 +1210,12 @@ func TestResolveCommand_CleanWorktree(t *testing.T) {
 // Tests for --force flag on non-failed tasks (TASK-220 requirements)
 // =============================================================================
 
-// TestResolveCommand_ForceOnRunningTask verifies --force works on running tasks.
-func TestResolveCommand_ForceOnRunningTask(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+// TestCloseCommand_ForceOnRunningTask verifies --force works on running tasks.
+func TestCloseCommand_ForceOnRunningTask(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create a running task
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-RUNNING", "Test running task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tk); err != nil {
@@ -1223,15 +1223,15 @@ func TestResolveCommand_ForceOnRunningTask(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve with --force - should succeed
-	cmd := newResolveCmd()
+	// Run close with --force - should succeed
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-RUNNING", "--force"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve --force on running task failed: %v", err)
+		t.Fatalf("close --force on running task failed: %v", err)
 	}
 
-	// Verify task was resolved
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-RUNNING")
@@ -1239,25 +1239,25 @@ func TestResolveCommand_ForceOnRunningTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
-	// Verify force_resolved metadata
-	if reloaded.Metadata["force_resolved"] != "true" {
-		t.Error("expected force_resolved metadata to be 'true'")
+	// Verify force_closed metadata
+	if reloaded.Metadata["force_closed"] != "true" {
+		t.Error("expected force_closed metadata to be 'true'")
 	}
 	if reloaded.Metadata["original_status"] != "running" {
 		t.Errorf("original_status = %q, want 'running'", reloaded.Metadata["original_status"])
 	}
 }
 
-// TestResolveCommand_ForceOnPausedTask verifies --force works on paused tasks.
-func TestResolveCommand_ForceOnPausedTask(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+// TestCloseCommand_ForceOnPausedTask verifies --force works on paused tasks.
+func TestCloseCommand_ForceOnPausedTask(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create a paused task
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-PAUSED", "Test paused task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 	if err := backend.SaveTask(tk); err != nil {
@@ -1265,15 +1265,15 @@ func TestResolveCommand_ForceOnPausedTask(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve with --force - should succeed
-	cmd := newResolveCmd()
+	// Run close with --force - should succeed
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-PAUSED", "--force"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve --force on paused task failed: %v", err)
+		t.Fatalf("close --force on paused task failed: %v", err)
 	}
 
-	// Verify task was resolved
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-PAUSED")
@@ -1281,26 +1281,26 @@ func TestResolveCommand_ForceOnPausedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
-	// Verify force_resolved metadata
-	if reloaded.Metadata["force_resolved"] != "true" {
-		t.Error("expected force_resolved metadata to be 'true'")
+	// Verify force_closed metadata
+	if reloaded.Metadata["force_closed"] != "true" {
+		t.Error("expected force_closed metadata to be 'true'")
 	}
 	if reloaded.Metadata["original_status"] != "paused" {
 		t.Errorf("original_status = %q, want 'paused'", reloaded.Metadata["original_status"])
 	}
 }
 
-// TestResolveCommand_ForceOnBlockedTask verifies --force works on blocked tasks,
+// TestCloseCommand_ForceOnBlockedTask verifies --force works on blocked tasks,
 // overriding the helpful error that normally guides users to approve/resume.
-func TestResolveCommand_ForceOnBlockedTask(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+func TestCloseCommand_ForceOnBlockedTask(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create a blocked task
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-BLOCKED-FORCE", "Test blocked task for force")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 	if err := backend.SaveTask(tk); err != nil {
@@ -1308,15 +1308,15 @@ func TestResolveCommand_ForceOnBlockedTask(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve with --force - should succeed (bypasses the helpful error)
-	cmd := newResolveCmd()
+	// Run close with --force - should succeed (bypasses the helpful error)
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-BLOCKED-FORCE", "--force"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve --force on blocked task failed: %v", err)
+		t.Fatalf("close --force on blocked task failed: %v", err)
 	}
 
-	// Verify task was resolved
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-BLOCKED-FORCE")
@@ -1324,25 +1324,25 @@ func TestResolveCommand_ForceOnBlockedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
-	// Verify force_resolved metadata
-	if reloaded.Metadata["force_resolved"] != "true" {
-		t.Error("expected force_resolved metadata to be 'true'")
+	// Verify force_closed metadata
+	if reloaded.Metadata["force_closed"] != "true" {
+		t.Error("expected force_closed metadata to be 'true'")
 	}
 	if reloaded.Metadata["original_status"] != "blocked" {
 		t.Errorf("original_status = %q, want 'blocked'", reloaded.Metadata["original_status"])
 	}
 }
 
-// TestResolveCommand_ForceOnCreatedTask verifies --force works on created tasks.
-func TestResolveCommand_ForceOnCreatedTask(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+// TestCloseCommand_ForceOnCreatedTask verifies --force works on created tasks.
+func TestCloseCommand_ForceOnCreatedTask(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create a task in 'created' status (default)
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-CREATED", "Test created task")
 	// Status is already StatusCreated by default
 	if err := backend.SaveTask(tk); err != nil {
@@ -1350,15 +1350,15 @@ func TestResolveCommand_ForceOnCreatedTask(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve with --force - should succeed
-	cmd := newResolveCmd()
+	// Run close with --force - should succeed
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-CREATED", "--force"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve --force on created task failed: %v", err)
+		t.Fatalf("close --force on created task failed: %v", err)
 	}
 
-	// Verify task was resolved
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-CREATED")
@@ -1366,24 +1366,24 @@ func TestResolveCommand_ForceOnCreatedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
-	// Verify force_resolved metadata
-	if reloaded.Metadata["force_resolved"] != "true" {
-		t.Error("expected force_resolved metadata to be 'true'")
+	// Verify force_closed metadata
+	if reloaded.Metadata["force_closed"] != "true" {
+		t.Error("expected force_closed metadata to be 'true'")
 	}
 	if reloaded.Metadata["original_status"] != "created" {
 		t.Errorf("original_status = %q, want 'created'", reloaded.Metadata["original_status"])
 	}
 }
 
-// TestResolveCommand_ForceWithMergedPR_Logic verifies the PR merge detection logic
+// TestCloseCommand_ForceWithMergedPR_Logic verifies the PR merge detection logic
 // works correctly by testing the internal behavior.
 // NOTE: The PR field is not persisted by the current storage backend, so this test
 // verifies the behavior at the code level rather than through the full CLI flow.
-func TestResolveCommand_ForceWithMergedPR(t *testing.T) {
+func TestCloseCommand_ForceWithMergedPR(t *testing.T) {
 	// Test that the PR merge detection logic works correctly
 	// by checking the condition directly
 	tk := task.NewProtoTask("TASK-TEST", "Test task")
@@ -1431,12 +1431,12 @@ func TestResolveCommand_ForceWithMergedPR(t *testing.T) {
 	}
 }
 
-// TestResolveCommand_ForceWithoutPR verifies warning when no PR exists.
-func TestResolveCommand_ForceWithoutPR(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+// TestCloseCommand_ForceWithoutPR verifies warning when no PR exists.
+func TestCloseCommand_ForceWithoutPR(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create a running task without a PR
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-NO-PR", "Test task without PR")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	// No PR set
@@ -1445,15 +1445,15 @@ func TestResolveCommand_ForceWithoutPR(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve with --force - should succeed (with warning to stdout, not error)
-	cmd := newResolveCmd()
+	// Run close with --force - should succeed (with warning to stdout, not error)
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-NO-PR", "--force"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve --force without PR failed: %v", err)
+		t.Fatalf("close --force without PR failed: %v", err)
 	}
 
-	// Verify task was resolved
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-NO-PR")
@@ -1461,8 +1461,8 @@ func TestResolveCommand_ForceWithoutPR(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
 	// Verify pr_was_merged is NOT set (because there was no merged PR)
@@ -1470,17 +1470,17 @@ func TestResolveCommand_ForceWithoutPR(t *testing.T) {
 		t.Error("expected pr_was_merged NOT to be set when no PR exists")
 	}
 
-	// force_resolved should still be set
-	if reloaded.Metadata["force_resolved"] != "true" {
-		t.Error("expected force_resolved metadata to be 'true'")
+	// force_closed should still be set
+	if reloaded.Metadata["force_closed"] != "true" {
+		t.Error("expected force_closed metadata to be 'true'")
 	}
 }
 
-// TestResolveCommand_ForceWithOpenPR_Logic verifies that open (not merged) PRs
+// TestCloseCommand_ForceWithOpenPR_Logic verifies that open (not merged) PRs
 // are correctly identified as not merged.
 // NOTE: The PR field is not persisted by the current storage backend, so this test
 // verifies the behavior at the code level.
-func TestResolveCommand_ForceWithOpenPR(t *testing.T) {
+func TestCloseCommand_ForceWithOpenPR(t *testing.T) {
 	// Test that open PRs are correctly identified as not merged
 	tk := task.NewProtoTask("TASK-TEST", "Test task")
 	url := "https://github.com/owner/repo/pull/45"
@@ -1517,13 +1517,13 @@ func TestResolveCommand_ForceWithOpenPR(t *testing.T) {
 	}
 }
 
-// TestResolveCommand_FailedTaskNoForceMetadata verifies that resolving a failed task
-// does NOT set force_resolved metadata (since it's not a force-resolve).
-func TestResolveCommand_FailedTaskNoForceMetadata(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+// TestCloseCommand_FailedTaskNoForceMetadata verifies that closing a failed task
+// does NOT set force_closed metadata (since it's not a force-close).
+func TestCloseCommand_FailedTaskNoForceMetadata(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create a failed task
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-FAILED-NO-FORCE", "Test failed task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
@@ -1531,15 +1531,15 @@ func TestResolveCommand_FailedTaskNoForceMetadata(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve with --force on failed task
-	cmd := newResolveCmd()
+	// Run close with --force on failed task
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-FAILED-NO-FORCE", "--force"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve command failed: %v", err)
+		t.Fatalf("close command failed: %v", err)
 	}
 
-	// Verify task was resolved
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-FAILED-NO-FORCE")
@@ -1547,13 +1547,13 @@ func TestResolveCommand_FailedTaskNoForceMetadata(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
-	// force_resolved should NOT be set for failed tasks (they don't need forcing)
-	if reloaded.Metadata["force_resolved"] == "true" {
-		t.Error("expected force_resolved NOT to be set for failed task resolution")
+	// force_closed should NOT be set for failed tasks (they don't need forcing)
+	if reloaded.Metadata["force_closed"] == "true" {
+		t.Error("expected force_closed NOT to be set for failed task resolution")
 	}
 
 	// original_status should NOT be set for failed tasks
@@ -1566,15 +1566,15 @@ func TestResolveCommand_FailedTaskNoForceMetadata(t *testing.T) {
 // Tests for --yes flag (TASK-648 requirements)
 // =============================================================================
 
-// TestResolveCommand_YesFlagExists verifies that the --yes/-y flag is registered
-// on the resolve command with the correct shorthand.
-func TestResolveCommand_YesFlagExists(t *testing.T) {
-	cmd := newResolveCmd()
+// TestCloseCommand_YesFlagExists verifies that the --yes/-y flag is registered
+// on the close command with the correct shorthand.
+func TestCloseCommand_YesFlagExists(t *testing.T) {
+	cmd := newCloseCmd()
 
 	// Verify --yes flag exists
 	yesFlag := cmd.Flag("yes")
 	if yesFlag == nil {
-		t.Fatal("missing --yes flag on resolve command")
+		t.Fatal("missing --yes flag on close command")
 	}
 
 	// Verify -y shorthand
@@ -1588,14 +1588,14 @@ func TestResolveCommand_YesFlagExists(t *testing.T) {
 	}
 }
 
-// TestResolveCommand_YesSkipsPromptForFailedTask verifies that --yes skips the
-// interactive confirmation prompt and resolves a failed task without reading stdin.
+// TestCloseCommand_YesSkipsPromptForFailedTask verifies that --yes skips the
+// interactive confirmation prompt and closes a failed task without reading stdin.
 // Maps to: SC-1, BDD-1
-func TestResolveCommand_YesSkipsPromptForFailedTask(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+func TestCloseCommand_YesSkipsPromptForFailedTask(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create a failed task
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-YES-001", "Test yes flag on failed task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
@@ -1603,15 +1603,15 @@ func TestResolveCommand_YesSkipsPromptForFailedTask(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve with --yes (NOT --force) - should skip prompt and succeed
-	cmd := newResolveCmd()
+	// Run close with --yes (NOT --force) - should skip prompt and succeed
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-YES-001", "--yes"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve --yes on failed task failed: %v", err)
+		t.Fatalf("close --yes on failed task failed: %v", err)
 	}
 
-	// Verify task was resolved
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-YES-001")
@@ -1619,28 +1619,28 @@ func TestResolveCommand_YesSkipsPromptForFailedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
-	// Verify standard resolved metadata is present
-	if reloaded.Metadata["resolved"] != "true" {
-		t.Errorf("metadata resolved = %q, want 'true'", reloaded.Metadata["resolved"])
+	// Verify standard closed metadata is present
+	if reloaded.Metadata["closed"] != "true" {
+		t.Errorf("metadata closed = %q, want 'true'", reloaded.Metadata["closed"])
 	}
 
-	// --yes on a failed task is NOT force-resolving (task was already failed)
-	if reloaded.Metadata["force_resolved"] == "true" {
-		t.Error("expected force_resolved NOT to be set for failed task with --yes")
+	// --yes on a failed task is NOT force-closing (task was already failed)
+	if reloaded.Metadata["force_closed"] == "true" {
+		t.Error("expected force_closed NOT to be set for failed task with --yes")
 	}
 }
 
-// TestResolveCommand_YesShortFlag verifies that -y works as short form of --yes.
+// TestCloseCommand_YesShortFlag verifies that -y works as short form of --yes.
 // Maps to: SC-2
-func TestResolveCommand_YesShortFlag(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+func TestCloseCommand_YesShortFlag(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create a failed task
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-YES-SHORT", "Test -y short flag")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
@@ -1648,15 +1648,15 @@ func TestResolveCommand_YesShortFlag(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve with -y (short form) - should skip prompt and succeed
-	cmd := newResolveCmd()
+	// Run close with -y (short form) - should skip prompt and succeed
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-YES-SHORT", "-y"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve -y on failed task failed: %v", err)
+		t.Fatalf("close -y on failed task failed: %v", err)
 	}
 
-	// Verify task was resolved
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-YES-SHORT")
@@ -1664,16 +1664,16 @@ func TestResolveCommand_YesShortFlag(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 }
 
-// TestResolveCommand_YesDoesNotImplyForce verifies that --yes alone does NOT
-// allow resolving non-failed tasks. Only --force grants that permission.
+// TestCloseCommand_YesDoesNotImplyForce verifies that --yes alone does NOT
+// allow closing non-failed tasks. Only --force grants that permission.
 // Maps to: SC-5, BDD-3
-func TestResolveCommand_YesDoesNotImplyForce(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+func TestCloseCommand_YesDoesNotImplyForce(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Test various non-failed statuses with --yes (but NOT --force)
 	statuses := []struct {
@@ -1690,7 +1690,7 @@ func TestResolveCommand_YesDoesNotImplyForce(t *testing.T) {
 	for _, tc := range statuses {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create backend and save task with this status
-			backend := createResolveTestBackend(t, tmpDir)
+			backend := createCloseTestBackend(t, tmpDir)
 			tk := task.NewProtoTask("TASK-001", "Test task")
 			tk.Status = tc.status
 			if err := backend.SaveTask(tk); err != nil {
@@ -1698,8 +1698,8 @@ func TestResolveCommand_YesDoesNotImplyForce(t *testing.T) {
 			}
 			_ = backend.Close()
 
-			// Run resolve with --yes but WITHOUT --force - should fail
-			cmd := newResolveCmd()
+			// Run close with --yes but WITHOUT --force - should fail
+			cmd := newCloseCmd()
 			cmd.SetArgs([]string{"TASK-001", "--yes"})
 			err := cmd.Execute()
 			if err == nil {
@@ -1714,10 +1714,10 @@ func TestResolveCommand_YesDoesNotImplyForce(t *testing.T) {
 	}
 }
 
-// TestResolveCommand_YesWithCleanup verifies that --yes works together with --cleanup.
+// TestCloseCommand_YesWithCleanup verifies that --yes works together with --cleanup.
 // Maps to: BDD-5
-func TestResolveCommand_YesWithCleanup(t *testing.T) {
-	tmpDir := setupTestRepoForResolve(t)
+func TestCloseCommand_YesWithCleanup(t *testing.T) {
+	tmpDir := setupTestRepoForClose(t)
 
 	// Create .orc directory with config.yaml for project detection
 	orcDir := filepath.Join(tmpDir, ".orc")
@@ -1771,18 +1771,18 @@ func TestResolveCommand_YesWithCleanup(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Change to project dir and run resolve with --yes --cleanup
+	// Change to project dir and run close with --yes --cleanup
 	origDir, _ := os.Getwd()
 	_ = os.Chdir(tmpDir)
 	defer func() { _ = os.Chdir(origDir) }()
 
-	cmd := newResolveCmd()
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-YES-CLEANUP", "--yes", "--cleanup"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve --yes --cleanup failed: %v", err)
+		t.Fatalf("close --yes --cleanup failed: %v", err)
 	}
 
-	// Verify task was resolved
+	// Verify task was closed
 	backend, _ = storage.NewDatabaseBackend(tmpDir, nil)
 	defer func() { _ = backend.Close() }()
 
@@ -1791,8 +1791,8 @@ func TestResolveCommand_YesWithCleanup(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
 	// Verify worktree was cleaned up
@@ -1802,12 +1802,12 @@ func TestResolveCommand_YesWithCleanup(t *testing.T) {
 	}
 }
 
-// TestResolveCommand_YesWithMessage verifies that --yes works together with -m message.
-func TestResolveCommand_YesWithMessage(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+// TestCloseCommand_YesWithMessage verifies that --yes works together with -m message.
+func TestCloseCommand_YesWithMessage(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create a failed task
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-YES-MSG", "Test yes with message")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
@@ -1815,15 +1815,15 @@ func TestResolveCommand_YesWithMessage(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve with --yes -m "message"
-	cmd := newResolveCmd()
+	// Run close with --yes -m "message"
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-YES-MSG", "--yes", "-m", "Fixed in hotfix deploy"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve --yes -m failed: %v", err)
+		t.Fatalf("close --yes -m failed: %v", err)
 	}
 
-	// Verify task was resolved with message
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed with message
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-YES-MSG")
@@ -1831,23 +1831,23 @@ func TestResolveCommand_YesWithMessage(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
-	if reloaded.Metadata["resolution_message"] != "Fixed in hotfix deploy" {
-		t.Errorf("resolution_message = %q, want 'Fixed in hotfix deploy'",
-			reloaded.Metadata["resolution_message"])
+	if reloaded.Metadata["close_message"] != "Fixed in hotfix deploy" {
+		t.Errorf("close_message = %q, want 'Fixed in hotfix deploy'",
+			reloaded.Metadata["close_message"])
 	}
 }
 
-// TestResolveCommand_YesAndForceTogether verifies that --yes and --force together
+// TestCloseCommand_YesAndForceTogether verifies that --yes and --force together
 // both take effect: skip prompt AND allow non-failed tasks.
-func TestResolveCommand_YesAndForceTogether(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+func TestCloseCommand_YesAndForceTogether(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create a running task (non-failed)
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-YES-FORCE", "Test yes + force")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tk); err != nil {
@@ -1855,15 +1855,15 @@ func TestResolveCommand_YesAndForceTogether(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve with both --yes and --force
-	cmd := newResolveCmd()
+	// Run close with both --yes and --force
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-YES-FORCE", "--yes", "--force"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve --yes --force failed: %v", err)
+		t.Fatalf("close --yes --force failed: %v", err)
 	}
 
-	// Verify task was resolved
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-YES-FORCE")
@@ -1871,26 +1871,26 @@ func TestResolveCommand_YesAndForceTogether(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 
-	// force_resolved should be set (non-failed task)
-	if reloaded.Metadata["force_resolved"] != "true" {
-		t.Error("expected force_resolved metadata to be 'true'")
+	// force_closed should be set (non-failed task)
+	if reloaded.Metadata["force_closed"] != "true" {
+		t.Error("expected force_closed metadata to be 'true'")
 	}
 	if reloaded.Metadata["original_status"] != "running" {
 		t.Errorf("original_status = %q, want 'running'", reloaded.Metadata["original_status"])
 	}
 }
 
-// TestResolveCommand_YesAndQuietTogether verifies that --yes and --quiet together
+// TestCloseCommand_YesAndQuietTogether verifies that --yes and --quiet together
 // are redundant but harmless.
-func TestResolveCommand_YesAndQuietTogether(t *testing.T) {
-	tmpDir := withResolveTestDir(t)
+func TestCloseCommand_YesAndQuietTogether(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
 
 	// Create a failed task
-	backend := createResolveTestBackend(t, tmpDir)
+	backend := createCloseTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-YES-QUIET", "Test yes + quiet")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
@@ -1898,22 +1898,22 @@ func TestResolveCommand_YesAndQuietTogether(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	// Run resolve with both --yes and --quiet
+	// Run close with both --yes and --quiet
 	// Note: --quiet is a persistent flag from root, so we need to set it via the root command
-	// or use the flag directly. Since these tests use newResolveCmd() directly,
+	// or use the flag directly. Since these tests use newCloseCmd() directly,
 	// we'll set the package-level quiet variable instead.
 	origQuiet := quiet
 	quiet = true
 	defer func() { quiet = origQuiet }()
 
-	cmd := newResolveCmd()
+	cmd := newCloseCmd()
 	cmd.SetArgs([]string{"TASK-YES-QUIET", "--yes"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("resolve --yes --quiet failed: %v", err)
+		t.Fatalf("close --yes --quiet failed: %v", err)
 	}
 
-	// Verify task was resolved
-	backend = createResolveTestBackend(t, tmpDir)
+	// Verify task was closed
+	backend = createCloseTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
 	reloaded, err := backend.LoadTask("TASK-YES-QUIET")
@@ -1921,7 +1921,7 @@ func TestResolveCommand_YesAndQuietTogether(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
-		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
 	}
 }

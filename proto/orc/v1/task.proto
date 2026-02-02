@@ -32,7 +32,7 @@ enum TaskStatus {
   TASK_STATUS_FINALIZING = 7;   // Syncing/merging
   TASK_STATUS_COMPLETED = 8;    // Successfully finished
   TASK_STATUS_FAILED = 9;       // Execution failed
-  TASK_STATUS_RESOLVED = 10;    // Failed but manually resolved
+  TASK_STATUS_CLOSED = 10;      // Manually closed (won't pursue further)
 }
 
 // Task queue assignment

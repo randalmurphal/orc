@@ -949,7 +949,7 @@ type OutcomeStats struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Completed     int32                  `protobuf:"varint,1,opt,name=completed,proto3" json:"completed,omitempty"`
 	Failed        int32                  `protobuf:"varint,2,opt,name=failed,proto3" json:"failed,omitempty"`
-	Resolved      int32                  `protobuf:"varint,3,opt,name=resolved,proto3" json:"resolved,omitempty"`
+	Closed        int32                  `protobuf:"varint,3,opt,name=closed,proto3" json:"closed,omitempty"`
 	InProgress    int32                  `protobuf:"varint,4,opt,name=in_progress,json=inProgress,proto3" json:"in_progress,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -999,9 +999,9 @@ func (x *OutcomeStats) GetFailed() int32 {
 	return 0
 }
 
-func (x *OutcomeStats) GetResolved() int32 {
+func (x *OutcomeStats) GetClosed() int32 {
 	if x != nil {
-		return x.Resolved
+		return x.Closed
 	}
 	return 0
 }
@@ -2387,11 +2387,11 @@ const file_orc_v1_dashboard_proto_rawDesc = "" +
 	"\bcost_usd\x18\x05 \x01(\x01R\acostUsd\x12/\n" +
 	"\x14avg_tokens_per_phase\x18\x06 \x01(\x01R\x11avgTokensPerPhase\"7\n" +
 	"\vPerDayStats\x12(\n" +
-	"\x04days\x18\x01 \x03(\v2\x14.orc.v1.DailyMetricsR\x04days\"\x81\x01\n" +
+	"\x04days\x18\x01 \x03(\v2\x14.orc.v1.DailyMetricsR\x04days\"}\n" +
 	"\fOutcomeStats\x12\x1c\n" +
 	"\tcompleted\x18\x01 \x01(\x05R\tcompleted\x12\x16\n" +
-	"\x06failed\x18\x02 \x01(\x05R\x06failed\x12\x1a\n" +
-	"\bresolved\x18\x03 \x01(\x05R\bresolved\x12\x1f\n" +
+	"\x06failed\x18\x02 \x01(\x05R\x06failed\x12\x16\n" +
+	"\x06closed\x18\x03 \x01(\x05R\x06closed\x12\x1f\n" +
 	"\vin_progress\x18\x04 \x01(\x05R\n" +
 	"inProgress\"\x98\x01\n" +
 	"\rTopInitiative\x12\x0e\n" +

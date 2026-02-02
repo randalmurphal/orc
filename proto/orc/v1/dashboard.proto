@@ -142,7 +142,7 @@ message PerDayStats {
 message OutcomeStats {
   int32 completed = 1;
   int32 failed = 2;
-  int32 resolved = 3;
+  int32 closed = 3;
   int32 in_progress = 4;
 }
 

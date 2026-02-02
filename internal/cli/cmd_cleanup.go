@@ -230,12 +230,12 @@ func findOrphanedWorktrees(gitOps *git.Git, backend interface {
 				Status: t.Status,
 				Reason: "task completed",
 			})
-		case orcv1.TaskStatus_TASK_STATUS_RESOLVED:
+		case orcv1.TaskStatus_TASK_STATUS_CLOSED:
 			orphans = append(orphans, orphanedWorktree{
 				TaskID: taskID,
 				Path:   wt.path,
 				Status: t.Status,
-				Reason: "task resolved",
+				Reason: "task closed",
 			})
 		case orcv1.TaskStatus_TASK_STATUS_FAILED:
 			if includeFailed {

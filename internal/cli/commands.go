@@ -56,7 +56,7 @@ func statusIcon(status orcv1.TaskStatus) string {
 		return "✅"
 	case orcv1.TaskStatus_TASK_STATUS_FAILED:
 		return "❌"
-	case orcv1.TaskStatus_TASK_STATUS_RESOLVED:
+	case orcv1.TaskStatus_TASK_STATUS_CLOSED:
 		return "🔧"
 	default:
 		return "❓"
@@ -84,8 +84,8 @@ func statusText(status orcv1.TaskStatus) string {
 		return "[OK]"
 	case orcv1.TaskStatus_TASK_STATUS_FAILED:
 		return "[ERR]"
-	case orcv1.TaskStatus_TASK_STATUS_RESOLVED:
-		return "[RSV]"
+	case orcv1.TaskStatus_TASK_STATUS_CLOSED:
+		return "[CLS]"
 	default:
 		return "[???]"
 	}
@@ -152,8 +152,8 @@ func matchStatusProto(status orcv1.TaskStatus, filter string) bool {
 		return status == orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	case "failed":
 		return status == orcv1.TaskStatus_TASK_STATUS_FAILED
-	case "resolved":
-		return status == orcv1.TaskStatus_TASK_STATUS_RESOLVED
+	case "closed":
+		return status == orcv1.TaskStatus_TASK_STATUS_CLOSED
 	case "pending": // "pending" is a meta-filter for created+planned
 		return status == orcv1.TaskStatus_TASK_STATUS_CREATED ||
 			status == orcv1.TaskStatus_TASK_STATUS_PLANNED

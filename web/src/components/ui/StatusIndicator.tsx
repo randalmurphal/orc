@@ -65,10 +65,10 @@ const statusConfig: Record<TaskStatus, StatusConfig> = {
 		glow: 'transparent',
 		label: 'Failed',
 	},
-	[TaskStatus.RESOLVED]: {
+	[TaskStatus.CLOSED]: {
 		color: 'var(--status-warning)',
 		glow: 'transparent',
-		label: 'Resolved',
+		label: 'Closed',
 	},
 };
 

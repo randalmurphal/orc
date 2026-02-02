@@ -92,7 +92,7 @@ const (
 	TaskStatus_TASK_STATUS_FINALIZING  TaskStatus = 7  // Syncing/merging
 	TaskStatus_TASK_STATUS_COMPLETED   TaskStatus = 8  // Successfully finished
 	TaskStatus_TASK_STATUS_FAILED      TaskStatus = 9  // Execution failed
-	TaskStatus_TASK_STATUS_RESOLVED    TaskStatus = 10 // Failed but manually resolved
+	TaskStatus_TASK_STATUS_CLOSED      TaskStatus = 10 // Manually closed (won't pursue further)
 )
 
 // Enum value maps for TaskStatus.
@@ -108,7 +108,7 @@ var (
 		7:  "TASK_STATUS_FINALIZING",
 		8:  "TASK_STATUS_COMPLETED",
 		9:  "TASK_STATUS_FAILED",
-		10: "TASK_STATUS_RESOLVED",
+		10: "TASK_STATUS_CLOSED",
 	}
 	TaskStatus_value = map[string]int32{
 		"TASK_STATUS_UNSPECIFIED": 0,
@@ -121,7 +121,7 @@ var (
 		"TASK_STATUS_FINALIZING":  7,
 		"TASK_STATUS_COMPLETED":   8,
 		"TASK_STATUS_FAILED":      9,
-		"TASK_STATUS_RESOLVED":    10,
+		"TASK_STATUS_CLOSED":      10,
 	}
 )
 
@@ -8727,7 +8727,7 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\x13TASK_WEIGHT_TRIVIAL\x10\x01\x12\x15\n" +
 	"\x11TASK_WEIGHT_SMALL\x10\x02\x12\x16\n" +
 	"\x12TASK_WEIGHT_MEDIUM\x10\x03\x12\x15\n" +
-	"\x11TASK_WEIGHT_LARGE\x10\x04*\xab\x02\n" +
+	"\x11TASK_WEIGHT_LARGE\x10\x04*\xa9\x02\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -8739,8 +8739,8 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\x13TASK_STATUS_BLOCKED\x10\x06\x12\x1a\n" +
 	"\x16TASK_STATUS_FINALIZING\x10\a\x12\x19\n" +
 	"\x15TASK_STATUS_COMPLETED\x10\b\x12\x16\n" +
-	"\x12TASK_STATUS_FAILED\x10\t\x12\x18\n" +
-	"\x14TASK_STATUS_RESOLVED\x10\n" +
+	"\x12TASK_STATUS_FAILED\x10\t\x12\x16\n" +
+	"\x12TASK_STATUS_CLOSED\x10\n" +
 	"*V\n" +
 	"\tTaskQueue\x12\x1a\n" +
 	"\x16TASK_QUEUE_UNSPECIFIED\x10\x00\x12\x15\n" +
