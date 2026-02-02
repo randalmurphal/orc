@@ -11,7 +11,26 @@ Output your structured response with status set to "complete" and a summary desc
 
 **Outcome 2 — Major Implementation Issues:**
 Use when significant problems need re-implementation, but the overall approach is correct. Examples: missing error handling throughout, component doesn't integrate correctly, business logic wrong in multiple places, tests missing or inadequate.
-Do NOT fix these yourself. Output your structured response with status set to "blocked" and a reason listing the major issues with file:line references and what the implement phase must fix.
+Do NOT fix these yourself. Output your structured response with status set to "blocked" and a reason containing:
+1. A brief description of each issue
+2. **MANDATORY: Specific file:line locations** where each fix must be applied
+3. What the implement phase must do at each location
+
+**Example blocking reason format:**
+```
+Issue: ResolveTargetBranch() is defined but never called from PR creation paths.
+
+Files to fix:
+- workflow_completion.go:58 - CreatePR() call passes empty string for targetBranch, must call resolveTargetBranch()
+- workflow_completion.go:120 - FindOrCreatePR() same issue
+- workflow_completion.go:185 - SyncWithTarget() also hardcodes target
+- finalize.go:190 - Different context: FinalizeExecutor lacks workflow, needs new helper function
+- workflow_context.go:95 - Template variable uses empty string instead of resolved branch
+
+What to do: Create a helper method on WorkflowExecutor that loads initiative and calls ResolveTargetBranchWithWorkflow(), then update all 5 call sites.
+```
+
+**CRITICAL:** Without specific file:line locations, the implement retry cannot find all call sites. A blocking reason like "not wired into PR creation" will fail because implement doesn't know which files to change.
 
 **Outcome 3 — Wrong Approach Entirely:**
 Use when the fundamental approach is wrong and re-implementing won't help. Examples: misunderstood requirements, wrong architecture, built the wrong thing entirely.
@@ -184,7 +203,7 @@ Red flags for incomplete implementation:
 
 If success criteria are vague or untestable, this is a blocking finding — the spec phase failed and implementation cannot be properly reviewed.
 
-## Check 6: Integration Completeness
+## Check 6: Integration Completeness (CRITICAL - Find ALL Call Sites)
 
 **Are new components actually wired into the system?**
 
@@ -198,6 +217,19 @@ If success criteria are vague or untestable, this is a blocking finding — the 
 - Grep for the function/pattern being fixed — does the same bug exist in other code paths?
 - If the spec lists a "Pattern Prevalence" table, verify ALL listed paths were addressed
 - If you find unlisted paths with the same bug, this is a **high-severity** finding
+
+**MANDATORY when blocking for integration issues:**
+
+If you find dead code or missing integration wiring, you MUST grep to find ALL locations that need the fix:
+
+```bash
+# Example: new function ResolveTargetBranch() isn't called
+# Find all places that SHOULD call it:
+grep -rn "CreatePR\|FindOrCreatePR\|SyncWithTarget" internal/executor/
+grep -rn "targetBranch\|target_branch" internal/executor/ --include="*.go"
+```
+
+List EVERY file:line that needs to be changed in your blocking reason. The implement retry will fail if it doesn't know all the locations.
 
 Dead code, unwired integration, or incomplete bug fixes are **high-severity** findings.
 
