@@ -118,8 +118,9 @@ type WorkflowExecutor struct {
 	wf           *workflow.Workflow // Workflow being executed (for lifecycle triggers in failRun)
 	heartbeat    *HeartbeatRunner
 	fileWatcher  *FileWatcher
-	isResuming   bool              // True if resuming a paused/failed/blocked task
-	skipGates    bool              // When true, bypass all gate evaluations
+	isResuming      bool // True if resuming a paused/failed/blocked task
+	skipGates       bool // When true, bypass all gate evaluations
+	inParallelLevel bool // True when executing phases in parallel (prevents concurrent task state updates)
 
 	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
 	turnExecutor TurnExecutor
