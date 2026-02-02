@@ -58,7 +58,7 @@ web/src/
 |-------|------|-------------|
 | `/` | ProjectPickerPage | Project selection (redirects to `/board` when project chosen) |
 | `/board` | BoardView | Kanban board (queue + running columns) |
-| `/tasks/:taskId` | TaskDetail | Task details, transcript, review |
+| `/tasks/:taskId` | TaskDetailPage | Task details with workflow progress, resizable split panes, metrics footer |
 | `/initiatives` | InitiativesPage | Initiative list and stats |
 | `/initiatives/:id` | InitiativeDetailPage | Initiative detail view |
 | `/settings` | SettingsPage | 3-tab layout: General, Agents, Environment |
@@ -107,6 +107,8 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
 | `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
 | `TaskEditModal` | `task-detail/` | Edit task properties + branch/PR settings (`branchName`, `targetBranch`, `prDraft`, `prLabels`, `prReviewers`) |
+| `WorkflowProgress` | `task-detail/` | Visual phase progression with gate diamonds, state indicators (✓/●/○/✗), and gate type colors (auto/human/ai) |
+| `TaskFooter` | `task-detail/` | Footer with session metrics (tokens/cost), action buttons (pause/resume/cancel/retry), error display with retry options |
 | `SettingsTabs` | `settings/` | Top-level 3-tab navigation (General, Agents, Environment) with URL-driven state |
 | `SettingsLayout` | `settings/` | General tab: 240px sidebar with CLAUDE CODE/ORC/ACCOUNT groups |
 | `EnvironmentLayout` | `pages/environment/` | Environment tab: horizontal sub-nav for hooks/skills/tools/config |
@@ -134,6 +136,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `LibraryPicker` | `core/` | Multi-select picker for hooks (grouped by event), skills, MCP servers |
 | `TagInput` | `core/` | Chip-style tag input (Enter/comma to add, backspace to remove) |
 | `KeyValueEditor` | `core/` | Row-based key-value editor for env vars. Empty keys excluded from output |
+| `SplitPane` | `core/` | Resizable split pane with left/right panels, localStorage persistence, min width constraints, keyboard/touch support |
 
 ### Gates as Edges Visual Model
 
