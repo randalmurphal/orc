@@ -25,21 +25,15 @@ vi.mock('@/lib/client', () => ({
 	},
 }));
 
-// Mock the workflow store with stateful implementation
-const mockWorkflowStore = {
-	workflows: [],
-	phaseTemplates: [],
-	setWorkflows: vi.fn((workflows, _sources) => {
-		mockWorkflowStore.workflows = workflows;
-	}),
-	setPhaseTemplates: vi.fn((templates, _sources) => {
-		mockWorkflowStore.phaseTemplates = templates;
-	}),
-	refreshKey: 0,
-};
-
+// Mock the workflow store
 vi.mock('@/stores/workflowStore', () => ({
-	useWorkflowStore: () => mockWorkflowStore,
+	useWorkflowStore: () => ({
+		workflows: [],
+		phaseTemplates: [],
+		setWorkflows: vi.fn(),
+		setPhaseTemplates: vi.fn(),
+		refreshKey: 0,
+	}),
 }));
 
 import { workflowClient } from '@/lib/client';
@@ -56,10 +50,6 @@ function renderWorkflowsView() {
 describe('WorkflowsView Redesign Edge Cases - TASK-750', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		// Reset mock store state
-		mockWorkflowStore.workflows = [];
-		mockWorkflowStore.phaseTemplates = [];
-		mockWorkflowStore.refreshKey = 0;
 	});
 
 	afterEach(() => {
