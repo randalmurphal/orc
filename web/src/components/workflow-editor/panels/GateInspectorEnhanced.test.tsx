@@ -46,13 +46,13 @@ beforeAll(() => {
 });
 
 // Mock workflow API client
-const mockWorkflowClient = {
+const mockWorkflowClient = vi.hoisted(() => ({
 	updatePhaseTemplate: vi.fn(),
 	updateWorkflow: vi.fn(),
-};
+}));
 
-vi.mock('@/lib/api/workflowClient', () => ({
-	workflowClient: mockWorkflowClient,
+vi.mock('@/lib/client', () => ({
+	workflowClient: mockWorkflowClient(),
 }));
 
 // Enhanced gate edge data structure for configuration
@@ -182,7 +182,7 @@ describe('Enhanced GateInspector', () => {
 			await waitFor(() => {
 				expect(mockWorkflowClient.updatePhaseTemplate).toHaveBeenCalledWith(
 					expect.objectContaining({
-						phaseId: 2,
+						id: "2",
 						gateType: GateType.HUMAN,
 					})
 				);
@@ -730,7 +730,7 @@ describe('Enhanced GateInspector', () => {
 			const user = userEvent.setup();
 			const edge = createMockGateEdgeWithConfig({
 				gateType: GateType.AUTO,
-				phaseId: 2,
+				id: "2",
 				maxRetries: 3,
 			});
 			const workflowDetails = createMockWorkflowWithDetails({
@@ -758,7 +758,7 @@ describe('Enhanced GateInspector', () => {
 			await waitFor(() => {
 				expect(mockWorkflowClient.updatePhaseTemplate).toHaveBeenCalledWith(
 					expect.objectContaining({
-						phaseId: 2,
+						id: "2",
 						maxRetries: 5,
 					})
 				);
@@ -843,7 +843,7 @@ describe('Enhanced GateInspector', () => {
 			const user = userEvent.setup();
 			const edge = createMockGateEdgeWithConfig({
 				gateType: GateType.AUTO,
-				phaseId: 2,
+				id: "2",
 			});
 			const workflowDetails = createMockWorkflowWithDetails({
 				workflow: createMockWorkflow({ isBuiltin: false }),
