@@ -1,5 +1,5 @@
 ---
-description: "Tech Lead session for orc development - find friction, fix bugs, improve the tool"
+description: "Tech Lead session for orc development - run tasks, verify quality, improve the system"
 argument-hint: "[TASK-ID|--initiative INIT-ID]"
 ---
 
@@ -7,19 +7,16 @@ argument-hint: "[TASK-ID|--initiative INIT-ID]"
 
 You are acting as Tech Lead for the orc project itself.
 
-## Primary Mission: Find What's Broken
+## Primary Mission: Quality Output
 
-**Your main job is discovering bugs, friction, and edge cases in orc itself.** Tasks are the vehicle, not the destination.
+**Your main job is getting high-quality work merged.** Run tasks, verify they achieve their goals, and when output quality is lacking, diagnose whether the issue is in prompts, orchestration logic, or elsewhere.
 
-Every time you run `orc` commands, interact with the CLI, or observe task execution:
-- **Watch for unexpected behavior** - Did the output make sense? Did the command do what you expected?
-- **Notice friction** - Was anything harder than it should be? Did you have to work around something?
-- **Catch edge cases** - Did anything fail silently? Did error messages help or confuse?
-- **Feel the UX** - Would a new user understand what just happened?
-
-When you find something wrong or awkward, **that finding is more valuable than completing the current task**. Create a task for it immediately, assess if it's a blocker, and potentially pivot to fix it.
-
-The goal is making orc seamless and intuitive in ALL edge cases. Tasks give you reasons to exercise the tool; issues you discover are the real output.
+The loop:
+1. Find the most important work
+2. Run up to 2 tasks in parallel
+3. Verify each PR achieves the task's goal
+4. Merge good work, diagnose and fix quality issues
+5. Repeat
 
 ---
 
@@ -30,192 +27,241 @@ orc status --plain 2>/dev/null
 orc initiative list --plain 2>/dev/null
 ```
 
-Check recent progress to understand momentum:
+Check recent completions to understand what's been happening:
 ```bash
 orc list --status completed --limit 5 --plain 2>/dev/null
 ```
 
-If tasks belong to an initiative, view it:
-```bash
-orc initiative show INIT-XXX --plain 2>/dev/null
-```
-
 ## Step 2: Identify Work
 
-From status output, identify READY tasks. Check their details to understand scope:
+### If Argument Provided
+- **TASK-ID**: Run that specific task
+- **--initiative INIT-ID**: Show initiative, pick most important ready tasks
+
+### If No Argument
+Find the most valuable work to run:
+
+1. Check for any **blocked/failed tasks** - these often indicate systemic issues
+2. Look at **high-priority READY tasks**
+3. Consider **initiative progress** - finishing an initiative is more valuable than scattered work
+4. Prioritize tasks that **exercise the system** - spec/implement/review cycles reveal quality issues
+
 ```bash
-orc show TASK-XXX --plain 2>/dev/null        # Task details and description
-orc show TASK-XXX --spec --plain 2>/dev/null # Spec content (if exists)
+orc show TASK-XXX --plain 2>/dev/null        # Task details
+orc show TASK-XXX --spec --plain 2>/dev/null # Spec content
+orc initiative show INIT-XXX --plain 2>/dev/null # Initiative context
 ```
 
-If no spec exists, check if the task belongs to an initiative - the initiative's vision often contains the context:
-```bash
-orc initiative show INIT-XXX --plain 2>/dev/null
-```
+### Work Selection Priorities
+1. **Blocked/failed tasks** - understand why, fix the blocker
+2. **Initiative tasks** - complete features, not fragments
+3. **High-priority ready tasks** - user-flagged importance
+4. **Medium+ weight tasks** - these exercise spec→implement→review flow
 
-### Orc-Specific Priorities
-1. **Blockers first** - bugs that break the workflow
-2. **Friction points** - things that slow down or frustrate usage
-3. **Missing features** - gaps in the orchestration flow
-4. **Polish** - UX improvements, better error messages
+## Step 3: Plan Parallel Execution (max 2 tasks)
 
-## Step 3: Plan Parallel Execution (up to 3 tasks)
-
-Before running tasks in parallel, check for conflicts:
+Before running tasks, check for conflicts:
 
 ### Conflict Detection
-Read the specs/descriptions of candidate tasks and identify:
-- **File overlap**: Do tasks modify the same files? → Run serial
-- **Package overlap**: Do tasks modify the same Go package? → Run serial
-- **Dependency chain**: Is one task blocked by another? → Run blocker first
-- **Shared resources**: Do both touch the same subsystem (API, CLI, executor)? → Consider serial
+- **File overlap**: Same files → run serial
+- **Package overlap**: Same Go package → run serial
+- **Dependency chain**: One blocks another → run blocker first
 
 ### Safe to Parallelize
-- Tasks in different packages (e.g., `internal/cli` vs `internal/api`)
-- Tasks in different layers (e.g., backend vs frontend)
-- Independent bug fixes in unrelated areas
-- Docs tasks alongside code tasks
+- Different packages (e.g., `internal/cli` vs `internal/api`)
+- Different layers (backend vs frontend)
+- Independent areas (unrelated subsystems)
 
-### Execution Plan
-Based on conflict analysis, decide:
-- Which tasks can run in parallel (max 3)
-- Which must run serially
-- What order for serial tasks
-
-Present your plan to the user before executing.
+Present your plan before executing.
 
 ## Step 4: Run Tasks
 
-Start up to 3 non-conflicting tasks in parallel:
+Start up to 2 non-conflicting tasks:
 
 ```bash
 orc run TASK-001
 orc run TASK-002
-orc run TASK-003
 ```
 
 Set `run_in_background: true` on each Bash call, then **stop and wait**. You will be notified when tasks complete.
 
-## Step 5: Validate After Completion
+## Step 5: Validate Completed Work
 
-When notified of completion:
+When notified of completion, **this is where your primary value is delivered**.
 
+### Quick Status Check
 ```bash
 orc status --plain 2>/dev/null
-orc diff TASK-XXX --stat
 orc show TASK-XXX --plain
 ```
 
-For orc changes specifically, verify the build:
+### Verify Build/Tests
 ```bash
-make build 2>&1 | tail -20
+make build 2>&1 | tail -30
+make test-short 2>&1 | tail -50
 ```
 
-If the build fails, that's a blocker - create and run a fix task immediately.
+### Quality Assessment
 
-## Step 6: Act on What You Found (This Is The Main Event)
+For each completed task:
 
-Throughout steps 1-5, you should have been noticing issues. Now act on them.
+```bash
+orc diff TASK-XXX --stat
+orc show TASK-XXX --spec --plain 2>/dev/null
+```
 
-**This is your primary output.** The tasks you ran were just a means to exercise orc. What you discovered while running them is what matters.
+**Ask yourself:**
+1. Does the diff accomplish what the spec/description asked for?
+2. Is the implementation complete, not partial?
+3. Are there obvious quality issues (missing error handling, no tests, etc.)?
+4. Does it follow existing patterns in the codebase?
 
-### Severity Assessment
-| Finding | Action |
+### Quality Verdict
+
+| Outcome | Action |
 |---------|--------|
-| **Blocker** (breaks workflow) | Create task, run immediately, pause other work |
-| **Friction** (slows/confuses) | Create task with high priority |
-| **Missing feature** (wish existed) | Create task with normal priority |
-| **Polish** (could be better) | Create task, backlog is fine |
+| **Goal achieved, quality good** | Finalize and merge (Step 6) |
+| **Goal achieved, minor issues** | Note issues, still merge, create follow-up tasks |
+| **Goal not achieved** | Diagnose the cause (Step 6b) |
+| **Build/tests broken** | Fix immediately (blocker) |
 
-### Create Tasks for Findings
+## Step 6: Finalize Good Work
+
+When a task passes quality check:
+
 ```bash
-orc new "Fix: [description]" --priority high --category bug
-orc new "CLI: [missing capability]" --priority high --category feature
-orc new "UX: [confusing behavior]" --priority normal --category refactor
-orc new "Edge case: [unexpected behavior]" --priority high --category bug
+orc finalize TASK-XXX
 ```
 
-**If you found nothing wrong**, either the tool is perfect (unlikely) or you weren't watching closely enough. Re-run with attention to every CLI interaction, error message, and workflow step.
+This syncs with target branch, resolves conflicts, and completes the task.
 
-## Step 7: Continue or Stop
+If finalize succeeds, the work is done. Move to the next task.
+
+## Step 6b: Diagnose Quality Issues
+
+When output quality doesn't meet expectations, **this is the high-value work**.
+
+### Root Cause Categories
+
+| Symptom | Likely Cause | Investigation |
+|---------|--------------|---------------|
+| Spec too vague | Task description insufficient | Check the `orc new` input that created this task |
+| Implementation misses the point | Spec phase prompt issues | Review `templates/spec.md` and related prompts |
+| Tests don't cover requirements | TDD phase weakness | Review `templates/tdd_write.md` |
+| Review didn't catch issues | Review phase prompts | Review `templates/review.md` reviewers |
+| Wrong weight (skipped phases) | Weight selection guidance | Check `orc new --help` or weight heuristics |
+| Initiative context not flowing | Variable resolution | Check `{{INITIATIVE_*}}` variable handling |
+
+### Investigation Steps
+
+1. **Read the transcript** to see what Claude was told:
+   ```bash
+   orc log TASK-XXX 2>/dev/null | head -200
+   ```
+
+2. **Check the prompts** that generated the issue:
+   ```bash
+   cat templates/<phase>.md
+   ```
+
+3. **Trace variable resolution** if context seems missing:
+   - Initiative vision/decisions should flow to linked tasks
+   - Retry context should include failure reasons
+
+### Fix Categories
+
+| Issue Type | Action |
+|------------|--------|
+| **Prompt deficiency** | Edit template, create follow-up task to re-run |
+| **Orchestration bug** | Fix if blocker, else create task |
+| **Missing feature** | Create task for the feature |
+| **User input issue** | Note for documentation improvement |
+
+## Step 7: Handle Bugs You Encounter
+
+Throughout this process, you may encounter bugs. Handle them proportionally:
+
+### Blockers (Fix Immediately)
+- Build failures
+- Test failures that break the flow
+- CLI commands that error out
+- Tasks that can't complete due to orc bugs
+
+```bash
+# Fix directly, then continue
+```
+
+### Non-Blockers (Create Task, Continue)
+- UX annoyances
+- Missing convenience features
+- Confusing error messages
+- Edge cases that don't block work
+
+```bash
+orc new "Fix: [description]" --priority normal --category bug
+```
+
+**Don't get derailed by non-blockers.** The goal is getting quality work merged, not perfecting the tool. Create the task and keep moving.
+
+## Step 8: Continue or Report
 
 ```bash
 orc status --plain
 ```
 
-**Before continuing, review what you found:**
-- Did any CLI commands behave unexpectedly?
-- Were any error messages confusing?
-- Did you have to work around anything?
-- Is there anything you wished existed?
+### Continue If:
+- More READY tasks exist
+- You have capacity for another batch
+- Initiative has remaining work
 
-If you found issues, address them:
-- **Blockers** → fix immediately before more tasks
-- **High friction** → create high-priority task, consider running next
-- **Nice-to-have** → create task for backlog
+### Report When:
+- No more ready work
+- Hit a systemic issue that needs discussion
+- Completed a significant milestone
 
-Then decide:
-- Found blockers? → Fix them first
-- More READY tasks? → Plan next batch, keep watching for issues
-- All caught up? → Report summary including issues discovered
+### Summary Should Include:
+- Tasks completed and merged
+- Quality issues found and their root causes
+- Any prompt/orchestration improvements made
+- Tasks created for future work
+- Current state and recommended next steps
 
 ## Escalation Rules
 
 **Ask the user** before:
-- Major architectural changes to orc
-- New dependencies or tech stack changes
 - Changes to the phase model or execution flow
-- Anything that changes how users interact with orc
+- New template patterns that change Claude's behavior
+- Architectural decisions about orc itself
+- Anything that changes the user-facing workflow
 
 **Handle autonomously**:
-- Bug fixes
-- Build/test failures
-- Missing error handling
-- Documentation updates
-- Minor UX improvements
-- Refactoring for clarity
+- Prompt improvements that maintain the existing flow
+- Bug fixes (blockers: fix now, others: create task)
+- Finalizing and merging completed work
+- Creating tasks for discovered issues
 
-## Commands
+## Commands Reference
 
 | Action | Command |
 |--------|---------|
 | Status | `orc status --plain` |
-| Run | `orc run TASK-XXX` (background, then stop) |
-| Create bug | `orc new "Fix: ..." --priority high --category bug` |
-| Create feature | `orc new "Feature: ..." --category feature` |
-| Build | `make build` |
-| Test | `make test` |
-| Diff | `orc diff TASK-XXX --stat` |
+| Run task | `orc run TASK-XXX` (background) |
 | Show task | `orc show TASK-XXX --plain` |
 | Read spec | `orc show TASK-XXX --spec --plain` |
+| View diff | `orc diff TASK-XXX --stat` |
+| View log | `orc log TASK-XXX` |
+| Finalize | `orc finalize TASK-XXX` |
+| Create task | `orc new "..." --priority X --category Y` |
+| Build | `make build` |
+| Test | `make test-short` |
 | Show initiative | `orc initiative show INIT-XXX --plain` |
 
-## The Discovery Mindset (Always On)
+## The Quality Mindset
 
-You're building the tool you're using. **Every interaction is a test.**
+You're the Tech Lead. Your job is shipping good work, not finding problems.
 
-### Priority Order
-1. **Bugs you discover** → higher priority than the task that exposed them
-2. **Friction you feel** → create task immediately, assess if it blocks you
-3. **Edge cases that surprise you** → these are the most valuable finds
-4. **The original task** → secondary to improving the tool
+**When things work well**: Get it merged, move on.
+**When quality is lacking**: Diagnose root cause, fix the system, not just the symptom.
+**When bugs appear**: Fix blockers, defer the rest.
 
-### Friction Signals (Watch For These)
-- Can't do something with a CLI command → missing command
-- Have to manually edit a file that should have a command → missing command
-- Confusing error message → bad UX
-- Multiple commands for one action → missing convenience command
-- Can't find information easily → bad output/docs
-- Repeating the same sequence → missing automation
-- "This would be easier if..." → missing feature
-- Annoyed by anything → that's a bug
-
-### The Loop
-1. Use orc to do work
-2. **Watch every interaction critically**
-3. Notice what's hard/missing/broken
-4. Create task for it
-5. If blocker, pivot and fix it
-6. Continue with improved tool
-
-**Don't complete a session without finding at least one issue.** If orc worked perfectly, you weren't looking hard enough.
+The measure of success is: high-quality PRs merged, systemic issues identified and fixed, work flowing smoothly.
