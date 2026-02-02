@@ -305,9 +305,10 @@ interface IconProps {
 	name: IconName;
 	size?: number;
 	className?: string;
+	'data-testid'?: string;
 }
 
-export function Icon({ name, size = 20, className = '' }: IconProps) {
+export function Icon({ name, size = 20, className = '', 'data-testid': dataTestId }: IconProps) {
 	const iconPath = icons[name] || icons.error;
 
 	return (
@@ -323,6 +324,7 @@ export function Icon({ name, size = 20, className = '' }: IconProps) {
 			strokeLinejoin="round"
 			className={className}
 			aria-hidden="true"
+			data-testid={dataTestId}
 			dangerouslySetInnerHTML={{ __html: iconPath }}
 		/>
 	);
