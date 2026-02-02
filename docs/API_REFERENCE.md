@@ -22,6 +22,7 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Workflows](#workflows) | `/api/workflows/*`, `/api/phase-templates/*` | Workflow and phase template configuration |
 | [Workflow Runs](#workflow-runs) | `/api/workflow-runs/*` | Workflow execution instances |
 | [Real-time](#websocket-protocol) | `/api/ws` | WebSocket events |
+| [Feedback](#feedbackservice) | Connect RPC | Real-time user feedback to agents |
 
 ---
 
@@ -38,7 +39,7 @@ All Connect RPC services accept a `project_id` field in their request messages. 
 - The server maintains an LRU cache of project databases
 - When `project_id` is provided, the request is routed to that project's SQLite database
 - When `project_id` is empty, the server uses the CWD-based legacy backend (single project)
-- All project-scoped services follow this pattern: TaskService, InitiativeService, WorkflowService, TranscriptService, EventService, ConfigService, HostingService, DashboardService, DecisionService, NotificationService, BranchService
+- All project-scoped services follow this pattern: TaskService, InitiativeService, WorkflowService, TranscriptService, EventService, ConfigService, HostingService, DashboardService, DecisionService, NotificationService, BranchService, FeedbackService
 
 **Services with project_id support:**
 
@@ -56,6 +57,7 @@ All Connect RPC services accept a `project_id` field in their request messages. 
 | TranscriptService | `transcript.proto` | All request messages |
 | EventService | `events.proto` | All request messages |
 | ProjectService | `project.proto` | N/A (manages projects themselves, not project-scoped) |
+| FeedbackService | `feedback.proto` | AddFeedback, ListFeedback, SendFeedback, DeleteFeedback |
 
 **REST API mapping:** For REST endpoints, `project_id` is passed as a query parameter (`?project_id=abc123`) or derived from the URL path (`/api/projects/:id/tasks`). File serving endpoints (`/files/tasks/{id}/attachments/*`, `/files/tasks/{id}/test-results/*`) and export/import endpoints (`/api/export`, `/api/import`) also accept `?project_id=...` for project routing.
 
@@ -2050,6 +2052,153 @@ Connect RPC service for user notifications. All requests accept `project_id`. Se
 | `source_id` | string (optional) | Source entity ID |
 | `created_at` | timestamp | When notification was created |
 | `expires_at` | timestamp (optional) | When notification expires |
+
+---
+
+## FeedbackService
+
+Real-time user feedback to agents during task execution. Supports timing options for when feedback is delivered.
+
+**Connect RPC Service:** `orc.v1.FeedbackService`
+
+| Method | Description |
+|--------|-------------|
+| `AddFeedback` | Add feedback for a task |
+| `ListFeedback` | List feedback for a task |
+| `SendFeedback` | Mark all pending feedback as received |
+| `DeleteFeedback` | Delete specific feedback |
+
+### Feedback Types
+
+| Type | Description |
+|------|-------------|
+| `FEEDBACK_TYPE_GENERAL` | General comment or feedback |
+| `FEEDBACK_TYPE_INLINE` | Code comment (requires file + line) |
+| `FEEDBACK_TYPE_APPROVAL` | Approval or acknowledgement |
+| `FEEDBACK_TYPE_DIRECTION` | Direction change request |
+
+### Feedback Timing
+
+| Timing | Behavior |
+|--------|----------|
+| `FEEDBACK_TIMING_NOW` | Send immediately, pauses running task |
+| `FEEDBACK_TIMING_WHEN_DONE` | Queue until current phase completes |
+| `FEEDBACK_TIMING_MANUAL` | Save for later manual send |
+
+### AddFeedback
+
+```protobuf
+rpc AddFeedback(AddFeedbackRequest) returns (AddFeedbackResponse)
+```
+
+**Request:**
+```json
+{
+  "project_id": "abc123",
+  "task_id": "TASK-001",
+  "type": "FEEDBACK_TYPE_GENERAL",
+  "text": "Consider using a map instead of a slice",
+  "timing": "FEEDBACK_TIMING_WHEN_DONE"
+}
+```
+
+**Inline feedback (code comment):**
+```json
+{
+  "project_id": "abc123",
+  "task_id": "TASK-001",
+  "type": "FEEDBACK_TYPE_INLINE",
+  "text": "This function should handle the nil case",
+  "timing": "FEEDBACK_TIMING_WHEN_DONE",
+  "file": "internal/api/server.go",
+  "line": 42
+}
+```
+
+**Response:**
+```json
+{
+  "feedback": {
+    "id": "FB-a1b2c3d4",
+    "task_id": "TASK-001",
+    "type": "FEEDBACK_TYPE_GENERAL",
+    "text": "Consider using a map instead of a slice",
+    "timing": "FEEDBACK_TIMING_WHEN_DONE",
+    "received": false,
+    "created_at": "2026-01-15T10:30:00Z"
+  }
+}
+```
+
+### ListFeedback
+
+```protobuf
+rpc ListFeedback(ListFeedbackRequest) returns (ListFeedbackResponse)
+```
+
+**Request:**
+```json
+{
+  "project_id": "abc123",
+  "task_id": "TASK-001",
+  "exclude_received": true
+}
+```
+
+**Response:**
+```json
+{
+  "feedback": [
+    {
+      "id": "FB-a1b2c3d4",
+      "task_id": "TASK-001",
+      "type": "FEEDBACK_TYPE_GENERAL",
+      "text": "Consider using a map instead of a slice",
+      "timing": "FEEDBACK_TIMING_WHEN_DONE",
+      "received": false,
+      "created_at": "2026-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+### SendFeedback
+
+Marks all pending feedback for a task as received. Returns count of feedback items sent.
+
+```protobuf
+rpc SendFeedback(SendFeedbackRequest) returns (SendFeedbackResponse)
+```
+
+**Request:**
+```json
+{
+  "project_id": "abc123",
+  "task_id": "TASK-001"
+}
+```
+
+**Response:**
+```json
+{
+  "sent_count": 3
+}
+```
+
+### DeleteFeedback
+
+```protobuf
+rpc DeleteFeedback(DeleteFeedbackRequest) returns (DeleteFeedbackResponse)
+```
+
+**Request:**
+```json
+{
+  "project_id": "abc123",
+  "task_id": "TASK-001",
+  "feedback_id": "FB-a1b2c3d4"
+}
+```
 
 ---
 
