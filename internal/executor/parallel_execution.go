@@ -13,12 +13,14 @@ package executor
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
 )
 
@@ -41,9 +43,7 @@ func newSafeVarsFrom(initial map[string]string) *safeVars {
 	sv := &safeVars{
 		vars: make(map[string]string, len(initial)),
 	}
-	for k, v := range initial {
-		sv.vars[k] = v
-	}
+	maps.Copy(sv.vars, initial)
 	return sv
 }
 
@@ -66,9 +66,7 @@ func (sv *safeVars) Clone() map[string]string {
 	sv.mu.RLock()
 	defer sv.mu.RUnlock()
 	result := make(map[string]string, len(sv.vars))
-	for k, v := range sv.vars {
-		result[k] = v
-	}
+	maps.Copy(result, sv.vars)
 	return result
 }
 
@@ -81,9 +79,7 @@ func (sv *safeVars) MergeFrom(other *safeVars) {
 	defer other.mu.RUnlock()
 	sv.mu.Lock()
 	defer sv.mu.Unlock()
-	for k, v := range other.vars {
-		sv.vars[k] = v
-	}
+	maps.Copy(sv.vars, other.vars)
 }
 
 // parallelPhaseResult holds the result of a parallel phase execution.
@@ -129,6 +125,12 @@ func (we *WorkflowExecutor) executeLevelParallel(
 	if len(phases) == 1 {
 		return we.executeSinglePhase(ctx, phases[0], vars, baseRctx, run, t, varDefs)
 	}
+
+	// Set flag to indicate we're in parallel level - this prevents task state updates
+	// during execution to avoid race conditions. Task state will be updated after
+	// all phases in this level complete.
+	we.inParallelLevel = true
+	defer func() { we.inParallelLevel = false }()
 
 	// Parallel execution with errgroup
 	g, gctx := errgroup.WithContext(ctx)
@@ -277,9 +279,7 @@ func (we *WorkflowExecutor) executeParallelPhase(
 	// Re-resolve variables with updated context
 	// Create a read-only copy of vars for this goroutine
 	localVars := make(map[string]string, len(vars))
-	for k, v := range vars {
-		localVars[k] = v
-	}
+	maps.Copy(localVars, vars)
 
 	resolvedVars, err := we.resolver.ResolveAll(ctx, varDefs, rctx)
 	if err != nil {
@@ -296,6 +296,8 @@ func (we *WorkflowExecutor) executeParallelPhase(
 	}
 
 	// Execute phase with timeout
+	// Note: Task state updates are skipped when inParallelLevel is true (checked in executePhase)
+	// This avoids race conditions when multiple phases run concurrently.
 	phaseResult, err := we.executePhaseWithTimeout(ctx, tmpl, phase, localVars, rctx, run, runPhase, t)
 
 	// Collect output variables (thread-safe)
@@ -321,45 +323,103 @@ func cloneResolutionContext(rctx *variable.ResolutionContext) *variable.Resoluti
 
 	// Create a new context with copied values
 	clone := &variable.ResolutionContext{
-		TaskID:           rctx.TaskID,
-		TaskTitle:        rctx.TaskTitle,
-		TaskDescription:  rctx.TaskDescription,
-		TaskWeight:       rctx.TaskWeight,
-		TaskCategory:     rctx.TaskCategory,
-		WorkflowID:       rctx.WorkflowID,
-		WorkflowName:     rctx.WorkflowName,
-		Phase:            rctx.Phase,
-		ReviewRound:      rctx.ReviewRound,
-		LoopIteration:    rctx.LoopIteration,
+		// Task context
+		TaskID:          rctx.TaskID,
+		TaskTitle:       rctx.TaskTitle,
+		TaskDescription: rctx.TaskDescription,
+		TaskWeight:      rctx.TaskWeight,
+		TaskCategory:    rctx.TaskCategory,
+
+		// Workflow context
+		WorkflowID:    rctx.WorkflowID,
+		WorkflowRunID: rctx.WorkflowRunID,
+		Phase:         rctx.Phase,
+		Iteration:     rctx.Iteration,
+
+		// Retry context
+		RetryAttempt:   rctx.RetryAttempt,
+		RetryFromPhase: rctx.RetryFromPhase,
+		RetryReason:    rctx.RetryReason,
+
+		// Path context
+		WorkingDir:  rctx.WorkingDir,
+		ProjectRoot: rctx.ProjectRoot,
+
+		// Prompt context
+		Prompt:       rctx.Prompt,
+		Instructions: rctx.Instructions,
+
+		// Git context
+		TargetBranch: rctx.TargetBranch,
+		TaskBranch:   rctx.TaskBranch,
+
+		// Constitution and patterns
+		ConstitutionContent: rctx.ConstitutionContent,
+		ErrorPatterns:       rctx.ErrorPatterns,
+
+		// Initiative context
+		InitiativeID:        rctx.InitiativeID,
+		InitiativeTitle:     rctx.InitiativeTitle,
+		InitiativeVision:    rctx.InitiativeVision,
+		InitiativeDecisions: rctx.InitiativeDecisions,
+		InitiativeTasks:     rctx.InitiativeTasks,
+
+		// Review context
+		ReviewRound:    rctx.ReviewRound,
+		ReviewFindings: rctx.ReviewFindings,
+		LoopIteration:  rctx.LoopIteration,
+
+		// Project detection
+		Language:     rctx.Language,
+		HasFrontend:  rctx.HasFrontend,
+		HasTests:     rctx.HasTests,
+		TestCommand:  rctx.TestCommand,
+		LintCommand:  rctx.LintCommand,
+		BuildCommand: rctx.BuildCommand,
+
+		// Testing configuration
+		CoverageThreshold: rctx.CoverageThreshold,
+
+		// UI testing context
+		RequiresUITesting: rctx.RequiresUITesting,
+		ScreenshotDir:     rctx.ScreenshotDir,
+		TestResults:       rctx.TestResults,
+		TDDTestPlan:       rctx.TDDTestPlan,
+
+		// Automation context
+		RecentCompletedTasks: rctx.RecentCompletedTasks,
+		RecentChangedFiles:   rctx.RecentChangedFiles,
+		ChangelogContent:     rctx.ChangelogContent,
+		ClaudeMDContent:      rctx.ClaudeMDContent,
+
+		// QA E2E testing context
 		QAIteration:      rctx.QAIteration,
 		QAMaxIterations:  rctx.QAMaxIterations,
 		QAFindings:       rctx.QAFindings,
+		BeforeImages:     rctx.BeforeImages,
 		PreviousFindings: rctx.PreviousFindings,
-		WorktreePath:     rctx.WorktreePath,
-		ProjectRoot:      rctx.ProjectRoot,
-		TargetBranch:     rctx.TargetBranch,
-		InitiativeID:     rctx.InitiativeID,
-		InitiativeVision: rctx.InitiativeVision,
+	}
+
+	// Clone slices
+	if len(rctx.Frameworks) > 0 {
+		clone.Frameworks = make([]string, len(rctx.Frameworks))
+		copy(clone.Frameworks, rctx.Frameworks)
 	}
 
 	// Clone maps
 	if rctx.PhaseOutputVars != nil {
 		clone.PhaseOutputVars = make(map[string]string, len(rctx.PhaseOutputVars))
-		for k, v := range rctx.PhaseOutputVars {
-			clone.PhaseOutputVars[k] = v
-		}
+		maps.Copy(clone.PhaseOutputVars, rctx.PhaseOutputVars)
 	}
 
 	if rctx.PriorOutputs != nil {
 		clone.PriorOutputs = make(map[string]string, len(rctx.PriorOutputs))
-		for k, v := range rctx.PriorOutputs {
-			clone.PriorOutputs[k] = v
-		}
+		maps.Copy(clone.PriorOutputs, rctx.PriorOutputs)
 	}
 
-	if rctx.Decisions != nil {
-		clone.Decisions = make([]variable.Decision, len(rctx.Decisions))
-		copy(clone.Decisions, rctx.Decisions)
+	if rctx.Environment != nil {
+		clone.Environment = make(map[string]string, len(rctx.Environment))
+		maps.Copy(clone.Environment, rctx.Environment)
 	}
 
 	return clone
@@ -382,33 +442,156 @@ func normalizeVarName(phaseID string) string {
 	return string(result)
 }
 
-// isLevelFullyCompleted checks if all phases in a level are in a terminal state.
-// Used for resume logic to determine if a level can be skipped.
-func isLevelFullyCompleted(t *orcv1.Task, phases []*db.WorkflowPhase) bool {
-	if t == nil || t.Execution == nil {
-		return false
+// runPhasesParallel executes all phases using level-based parallel execution.
+// Phases at the same level (no dependencies between them) run concurrently.
+// Levels are executed sequentially, waiting for all phases in a level to complete
+// before starting the next level.
+//
+// This is the parallel execution entry point, called from Run when parallelExecution is enabled.
+func (we *WorkflowExecutor) runPhasesParallel(
+	ctx context.Context,
+	phases []*db.WorkflowPhase,
+	vars map[string]string,
+	rctx *variable.ResolutionContext,
+	run *db.WorkflowRun,
+	t *orcv1.Task,
+	varDefs []variable.Definition,
+) ([]PhaseResult, error) {
+	// Compute execution levels from dependency graph
+	levels, err := computeExecutionLevels(phases)
+	if err != nil {
+		return nil, fmt.Errorf("compute execution levels: %w", err)
 	}
-	for _, p := range phases {
-		if ps, ok := t.Execution.Phases[p.PhaseTemplateID]; ok {
-			if !IsPhaseTerminalForResume(ps.Status) {
-				return false
+
+	if len(levels) == 0 {
+		return nil, nil
+	}
+
+	results := make([]PhaseResult, 0, len(phases))
+	mergedVars := newSafeVarsFrom(vars)
+
+	// Process levels sequentially, phases within levels in parallel
+	for levelIdx, level := range levels {
+		// Filter out already-completed phases for resume support
+		var phasesToRun []*db.WorkflowPhase
+		for _, phase := range level {
+			if t != nil {
+				if ps, ok := t.Execution.Phases[phase.PhaseTemplateID]; ok {
+					if IsPhaseTerminalForResume(ps.Status) {
+						we.logger.Info("skipping terminal phase (parallel)", "phase", phase.PhaseTemplateID, "status", ps.Status)
+						// Load content from completed phase for variable chaining
+						if output, err := we.backend.GetPhaseOutput(run.ID, phase.PhaseTemplateID); err == nil && output != nil {
+							mergedVars.Set("OUTPUT_"+phase.PhaseTemplateID, output.Content)
+							if output.OutputVarName != "" {
+								mergedVars.Set(output.OutputVarName, output.Content)
+							}
+						}
+						continue
+					}
+				}
 			}
-		} else {
-			return false
+			phasesToRun = append(phasesToRun, phase)
+		}
+
+		if len(phasesToRun) == 0 {
+			continue
+		}
+
+		we.logger.Info("executing level",
+			"level", levelIdx,
+			"phases", len(phasesToRun),
+			"run_id", run.ID,
+		)
+
+		// Execute phases in this level in parallel
+		levelResults, outputVars, levelErr := we.executeLevelParallel(
+			ctx,
+			phasesToRun,
+			mergedVars.Clone(),
+			rctx,
+			run,
+			t,
+			varDefs,
+		)
+
+		// Collect results
+		for _, pr := range levelResults {
+			results = append(results, pr.result)
+		}
+
+		// Merge output variables from this level
+		if outputVars != nil {
+			mergedVars.MergeFrom(outputVars)
+		}
+
+		// Update task state for all completed phases in this level (deferred from parallel execution)
+		// This is done sequentially after all parallel phases complete to avoid race conditions.
+		if t != nil && len(phasesToRun) > 1 {
+			we.updateTaskStateAfterLevel(levelResults, t, run)
+		}
+
+		// On error, stop execution (DEC-008: cancel siblings already done by errgroup)
+		if levelErr != nil {
+			we.logger.Error("level execution failed",
+				"level", levelIdx,
+				"error", levelErr,
+			)
+			return results, levelErr
 		}
 	}
-	return true
+
+	return results, nil
 }
 
-// findPhaseInLevels locates a phase by ID across all levels and returns its level index.
-// Returns -1 if not found.
-func findPhaseInLevels(levels [][]*db.WorkflowPhase, phaseID string) int {
-	for i, level := range levels {
-		for _, p := range level {
-			if p.PhaseTemplateID == phaseID {
-				return i
+// updateTaskStateAfterLevel updates the task state for all phases that completed
+// in a parallel level. This is called after all phases in the level have finished
+// to avoid race conditions during concurrent execution.
+func (we *WorkflowExecutor) updateTaskStateAfterLevel(results []parallelPhaseResult, t *orcv1.Task, _ *db.WorkflowRun) { //nolint:unparam
+	if t == nil || t.Execution == nil {
+		return
+	}
+
+	for _, pr := range results {
+		if pr.phase == nil {
+			continue
+		}
+
+		phaseID := pr.phase.PhaseTemplateID
+
+		// Only update state for successful phases
+		if pr.err != nil {
+			continue
+		}
+
+		// Create checkpoint commit for this phase so `orc rewind` works
+		commitSHA := ""
+		if we.gitOps != nil {
+			checkpoint, err := we.gitOps.CreateCheckpoint(t.Id, phaseID, "completed")
+			if err != nil {
+				we.logger.Debug("no checkpoint created (parallel)", "phase", phaseID, "reason", err)
+			} else if checkpoint != nil {
+				commitSHA = checkpoint.CommitSHA
 			}
 		}
+
+		// Update phase state
+		task.CompletePhaseProto(t.Execution, phaseID, commitSHA)
+
+		// Add cost from this phase
+		task.AddCostProto(t.Execution, phaseID, pr.result.CostUSD)
 	}
-	return -1
+
+	// Set current phase to the last completed phase in this level
+	// (for status display - during parallel execution this is somewhat arbitrary)
+	if len(results) > 0 {
+		lastPhase := results[len(results)-1]
+		if lastPhase.phase != nil && lastPhase.err == nil {
+			task.SetCurrentPhaseProto(t, lastPhase.phase.PhaseTemplateID)
+		}
+	}
+
+	// Save task state once after all phases updated
+	if err := we.backend.SaveTask(t); err != nil {
+		we.logger.Warn("failed to save task state after parallel level", "error", err)
+	}
 }

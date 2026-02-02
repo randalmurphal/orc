@@ -120,6 +120,13 @@ type WorkflowExecutor struct {
 	fileWatcher  *FileWatcher
 	isResuming   bool              // True if resuming a paused/failed/blocked task
 	skipGates    bool              // When true, bypass all gate evaluations
+	parallelExecution bool         // When true, execute independent phases in parallel
+
+	// inParallelLevel is true while executing a parallel level with multiple phases.
+	// When set, task state updates (checkpoints, phase completion) are skipped in
+	// executePhase/executePhaseWithTimeout to avoid race conditions. Task state is
+	// updated after the level completes via updateTaskStateAfterLevel.
+	inParallelLevel bool
 
 	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
 	turnExecutor TurnExecutor
@@ -192,6 +199,15 @@ func WithWorkflowTriggerRunner(runner trigger.Runner) WorkflowExecutorOption {
 func WithSkipGates(skip bool) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
 		we.skipGates = skip
+	}
+}
+
+// WithParallelExecution enables parallel execution of independent phases.
+// When enabled, phases at the same execution level (no dependencies between them)
+// are executed concurrently using errgroup.WithContext.
+func WithParallelExecution(enabled bool) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.parallelExecution = enabled
 	}
 }
 
@@ -539,6 +555,41 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		PhaseResults: make([]PhaseResult, 0, len(phases)),
 	}
 
+	// Parallel execution path: execute phases in parallel by dependency level
+	// This is enabled via WithParallelExecution(true) option
+	if we.parallelExecution {
+		we.logger.Info("using parallel execution", "workflow", workflowID)
+		phaseResults, err := we.runPhasesParallel(execCtx, phases, vars, rctx, run, t, varDefs)
+		result.PhaseResults = phaseResults
+
+		if err != nil {
+			we.failRun(run, t, err)
+			return result, err
+		}
+
+		// Complete the run successfully
+		run.Status = string(workflow.RunStatusCompleted)
+		run.CompletedAt = timePtr(time.Now())
+		if saveErr := we.backend.SaveWorkflowRun(run); saveErr != nil {
+			return result, fmt.Errorf("complete run: %w", saveErr)
+		}
+
+		// Sync task status to Completed
+		if t != nil {
+			t.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+			t.CompletedAt = timestamppb.Now()
+			if saveErr := we.backend.SaveTask(t); saveErr != nil {
+				we.logger.Error("failed to save task status completed", "task_id", t.Id, "error", saveErr)
+			}
+			we.publishTaskUpdated(t)
+		}
+
+		result.CompletedAt = timePtr(time.Now())
+		result.Success = true
+		return result, nil
+	}
+
+	// Sequential execution path (default): execute phases one at a time
 	// Fallback loop/retry counts for non-task contexts (no PhaseState available).
 	// For task contexts, PhaseState.Iterations is the authoritative counter.
 	fallbackLoopCounts := make(map[string]int)

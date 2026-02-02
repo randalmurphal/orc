@@ -318,7 +318,9 @@ func (we *WorkflowExecutor) executePhase(
 	we.recordCostToGlobal(t, tmpl.ID, result, phaseModel, time.Since(startTime))
 
 	// Update execution state if available (Task-centric approach)
-	if we.task != nil {
+	// Skip during parallel level execution to avoid race conditions - task state
+	// will be updated after the parallel level completes (see runPhasesParallel).
+	if we.task != nil && !we.inParallelLevel {
 		// Create checkpoint commit for this phase so `orc rewind` works
 		commitSHA := ""
 		if we.gitOps != nil {
@@ -794,7 +796,9 @@ func (we *WorkflowExecutor) executePhaseWithTimeout(
 ) (PhaseResult, error) {
 	// Update task.CurrentPhase BEFORE phase execution begins (SC-1, SC-3).
 	// This ensures `orc status` can read the current phase directly from the task record.
-	if t != nil {
+	// Skip during parallel level execution to avoid race conditions - during parallel
+	// execution, the workflow run tracks progress instead.
+	if t != nil && !we.inParallelLevel {
 		task.SetCurrentPhaseProto(t, tmpl.ID)
 		if err := we.backend.SaveTask(t); err != nil {
 			// Non-fatal: workflow run still tracks the phase. Log and continue.
