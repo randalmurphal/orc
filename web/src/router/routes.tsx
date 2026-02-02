@@ -4,9 +4,10 @@ import { RouteObject, Navigate, Outlet } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PageLoader } from '@/components/ui/PageLoader';
-import { NewTaskModal, ProjectSwitcher } from '@/components/overlays';
+import { NewTaskWorkflowModal, ProjectSwitcher } from '@/components/overlays';
 import { useTaskStore } from '@/stores/taskStore';
 import { useCurrentProjectId, useProjectLoading } from '@/stores';
+import type { Task } from '@/gen/orc/v1/task_pb';
 
 // Lazy-loaded page components for code splitting
 // Each becomes a separate chunk, loaded on-demand when the route is visited
@@ -135,10 +136,10 @@ function AppShellLayout() {
 			>
 				<Outlet />
 			</AppShell>
-			<NewTaskModal
+			<NewTaskWorkflowModal
 				open={showNewTaskModal}
 				onClose={() => setShowNewTaskModal(false)}
-				onCreate={(task) => useTaskStore.getState().addTask(task)}
+				onCreate={(task: Task) => useTaskStore.getState().addTask(task)}
 			/>
 			<ProjectSwitcher
 				open={showProjectSwitcher}

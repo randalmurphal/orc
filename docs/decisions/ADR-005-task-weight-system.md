@@ -1,7 +1,8 @@
 # ADR-005: Task Weight System
 
-**Status**: Accepted  
+**Status**: Superseded
 **Date**: 2026-01-10
+**Superseded by**: INIT-037 DEC-003 (workflow-first task creation) - 2026-02-01
 
 ---
 
