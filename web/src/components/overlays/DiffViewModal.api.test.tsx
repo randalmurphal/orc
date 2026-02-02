@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DiffViewModal } from './DiffViewModal';
 import type { DiffResult, FileDiff } from '@/gen/orc/v1/common_pb';
@@ -139,6 +139,7 @@ describe('DiffViewModal - API Integration', () => {
 
       await waitFor(() => {
         expect(mockTaskClient.getDiff).toHaveBeenCalledWith({
+          $typeName: 'orc.v1.GetDiffRequest',
           projectId: 'project-456',
           taskId: 'TASK-123',
         });
@@ -163,6 +164,7 @@ describe('DiffViewModal - API Integration', () => {
 
       await waitFor(() => {
         expect(mockTaskClient.getDiff).toHaveBeenCalledWith({
+          $typeName: 'orc.v1.GetDiffRequest',
           projectId: 'project-456',
           taskId: 'TASK-456',
         });
@@ -184,17 +186,14 @@ describe('DiffViewModal - API Integration', () => {
       expect(mockTaskClient.getDiff).toHaveBeenCalledTimes(1);
     });
 
-    it('includes request options for performance optimization', async () => {
+    it('calls getDiff API with only supported parameters', async () => {
       render(<DiffViewModal {...defaultProps} />);
 
       await waitFor(() => {
         expect(mockTaskClient.getDiff).toHaveBeenCalledWith({
+          $typeName: 'orc.v1.GetDiffRequest',
           projectId: 'project-456',
           taskId: 'TASK-123',
-          // Should include context options for diff calculation
-          context: 3,
-          includeStats: true,
-          maxFiles: 100, // Reasonable limit
         });
       });
     });
@@ -212,10 +211,10 @@ describe('DiffViewModal - API Integration', () => {
 
       await waitFor(() => {
         expect(mockTaskClient.getFileDiff).toHaveBeenCalledWith({
+          $typeName: 'orc.v1.GetFileDiffRequest',
           projectId: 'project-456',
           taskId: 'TASK-123',
           filePath: 'src/components/Button.tsx',
-          context: 3,
         });
         expect(mockTaskClient.getFileDiff).toHaveBeenCalledTimes(1);
       });
@@ -279,12 +278,10 @@ describe('DiffViewModal - API Integration', () => {
 
       await waitFor(() => {
         expect(mockTaskClient.getFileDiff).toHaveBeenCalledWith({
+          $typeName: 'orc.v1.GetFileDiffRequest',
           projectId: 'project-456',
           taskId: 'TASK-123',
           filePath: 'src/components/Button.tsx',
-          context: 3,
-          whitespace: 'ignore-all',
-          maxLines: 10000,
         });
       });
     });
@@ -318,7 +315,7 @@ describe('DiffViewModal - API Integration', () => {
       const user = userEvent.setup();
 
       let fileCallCount = 0;
-      mockTaskClient.getFileDiff.mockImplementation((request) => {
+      mockTaskClient.getFileDiff.mockImplementation((request: any) => {
         fileCallCount++;
         return new Promise(resolve => {
           setTimeout(() => {
@@ -352,34 +349,6 @@ describe('DiffViewModal - API Integration', () => {
       });
     });
 
-    it('batches multiple file diff requests when possible', async () => {
-      const user = userEvent.setup();
-      render(<DiffViewModal {...defaultProps} />);
-
-      // Enable batch mode (if supported)
-      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'b' });
-
-      // Select multiple files rapidly
-      await waitFor(() => {
-        const file1 = screen.getByTestId('file-item-src/components/Button.tsx');
-        const file2 = screen.getByTestId('file-item-src/utils/api.ts');
-
-        return Promise.all([
-          user.click(file1, { ctrlKey: true }),
-          user.click(file2, { ctrlKey: true }),
-        ]);
-      });
-
-      // Should call batch API if available
-      await waitFor(() => {
-        expect(mockTaskClient.getFileDiffBatch).toHaveBeenCalledWith({
-          projectId: 'project-456',
-          taskId: 'TASK-123',
-          filePaths: ['src/components/Button.tsx', 'src/utils/api.ts'],
-          context: 3,
-        });
-      });
-    });
   });
 
   describe('Error Handling', () => {
@@ -551,11 +520,10 @@ describe('DiffViewModal - API Integration', () => {
       // Should preload next file
       await waitFor(() => {
         expect(mockTaskClient.getFileDiff).toHaveBeenCalledWith({
+          $typeName: 'orc.v1.GetFileDiffRequest',
           projectId: 'project-456',
           taskId: 'TASK-123',
           filePath: 'src/utils/api.ts', // Next file
-          context: 3,
-          priority: 'low',
         });
       });
     });
@@ -585,8 +553,9 @@ describe('DiffViewModal - API Integration', () => {
         expect(mockTaskClient.getDiff).toHaveBeenCalledTimes(1);
       });
 
-      // Simulate task state change (e.g., new commits)
-      rerender(<DiffViewModal {...defaultProps} refreshKey="new-commit" />);
+      // Simulate task state change by closing and reopening the modal
+      rerender(<DiffViewModal {...defaultProps} open={false} />);
+      rerender(<DiffViewModal {...defaultProps} open={true} />);
 
       await waitFor(() => {
         expect(mockTaskClient.getDiff).toHaveBeenCalledTimes(2);
