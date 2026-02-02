@@ -83,7 +83,7 @@ orc run TASK-001
 orc run TASK-002
 ```
 
-Set `run_in_background: true` on each Bash call, then **stop and wait**. You will be notified when tasks complete.
+Set `run_in_background: true` on each Bash call. After launching, **stop responding and end your turn**. Do NOT use sleep commands or polling loops. The system will notify you when background tasks complete, and you'll continue from Step 5.
 
 ## Step 5: Validate Completed Work
 
