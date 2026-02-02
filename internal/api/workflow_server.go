@@ -183,6 +183,9 @@ func (s *workflowServer) CreateWorkflow(
 	if req.Msg.CompletionAction != nil {
 		w.CompletionAction = *req.Msg.CompletionAction
 	}
+	if req.Msg.TargetBranch != nil {
+		w.TargetBranch = *req.Msg.TargetBranch
+	}
 
 	if err := s.globalDB.SaveWorkflow(w); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save workflow: %w", err))
@@ -226,6 +229,9 @@ func (s *workflowServer) UpdateWorkflow(
 		if req.Msg.CompletionAction != nil {
 			dbWf.CompletionAction = *req.Msg.CompletionAction
 		}
+		if req.Msg.TargetBranch != nil {
+			dbWf.TargetBranch = *req.Msg.TargetBranch
+		}
 
 		// Save to database
 		if err := s.globalDB.SaveWorkflow(dbWf); err != nil {
@@ -264,6 +270,9 @@ func (s *workflowServer) UpdateWorkflow(
 	}
 	if req.Msg.CompletionAction != nil {
 		wf.CompletionAction = *req.Msg.CompletionAction
+	}
+	if req.Msg.TargetBranch != nil {
+		wf.TargetBranch = *req.Msg.TargetBranch
 	}
 
 	// Write back to file
@@ -1540,6 +1549,8 @@ func dbWorkflowToProto(w *db.Workflow) *orcv1.Workflow {
 	}
 	// Always set completion_action, even if empty (empty means inherit from config)
 	result.CompletionAction = &w.CompletionAction
+	// Always set target_branch, even if empty (empty means inherit from config)
+	result.TargetBranch = &w.TargetBranch
 	return result
 }
 

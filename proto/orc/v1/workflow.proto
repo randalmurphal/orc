@@ -114,6 +114,7 @@ message Workflow {
   google.protobuf.Timestamp created_at = 9;
   google.protobuf.Timestamp updated_at = 10;
   optional string completion_action = 11; // "pr", "commit", "none", or "" (inherit from config)
+  optional string target_branch = 12; // Default PR target branch for this workflow, or "" (inherit from config)
 }
 
 message WorkflowPhase {
@@ -288,6 +289,7 @@ message CreateWorkflowRequest {
   bool default_thinking = 6;
   optional string based_on = 7;
   optional string completion_action = 8; // "pr", "commit", "none", or "" (inherit from config)
+  optional string target_branch = 9; // Default PR target branch for this workflow
 }
 
 message CreateWorkflowResponse {
@@ -301,6 +303,7 @@ message UpdateWorkflowRequest {
   optional string default_model = 4;
   optional bool default_thinking = 5;
   optional string completion_action = 6; // "pr", "commit", "none", or "" (inherit from config)
+  optional string target_branch = 7; // Default PR target branch for this workflow
 }
 
 message UpdateWorkflowResponse {
