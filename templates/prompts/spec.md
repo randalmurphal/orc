@@ -215,7 +215,21 @@ If you see these patterns, the task is likely under-weighted:
 **Wiring Checklist** - Every spec's success criteria MUST include:
 - All new functions are called from at least one production code path
 - All new interfaces have registered implementations
-- Integration tests verify the wiring exists
+- Integration tests that **FAIL if wiring is missing** (not just unit tests of the new code)
+
+**Behavioral Parity for Alternate Paths** - If your task adds a new execution path that mirrors an existing one (parallel vs sequential, async vs sync, cached vs uncached):
+
+| Original Path Behavior | New Path Must Also |
+|------------------------|-------------------|
+| Evaluates conditions | Evaluate same conditions |
+| Calls hooks/callbacks | Call same hooks/callbacks |
+| Updates state | Update same state |
+| Handles errors | Handle errors identically |
+| Logs/metrics | Log/emit same metrics |
+
+**Success criteria MUST include:** "New path exhibits identical observable behavior to original path for: [list behaviors]"
+
+Common failure: Parallel execution skips condition checks that sequential execution performs. The spec must call this out.
 </critical_constraints>
 
 <example_good_spec>
@@ -382,6 +396,26 @@ Answer these mandatory questions:
 | New File | Consumer | Integration Task | Included in This Spec? |
 |----------|----------|------------------|------------------------|
 | [component.tsx] | [Page or parent] | [Update import/render] | Yes / No (blocked by X) |
+
+### Behavioral Parity Analysis (for alternate execution paths)
+
+**If this task adds a parallel, async, cached, or alternate version of existing functionality:**
+
+1. **List ALL behaviors of the original path:**
+   - Condition/skip checks
+   - Pre/post hooks or callbacks
+   - State updates
+   - Error handling
+   - Logging/metrics
+
+2. **Add success criteria for each behavior:**
+   - "SC-X: New path evaluates phase conditions (verified by test that skips when condition is false)"
+   - "SC-Y: New path calls pre-phase hooks (verified by mock that asserts call)"
+
+3. **Add explicit behavioral parity test:**
+   - "Integration test runs same scenario through both paths, asserts identical observable outcomes"
+
+**If not applicable:** State "No alternate path - this is new functionality only."
 
 ## Step 6: Category-Specific Analysis
 
