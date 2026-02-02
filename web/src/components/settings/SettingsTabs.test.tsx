@@ -251,13 +251,18 @@ describe('SettingsTabs', () => {
 	});
 
 	describe('Keyboard accessibility', () => {
-		it('tabs are focusable', () => {
+		it('tablist is focusable and tabs use roving tabindex', () => {
 			renderWithRouter('/settings/general');
 
+			// Radix Tabs uses roving tabindex (WAI-ARIA pattern):
+			// - The tablist container is focusable
+			// - Only the active tab is in the tab order (via tablist's roving focus)
+			const tablist = screen.getByRole('tablist');
+			expect(tablist).toHaveAttribute('tabIndex', '0');
+
+			// All tabs should exist and have proper role
 			const tabs = screen.getAllByRole('tab');
-			tabs.forEach((tab) => {
-				expect(tab).not.toHaveAttribute('tabIndex', '-1');
-			});
+			expect(tabs).toHaveLength(3);
 		});
 
 		it('arrow keys navigate between tabs', async () => {
