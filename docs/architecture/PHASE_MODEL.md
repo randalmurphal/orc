@@ -569,6 +569,43 @@ See `internal/executor/CLAUDE.md` for the full execution flow. Key type: `db.Loo
 
 ---
 
+## Phase Dependencies
+
+Phases can declare dependencies on other phases via the `DependsOn` field on `db.WorkflowPhase`. Dependencies affect execution order and enable parallel execution.
+
+### DependsOn Format
+
+```json
+["spec", "research"]  // This phase depends on spec and research completing first
+```
+
+Dependencies are stored as a JSON array in the database. Missing or invalid dependencies are ignored (no-op).
+
+### Parallel Execution
+
+When `WithParallelExecution(true)` is enabled, phases are grouped by dependency level and executed concurrently within each level:
+
+```
+A→[B,C]→D  produces levels: [[A], [B,C], [D]]
+
+Level 0: Execute A
+Level 1: Execute B and C in parallel
+Level 2: Execute D after both complete
+```
+
+| Behavior | Description |
+|----------|-------------|
+| No dependencies | Phase runs at level 0 (can run with other level-0 phases) |
+| Linear dependencies | Each phase gets its own level (sequential execution) |
+| Diamond pattern | Independent branches run in parallel, merge point waits for all |
+| Failure in parallel group | Remaining siblings cancelled (DEC-008), first error reported |
+
+**Enabling:** `NewWorkflowExecutor(..., WithParallelExecution(true))`
+
+See `internal/executor/CLAUDE.md` for implementation details. Key functions: `computeExecutionLevels()`, `executeLevelParallel()`.
+
+---
+
 ## Linting Requirements
 
 Static analysis and linting are **mandatory** quality gates for phase completion. Linting errors are blocking issues that must be fixed before proceeding.

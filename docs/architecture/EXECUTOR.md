@@ -57,6 +57,8 @@
 - `enrichContextForPhase()` adds phase-specific context (review findings, test results)
 - `executePhaseWithTimeout()` wraps phase execution with PhaseMax timeout
 
+**Parallel Execution:** When `WithParallelExecution(true)` is enabled, phases are grouped by dependency level and executed concurrently within each level. See `internal/executor/CLAUDE.md` for details.
+
 ---
 
 ## Phase Execution Flow

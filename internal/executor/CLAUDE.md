@@ -42,6 +42,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `heartbeat.go` | Periodic heartbeat updates during execution |
 | `condition.go` | Condition evaluator: `EvaluateCondition()`, `ConditionContext` (phase skip + loop conditions) |
 | `topo_sort.go` | Phase ordering: `topologicalSort()`, `computeExecutionLevels()` (DAG execution levels for parallel phases) |
+| `parallel_execution.go` | Parallel phase execution: `safeVars`, `executeLevelParallel()`, `runPhasesParallel()`, `cloneResolutionContext()` |
 | `phase_loop_test.go` | Phase loop integration tests (10 success criteria + failure modes) |
 
 ## Architecture
@@ -52,25 +53,78 @@ WorkflowExecutor.Run()
 ├── loadWorkflow()             # Get phases from database
 ├── checkSpecRequirements()    # Validate spec exists for non-trivial weights
 ├── buildResolutionContext()   # Create variable context
-├── for each phase:
-│   ├── shouldSkipPhase()             # Evaluate phase condition (condition.go)
-│   ├── enrichContextForPhase()       # Add phase-specific context
-│   ├── resolver.ResolveAll()         # Resolve all variables
-│   ├── evaluateBeforePhaseTriggers() # Run before-phase triggers (gate/reaction)
-│   ├── evaluatePhaseGate()            # Gate evaluation (auto/human/AI via gate.Evaluator)
-│   ├── applyGateOutputToVars()       # Store gate output data as workflow variable (if configured)
-│   ├── [gate action dispatch]        # OnApproved/OnRejected → continue/retry/fail/skip/script
-│   ├── SetCurrentPhaseProto(t, id)   # Persist phase to task record (authoritative for `orc status`)
-│   ├── ApplyPhaseSettings()          # Configure Claude Code env (hooks, skills, hook scripts)
-│   ├── executePhaseWithTimeout()     # Run with timeout
-│   │   └── executeWithClaude()       # ClaudeExecutor
-│   ├── applyPhaseContentToVars()     # Store output for subsequent phases
-│   ├── evaluateLoopConfig()          # Check loop_config: condition + max_loops → jump back
-│   └── recordCostToGlobal()          # Track costs
+│
+├── [if parallelExecution enabled]
+│   └── runPhasesParallel()    # Level-based parallel execution
+│       └── for each level:
+│           └── executeLevelParallel()  # Concurrent phases via errgroup
+│
+├── [else sequential execution]
+│   └── for each phase:
+│       ├── shouldSkipPhase()             # Evaluate phase condition (condition.go)
+│       ├── enrichContextForPhase()       # Add phase-specific context
+│       ├── resolver.ResolveAll()         # Resolve all variables
+│       ├── evaluateBeforePhaseTriggers() # Run before-phase triggers
+│       ├── evaluatePhaseGate()           # Gate evaluation (auto/human/AI)
+│       ├── applyGateOutputToVars()       # Store gate output as variable
+│       ├── [gate action dispatch]        # OnApproved/OnRejected → action
+│       ├── SetCurrentPhaseProto(t, id)   # Persist phase to task
+│       ├── ApplyPhaseSettings()          # Configure Claude Code env
+│       ├── executePhaseWithTimeout()     # Run with timeout
+│       │   └── executeWithClaude()       # ClaudeExecutor
+│       ├── applyPhaseContentToVars()     # Store output for subsequent phases
+│       ├── evaluateLoopConfig()          # Check loop_config → jump back
+│       └── recordCostToGlobal()          # Track costs
+│
 ├── handleCompletionWithTriggers()    # on_task_completed gates
 ├── fireLifecycleTriggers()           # on_task_failed (on failure path)
-└── completeRun()              # Finalization, cleanup
+└── completeRun()                     # Finalization, cleanup
 ```
+
+## Parallel Execution (`parallel_execution.go`)
+
+When `WithParallelExecution(true)` is set, phases with no inter-dependencies execute concurrently.
+
+### Execution Model
+
+```
+computeExecutionLevels(phases) → [[A], [B,C], [D]]  # Diamond: A→B,C→D
+
+Level 0: [A]        → Execute A
+Level 1: [B, C]     → Execute B and C in parallel (errgroup)
+Level 2: [D]        → Execute D after both B and C complete
+```
+
+| Component | Purpose |
+|-----------|---------|
+| `computeExecutionLevels()` | Groups phases by dependency level (Kahn's algorithm) |
+| `executeLevelParallel()` | Runs phases in a level via `errgroup.WithContext` |
+| `safeVars` | Thread-safe map wrapper for collecting phase outputs |
+| `cloneResolutionContext()` | Deep-copies rctx for each goroutine |
+
+### Failure Policy (DEC-008)
+
+When a phase fails in a parallel group, remaining siblings are cancelled immediately via context cancellation. The first error is reported.
+
+### Key Invariants
+
+| ID | Invariant | Enforced By |
+|----|-----------|-------------|
+| SC-3 | Uses `errgroup.WithContext` for parallel execution | `executeLevelParallel()` |
+| SC-6 | First error in parallel group is reported | `errgroup.Wait()` returns first error |
+| SC-8 | Thread-safe variable writes via `safeVars` | `safeVars.Set()` uses mutex |
+| SC-9 | rctx cloned per goroutine | `cloneResolutionContext()` before each phase |
+| SC-10 | Single-phase levels skip goroutine overhead | `executeSinglePhase()` fast path |
+
+### Enabling Parallel Execution
+
+```go
+we := NewWorkflowExecutor(backend, pdb, cfg, workDir,
+    WithParallelExecution(true),
+)
+```
+
+**Note:** Sequential execution remains the default. Parallel execution is opt-in.
 
 ## Branch Resolution (`branch.go`)
 
