@@ -1,0 +1,124 @@
+/* FeedbackPanel.css - Styles for the feedback panel component */
+
+.feedback-panel {
+	@apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-4;
+}
+
+.feedback-panel-header {
+	@apply flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300;
+}
+
+.feedback-count {
+	@apply bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full px-2 py-1;
+}
+
+/* Pending feedback section */
+.pending-feedback {
+	@apply space-y-3 border-b border-gray-200 dark:border-gray-700 pb-4;
+}
+
+.pending-feedback-header {
+	@apply flex items-center justify-between text-sm text-gray-600 dark:text-gray-400;
+}
+
+.send-all-button {
+	@apply text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300;
+}
+
+.feedback-list {
+	@apply space-y-2;
+}
+
+.feedback-item {
+	@apply bg-gray-50 dark:bg-gray-700 rounded-md p-3 space-y-2;
+}
+
+.feedback-item-header {
+	@apply flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400;
+}
+
+.feedback-type {
+	@apply font-medium;
+}
+
+.feedback-location {
+	@apply font-mono bg-gray-200 dark:bg-gray-600 px-1 rounded text-xs;
+}
+
+.delete-button {
+	@apply ml-auto text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400;
+}
+
+.feedback-text {
+	@apply text-sm text-gray-700 dark:text-gray-300;
+}
+
+/* Form styles */
+.feedback-form {
+	@apply space-y-4;
+}
+
+.form-row {
+	@apply grid grid-cols-2 gap-3;
+}
+
+.form-group {
+	@apply space-y-1;
+}
+
+.form-group label {
+	@apply block text-xs font-medium text-gray-700 dark:text-gray-300;
+}
+
+.form-select {
+	@apply block w-full text-sm border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2
+		bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+		focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+		disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500;
+}
+
+.form-input {
+	@apply block w-full text-sm border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2
+		bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+		focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+		disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500;
+}
+
+.form-textarea {
+	@apply block w-full text-sm border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2
+		bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+		focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+		resize-y;
+}
+
+.form-actions {
+	@apply flex items-center justify-between;
+}
+
+.submit-button {
+	@apply bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium
+		disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.timing-warning {
+	@apply flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400;
+}
+
+.disabled-notice {
+	@apply flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-2 rounded;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+	.form-row {
+		@apply grid-cols-1;
+	}
+
+	.form-actions {
+		@apply flex-col items-stretch gap-2;
+	}
+
+	.timing-warning {
+		@apply justify-center;
+	}
+}
