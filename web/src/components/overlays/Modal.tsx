@@ -51,8 +51,14 @@ export function Modal({
 				<Dialog.Content
 					className={`modal-content ${sizeClasses[size]}`}
 					aria-describedby={undefined}
-					onPointerDownOutside={(e) => e.preventDefault()}
-					onInteractOutside={(e) => e.preventDefault()}
+					onPointerDownOutside={(e) => {
+						e.preventDefault();
+						onClose();
+					}}
+					onInteractOutside={(e) => {
+						e.preventDefault();
+						onClose();
+					}}
 				>
 					{/* Always provide a title for screen readers */}
 					{title ? (
