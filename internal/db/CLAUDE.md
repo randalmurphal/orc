@@ -36,6 +36,25 @@ Two database types with distinct responsibilities:
 | `schema/global_005.sql` | **Extended gate config**: gate_input_config, gate_output_config, gate_mode, gate_agent_id on phase_templates; before_triggers on workflow_phases; triggers on workflows |
 | `schema/global_006.sql` | **Hook scripts and skills tables**: `hook_scripts` (id, name, description, content, event_type, is_builtin), `skills` (id, name, description, content, supporting_files, is_builtin) |
 | `schema/project_048.sql` | **Mirrors global_005** for project DB |
+| `schema/project_052.sql` | **VIEW-based agent filtering** (orc:disable_fk migration) |
+
+### FK-Disabling Migrations
+
+SQLite's `PRAGMA foreign_keys` cannot be changed inside a transaction. For migrations that restructure tables with FK references (e.g., renaming a table that's referenced by FKs), add the marker comment at the **start** of the migration file:
+
+```sql
+-- orc:disable_fk
+-- Migration description...
+ALTER TABLE parent RENAME TO parent_storage;
+```
+
+The migration runner will:
+1. Disable FK constraints (`PRAGMA foreign_keys = OFF`)
+2. Run the migration in a transaction
+3. Re-enable FK constraints
+4. Verify no FK violations were introduced (`PRAGMA foreign_key_check`)
+
+**When to use**: Renaming tables that are FK targets, recreating tables to remove FK constraints, or any DDL that would fail with FK enforcement enabled.
 
 ## File Structure
 

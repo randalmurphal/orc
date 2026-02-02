@@ -138,24 +138,110 @@ func (d *SQLiteDriver) Migrate(ctx context.Context, schemaFS SchemaFS, schemaTyp
 			return fmt.Errorf("read migration %s: %w", name, err)
 		}
 
-		tx, err := d.db.BeginTx(ctx, nil)
-		if err != nil {
-			return fmt.Errorf("begin transaction: %w", err)
-		}
+		contentStr := string(content)
 
-		if _, err := tx.ExecContext(ctx, string(content)); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("apply migration %s: %w", name, err)
-		}
+		// Check if migration needs FK constraints disabled.
+		// This is required for complex schema changes that restructure tables with FK references.
+		// SQLite's PRAGMA foreign_keys cannot be changed inside a transaction, so these
+		// migrations run without a wrapping transaction.
+		// Marker: "-- orc:disable_fk" at start of migration file
+		needsFKOff := strings.HasPrefix(contentStr, "-- orc:disable_fk")
 
-		if _, err := tx.ExecContext(ctx, "INSERT INTO _migrations (version) VALUES (?)", version); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("record migration %s: %w", name, err)
+		if needsFKOff {
+			if err := d.applyMigrationWithFKDisabled(ctx, name, contentStr, version); err != nil {
+				return err
+			}
+		} else {
+			if err := d.applyMigrationInTx(ctx, name, contentStr, version); err != nil {
+				return err
+			}
 		}
+	}
 
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("commit migration %s: %w", name, err)
+	return nil
+}
+
+// applyMigrationInTx applies a migration within a transaction (standard path).
+func (d *SQLiteDriver) applyMigrationInTx(ctx context.Context, name, content string, version int) error {
+	tx, err := d.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, content); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("apply migration %s: %w", name, err)
+	}
+
+	if _, err := tx.ExecContext(ctx, "INSERT INTO _migrations (version) VALUES (?)", version); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("record migration %s: %w", name, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit migration %s: %w", name, err)
+	}
+
+	return nil
+}
+
+// applyMigrationWithFKDisabled applies a migration with foreign keys disabled.
+// Required for migrations that restructure tables with FK references.
+// Follows SQLite's recommended pattern: disable FKs, run DDL, re-enable, verify integrity.
+func (d *SQLiteDriver) applyMigrationWithFKDisabled(ctx context.Context, name, content string, version int) error {
+	// Disable foreign key enforcement (must be outside transaction)
+	if _, err := d.db.ExecContext(ctx, "PRAGMA foreign_keys = OFF"); err != nil {
+		return fmt.Errorf("disable foreign keys for %s: %w", name, err)
+	}
+
+	// Ensure we re-enable FKs even if migration fails
+	defer func() {
+		_, _ = d.db.ExecContext(ctx, "PRAGMA foreign_keys = ON")
+	}()
+
+	// Run migration in transaction for atomicity
+	tx, err := d.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, content); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("apply migration %s: %w", name, err)
+	}
+
+	if _, err := tx.ExecContext(ctx, "INSERT INTO _migrations (version) VALUES (?)", version); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("record migration %s: %w", name, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit migration %s: %w", name, err)
+	}
+
+	// Re-enable foreign keys and verify integrity
+	if _, err := d.db.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
+		return fmt.Errorf("re-enable foreign keys after %s: %w", name, err)
+	}
+
+	// Check for FK violations introduced by the migration
+	rows, err := d.db.QueryContext(ctx, "PRAGMA foreign_key_check")
+	if err != nil {
+		return fmt.Errorf("check foreign keys after %s: %w", name, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var violations []string
+	for rows.Next() {
+		var table, rowid, parent string
+		var fkid int
+		if err := rows.Scan(&table, &rowid, &parent, &fkid); err != nil {
+			return fmt.Errorf("scan FK violation: %w", err)
 		}
+		violations = append(violations, fmt.Sprintf("%s.rowid=%s->%s", table, rowid, parent))
+	}
+	if len(violations) > 0 {
+		return fmt.Errorf("migration %s introduced FK violations: %v", name, violations)
 	}
 
 	return nil
