@@ -41,8 +41,11 @@ func (pdb *ProjectDB) SaveAgent(a *Agent) error {
 	}
 	a.UpdatedAt = now
 
+	// Write to _agents_storage (the underlying table) to support UPSERT.
+	// The 'agents' VIEW (created by migration 052) filters out executor-* pattern
+	// but doesn't support UPSERT directly.
 	query := `
-		INSERT INTO agents (id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at)
+		INSERT INTO _agents_storage (id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
@@ -173,7 +176,8 @@ func (pdb *ProjectDB) DeleteAgent(id string) error {
 		return fmt.Errorf("cannot delete builtin agent %s", id)
 	}
 
-	_, err = pdb.Exec("DELETE FROM agents WHERE id = ?", id)
+	// Delete from underlying storage table (VIEW doesn't support direct DELETE)
+	_, err = pdb.Exec("DELETE FROM _agents_storage WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("delete agent %s: %w", id, err)
 	}
