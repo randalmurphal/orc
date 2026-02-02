@@ -185,8 +185,33 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 			</header>
 
 			<div className="workflows-view-content">
-				{/* Built-in Workflows Section */}
-				<section className="workflows-view-section">
+				{/* Your Workflows Section (formerly Custom Workflows) - moved to appear first */}
+				<section className="workflows-view-section" role="region">
+					<div className="workflows-view-section-header">
+						<h2 className="section-title">Your Workflows</h2>
+						<p className="section-subtitle">Your customized workflow configurations</p>
+					</div>
+
+					{!loading && !error && customWorkflows.length === 0 && <WorkflowsViewEmpty />}
+
+					{!loading && !error && customWorkflows.length > 0 && (
+						<div className="workflows-view-grid">
+							{customWorkflows.map((workflow) => (
+								<WorkflowCard
+									key={workflow.id}
+									workflow={workflow}
+									phaseCount={phaseCounts[workflow.id]}
+									source={workflowSources[workflow.id]}
+									onSelect={handleSelectWorkflow}
+									onClone={handleCloneWorkflow}
+								/>
+							))}
+						</div>
+					)}
+				</section>
+
+				{/* Built-in Workflows Section - moved to appear after Your Workflows */}
+				<section className="workflows-view-section" role="region">
 					<div className="workflows-view-section-header">
 						<h2 className="section-title">Built-in Workflows</h2>
 						<p className="section-subtitle">Default workflow templates (clone to customize)</p>
@@ -212,33 +237,8 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 					)}
 				</section>
 
-				{/* Custom Workflows Section */}
-				<section className="workflows-view-section">
-					<div className="workflows-view-section-header">
-						<h2 className="section-title">Custom Workflows</h2>
-						<p className="section-subtitle">Your customized workflow configurations</p>
-					</div>
-
-					{!loading && !error && customWorkflows.length === 0 && <WorkflowsViewEmpty />}
-
-					{!loading && !error && customWorkflows.length > 0 && (
-						<div className="workflows-view-grid">
-							{customWorkflows.map((workflow) => (
-								<WorkflowCard
-									key={workflow.id}
-									workflow={workflow}
-									phaseCount={phaseCounts[workflow.id]}
-									source={workflowSources[workflow.id]}
-									onSelect={handleSelectWorkflow}
-									onClone={handleCloneWorkflow}
-								/>
-							))}
-						</div>
-					)}
-				</section>
-
 				{/* Phase Templates Section */}
-				<section className="workflows-view-section">
+				<section className="workflows-view-section" role="region">
 					<div className="workflows-view-section-header">
 						<div className="workflows-view-section-header-text">
 							<h2 className="section-title">Phase Templates</h2>

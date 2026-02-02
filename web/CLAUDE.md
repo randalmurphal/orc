@@ -65,7 +65,7 @@ web/src/
 | `/settings/general/*` | SettingsLayout | Sidebar nav for Claude Code, ORC, Account sections |
 | `/settings/agents` | AgentsView | Agent configuration, execution settings |
 | `/settings/environment/*` | EnvironmentLayout | Sub-nav for hooks, skills, tools, config |
-| `/workflows` | WorkflowsPage | Workflow and phase template management |
+| `/workflows` | WorkflowsPage | Redesigned workflows management with Your Workflows/Built-in sections |
 | `/workflows/:id` | WorkflowEditorPage | Visual workflow editor (React Flow canvas) |
 | `/timeline` | TimelinePage | Event timeline with filters |
 | `/stats` | StatsPage | Dashboard statistics |
