@@ -11,6 +11,7 @@
   "quality_checklist": [
     {"id": "all_criteria_verifiable", "check": "Every SC has executable verification", "passed": true},
     {"id": "no_existence_only_criteria", "check": "SC verifies behavior, not just existence", "passed": true},
+    {"id": "no_implementation_code", "check": "Spec contains NO code snippets, pseudo-code, or algorithm descriptions", "passed": true},
     {"id": "p1_stories_independent", "check": "P1 stories can ship alone", "passed": true},
     {"id": "scope_explicit", "check": "In/out scope clearly listed", "passed": true},
     {"id": "max_3_clarifications", "check": "≤3 clarifications, rest are assumptions", "passed": true},
@@ -111,19 +112,24 @@ If blocked due to complexity exceeding weight (task too large):
 ### Out of Scope
 - [Item 1]
 
-## Technical Approach
-[Implementation approach]
+## Scope Boundary
 
-### Files to Modify
-- [file1]: [what changes]
+### Files Affected
+| File | Responsibility Change | Verification |
+|------|----------------------|--------------|
+| [path] | [what capability it gains/loses - NOT how] | [test or command] |
 
-### New Files
-- [file1]: [purpose]
+### New Files (if any)
+| File | Purpose (one sentence) |
+|------|------------------------|
+| [path] | [what it does, not how] |
 
-### Integration Requirements
-| New File | Consumer | Integration Task | Included? |
-|----------|----------|------------------|-----------|
-| [file] | [consumer] | [task] | Yes / No |
+### Integration Points
+| New Code | Connects To | Contract |
+|----------|-------------|----------|
+| [component] | [existing system] | [input → output behavior] |
+
+**DO NOT include:** Algorithms, data structures, implementation patterns, code structure, or technical approaches. Those details belong in the implement phase.
 
 ## Failure Modes
 
@@ -157,6 +163,7 @@ Self-evaluate before completing. **Implement phase blocked until all pass.**
 |----|-------|
 | all_criteria_verifiable | Every SC has executable verification |
 | no_existence_only_criteria | SC verifies behavior, not just existence (no "file exists" or "record created" without behavioral verification) |
+| no_implementation_code | Spec contains NO code snippets, pseudo-code, or algorithm descriptions (test commands OK) |
 | p1_stories_independent | P1 stories can ship alone |
 | scope_explicit | In/out scope clearly listed |
 | max_3_clarifications | ≤3 clarifications, rest are assumptions |
@@ -478,4 +485,28 @@ The bug you found in one code path likely exists in others. **You MUST check.**
 | Input/State | Expected Behavior | Test |
 |-------------|-------------------|------|
 | [edge case] | [behavior] | [test] |
+
+## Pre-Output Code Scan (MANDATORY)
+
+**Before outputting your final JSON, scan your `content` field for implementation leakage:**
+
+1. **Code blocks**: Are there any ``` blocks that aren't test commands?
+   - ❌ Function implementations, class definitions, SQL queries
+   - ✅ Test commands like `go test ./...` or `npm test`
+
+2. **Algorithm descriptions**: Did you write step-by-step logic?
+   - ❌ "Iterate through the list, check each item, return first match"
+   - ✅ "Returns the first matching item, or nil if none found"
+
+3. **Implementation patterns**: Did you specify HOW to build it?
+   - ❌ "Use a sync.Map for thread-safe caching"
+   - ✅ "Cache must be thread-safe" (let implementer choose the tool)
+
+4. **Data structures**: Did you design internal representations?
+   - ❌ "Store in a map[string][]Task indexed by project ID"
+   - ✅ "Tasks are retrievable by project"
+
+**If you find any of the above, REWRITE as behavioral description before outputting.**
+
+The implement phase will make these decisions. Your job is to define WHAT success looks like, not HOW to achieve it.
 </instructions>

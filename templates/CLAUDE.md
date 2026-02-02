@@ -250,6 +250,7 @@ Spec phases include a quality checklist that must pass before implementation:
 |-------|-------------|
 | `all_criteria_verifiable` | Every success criterion has executable verification |
 | `no_existence_only_criteria` | SC verifies behavior, not just existence |
+| `no_implementation_code` | Spec contains NO code snippets, pseudo-code, or algorithm descriptions |
 | `p1_stories_independent` | P1 stories can ship alone |
 | `scope_explicit` | In/out scope listed |
 | `max_3_clarifications` | ≤3 clarifications, rest are assumptions |

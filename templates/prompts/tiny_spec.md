@@ -27,6 +27,7 @@ Output a JSON object with the spec, test information, **explicit coverage mappin
   "quality_checklist": [
     {"id": "all_criteria_verifiable", "check": "Every SC has executable verification", "passed": true},
     {"id": "no_existence_only_criteria", "check": "SC verifies behavior, not just existence", "passed": true},
+    {"id": "no_implementation_code", "check": "Success Criteria contain NO code - only behavioral descriptions (test code is separate)", "passed": true},
     {"id": "p1_stories_independent", "check": "Task can be completed independently", "passed": true},
     {"id": "scope_explicit", "check": "What's in/out of scope is clear", "passed": true},
     {"id": "max_3_clarifications", "check": "No blocking questions remain", "passed": true},
@@ -64,10 +65,18 @@ If blocked (genuinely unclear requirements):
 <critical_constraints>
 The most common failure is success criteria that verify existence ('file exists') instead of behavior ('file does X when given Y'). Every SC must describe observable behavior.
 
+**Spec vs Test boundary:** Success criteria describe WHAT (behavior). Tests verify HOW (assertions). Don't mix them.
+
+| Section | Contains | Does NOT Contain |
+|---------|----------|------------------|
+| Success Criteria | Behavioral descriptions, expected outcomes | Code, pseudo-code, algorithms |
+| Tests Written | Actual test code, assertions | N/A - code belongs here |
+
 - Maximum 3 criteria for small tasks
 - Each must have executable verification
 - Focus on user-visible behavior, not implementation details
 - If task belongs to initiative: criteria MUST cover all relevant vision requirements
+- Success criteria are prose descriptions; test code goes in the Tests section
 
 **Complexity Check (small weight):**
 
@@ -214,4 +223,12 @@ Run: `{{TEST_COMMAND}}`
 Tests SHOULD fail or not compile. This is correct - it proves tests are testing real behavior.
 
 If tests pass before implementation, they're testing the wrong thing.
+
+## Pre-Output Check
+
+Before outputting, verify your Success Criteria table contains ONLY behavioral descriptions:
+- ✅ "API returns 400 for invalid input" (behavior)
+- ❌ "Use json.Unmarshal to parse request" (implementation)
+
+Code belongs in your test files, not in the Criterion column.
 </instructions>
