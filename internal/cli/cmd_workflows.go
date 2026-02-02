@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/workflow"
 )
@@ -93,6 +94,12 @@ Examples:
 		customOnly, _ := cmd.Flags().GetBool("custom")
 		builtinOnly, _ := cmd.Flags().GetBool("builtin")
 
+		// Load config to get default workflow
+		var defaultWorkflowID string
+		if cfg, cfgErr := config.LoadFrom(projectRoot); cfgErr == nil {
+			defaultWorkflowID = cfg.Workflow
+		}
+
 		workflows, err := resolver.ListWorkflows()
 		if err != nil {
 			return fmt.Errorf("list workflows: %w", err)
@@ -112,31 +119,31 @@ Examples:
 		}
 
 		if len(filtered) == 0 {
-			fmt.Println("No workflows found.")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No workflows found.")
 			return nil
 		}
 
 		// Display as table
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 		if showSources {
-			_, _ = fmt.Fprintln(w, "ID\tNAME\tPHASES\tSOURCE")
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tPHASES\tDEFAULT\tSOURCE")
 		} else {
-			_, _ = fmt.Fprintln(w, "ID\tNAME\tPHASES\tBUILT-IN")
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tPHASES\tDEFAULT")
 		}
 		for _, rw := range filtered {
 			phaseCount := len(rw.Workflow.Phases)
+			defaultStr := ""
+			if rw.Workflow.ID == defaultWorkflowID {
+				defaultStr = "★"
+			}
 			if showSources {
-				_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n",
 					rw.Workflow.ID, rw.Workflow.Name,
-					phaseCount, workflow.SourceDisplayName(rw.Source))
+					phaseCount, defaultStr, workflow.SourceDisplayName(rw.Source))
 			} else {
-				builtinStr := ""
-				if rw.Source == workflow.SourceEmbedded {
-					builtinStr = "yes"
-				}
 				_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
 					rw.Workflow.ID, rw.Workflow.Name,
-					phaseCount, builtinStr)
+					phaseCount, defaultStr)
 			}
 		}
 		_ = w.Flush()
