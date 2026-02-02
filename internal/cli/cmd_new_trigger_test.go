@@ -123,7 +123,8 @@ func TestNewCmd_NoWorkflow_NoTriggers(t *testing.T) {
 
 	_ = backend.Close()
 
-	// Create a trivial task (no workflow auto-assigned for unspecified weight)
+	// With workflow-first model, task creation without --workflow or --weight
+	// and no config default should fail with a clear error
 	cmd := newNewCmdWithTriggerRunner(mockRunner)
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
@@ -131,13 +132,15 @@ func TestNewCmd_NoWorkflow_NoTriggers(t *testing.T) {
 	cmd.SetArgs([]string{"Simple fix"})
 
 	err := cmd.Execute()
-	if err != nil {
-		t.Fatalf("new command failed: %v", err)
+
+	// Should fail because no default workflow is configured
+	if err == nil {
+		t.Fatal("expected error when no default workflow configured, got nil")
 	}
 
-	// No triggers should fire when no workflow
+	// No triggers should fire when command fails
 	if mockRunner.lifecycleCalled {
-		t.Error("trigger runner should not be called when no workflow assigned")
+		t.Error("trigger runner should not be called when command fails")
 	}
 }
 

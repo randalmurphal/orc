@@ -355,13 +355,29 @@ See also:
 				t.Priority = pri
 			}
 
-			// Auto-assign workflow based on weight if not explicitly provided
+			// Resolve workflow ID with priority:
+			// 1. Explicit --workflow flag (already set in workflowID)
+			// 2. Explicit --weight flag -> map to workflow
+			// 3. Config default workflow (workflow field in config.yaml)
+			// 4. Error if none of the above
 			if workflowID == "" {
-				var weightsCfg config.WeightsConfig
-				if cfg, err := config.Load(); err == nil {
-					weightsCfg = cfg.Weights
+				weightExplicit := cmd.Flags().Changed("weight")
+				cfg, cfgErr := config.Load()
+
+				if weightExplicit {
+					// User specified --weight, map to workflow
+					var weightsCfg config.WeightsConfig
+					if cfgErr == nil {
+						weightsCfg = cfg.Weights
+					}
+					workflowID = workflow.ResolveWorkflowID("", t.Weight, weightsCfg)
+				} else if cfgErr == nil && cfg.Workflow != "" {
+					// Use config default workflow
+					workflowID = cfg.Workflow
+				} else {
+					// No workflow specified and no config default - error with helpful message
+					return fmt.Errorf("no default workflow configured. Specify a workflow with --workflow or set 'workflow:' in config.yaml.\n\nExamples:\n  orc new \"My task\" --workflow implement-small\n  orc new \"My task\" --weight small\n\nRun 'orc workflows' to see available workflows")
 				}
-				workflowID = workflow.ResolveWorkflowID("", t.Weight, weightsCfg)
 			}
 
 			// Set workflow if we have one (either explicit or from weight)
