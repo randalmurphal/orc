@@ -240,6 +240,22 @@
 }
 
 /* =============================================================================
+   Files Actions
+   View Full Diff button and other actions
+   ============================================================================= */
+
+.files-actions {
+	padding: var(--space-2) var(--space-3);
+	border-top: 1px solid var(--border-subtle);
+	margin-top: var(--space-2);
+}
+
+.files-actions button {
+	width: 100%;
+	font-size: var(--text-sm);
+}
+
+/* =============================================================================
    Empty State
    When no files have changed
    ============================================================================= */

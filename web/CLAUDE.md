@@ -39,8 +39,9 @@ web/src/
 │   ├── board/            # Board view (TaskCard, RunningCard, Swimlane, BoardCommandPanel)
 │   ├── layout/           # Shell (AppShell, TopBar, IconNav, RightPanel, AppShellContext)
 │   ├── agents/           # Agent config (AgentsView, AgentCard, ExecutionSettings)
-│   ├── overlays/         # Modal components (NewTaskWorkflowModal, TaskDetailsModal, WorkflowPickerModal, ProjectSwitcher)
+│   ├── overlays/         # Modal components (NewTaskWorkflowModal, TaskDetailsModal, WorkflowPickerModal, DiffViewModal, ProjectSwitcher)
 │   ├── task-detail/      # Task detail tabs (Overview, Transcript, TestResults, etc.)
+│   │   ├── diff/         # Diff components (DiffFile, DiffHunk, DiffLine, DiffStats)
 │   ├── timeline/         # Timeline event view
 │   ├── workflow-editor/  # Visual editor (React Flow canvas, dagre layout)
 │   └── [8 more dirs]     # dashboard/, settings/, stats/, initiatives/, etc.
@@ -110,6 +111,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `NewTaskWorkflowModal` | `overlays/` | Orchestrates 2-step workflow-first task creation: Step 1 (workflow picker) → Step 2 (task details) |
 | `WorkflowPickerModal` | `overlays/` | Step 1: Select workflow from grid (built-in + custom), shows phase count and description, keyboard navigation |
 | `TaskDetailsModal` | `overlays/` | Step 2: Enter task details (title/description), category/priority, advanced options, Create/Create & Run actions |
+| `DiffViewModal` | `overlays/` | Lazygit-style full-screen diff modal: file navigation, split/unified view, vim keybinds, search/filter, accessibility |
 | `WorkflowProgress` | `task-detail/` | Visual phase progression with gate diamonds, state indicators (✓/●/○/✗), and gate type colors (auto/human/ai) |
 | `TaskFooter` | `task-detail/` | Footer with session metrics (tokens/cost), action buttons (pause/resume/cancel/retry), error display with retry options |
 | `SettingsTabs` | `settings/` | Top-level 3-tab navigation (General, Agents, Environment) with URL-driven state |
@@ -140,6 +142,10 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `TagInput` | `core/` | Chip-style tag input (Enter/comma to add, backspace to remove) |
 | `KeyValueEditor` | `core/` | Row-based key-value editor for env vars. Empty keys excluded from output |
 | `SplitPane` | `core/` | Resizable split pane with left/right panels, localStorage persistence, min width constraints, keyboard/touch support |
+| `DiffFile` | `task-detail/diff/` | Individual file diff display: collapsible header, status icons, addition/deletion stats, comment threading |
+| `DiffHunk` | `task-detail/diff/` | Diff hunk rendering: context lines, line numbers, split/unified modes, syntax highlighting |
+| `DiffLine` | `task-detail/diff/` | Single diff line: type indicators (+/-/~), line numbers, content with syntax highlighting |
+| `DiffStats` | `task-detail/diff/` | Diff summary statistics: files changed, additions, deletions, binary file indicator |
 
 ### Gates as Edges Visual Model
 
