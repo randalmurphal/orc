@@ -71,6 +71,10 @@ func (s *Server) registerConnectHandlers() {
 		ns.SetProjectCache(s.projectCache)
 	}
 	mcpSvc := NewMCPServer(s.workDir, s.logger)
+	feedbackSvc := NewFeedbackServer(s.backend, s.publisher, s.logger)
+	if fs, ok := feedbackSvc.(*feedbackServer); ok {
+		fs.SetProjectCache(s.projectCache)
+	}
 
 	// Create and register Connect handlers with CORS support
 	// Each NewXxxServiceHandler returns (path string, handler http.Handler)
@@ -114,7 +118,10 @@ func (s *Server) registerConnectHandlers() {
 	mcpPath, mcpHandler := orcv1connect.NewMCPServiceHandler(mcpSvc, interceptors)
 	s.mux.Handle(mcpPath, corsHandler(mcpHandler))
 
-	s.logger.Info("registered Connect RPC handlers", "count", 13)
+	feedbackPath, feedbackHandler := orcv1connect.NewFeedbackServiceHandler(feedbackSvc, interceptors)
+	s.mux.Handle(feedbackPath, corsHandler(feedbackHandler))
+
+	s.logger.Info("registered Connect RPC handlers", "count", 14)
 }
 
 // corsHandler wraps a handler with CORS support for Connect/gRPC-web clients.

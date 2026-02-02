@@ -204,7 +204,7 @@ Orc supports multiple projects from a single installation. Data is split between
 
 ### How It Works
 
-- All 13 API services accept `project_id` in request messages, routed via `getBackend(projectID)` (`internal/api/*_server.go`)
+- All 14 API services accept `project_id` in request messages, routed via `getBackend(projectID)` (`internal/api/*_server.go`)
 - CLI resolves project via: `--project` flag > `ORC_PROJECT` env > cwd detection (`internal/cli/project_context.go`)
 - Frontend passes `projectId` from store to all API calls; project picker at `web/src/pages/ProjectPickerPage.tsx`
 - Projects auto-register on `orc init`; registry at `~/.orc/projects.json` (`internal/project/`)

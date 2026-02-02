@@ -73,6 +73,7 @@ All storage operations are defined by the `Backend` interface:
 | Gates | `ListGateDecisions`, `SaveGateDecision` |
 | Events | `SaveEvent`, `SaveEvents`, `QueryEvents` |
 | Branch | `SaveBranch`, `LoadBranch`, `ListBranches`, `UpdateBranchStatus`, `UpdateBranchActivity`, `DeleteBranch`, `GetStaleBranches` |
+| Feedback | `SaveFeedback`, `GetFeedback`, `ListFeedback`, `UpdateFeedback`, `DeleteFeedback`, `MarkFeedbackReceived` |
 | Constitution | `SaveConstitution`, `LoadConstitution`, `ConstitutionExists`, `DeleteConstitution` |
 | Context | `MaterializeContext`, `NeedsMaterialization` |
 | Lifecycle | `Sync`, `Cleanup`, `Close` |

@@ -39,6 +39,7 @@ Services are registered in `server_connect.go:17-116`. Each implements a handler
 | `DecisionService` | `decision_server.go` | Yes | Gate decisions (approve/reject) |
 | `NotificationService` | `notification_server.go` | Yes | Push notifications |
 | `MCPService` | `mcp_server.go` | No | MCP server config (global) |
+| `FeedbackService` | `feedback_server.go` | Yes | Real-time user feedback to agents (Add, List, Send, Delete) |
 
 ## Key Patterns
 
