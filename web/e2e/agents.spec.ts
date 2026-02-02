@@ -6,7 +6,7 @@ import { test, expect } from './fixtures';
 
 test.describe('Agents Page', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/agents');
+		await page.goto('/settings/agents');
 		// Wait for page to load
 		await page.waitForLoadState('networkidle');
 	});
@@ -191,7 +191,7 @@ test.describe('Agents Page', () => {
 			}
 		});
 
-		await page.goto('/agents');
+		await page.goto('/settings/agents');
 		await page.waitForLoadState('networkidle');
 
 		// Filter out known non-critical errors
@@ -205,7 +205,7 @@ test.describe('Agents Page', () => {
 	test('mobile responsive layout', async ({ page }) => {
 		// Set mobile viewport
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/agents');
+		await page.goto('/settings/agents');
 		await page.waitForLoadState('networkidle');
 
 		// Header should still be visible
@@ -229,7 +229,7 @@ test.describe('Agents Page', () => {
 	test('desktop visual comparison', async ({ page }) => {
 		// Set consistent desktop viewport
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/agents');
+		await page.goto('/settings/agents');
 		await page.waitForLoadState('networkidle');
 
 		// Take full page screenshot

@@ -40,14 +40,8 @@ const findings: Finding[] = [];
 
 test.describe('Agents Page Verification - TASK-613 Iteration 2', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to the Agents page
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-
-    // Click on Agents in the sidebar
-    const agentsLink = page.locator('[href="/agents"]').first();
-    await agentsLink.click();
-    await page.waitForURL('/agents');
+    // Navigate to the Agents page (now at /settings/agents per UX simplification)
+    await page.goto('/settings/agents');
     await page.waitForLoadState('networkidle');
   });
 
@@ -83,7 +77,7 @@ test.describe('Agents Page Verification - TASK-613 Iteration 2', () => {
         actual: 'Page shows "[Unimplemented] orc.v1.ConfigService/ListAgents" error',
         screenshot: '01-qa001-routing-check.png',
         steps_to_reproduce: [
-          'Navigate to /agents',
+          'Navigate to /settings/agents',
           'Observe error message'
         ]
       });
@@ -102,7 +96,7 @@ test.describe('Agents Page Verification - TASK-613 Iteration 2', () => {
         actual: `Header shows: "${pageHeader}"`,
         screenshot: '01-qa001-routing-check.png',
         steps_to_reproduce: [
-          'Navigate to /agents',
+          'Navigate to /settings/agents',
           'Check page header'
         ]
       });
@@ -147,7 +141,7 @@ test.describe('Agents Page Verification - TASK-613 Iteration 2', () => {
         actual: `Found ${cardCount} cards`,
         screenshot: '02-desktop-full-page.png',
         steps_to_reproduce: [
-          'Navigate to /agents',
+          'Navigate to /settings/agents',
           'Count visible agent cards'
         ]
       });
@@ -170,7 +164,7 @@ test.describe('Agents Page Verification - TASK-613 Iteration 2', () => {
         actual: 'Section not visible',
         screenshot: '02-desktop-full-page.png',
         steps_to_reproduce: [
-          'Navigate to /agents',
+          'Navigate to /settings/agents',
           'Look for "Execution Settings" section'
         ]
       });
@@ -193,7 +187,7 @@ test.describe('Agents Page Verification - TASK-613 Iteration 2', () => {
         actual: 'Section not visible',
         screenshot: '02-desktop-full-page.png',
         steps_to_reproduce: [
-          'Navigate to /agents',
+          'Navigate to /settings/agents',
           'Look for "Tool Permissions" section'
         ]
       });
@@ -229,7 +223,7 @@ test.describe('Agents Page Verification - TASK-613 Iteration 2', () => {
         screenshot: '03-mobile-responsive.png',
         steps_to_reproduce: [
           'Resize viewport to 375x667',
-          'Navigate to /agents',
+          'Navigate to /settings/agents',
           'Check for horizontal scrollbar'
         ]
       });
@@ -249,7 +243,7 @@ test.describe('Agents Page Verification - TASK-613 Iteration 2', () => {
       });
     });
 
-    await page.goto('/agents');
+    await page.goto('/settings/agents');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
@@ -280,7 +274,7 @@ test.describe('Agents Page Verification - TASK-613 Iteration 2', () => {
         actual: `${errors.length} error(s): ${errors.map(e => e.text).slice(0, 3).join('; ')}`,
         screenshot: '04-console-check.png',
         steps_to_reproduce: [
-          'Navigate to /agents',
+          'Navigate to /settings/agents',
           'Open browser console',
           'Observe error messages'
         ]

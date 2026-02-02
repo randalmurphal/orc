@@ -1,15 +1,16 @@
 /**
  * SettingsPage - Main wrapper component for the settings view.
  *
- * Renders SettingsLayout within AppShell, providing:
- * - 240px sidebar with grouped navigation
- * - Content area with nested route outlet
+ * Renders SettingsTabs providing:
+ * - Three top-level tabs: General, Agents, Environment
+ * - URL-driven tab state
+ * - Tab content via nested routes
  */
 
-import { SettingsLayout } from '@/components/settings/SettingsLayout';
+import { SettingsTabs } from '@/components/settings/SettingsTabs';
 import { useDocumentTitle } from '@/hooks';
 
 export function SettingsPage() {
 	useDocumentTitle('Settings');
-	return <SettingsLayout />;
+	return <SettingsTabs />;
 }

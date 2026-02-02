@@ -4,40 +4,16 @@ import './EnvironmentLayout.css';
 /**
  * Environment section layout with sub-navigation.
  *
- * Sub-routes:
- * - /environment/settings
- * - /environment/prompts
- * - /environment/scripts
- * - /environment/hooks
- * - /environment/skills
- * - /environment/mcp
- * - /environment/config
- * - /environment/claudemd
- * - /environment/tools
- * - /environment/agents
+ * Now nested under /settings/environment/* with sub-routes:
+ * - /settings/environment/hooks
+ * - /settings/environment/skills
+ * - /settings/environment/tools
+ * - /settings/environment/config
  */
 export function EnvironmentLayout() {
 	return (
 		<div className="environment-layout">
 			<nav className="environment-nav">
-				<NavLink
-					to="settings"
-					className={({ isActive }) => `env-nav-link ${isActive ? 'active' : ''}`}
-				>
-					Settings
-				</NavLink>
-				<NavLink
-					to="prompts"
-					className={({ isActive }) => `env-nav-link ${isActive ? 'active' : ''}`}
-				>
-					Prompts
-				</NavLink>
-				<NavLink
-					to="scripts"
-					className={({ isActive }) => `env-nav-link ${isActive ? 'active' : ''}`}
-				>
-					Scripts
-				</NavLink>
 				<NavLink
 					to="hooks"
 					className={({ isActive }) => `env-nav-link ${isActive ? 'active' : ''}`}
@@ -51,34 +27,16 @@ export function EnvironmentLayout() {
 					Skills
 				</NavLink>
 				<NavLink
-					to="mcp"
-					className={({ isActive }) => `env-nav-link ${isActive ? 'active' : ''}`}
-				>
-					MCP
-				</NavLink>
-				<NavLink
-					to="config"
-					className={({ isActive }) => `env-nav-link ${isActive ? 'active' : ''}`}
-				>
-					Config
-				</NavLink>
-				<NavLink
-					to="claudemd"
-					className={({ isActive }) => `env-nav-link ${isActive ? 'active' : ''}`}
-				>
-					CLAUDE.md
-				</NavLink>
-				<NavLink
 					to="tools"
 					className={({ isActive }) => `env-nav-link ${isActive ? 'active' : ''}`}
 				>
 					Tools
 				</NavLink>
 				<NavLink
-					to="agents"
+					to="config"
 					className={({ isActive }) => `env-nav-link ${isActive ? 'active' : ''}`}
 				>
-					Agents
+					Config
 				</NavLink>
 			</nav>
 			<div className="environment-content">
