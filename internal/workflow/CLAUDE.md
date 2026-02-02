@@ -7,6 +7,7 @@ Configurable workflow system for orc. Replaces weight-based task execution with 
 | File | Purpose |
 |------|---------|
 | `types.go` | Domain types (Workflow, PhaseTemplate, WorkflowRun, etc.) |
+| `defaults.go` | Workflow defaults system with hierarchical resolution |
 | `seed.go` | Built-in workflow/phase definitions and seeding |
 | `seed_agents.go` | Agent definitions, parsing, seeding to GlobalDB |
 
@@ -92,6 +93,60 @@ Execution instances:
 - Can attach to task, branch, PR, or run standalone
 - Tracks all phases, metrics, artifacts
 
+## Workflow Defaults System
+
+Hierarchical workflow resolution with smart weight-based defaults. Implemented in `defaults.go`.
+
+### Resolution Hierarchy
+
+Workflows resolved in order of precedence:
+
+1. **User Override** - Explicit `--workflow` flag or config override
+2. **Project Config** - `.orc/config.yaml` workflow mappings
+3. **Built-in Mapping** - Weight-based defaults (see table below)
+4. **Fallback** - `implement-trivial` if all else fails
+
+### Weight-Based Default Mapping
+
+| Weight | Default Workflow | Phases |
+|--------|-----------------|--------|
+| `trivial` | `implement-trivial` | implement |
+| `small` | `implement-small` | tiny_spec → implement → review |
+| `medium` | `implement-medium` | spec → tdd_write → implement → review → docs |
+| `large` | `implement-large` | spec → tdd_write → breakdown → implement → review → docs |
+
+### Default Workflow Features
+
+All default workflows include:
+
+- **Smart Gates**: Auto gates for implementation, human gates for review
+- **Retry Configuration**: Built-in retry logic for failed phases
+- **Variable Resolution**: Standard variables like `{{TASK_DESCRIPTION}}`, `{{SUCCESS_CRITERIA}}`
+- **Context Preservation**: Phase outputs flow correctly between steps
+
+### Configuration Override
+
+Override weight-to-workflow mapping in project config:
+
+```yaml
+# .orc/config.yaml
+workflows:
+  weight_mapping:
+    small: "my-custom-workflow"
+    medium: "enhanced-workflow"
+```
+
+### Usage
+
+```go
+// Get workflow for task weight
+workflow, err := workflow.GetDefaultWorkflow(weight)
+
+// With config override
+resolver := NewResolver(config)
+workflow, err := resolver.ResolveWorkflow(weight, userOverride)
+```
+
 ## Built-in Workflows
 
 | ID | Phases | Use Case |
@@ -152,6 +207,13 @@ seeded, err := workflow.SeedBuiltins(pdb)
 
 // Seed agents (separate call, needs GlobalDB)
 seeded, err := workflow.SeedAgents(gdb)
+
+// Get default workflow for task weight
+workflow, err := workflow.GetDefaultWorkflow("medium")
+
+// Resolve with config and overrides
+resolver := workflow.NewResolver(config)
+workflow, err := resolver.ResolveWorkflow("medium", userWorkflowOverride)
 
 // List available workflows/agents
 ids := workflow.ListBuiltinWorkflowIDs()
