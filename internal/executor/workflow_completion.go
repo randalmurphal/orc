@@ -25,8 +25,15 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *orcv1.Task) er
 		return nil
 	}
 
-	// Resolve action based on task weight
+	// Resolve action with priority: workflow > config
+	// Start with config-based resolution (respects weight-to-action mapping)
 	action := we.orcConfig.ResolveCompletionAction(t.Weight.String())
+
+	// Workflow-level CompletionAction overrides config when explicitly set
+	if we.wf != nil && we.wf.CompletionAction != "" {
+		action = we.wf.CompletionAction
+	}
+
 	if action == "" || action == "none" {
 		we.logger.Info("skipping completion action", "weight", t.Weight, "action", action)
 		return nil
