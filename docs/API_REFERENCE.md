@@ -2180,9 +2180,9 @@ Configurable workflow definitions with composable phases.
   "id": "my-custom-workflow",
   "name": "My Custom Workflow",
   "description": "Custom workflow for specific task type",
-  "workflow_type": "task",
   "default_model": "sonnet",
-  "default_thinking": false
+  "default_thinking": false,
+  "completion_action": "pr"
 }
 ```
 
@@ -2190,9 +2190,9 @@ Configurable workflow definitions with composable phases.
 |-------|--------|---------|
 | `id` | Unique identifier (lowercase, hyphens) | Required |
 | `name` | Display name | Required |
-| `workflow_type` | `task`, `branch`, `standalone` | `task` |
 | `default_model` | `sonnet`, `opus`, `haiku` | (inherit) |
 | `default_thinking` | `true`, `false` | `false` |
+| `completion_action` | `pr`, `commit`, `none`, `""` | `""` (inherit from config) |
 
 **Clone workflow body:**
 ```json

@@ -27,6 +27,11 @@ Compose phases into execution plans:
 - Per-phase overrides (gate, condition, retries)
 - Custom variables
 - Context type (task, branch, PR, standalone)
+- Completion action override (`types.go:196`)
+
+| Field | Values | Purpose |
+|-------|--------|---------|
+| `completion_action` | `pr`, `commit`, `none`, `""` | Override config completion action; empty inherits from config |
 
 ### Phase Conditions (`executor/condition.go:29`)
 
