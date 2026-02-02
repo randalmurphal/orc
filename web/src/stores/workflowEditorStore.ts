@@ -17,6 +17,7 @@ interface WorkflowEditorStore {
 	edges: Edge[];
 	readOnly: boolean;
 	selectedNodeId: string | null;
+	selectedEdgeId: string | null;
 	workflowDetails: WorkflowWithDetails | null;
 
 	// Execution tracking state (TASK-639)
@@ -26,6 +27,7 @@ interface WorkflowEditorStore {
 	loadFromWorkflow: (details: WorkflowWithDetails) => void;
 	setReadOnly: (readOnly: boolean) => void;
 	selectNode: (nodeId: string | null) => void;
+	selectEdge: (edgeId: string | null) => void;
 	setNodes: (nodes: Node[]) => void;
 	setEdges: (edges: Edge[]) => void;
 	reset: () => void;
@@ -42,6 +44,7 @@ const initialState = {
 	edges: [] as Edge[],
 	readOnly: false,
 	selectedNodeId: null as string | null,
+	selectedEdgeId: null as string | null,
 	workflowDetails: null as WorkflowWithDetails | null,
 	activeRun: null as WorkflowRunWithDetails | null,
 };
@@ -65,13 +68,18 @@ export const useWorkflowEditorStore = create<WorkflowEditorStore>()(
 					workflowDetails: details,
 					readOnly: isBuiltin,
 					selectedNodeId: preservedSelection,
+					selectedEdgeId: null, // Clear edge selection when loading new workflow
 				};
 			});
 		},
 
 		setReadOnly: (readOnly: boolean) => set({ readOnly }),
 
-		selectNode: (nodeId: string | null) => set({ selectedNodeId: nodeId }),
+		selectNode: (nodeId: string | null) =>
+			set({ selectedNodeId: nodeId, selectedEdgeId: null }), // Clear edge when selecting node
+
+		selectEdge: (edgeId: string | null) =>
+			set({ selectedEdgeId: edgeId, selectedNodeId: null }), // Clear node when selecting edge
 
 		setNodes: (nodes: Node[]) => set({ nodes }),
 
@@ -176,16 +184,26 @@ export const useWorkflowEditorStore = create<WorkflowEditorStore>()(
 	}))
 );
 
-// Selector hooks
-export const useEditorNodes = () =>
-	useWorkflowEditorStore((state) => state.nodes);
-export const useEditorEdges = () =>
-	useWorkflowEditorStore((state) => state.edges);
-export const useEditorReadOnly = () =>
-	useWorkflowEditorStore((state) => state.readOnly);
-export const useEditorSelectedNodeId = () =>
-	useWorkflowEditorStore((state) => state.selectedNodeId);
-export const useEditorWorkflowDetails = () =>
-	useWorkflowEditorStore((state) => state.workflowDetails);
-export const useEditorActiveRun = () =>
-	useWorkflowEditorStore((state) => state.activeRun);
+// Selector hooks with explicit types to avoid implicit any
+export const useEditorNodes = (): Node[] =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.nodes);
+export const useEditorEdges = (): Edge[] =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.edges);
+export const useEditorReadOnly = (): boolean =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.readOnly);
+export const useEditorSelectedNodeId = (): string | null =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.selectedNodeId);
+export const useEditorSelectedEdgeId = (): string | null =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.selectedEdgeId);
+export const useEditorWorkflowDetails = (): WorkflowWithDetails | null =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.workflowDetails);
+export const useEditorActiveRun = (): WorkflowRunWithDetails | null =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.activeRun);
+
+// Derived selector for selected edge (replaces getSelectedEdge method)
+export const useSelectedEdge = (): Edge | null => {
+	const edges = useEditorEdges();
+	const selectedEdgeId = useEditorSelectedEdgeId();
+	if (!selectedEdgeId) return null;
+	return edges.find((e: Edge) => e.id === selectedEdgeId) ?? null;
+};

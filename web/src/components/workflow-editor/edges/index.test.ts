@@ -21,8 +21,9 @@ describe('edgeTypes export', () => {
 			expect(edgeTypes).toBeDefined();
 		});
 
-		it('has exactly 5 edge type entries', () => {
-			expect(Object.keys(edgeTypes)).toHaveLength(5);
+		it('has exactly 6 edge type entries', () => {
+			// sequential, dependency, loop, retry, conditional, gate
+			expect(Object.keys(edgeTypes)).toHaveLength(6);
 		});
 
 		it('includes sequential edge type', () => {

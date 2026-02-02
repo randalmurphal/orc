@@ -114,15 +114,17 @@ describe('WorkflowCanvas', () => {
 			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNode!.id);
 		});
 
-		it('only has phase nodes (no start/end nodes per design spec)', () => {
+		it('has phase and virtual nodes (no start/end nodes per design spec)', () => {
 			loadTestWorkflow();
 
 			render(<WorkflowCanvas />);
 
 			const nodes = useWorkflowEditorStore.getState().nodes;
-			// All nodes should be phase type (start/end nodes removed per design spec)
-			expect(nodes.every((n) => n.type === 'phase')).toBe(true);
-			expect(nodes.length).toBe(2); // spec + implement
+			// Should have phase and virtual nodes (virtual for gate edges)
+			const phaseNodes = nodes.filter((n) => n.type === 'phase');
+			const virtualNodes = nodes.filter((n) => n.type === 'virtual');
+			expect(phaseNodes.length).toBe(2); // spec + implement
+			expect(virtualNodes.length).toBe(2); // entry + exit
 		});
 	});
 

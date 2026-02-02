@@ -6,10 +6,38 @@ import type { PhaseNodeData, PhaseCategory } from '../nodes/index';
 
 const PHASE_NODE_WIDTH = 260;
 const PHASE_NODE_HEIGHT = 88;
+const VIRTUAL_NODE_WIDTH = 20;
+const VIRTUAL_NODE_HEIGHT = 20;
 
 export interface LayoutResult {
 	nodes: Node[];
 	edges: Edge[];
+}
+
+/** Gate edge data for visual rendering and inspector */
+export interface GateEdgeData extends Record<string, unknown> {
+	gateType: GateType;
+	gateStatus?: 'pending' | 'passed' | 'blocked' | 'failed';
+	phaseId?: number;
+	position: 'entry' | 'exit' | 'between';
+	maxRetries?: number;
+	failureAction?: string;
+}
+
+/**
+ * Get effective gate type for a phase, respecting override hierarchy
+ */
+function getEffectiveGateType(phase: { gateTypeOverride?: GateType; template?: { gateType?: GateType } | null }): GateType {
+	// Override takes precedence
+	if (phase.gateTypeOverride !== undefined && phase.gateTypeOverride !== GateType.UNSPECIFIED) {
+		return phase.gateTypeOverride;
+	}
+	// Template default
+	if (phase.template?.gateType !== undefined && phase.template.gateType !== GateType.UNSPECIFIED) {
+		return phase.template.gateType;
+	}
+	// Default to AUTO
+	return GateType.AUTO;
 }
 
 /**
@@ -86,16 +114,70 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 	// Create edges - direct phase-to-phase connections
 	const edges: Edge[] = [];
 
-	// Sequential edges: phase1 -> phase2 -> ... (no start/end)
-	if (phases.length > 1) {
+	// Gate edges with entry/exit virtual nodes (TASK-727)
+	if (phases.length > 0) {
+		const firstPhase = phases[0];
+		const lastPhase = phases[phases.length - 1];
+
+		// Create virtual entry node
+		nodes.push({
+			id: 'virtual-entry',
+			type: 'virtual',
+			position: { x: 0, y: 0 }, // Will be positioned by dagre
+			data: {},
+		});
+
+		// Create virtual exit node
+		nodes.push({
+			id: 'virtual-exit',
+			type: 'virtual',
+			position: { x: 0, y: 0 }, // Will be positioned by dagre
+			data: {},
+		});
+
+		// Entry gate edge (virtual entry -> first phase)
+		const entryGateData: GateEdgeData = {
+			gateType: getEffectiveGateType(firstPhase),
+			position: 'entry',
+			phaseId: firstPhase.id,
+		};
+		edges.push({
+			id: 'gate-entry',
+			source: 'virtual-entry',
+			target: `phase-${firstPhase.id}`,
+			type: 'gate',
+			data: entryGateData,
+		});
+
+		// Gate edges between consecutive phases
 		for (let i = 0; i < phases.length - 1; i++) {
+			const targetPhase = phases[i + 1];
+			const gateData: GateEdgeData = {
+				gateType: getEffectiveGateType(targetPhase),
+				position: 'between',
+				phaseId: targetPhase.id,
+			};
 			edges.push({
-				id: `edge-phase-${phases[i].id}-phase-${phases[i + 1].id}`,
+				id: `gate-phase-${phases[i].id}-phase-${targetPhase.id}`,
 				source: `phase-${phases[i].id}`,
-				target: `phase-${phases[i + 1].id}`,
-				type: 'sequential',
+				target: `phase-${targetPhase.id}`,
+				type: 'gate',
+				data: gateData,
 			});
 		}
+
+		// Exit gate edge (last phase -> virtual exit)
+		const exitGateData: GateEdgeData = {
+			gateType: GateType.AUTO, // Exit gate uses AUTO by default
+			position: 'exit',
+		};
+		edges.push({
+			id: 'gate-exit',
+			source: `phase-${lastPhase.id}`,
+			target: 'virtual-exit',
+			type: 'gate',
+			data: exitGateData,
+		});
 	}
 
 	// Dependency edges
@@ -168,10 +250,14 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 	g.setGraph({ rankdir: 'LR', nodesep: 80, ranksep: 140 });
 
 	for (const node of nodes) {
-		g.setNode(node.id, { width: PHASE_NODE_WIDTH, height: PHASE_NODE_HEIGHT });
+		if (node.type === 'virtual') {
+			g.setNode(node.id, { width: VIRTUAL_NODE_WIDTH, height: VIRTUAL_NODE_HEIGHT });
+		} else {
+			g.setNode(node.id, { width: PHASE_NODE_WIDTH, height: PHASE_NODE_HEIGHT });
+		}
 	}
 
-	// Only use sequential + dependency edges for layout (not loop/retry back-edges)
+	// Only use gate + dependency edges for layout (not loop/retry back-edges)
 	for (const edge of edges) {
 		if (edge.type !== 'loop' && edge.type !== 'retry') {
 			g.setEdge(edge.source, edge.target);
