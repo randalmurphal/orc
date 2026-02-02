@@ -12,7 +12,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useTaskSubscription, type TranscriptLine } from '@/hooks/useEvents';
-import { useCurrentProjectId } from '@/stores';
 import './LiveOutputPanel.css';
 
 export interface LiveOutputPanelProps {
@@ -149,7 +148,6 @@ export function LiveOutputPanel({
 	onRetry,
 	compact = false,
 }: LiveOutputPanelProps): ReactNode {
-	const projectId = useCurrentProjectId();
 	const { transcript } = useTaskSubscription(taskId);
 	const [userScrolledUp, setUserScrolledUp] = useState(false);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);

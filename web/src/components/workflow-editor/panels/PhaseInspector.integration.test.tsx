@@ -3,6 +3,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PhaseInspector } from './PhaseInspector';
 import { workflowClient, configClient, mcpClient } from '@/lib/client';
+import {
+	createMockWorkflowPhase,
+	createMockWorkflowWithDetails,
+	createMockPhaseTemplate,
+	createMockWorkflow,
+	createMockWorkflowVariable,
+} from '@/test/factories';
+import { PromptSource, GateType, VariableSourceType } from '@/gen/orc/v1/workflow_pb';
 
 // Mock all client dependencies
 vi.mock('@/lib/client', () => ({
@@ -22,40 +30,44 @@ vi.mock('@/lib/client', () => ({
 describe('PhaseInspector - Integration Tests (TDD)', () => {
 	const mockUser = userEvent.setup();
 
-	const mockPhase = {
+	const mockPhase = createMockWorkflowPhase({
 		id: 1,
 		sequence: 1,
 		phaseTemplateId: 'spec',
-		template: {
+		template: createMockPhaseTemplate({
 			id: 'spec',
 			name: 'Specification',
 			isBuiltin: false,
 			agentId: 'default-agent',
-			model: 'claude-sonnet-4',
 			maxIterations: 3,
 			inputVariables: ['TASK_ID'],
-			promptSource: 'template',
+			promptSource: PromptSource.EMBEDDED,
 			promptContent: 'Write a spec',
-			gateType: 0,
-		},
+			gateType: GateType.AUTO,
+		}),
 		agentOverride: undefined,
 		modelOverride: undefined,
 		maxIterationsOverride: 3,
 		subAgentsOverride: [],
 		claudeConfigOverride: undefined,
-	};
+	});
 
-	const mockWorkflowDetails = {
-		workflow: {
+	const mockWorkflowDetails = createMockWorkflowWithDetails({
+		workflow: createMockWorkflow({
 			id: 'test-workflow',
 			name: 'Test Workflow',
 			isBuiltin: false,
-		},
+		}),
 		phases: [mockPhase],
 		variables: [
-			{ id: '1', name: 'TASK_ID', sourceType: 'STATIC', value: 'TASK-001' },
+			createMockWorkflowVariable({
+				id: 1,
+				name: 'TASK_ID',
+				sourceType: VariableSourceType.STATIC,
+				sourceConfig: 'TASK-001',
+			}),
 		],
-	};
+	});
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -315,15 +327,14 @@ describe('PhaseInspector - Integration Tests (TDD)', () => {
 			expect(screen.getByTestId('sub-agents-content')).toBeVisible();
 
 			// Change to different phase
-			const differentPhase = {
-				...mockPhase,
+			const differentPhase = createMockWorkflowPhase({
 				id: 2,
 				phaseTemplateId: 'implement',
-				template: {
-					...mockPhase.template,
+				template: createMockPhaseTemplate({
+					id: 'implement',
 					name: 'Implementation',
-				},
-			};
+				}),
+			});
 
 			rerender(
 				<PhaseInspector

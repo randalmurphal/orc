@@ -3,6 +3,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PhaseInspector } from './PhaseInspector';
 import { workflowClient } from '@/lib/client';
+import {
+	createMockWorkflowPhase,
+	createMockWorkflowWithDetails,
+	createMockPhaseTemplate,
+	createMockWorkflow,
+} from '@/test/factories';
+import { PromptSource } from '@/gen/orc/v1/workflow_pb';
 
 vi.mock('@/lib/client', () => ({
 	workflowClient: {
@@ -21,29 +28,27 @@ vi.mock('@/lib/client', () => ({
 describe('PhaseInspector - Auto-save Behavior (TDD)', () => {
 	const mockUser = userEvent.setup();
 
-	const mockPhase = {
+	const mockPhase = createMockWorkflowPhase({
 		id: 1,
 		sequence: 1,
 		phaseTemplateId: 'spec',
-		template: {
+		template: createMockPhaseTemplate({
 			id: 'spec',
 			name: 'Specification',
 			isBuiltin: false,
 			agentId: 'default-agent',
-			model: 'claude-sonnet-4',
 			maxIterations: 3,
 			inputVariables: [],
-			promptSource: 'template',
+			promptSource: PromptSource.EMBEDDED,
 			promptContent: 'Write a spec',
-			gateType: 0,
-		},
-	};
+		}),
+	});
 
-	const mockWorkflowDetails = {
-		workflow: { id: 'test-workflow', name: 'Test Workflow' },
+	const mockWorkflowDetails = createMockWorkflowWithDetails({
+		workflow: createMockWorkflow({ id: 'test-workflow', name: 'Test Workflow' }),
 		phases: [mockPhase],
 		variables: [],
-	};
+	});
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -158,7 +163,7 @@ describe('PhaseInspector - Auto-save Behavior (TDD)', () => {
 				/>
 			);
 
-			const nameInput = screen.getByDisplayValue('Specification');
+			const nameInput = screen.getByDisplayValue('Specification') as HTMLInputElement;
 			const originalValue = nameInput.value;
 
 			await mockUser.clear(nameInput);

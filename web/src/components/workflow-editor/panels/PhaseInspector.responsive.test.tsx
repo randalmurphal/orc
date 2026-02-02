@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PhaseInspector } from './PhaseInspector';
+import {
+	createMockWorkflowPhase,
+	createMockWorkflowWithDetails,
+	createMockPhaseTemplate,
+	createMockWorkflow,
+} from '@/test/factories';
+import { PromptSource, GateType } from '@/gen/orc/v1/workflow_pb';
 
 // Mock window.matchMedia for responsive tests
 const mockMatchMedia = (matches: boolean) => {
@@ -48,29 +55,28 @@ vi.mock('@/lib/client', () => ({
 describe('PhaseInspector - Responsive Design and Edge Cases (TDD)', () => {
 	const mockUser = userEvent.setup();
 
-	const mockPhase = {
+	const mockPhase = createMockWorkflowPhase({
 		id: 1,
 		sequence: 1,
 		phaseTemplateId: 'spec',
-		template: {
+		template: createMockPhaseTemplate({
 			id: 'spec',
 			name: 'Specification',
 			isBuiltin: false,
 			agentId: 'default-agent',
-			model: 'claude-sonnet-4',
 			maxIterations: 3,
 			inputVariables: [],
-			promptSource: 'template',
+			promptSource: PromptSource.EMBEDDED,
 			promptContent: 'Write a spec',
-			gateType: 0,
-		},
-	};
+			gateType: GateType.AUTO,
+		}),
+	});
 
-	const mockWorkflowDetails = {
-		workflow: { id: 'test-workflow', name: 'Test Workflow' },
+	const mockWorkflowDetails = createMockWorkflowWithDetails({
+		workflow: createMockWorkflow({ id: 'test-workflow', name: 'Test Workflow' }),
 		phases: [mockPhase],
 		variables: [],
-	};
+	});
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -254,13 +260,15 @@ describe('PhaseInspector - Responsive Design and Edge Cases (TDD)', () => {
 		});
 
 		it('handles very long phase names with proper truncation', async () => {
-			const longNamePhase = {
-				...mockPhase,
-				template: {
-					...mockPhase.template,
+			const longNamePhase = createMockWorkflowPhase({
+				id: mockPhase.id,
+				sequence: mockPhase.sequence,
+				phaseTemplateId: mockPhase.phaseTemplateId,
+				template: createMockPhaseTemplate({
+					id: 'spec',
 					name: 'This is an extremely long phase name that should be truncated to prevent layout issues and maintain proper UI proportions in the inspector panel',
-				},
-			};
+				}),
+			});
 
 			render(
 				<PhaseInspector
@@ -306,13 +314,15 @@ describe('PhaseInspector - Responsive Design and Edge Cases (TDD)', () => {
 		});
 
 		it('handles built-in phase template readonly state', async () => {
-			const builtinPhase = {
-				...mockPhase,
-				template: {
-					...mockPhase.template,
+			const builtinPhase = createMockWorkflowPhase({
+				id: mockPhase.id,
+				sequence: mockPhase.sequence,
+				phaseTemplateId: mockPhase.phaseTemplateId,
+				template: createMockPhaseTemplate({
+					id: 'spec',
 					isBuiltin: true,
-				},
-			};
+				}),
+			});
 
 			render(
 				<PhaseInspector
@@ -408,10 +418,10 @@ describe('PhaseInspector - Responsive Design and Edge Cases (TDD)', () => {
 		});
 
 		it('handles missing template data gracefully', async () => {
-			const phaseWithoutTemplate = {
+			const phaseWithoutTemplate = createMockWorkflowPhase({
 				...mockPhase,
-				template: null,
-			};
+				template: undefined,
+			});
 
 			render(
 				<PhaseInspector
@@ -427,11 +437,11 @@ describe('PhaseInspector - Responsive Design and Edge Cases (TDD)', () => {
 		});
 
 		it('handles empty workflow details gracefully', async () => {
-			const emptyWorkflowDetails = {
-				workflow: null,
+			const emptyWorkflowDetails = createMockWorkflowWithDetails({
+				workflow: undefined,
 				phases: [],
 				variables: [],
-			};
+			});
 
 			render(
 				<PhaseInspector
