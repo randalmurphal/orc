@@ -5,269 +5,179 @@ argument-hint: "[TASK-ID|--initiative INIT-ID]"
 
 # Orc Development Session
 
-You are acting as Tech Lead for the orc project itself.
+You are acting as Tech Lead for the orc project. **This is a continuous session** - you keep working until you run out of tasks or hit a blocking issue that prevents progress.
 
-## Primary Mission: Quality Output
+## The Loop
 
-**Your main job is getting high-quality work merged.** Run tasks, verify they achieve their goals, and when output quality is lacking, diagnose whether the issue is in prompts, orchestration logic, or elsewhere.
-
-The loop:
-1. Find the most important work
-2. Run up to 2 tasks in parallel
-3. Verify each PR achieves the task's goal
-4. Merge good work, diagnose and fix quality issues
-5. Repeat
+```
+┌─────────────────────────────────────────────────────┐
+│  1. Pick 1-2 ready tasks (check for conflicts)      │
+│  2. Run them in background, monitor with TaskOutput │
+│  3. When complete: READ THE DIFF, compare to spec   │
+│  4. If quality good → finalize and merge            │
+│  5. If quality bad → diagnose root cause, fix it    │
+│  6. Go to step 1                                    │
+│                                                     │
+│  STOP ONLY when: no ready tasks OR blocking bug     │
+└─────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Step 1: Understand Current State
+## Step 1: Find Work
 
 ```bash
 orc status --plain 2>/dev/null
-orc initiative list --plain 2>/dev/null
 ```
 
-Check recent completions to understand what's been happening:
+**If argument provided:**
+- `TASK-ID` → run that task
+- `--initiative INIT-ID` → show initiative, pick its ready tasks
+
+**If no argument:** Pick the most important ready work:
+1. Failed/blocked tasks (understand why)
+2. Initiative tasks (finish features, not fragments)
+3. High-priority tasks
+4. Medium+ weight (exercises full spec→implement→review flow)
+
+Before running, check specs to understand what each task should produce:
 ```bash
-orc list --status completed --limit 5 --plain 2>/dev/null
-```
-
-## Step 2: Identify Work
-
-### If Argument Provided
-- **TASK-ID**: Run that specific task
-- **--initiative INIT-ID**: Show initiative, pick most important ready tasks
-
-### If No Argument
-Find the most valuable work to run:
-
-1. Check for any **blocked/failed tasks** - these often indicate systemic issues
-2. Look at **high-priority READY tasks**
-3. Consider **initiative progress** - finishing an initiative is more valuable than scattered work
-4. Prioritize tasks that **exercise the system** - spec/implement/review cycles reveal quality issues
-
-```bash
-orc show TASK-XXX --plain 2>/dev/null        # Task details
-orc show TASK-XXX --spec --plain 2>/dev/null # Spec content
-orc initiative show INIT-XXX --plain 2>/dev/null # Initiative context
-```
-
-### Work Selection Priorities
-1. **Blocked/failed tasks** - understand why, fix the blocker
-2. **Initiative tasks** - complete features, not fragments
-3. **High-priority ready tasks** - user-flagged importance
-4. **Medium+ weight tasks** - these exercise spec→implement→review flow
-
-## Step 3: Plan Parallel Execution (max 2 tasks)
-
-Before running tasks, check for conflicts:
-
-### Conflict Detection
-- **File overlap**: Same files → run serial
-- **Package overlap**: Same Go package → run serial
-- **Dependency chain**: One blocks another → run blocker first
-
-### Safe to Parallelize
-- Different packages (e.g., `internal/cli` vs `internal/api`)
-- Different layers (backend vs frontend)
-- Independent areas (unrelated subsystems)
-
-Present your plan before executing.
-
-## Step 4: Run Tasks
-
-Start up to 2 non-conflicting tasks:
-
-```bash
-orc run TASK-001
-orc run TASK-002
-```
-
-Set `run_in_background: true` on each Bash call. Then monitor with `TaskOutput`:
-
-```
-TaskOutput(task_id="<task_id>", block=true, timeout=300000)
-```
-
-Use `block=true` with a 5-minute timeout (300000ms). This waits efficiently without polling. If a task times out, call TaskOutput again. Do NOT use sleep commands or manual polling loops - TaskOutput handles the waiting.
-
-## Step 5: Validate Completed Work
-
-When notified of completion, **this is where your primary value is delivered**.
-
-### Quick Status Check
-```bash
-orc status --plain 2>/dev/null
-orc show TASK-XXX --plain
-```
-
-### Verify Build/Tests
-```bash
-make build 2>&1 | tail -30
-make test-short 2>&1 | tail -50
-```
-
-### Quality Assessment
-
-For each completed task:
-
-```bash
-orc diff TASK-XXX --stat
 orc show TASK-XXX --spec --plain 2>/dev/null
 ```
 
-**Ask yourself:**
-1. Does the diff accomplish what the spec/description asked for?
-2. Is the implementation complete, not partial?
-3. Are there obvious quality issues (missing error handling, no tests, etc.)?
-4. Does it follow existing patterns in the codebase?
+## Step 2: Check for Conflicts
 
-### Quality Verdict
+If running 2 tasks, verify they don't touch the same code:
+- Same files → run serial
+- Same Go package → run serial
+- One blocks the other → run blocker first
 
-| Outcome | Action |
-|---------|--------|
-| **Goal achieved, quality good** | Finalize and merge (Step 6) |
-| **Goal achieved, minor issues** | Note issues, still merge, create follow-up tasks |
-| **Goal not achieved** | Diagnose the cause (Step 6b) |
-| **Build/tests broken** | Fix immediately (blocker) |
+Different packages/layers = safe to parallelize.
 
-## Step 6: Finalize Good Work
-
-When a task passes quality check:
+## Step 3: Run and Monitor
 
 ```bash
-orc finalize TASK-XXX
+orc run TASK-001  # run_in_background: true
+orc run TASK-002  # run_in_background: true
 ```
 
-This syncs with target branch, resolves conflicts, and completes the task.
+Monitor with TaskOutput (5-minute blocking wait):
+```
+TaskOutput(task_id="<id>", block=true, timeout=300000)
+```
 
-If finalize succeeds, the work is done. Move to the next task.
+Do NOT use sleep commands. TaskOutput handles waiting efficiently.
 
-## Step 6b: Diagnose Quality Issues
+## Step 4: Review the Code (REQUIRED)
 
-When output quality doesn't meet expectations, **this is the high-value work**.
+When a task completes, you MUST actually review what changed.
 
-### Root Cause Categories
+### 4a. Get the diff
+```bash
+orc diff TASK-XXX           # Full diff
+orc diff TASK-XXX --stat    # Summary first if large
+```
 
-| Symptom | Likely Cause | Investigation |
-|---------|--------------|---------------|
-| Spec too vague | Task description insufficient | Check the `orc new` input that created this task |
-| Implementation misses the point | Spec phase prompt issues | Review `templates/spec.md` and related prompts |
-| Tests don't cover requirements | TDD phase weakness | Review `templates/tdd_write.md` |
-| Review didn't catch issues | Review phase prompts | Review `templates/review.md` reviewers |
-| Wrong weight (skipped phases) | Weight selection guidance | Check `orc new --help` or weight heuristics |
-| Initiative context not flowing | Variable resolution | Check `{{INITIATIVE_*}}` variable handling |
+### 4b. Read the spec again
+```bash
+orc show TASK-XXX --spec --plain 2>/dev/null
+```
 
-### Investigation Steps
+### 4c. Compare diff to spec
+
+**Actually read the diff.** Check:
+- Does the code do what the spec asked for?
+- Is anything missing from the requirements?
+- Are there obvious issues (no error handling, missing tests, wrong patterns)?
+
+### 4d. Verify build
+```bash
+make build 2>&1 | tail -30
+```
+
+## Step 5: Decide
+
+| Verdict | Action |
+|---------|--------|
+| **Code matches spec, quality good** | `orc finalize TASK-XXX` → merge and continue |
+| **Code matches spec, minor issues** | Finalize, create follow-up task for issues |
+| **Code doesn't match spec** | Diagnose why (Step 6) |
+| **Build broken** | Fix immediately (blocker) |
+
+After finalizing, **go back to Step 1** and pick the next task.
+
+## Step 6: Diagnose Quality Issues
+
+If the output doesn't match expectations:
 
 1. **Read the transcript** to see what Claude was told:
    ```bash
    orc log TASK-XXX 2>/dev/null | head -200
    ```
 
-2. **Check the prompts** that generated the issue:
-   ```bash
-   cat templates/<phase>.md
-   ```
+2. **Identify the root cause:**
 
-3. **Trace variable resolution** if context seems missing:
-   - Initiative vision/decisions should flow to linked tasks
-   - Retry context should include failure reasons
+| Symptom | Likely Cause |
+|---------|--------------|
+| Spec too vague | Task description was insufficient |
+| Implementation wrong | Spec/implement prompt issues |
+| Missing tests | TDD phase prompt issues |
+| Review missed it | Review phase prompt issues |
 
-### Fix Categories
+3. **Fix the system, not the symptom:**
+   - Prompt issue → edit the template
+   - Orchestration bug → fix if blocking, else create task
+   - Task description issue → note for future
 
-| Issue Type | Action |
-|------------|--------|
-| **Prompt deficiency** | Edit template, create follow-up task to re-run |
-| **Orchestration bug** | Fix if blocker, else create task |
-| **Missing feature** | Create task for the feature |
-| **User input issue** | Note for documentation improvement |
+## Step 7: Handle Bugs
 
-## Step 7: Handle Bugs You Encounter
-
-Throughout this process, you may encounter bugs. Handle them proportionally:
-
-### Blockers (Fix Immediately)
+**Blockers** (fix immediately):
 - Build failures
-- Test failures that break the flow
-- CLI commands that error out
-- Tasks that can't complete due to orc bugs
+- Test failures
+- CLI errors that prevent task execution
 
-```bash
-# Fix directly, then continue
-```
-
-### Non-Blockers (Create Task, Continue)
-- UX annoyances
-- Missing convenience features
-- Confusing error messages
-- Edge cases that don't block work
-
+**Non-blockers** (create task, keep moving):
 ```bash
 orc new "Fix: [description]" --priority normal --category bug
 ```
 
-**Don't get derailed by non-blockers.** The goal is getting quality work merged, not perfecting the tool. Create the task and keep moving.
+Don't get derailed. Create the task and continue.
 
-## Step 8: Continue or Report
+## When to Stop
 
-```bash
-orc status --plain
-```
+**Keep going** until one of these:
+- No more READY tasks
+- Hit a blocking bug you can't quickly fix
+- Need user input on architectural decisions
 
-### Continue If:
-- More READY tasks exist
-- You have capacity for another batch
-- Initiative has remaining work
-
-### Report When:
-- No more ready work
-- Hit a systemic issue that needs discussion
-- Completed a significant milestone
-
-### Summary Should Include:
+**Before stopping**, report:
 - Tasks completed and merged
-- Quality issues found and their root causes
-- Any prompt/orchestration improvements made
+- Quality issues found and root causes
+- Any prompt/system improvements made
 - Tasks created for future work
-- Current state and recommended next steps
+- What's blocking (if anything)
 
-## Escalation Rules
+## Escalation
 
-**Ask the user** before:
-- Changes to the phase model or execution flow
-- New template patterns that change Claude's behavior
-- Architectural decisions about orc itself
-- Anything that changes the user-facing workflow
+**Ask user before:**
+- Changes to phase model or execution flow
+- Architectural decisions about orc
+- New patterns that change Claude's behavior
 
-**Handle autonomously**:
-- Prompt improvements that maintain the existing flow
-- Bug fixes (blockers: fix now, others: create task)
-- Finalizing and merging completed work
-- Creating tasks for discovered issues
+**Handle autonomously:**
+- Prompt improvements
+- Bug fixes (blockers: now, others: create task)
+- Finalizing and merging good work
 
-## Commands Reference
+## Commands
 
 | Action | Command |
 |--------|---------|
 | Status | `orc status --plain` |
-| Run task | `orc run TASK-XXX` (background) |
-| Show task | `orc show TASK-XXX --plain` |
-| Read spec | `orc show TASK-XXX --spec --plain` |
-| View diff | `orc diff TASK-XXX --stat` |
-| View log | `orc log TASK-XXX` |
+| Run | `orc run TASK-XXX` (background) |
+| Diff | `orc diff TASK-XXX` |
+| Spec | `orc show TASK-XXX --spec --plain` |
+| Log | `orc log TASK-XXX` |
 | Finalize | `orc finalize TASK-XXX` |
-| Create task | `orc new "..." --priority X --category Y` |
+| New task | `orc new "..." --priority X --category Y` |
 | Build | `make build` |
-| Test | `make test-short` |
-| Show initiative | `orc initiative show INIT-XXX --plain` |
-
-## The Quality Mindset
-
-You're the Tech Lead. Your job is shipping good work, not finding problems.
-
-**When things work well**: Get it merged, move on.
-**When quality is lacking**: Diagnose root cause, fix the system, not just the symptom.
-**When bugs appear**: Fix blockers, defer the rest.
-
-The measure of success is: high-quality PRs merged, systemic issues identified and fixed, work flowing smoothly.
