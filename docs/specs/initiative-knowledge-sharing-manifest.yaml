@@ -1,0 +1,211 @@
+version: 1
+
+create_initiative:
+  title: "Initiative Knowledge Sharing"
+  vision: |
+    Enable tasks within an initiative to share learnings, patterns, warnings, and
+    handoffs so future tasks benefit from prior work. Humans add notes directly via
+    CLI; agents add notes via a specialized sub-agent during the docs phase. All notes
+    flow into task prompts via {{INITIATIVE_CONTEXT}}.
+
+tasks:
+  - id: 1
+    title: "Add initiative_notes database schema and CRUD operations"
+    weight: small
+    category: feature
+    priority: high
+    description: |
+      Add database support for initiative notes - the foundation for knowledge sharing.
+
+      **Schema** (new migration in internal/db/schema/):
+      ```sql
+      CREATE TABLE initiative_notes (
+        id TEXT PRIMARY KEY,
+        initiative_id TEXT NOT NULL,
+        author TEXT NOT NULL,
+        author_type TEXT NOT NULL,      -- 'human' | 'agent'
+        source_task TEXT,               -- TASK-001 (if agent-generated)
+        source_phase TEXT,              -- 'docs' (if agent-generated)
+        note_type TEXT NOT NULL,        -- 'pattern' | 'warning' | 'learning' | 'handoff'
+        content TEXT NOT NULL,
+        relevant_files TEXT,            -- JSON array, optional
+        graduated BOOL DEFAULT FALSE,
+        created_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (initiative_id) REFERENCES initiatives(id) ON DELETE CASCADE
+      );
+      CREATE INDEX idx_initiative_notes_initiative ON initiative_notes(initiative_id);
+      CREATE INDEX idx_initiative_notes_type ON initiative_notes(initiative_id, note_type);
+      ```
+
+      **DB operations** (in internal/db/initiative.go):
+      - `SaveInitiativeNote(note InitiativeNote) error`
+      - `GetInitiativeNotes(initiativeID string) ([]InitiativeNote, error)`
+      - `GetInitiativeNotesByType(initiativeID, noteType string) ([]InitiativeNote, error)`
+      - `DeleteInitiativeNote(noteID string) error`
+      - `GetInitiativeNotesBySourceTask(taskID string) ([]InitiativeNote, error)`
+
+      **Storage backend** (in internal/storage/backend.go):
+      Expose the DB methods through the Backend interface, following the existing pattern
+      for initiative operations.
+
+      **Note ID format**: Use `NOTE-XXX` format with auto-increment, similar to TASK/INIT IDs.
+
+      See docs/specs/INITIATIVE_KNOWLEDGE_SHARING.md for full specification.
+
+  - id: 2
+    title: "Inject initiative notes into task prompts via variable resolution"
+    weight: small
+    category: feature
+    priority: high
+    depends_on: [1]
+    description: |
+      Load initiative notes and inject them into task prompts so future tasks see
+      prior learnings.
+
+      **ResolutionContext** (internal/variable/resolver.go):
+      Add `InitiativeNotes string` field to hold formatted notes.
+
+      **Loading** (internal/executor/workflow_context.go in loadInitiativeContext):
+      After loading decisions, load notes:
+      ```go
+      notes, err := backend.GetInitiativeNotes(initiativeID)
+      if err == nil && len(notes) > 0 {
+          rctx.InitiativeNotes = formatInitiativeNotes(notes)
+      }
+      ```
+
+      **Formatting** (new function in variable/resolver.go):
+      ```go
+      func formatInitiativeNotes(notes []db.InitiativeNote) string
+      ```
+      - Group notes by type (pattern, warning, learning, handoff)
+      - Format as markdown with headers per type
+      - Include source task reference: `- [TASK-001] Note content here`
+      - Order: patterns, warnings, learnings, handoffs
+
+      **Update formatInitiativeContext()**:
+      Add notes section after decisions:
+      ```markdown
+      ### Notes from Previous Work
+
+      **Patterns:**
+      - [TASK-001] All data access uses Repository pattern
+
+      **Warnings:**
+      - [TASK-002] Don't modify legacy_handler.go
+      ```
+
+      **Variable**: Add `{{INITIATIVE_NOTES}}` as standalone variable in addBuiltinVariables().
+
+      See docs/specs/INITIATIVE_KNOWLEDGE_SHARING.md for exact format.
+
+  - id: 3
+    title: "Add knowledge curator sub-agent to docs phase"
+    weight: medium
+    category: feature
+    priority: high
+    depends_on: [1, 2]
+    description: |
+      During the docs phase, when a task is part of an initiative, spawn a "knowledge
+      curator" sub-agent to extract learnings worth preserving for future tasks.
+
+      **Docs phase template update** (templates/docs.md):
+      Add conditional section when `{{INITIATIVE_ID}}` exists that instructs the docs
+      agent to spawn a sub-agent for knowledge extraction. The sub-agent should use
+      Sonnet model.
+
+      **Sub-agent prompt** (new file templates/knowledge_curator.md or inline):
+      Include the guidelines from the spec - what qualifies as a note, the format rule
+      (concise but self-contained), examples of good vs bad notes.
+
+      **Sub-agent context** - provide:
+      - Task ID, title, description
+      - What was implemented (implementation summary)
+      - Initiative vision and decisions
+      - Existing initiative notes (to avoid duplicates)
+      - Review summary if available
+
+      **Sub-agent output** - JSON structure:
+      ```json
+      {
+        "notes": [
+          {"type": "pattern", "content": "...", "relevant_files": ["path/to/file.go"]}
+        ],
+        "rationale": "Why these notes were extracted (or why none)"
+      }
+      ```
+
+      **Docs phase output schema** (internal/executor/phase_response.go):
+      Add `initiative_notes` array to the docs phase completion schema.
+
+      **Executor persistence** (internal/executor/workflow_phase.go or workflow_executor.go):
+      After docs phase completes, parse `initiative_notes` from output and persist
+      each note via `backend.SaveInitiativeNote()`. Set:
+      - author: "claude" (or agent name)
+      - author_type: "agent"
+      - source_task: current task ID
+      - source_phase: "docs"
+
+      See docs/specs/INITIATIVE_KNOWLEDGE_SHARING.md for full guidelines.
+
+  - id: 4
+    title: "Add CLI commands for initiative notes"
+    weight: small
+    category: feature
+    priority: normal
+    depends_on: [1]
+    description: |
+      Add CLI commands for viewing and managing initiative notes.
+
+      **List notes** (`orc initiative notes INIT-XXX`):
+      - Show all notes for an initiative, grouped by type
+      - Flags: `--type pattern|warning|learning|handoff` to filter
+      - Flags: `--json` for machine-readable output
+      - Show: note ID, type, content, source task, created date
+
+      **Add note** (`orc initiative note INIT-XXX --type <type> "content"`):
+      - Add a human-authored note to an initiative
+      - Required: --type flag (pattern|warning|learning|handoff)
+      - Sets author_type: "human", author: current user or "human"
+      - Validates initiative exists
+
+      **Delete note** (`orc initiative note delete NOTE-XXX`):
+      - Remove a note by ID
+      - Confirm before deletion (unless --force)
+
+      **Show task notes** (extend `orc show TASK-XXX`):
+      - Add `--notes` flag to show notes this task generated
+      - Uses GetInitiativeNotesBySourceTask()
+
+      Follow existing CLI patterns in internal/cli/initiative_*.go files.
+
+  - id: 5
+    title: "Add initiative notes display to web UI"
+    weight: small
+    category: feature
+    priority: normal
+    depends_on: [1]
+    description: |
+      Display initiative notes in the web UI on relevant pages.
+
+      **Initiative detail page** (web/src/pages/InitiativeDetailPage.tsx or similar):
+      Add a "Knowledge" tab or section showing all notes for the initiative:
+      - Group by type (Patterns, Warnings, Learnings, Handoffs)
+      - Show source task as link
+      - Show created date
+      - For human notes, show author
+
+      **Task detail page** (web/src/pages/TaskDetailPage.tsx or similar):
+      Add "Notes Generated" section if the task created any initiative notes:
+      - Only show if task.initiative_id is set AND task generated notes
+      - List the notes this specific task contributed
+      - Link to the parent initiative's knowledge tab
+
+      **API**: The storage backend already exposes the DB methods. Use existing
+      patterns for fetching initiative data - notes should come along with
+      initiative details or via a separate endpoint.
+
+      **Styling**: Follow existing UI patterns. Notes should be scannable -
+      type badges, clear hierarchy, not overwhelming.
+
+      See web/CLAUDE.md for component patterns.

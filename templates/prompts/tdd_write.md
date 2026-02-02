@@ -132,10 +132,62 @@ Classify each test you write into one of three types:
 
 **Sociable tests**: Test a unit with its real collaborators. Preferred when collaborators are fast, deterministic, and side-effect free. Gives higher confidence that units work together correctly.
 
-**Integration tests**: Test that new code is properly wired into existing code paths. Required when your task creates new functions or interfaces that should be called from production code. Verifies the connection exists, not just that individual pieces work.
-
-If your task creates new functions that should be called from existing code paths, you MUST write an integration test proving the wiring works.
+**Integration tests**: Test that new code is properly wired into existing code paths. **MANDATORY** when your task creates new functions or interfaces that should be called from production code. Verifies the connection exists, not just that individual pieces work.
 </test_classification>
+
+<integration_test_mandate>
+## Integration Tests: MANDATORY for New Code Paths
+
+**This is not optional.** If your task creates ANY of these:
+- New functions that should be called from existing code
+- New interfaces or implementations
+- New handlers, hooks, or callbacks
+- New code branches in existing functions
+- New configuration options that affect behavior
+
+You MUST write integration tests that:
+1. **FAIL if the wiring is missing** - The test must exercise the production code path that should call your new code
+2. **Verify the call actually happens** - Use a flag, counter, or observable side effect
+3. **Test through the real entry point** - Not just the new code in isolation
+
+### Integration Test Pattern
+
+```go
+// GOOD: Integration test that FAILS without wiring
+func TestPipeline_CallsNewProcessor(t *testing.T) {
+    called := atomic.Bool{}
+    processor := func(input string) error {
+        called.Store(true)
+        return nil
+    }
+
+    // Call through PRODUCTION entry point
+    pipeline := NewPipeline(WithProcessor(processor))
+    pipeline.Run("test-input")  // <-- Real code path
+
+    if !called.Load() {
+        t.Fatal("NewProcessor was never called - wiring is MISSING")
+    }
+}
+
+// BAD: Unit test that passes even without wiring
+func TestNewProcessor(t *testing.T) {
+    err := NewProcessor("input")  // <-- Tests function directly
+    assert.NoError(t, err)        // Passes! But is it ever called?
+}
+```
+
+### Common Wiring Failures This Catches
+
+| Failure Mode | What Happens | Integration Test Detects |
+|--------------|--------------|-------------------------|
+| Function defined but never called | Dead code ships | Test fails: "never called" |
+| Condition prevents execution | Code skipped at runtime | Test fails: path not taken |
+| Registration forgotten | Hook/callback never fires | Test fails: no effect observed |
+| Config option has no effect | Feature silently disabled | Test fails: behavior unchanged |
+
+**If you cannot write an integration test for new code, STOP and ask: "How will this code ever be executed?"** If there's no production path to it, you're writing dead code.
+</integration_test_mandate>
 
 <context>
 <task>
