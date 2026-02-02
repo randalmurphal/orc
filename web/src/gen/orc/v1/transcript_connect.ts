@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetSessionRequest, GetSessionResponse, GetTodoHistoryRequest, GetTodoHistoryResponse, GetTodosRequest, GetTodosResponse, GetTokensRequest, GetTokensResponse, GetTranscriptContentRequest, GetTranscriptContentResponse, GetTranscriptRequest, GetTranscriptResponse, ListTranscriptsRequest, ListTranscriptsResponse } from "./transcript_pb.js";
+import { GetLiveTranscriptRequest, GetLiveTranscriptResponse, GetSessionRequest, GetSessionResponse, GetTodoHistoryRequest, GetTodoHistoryResponse, GetTodosRequest, GetTodosResponse, GetTokensRequest, GetTokensResponse, GetTranscriptContentRequest, GetTranscriptContentResponse, GetTranscriptRequest, GetTranscriptResponse, ListTranscriptsRequest, ListTranscriptsResponse, StreamTranscriptRequest, StreamTranscriptResponse } from "./transcript_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -44,6 +44,28 @@ export const TranscriptService = {
       I: GetTranscriptContentRequest,
       O: GetTranscriptContentResponse,
       kind: MethodKind.ServerStreaming,
+    },
+    /**
+     * Stream real-time transcript chunks for a task
+     *
+     * @generated from rpc orc.v1.TranscriptService.StreamTranscript
+     */
+    streamTranscript: {
+      name: "StreamTranscript",
+      I: StreamTranscriptRequest,
+      O: StreamTranscriptResponse,
+      kind: MethodKind.ServerStreaming,
+    },
+    /**
+     * Get live transcript combining persisted and streaming content
+     *
+     * @generated from rpc orc.v1.TranscriptService.GetLiveTranscript
+     */
+    getLiveTranscript: {
+      name: "GetLiveTranscript",
+      I: GetLiveTranscriptRequest,
+      O: GetLiveTranscriptResponse,
+      kind: MethodKind.Unary,
     },
     /**
      * Get token usage for a task

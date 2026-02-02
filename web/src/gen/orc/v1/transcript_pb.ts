@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file orc/v1/transcript.proto.
  */
 export const file_orc_v1_transcript: GenFile = /*@__PURE__*/
-  fileDesc("ChdvcmMvdjEvdHJhbnNjcmlwdC5wcm90bxIGb3JjLnYxIn4KDlRyYW5zY3JpcHRGaWxlEgwKBHBhdGgYASABKAkSDQoFcGhhc2UYAiABKAkSEQoJaXRlcmF0aW9uGAMgASgFEgwKBHNpemUYBCABKAMSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAi4QEKD1RyYW5zY3JpcHRFbnRyeRItCgl0aW1lc3RhbXAYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHR5cGUYAiABKAkSDwoHY29udGVudBgDIAEoCRIWCgl0b29sX25hbWUYBCABKAlIAIgBARIXCgp0b29sX2lucHV0GAUgASgJSAGIAQESJwoGdG9rZW5zGAYgASgLMhIub3JjLnYxLlRva2VuVXNhZ2VIAogBAUIMCgpfdG9vbF9uYW1lQg0KC190b29sX2lucHV0QgkKB190b2tlbnMiyQIKClRyYW5zY3JpcHQSDwoHdGFza19pZBgBIAEoCRINCgVwaGFzZRgCIAEoCRIRCglpdGVyYXRpb24YAyABKAUSFwoKc2Vzc2lvbl9pZBgEIAEoCUgAiAEBEhIKBW1vZGVsGAUgASgJSAGIAQESKAoHZW50cmllcxgGIAMoCzIXLm9yYy52MS5UcmFuc2NyaXB0RW50cnkSKAoMdG90YWxfdG9rZW5zGAcgASgLMhIub3JjLnYxLlRva2VuVXNhZ2USLgoKc3RhcnRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMQoIZW5kZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQFCDQoLX3Nlc3Npb25faWRCCAoGX21vZGVsQgsKCV9lbmRlZF9hdCIwCg9UcmFuc2NyaXB0Q2h1bmsSDAoEZGF0YRgBIAEoDBIPCgdpc19sYXN0GAIgASgIIlUKCFRvZG9JdGVtEg8KB2NvbnRlbnQYASABKAkSDgoGc3RhdHVzGAIgASgJEhgKC2FjdGl2ZV9mb3JtGAMgASgJSACIAQFCDgoMX2FjdGl2ZV9mb3JtIoABCgxUb2RvU25hcHNob3QSLQoJdGltZXN0YW1wGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVwaGFzZRgCIAEoCRIRCglpdGVyYXRpb24YAyABKAUSHwoFaXRlbXMYBCADKAsyEC5vcmMudjEuVG9kb0l0ZW0iWwoWTGlzdFRyYW5zY3JpcHRzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSEgoFcGhhc2UYAyABKAlIAIgBAUIICgZfcGhhc2UiRgoXTGlzdFRyYW5zY3JpcHRzUmVzcG9uc2USKwoLdHJhbnNjcmlwdHMYASADKAsyFi5vcmMudjEuVHJhbnNjcmlwdEZpbGUiXQoUR2V0VHJhbnNjcmlwdFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJEg0KBXBoYXNlGAMgASgJEhEKCWl0ZXJhdGlvbhgEIAEoBSI/ChVHZXRUcmFuc2NyaXB0UmVzcG9uc2USJgoKdHJhbnNjcmlwdBgBIAEoCzISLm9yYy52MS5UcmFuc2NyaXB0ImQKG0dldFRyYW5zY3JpcHRDb250ZW50UmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSDQoFcGhhc2UYAyABKAkSEQoJaXRlcmF0aW9uGAQgASgFIkYKHEdldFRyYW5zY3JpcHRDb250ZW50UmVzcG9uc2USJgoFY2h1bmsYASABKAsyFy5vcmMudjEuVHJhbnNjcmlwdENodW5rIjcKEEdldFRva2Vuc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJIjcKEUdldFRva2Vuc1Jlc3BvbnNlEiIKBnRva2VucxgBIAEoCzISLm9yYy52MS5Ub2tlblVzYWdlIjgKEUdldFNlc3Npb25SZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDwoHdGFza19pZBgCIAEoCSI6ChJHZXRTZXNzaW9uUmVzcG9uc2USJAoHc2Vzc2lvbhgBIAEoCzITLm9yYy52MS5TZXNzaW9uSW5mbyI2Cg9HZXRUb2Rvc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJIncKEEdldFRvZG9zUmVzcG9uc2USHwoFaXRlbXMYASADKAsyEC5vcmMudjEuVG9kb0l0ZW0SEgoFcGhhc2UYAiABKAlIAIgBARIWCglpdGVyYXRpb24YAyABKAVIAYgBAUIICgZfcGhhc2VCDAoKX2l0ZXJhdGlvbiI8ChVHZXRUb2RvSGlzdG9yeVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJIkEKFkdldFRvZG9IaXN0b3J5UmVzcG9uc2USJwoJc25hcHNob3RzGAEgAygLMhQub3JjLnYxLlRvZG9TbmFwc2hvdDKxBAoRVHJhbnNjcmlwdFNlcnZpY2USUgoPTGlzdFRyYW5zY3JpcHRzEh4ub3JjLnYxLkxpc3RUcmFuc2NyaXB0c1JlcXVlc3QaHy5vcmMudjEuTGlzdFRyYW5zY3JpcHRzUmVzcG9uc2USTAoNR2V0VHJhbnNjcmlwdBIcLm9yYy52MS5HZXRUcmFuc2NyaXB0UmVxdWVzdBodLm9yYy52MS5HZXRUcmFuc2NyaXB0UmVzcG9uc2USYwoUR2V0VHJhbnNjcmlwdENvbnRlbnQSIy5vcmMudjEuR2V0VHJhbnNjcmlwdENvbnRlbnRSZXF1ZXN0GiQub3JjLnYxLkdldFRyYW5zY3JpcHRDb250ZW50UmVzcG9uc2UwARJACglHZXRUb2tlbnMSGC5vcmMudjEuR2V0VG9rZW5zUmVxdWVzdBoZLm9yYy52MS5HZXRUb2tlbnNSZXNwb25zZRJDCgpHZXRTZXNzaW9uEhkub3JjLnYxLkdldFNlc3Npb25SZXF1ZXN0Ghoub3JjLnYxLkdldFNlc3Npb25SZXNwb25zZRI9CghHZXRUb2RvcxIXLm9yYy52MS5HZXRUb2Rvc1JlcXVlc3QaGC5vcmMudjEuR2V0VG9kb3NSZXNwb25zZRJPCg5HZXRUb2RvSGlzdG9yeRIdLm9yYy52MS5HZXRUb2RvSGlzdG9yeVJlcXVlc3QaHi5vcmMudjEuR2V0VG9kb0hpc3RvcnlSZXNwb25zZUKLAQoKY29tLm9yYy52MUIPVHJhbnNjcmlwdFByb3RvUAFaM2dpdGh1Yi5jb20vcmFuZGFsbXVycGhhbC9vcmMvZ2VuL3Byb3RvL29yYy92MTtvcmN2MaICA09YWKoCBk9yYy5WMcoCBk9yY1xWMeICEk9yY1xWMVxHUEJNZXRhZGF0YeoCB09yYzo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_orc_v1_common]);
+  fileDesc("ChdvcmMvdjEvdHJhbnNjcmlwdC5wcm90bxIGb3JjLnYxIn4KDlRyYW5zY3JpcHRGaWxlEgwKBHBhdGgYASABKAkSDQoFcGhhc2UYAiABKAkSEQoJaXRlcmF0aW9uGAMgASgFEgwKBHNpemUYBCABKAMSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAi4QEKD1RyYW5zY3JpcHRFbnRyeRItCgl0aW1lc3RhbXAYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHR5cGUYAiABKAkSDwoHY29udGVudBgDIAEoCRIWCgl0b29sX25hbWUYBCABKAlIAIgBARIXCgp0b29sX2lucHV0GAUgASgJSAGIAQESJwoGdG9rZW5zGAYgASgLMhIub3JjLnYxLlRva2VuVXNhZ2VIAogBAUIMCgpfdG9vbF9uYW1lQg0KC190b29sX2lucHV0QgkKB190b2tlbnMiyQIKClRyYW5zY3JpcHQSDwoHdGFza19pZBgBIAEoCRINCgVwaGFzZRgCIAEoCRIRCglpdGVyYXRpb24YAyABKAUSFwoKc2Vzc2lvbl9pZBgEIAEoCUgAiAEBEhIKBW1vZGVsGAUgASgJSAGIAQESKAoHZW50cmllcxgGIAMoCzIXLm9yYy52MS5UcmFuc2NyaXB0RW50cnkSKAoMdG90YWxfdG9rZW5zGAcgASgLMhIub3JjLnYxLlRva2VuVXNhZ2USLgoKc3RhcnRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMQoIZW5kZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQFCDQoLX3Nlc3Npb25faWRCCAoGX21vZGVsQgsKCV9lbmRlZF9hdCKzAQoPVHJhbnNjcmlwdENodW5rEg8KB3Rhc2tfaWQYASABKAkSDAoEdHlwZRgCIAEoCRIPCgdjb250ZW50GAMgASgJEg0KBXBoYXNlGAQgASgJEi0KCXRpbWVzdGFtcBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJwoGdG9rZW5zGAYgASgLMhIub3JjLnYxLlRva2VuVXNhZ2VIAIgBAUIJCgdfdG9rZW5zIlUKCFRvZG9JdGVtEg8KB2NvbnRlbnQYASABKAkSDgoGc3RhdHVzGAIgASgJEhgKC2FjdGl2ZV9mb3JtGAMgASgJSACIAQFCDgoMX2FjdGl2ZV9mb3JtIoABCgxUb2RvU25hcHNob3QSLQoJdGltZXN0YW1wGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVwaGFzZRgCIAEoCRIRCglpdGVyYXRpb24YAyABKAUSHwoFaXRlbXMYBCADKAsyEC5vcmMudjEuVG9kb0l0ZW0iWwoWTGlzdFRyYW5zY3JpcHRzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSEgoFcGhhc2UYAyABKAlIAIgBAUIICgZfcGhhc2UiRgoXTGlzdFRyYW5zY3JpcHRzUmVzcG9uc2USKwoLdHJhbnNjcmlwdHMYASADKAsyFi5vcmMudjEuVHJhbnNjcmlwdEZpbGUiXQoUR2V0VHJhbnNjcmlwdFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJEg0KBXBoYXNlGAMgASgJEhEKCWl0ZXJhdGlvbhgEIAEoBSI/ChVHZXRUcmFuc2NyaXB0UmVzcG9uc2USJgoKdHJhbnNjcmlwdBgBIAEoCzISLm9yYy52MS5UcmFuc2NyaXB0ImQKG0dldFRyYW5zY3JpcHRDb250ZW50UmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSDQoFcGhhc2UYAyABKAkSEQoJaXRlcmF0aW9uGAQgASgFIkYKHEdldFRyYW5zY3JpcHRDb250ZW50UmVzcG9uc2USJgoFY2h1bmsYASABKAsyFy5vcmMudjEuVHJhbnNjcmlwdENodW5rIjcKEEdldFRva2Vuc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJIjcKEUdldFRva2Vuc1Jlc3BvbnNlEiIKBnRva2VucxgBIAEoCzISLm9yYy52MS5Ub2tlblVzYWdlIjgKEUdldFNlc3Npb25SZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDwoHdGFza19pZBgCIAEoCSI6ChJHZXRTZXNzaW9uUmVzcG9uc2USJAoHc2Vzc2lvbhgBIAEoCzITLm9yYy52MS5TZXNzaW9uSW5mbyI2Cg9HZXRUb2Rvc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJIncKEEdldFRvZG9zUmVzcG9uc2USHwoFaXRlbXMYASADKAsyEC5vcmMudjEuVG9kb0l0ZW0SEgoFcGhhc2UYAiABKAlIAIgBARIWCglpdGVyYXRpb24YAyABKAVIAYgBAUIICgZfcGhhc2VCDAoKX2l0ZXJhdGlvbiI8ChVHZXRUb2RvSGlzdG9yeVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJIkEKFkdldFRvZG9IaXN0b3J5UmVzcG9uc2USJwoJc25hcHNob3RzGAEgAygLMhQub3JjLnYxLlRvZG9TbmFwc2hvdCJcChdTdHJlYW1UcmFuc2NyaXB0UmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSEgoFcGhhc2UYAyABKAlIAIgBAUIICgZfcGhhc2UiQgoYU3RyZWFtVHJhbnNjcmlwdFJlc3BvbnNlEiYKBWNodW5rGAEgASgLMhcub3JjLnYxLlRyYW5zY3JpcHRDaHVuayJdChhHZXRMaXZlVHJhbnNjcmlwdFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJEhIKBXBoYXNlGAMgASgJSACIAQFCCAoGX3BoYXNlIl0KGUdldExpdmVUcmFuc2NyaXB0UmVzcG9uc2USJgoKdHJhbnNjcmlwdBgBIAEoCzISLm9yYy52MS5UcmFuc2NyaXB0EhgKEGhhc19saXZlX2NvbnRlbnQYAiABKAgy5AUKEVRyYW5zY3JpcHRTZXJ2aWNlElIKD0xpc3RUcmFuc2NyaXB0cxIeLm9yYy52MS5MaXN0VHJhbnNjcmlwdHNSZXF1ZXN0Gh8ub3JjLnYxLkxpc3RUcmFuc2NyaXB0c1Jlc3BvbnNlEkwKDUdldFRyYW5zY3JpcHQSHC5vcmMudjEuR2V0VHJhbnNjcmlwdFJlcXVlc3QaHS5vcmMudjEuR2V0VHJhbnNjcmlwdFJlc3BvbnNlEmMKFEdldFRyYW5zY3JpcHRDb250ZW50EiMub3JjLnYxLkdldFRyYW5zY3JpcHRDb250ZW50UmVxdWVzdBokLm9yYy52MS5HZXRUcmFuc2NyaXB0Q29udGVudFJlc3BvbnNlMAESVwoQU3RyZWFtVHJhbnNjcmlwdBIfLm9yYy52MS5TdHJlYW1UcmFuc2NyaXB0UmVxdWVzdBogLm9yYy52MS5TdHJlYW1UcmFuc2NyaXB0UmVzcG9uc2UwARJYChFHZXRMaXZlVHJhbnNjcmlwdBIgLm9yYy52MS5HZXRMaXZlVHJhbnNjcmlwdFJlcXVlc3QaIS5vcmMudjEuR2V0TGl2ZVRyYW5zY3JpcHRSZXNwb25zZRJACglHZXRUb2tlbnMSGC5vcmMudjEuR2V0VG9rZW5zUmVxdWVzdBoZLm9yYy52MS5HZXRUb2tlbnNSZXNwb25zZRJDCgpHZXRTZXNzaW9uEhkub3JjLnYxLkdldFNlc3Npb25SZXF1ZXN0Ghoub3JjLnYxLkdldFNlc3Npb25SZXNwb25zZRI9CghHZXRUb2RvcxIXLm9yYy52MS5HZXRUb2Rvc1JlcXVlc3QaGC5vcmMudjEuR2V0VG9kb3NSZXNwb25zZRJPCg5HZXRUb2RvSGlzdG9yeRIdLm9yYy52MS5HZXRUb2RvSGlzdG9yeVJlcXVlc3QaHi5vcmMudjEuR2V0VG9kb0hpc3RvcnlSZXNwb25zZUKLAQoKY29tLm9yYy52MUIPVHJhbnNjcmlwdFByb3RvUAFaM2dpdGh1Yi5jb20vcmFuZGFsbXVycGhhbC9vcmMvZ2VuL3Byb3RvL29yYy92MTtvcmN2MaICA09YWKoCBk9yYy5WMcoCBk9yY1xWMeICEk9yY1xWMVxHUEJNZXRhZGF0YeoCB09yYzo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_orc_v1_common]);
 
 /**
  * Transcript file metadata
@@ -205,18 +205,46 @@ export const TranscriptSchema: GenMessage<Transcript> = /*@__PURE__*/
  */
 export type TranscriptChunk = Message<"orc.v1.TranscriptChunk"> & {
   /**
-   * Chunk data
+   * Task ID this chunk belongs to
    *
-   * @generated from field: bytes data = 1;
+   * @generated from field: string task_id = 1;
    */
-  data: Uint8Array;
+  taskId: string;
 
   /**
-   * Whether this is the last chunk
+   * Message type: "prompt", "response", "tool", "error"
    *
-   * @generated from field: bool is_last = 2;
+   * @generated from field: string type = 2;
    */
-  isLast: boolean;
+  type: string;
+
+  /**
+   * Message content
+   *
+   * @generated from field: string content = 3;
+   */
+  content: string;
+
+  /**
+   * Phase this chunk belongs to
+   *
+   * @generated from field: string phase = 4;
+   */
+  phase: string;
+
+  /**
+   * Timestamp when this chunk was generated
+   *
+   * @generated from field: google.protobuf.Timestamp timestamp = 5;
+   */
+  timestamp?: Timestamp;
+
+  /**
+   * Token usage for this chunk (if available)
+   *
+   * @generated from field: optional orc.v1.TokenUsage tokens = 6;
+   */
+  tokens?: TokenUsage;
 };
 
 /**
@@ -614,6 +642,99 @@ export const GetTodoHistoryResponseSchema: GenMessage<GetTodoHistoryResponse> = 
   messageDesc(file_orc_v1_transcript, 19);
 
 /**
+ * @generated from message orc.v1.StreamTranscriptRequest
+ */
+export type StreamTranscriptRequest = Message<"orc.v1.StreamTranscriptRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
+   */
+  taskId: string;
+
+  /**
+   * @generated from field: optional string phase = 3;
+   */
+  phase?: string;
+};
+
+/**
+ * Describes the message orc.v1.StreamTranscriptRequest.
+ * Use `create(StreamTranscriptRequestSchema)` to create a new message.
+ */
+export const StreamTranscriptRequestSchema: GenMessage<StreamTranscriptRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_transcript, 20);
+
+/**
+ * @generated from message orc.v1.StreamTranscriptResponse
+ */
+export type StreamTranscriptResponse = Message<"orc.v1.StreamTranscriptResponse"> & {
+  /**
+   * @generated from field: orc.v1.TranscriptChunk chunk = 1;
+   */
+  chunk?: TranscriptChunk;
+};
+
+/**
+ * Describes the message orc.v1.StreamTranscriptResponse.
+ * Use `create(StreamTranscriptResponseSchema)` to create a new message.
+ */
+export const StreamTranscriptResponseSchema: GenMessage<StreamTranscriptResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_transcript, 21);
+
+/**
+ * @generated from message orc.v1.GetLiveTranscriptRequest
+ */
+export type GetLiveTranscriptRequest = Message<"orc.v1.GetLiveTranscriptRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
+   */
+  taskId: string;
+
+  /**
+   * @generated from field: optional string phase = 3;
+   */
+  phase?: string;
+};
+
+/**
+ * Describes the message orc.v1.GetLiveTranscriptRequest.
+ * Use `create(GetLiveTranscriptRequestSchema)` to create a new message.
+ */
+export const GetLiveTranscriptRequestSchema: GenMessage<GetLiveTranscriptRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_transcript, 22);
+
+/**
+ * @generated from message orc.v1.GetLiveTranscriptResponse
+ */
+export type GetLiveTranscriptResponse = Message<"orc.v1.GetLiveTranscriptResponse"> & {
+  /**
+   * @generated from field: orc.v1.Transcript transcript = 1;
+   */
+  transcript?: Transcript;
+
+  /**
+   * @generated from field: bool has_live_content = 2;
+   */
+  hasLiveContent: boolean;
+};
+
+/**
+ * Describes the message orc.v1.GetLiveTranscriptResponse.
+ * Use `create(GetLiveTranscriptResponseSchema)` to create a new message.
+ */
+export const GetLiveTranscriptResponseSchema: GenMessage<GetLiveTranscriptResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_transcript, 23);
+
+/**
  * @generated from service orc.v1.TranscriptService
  */
 export const TranscriptService: GenService<{
@@ -646,6 +767,26 @@ export const TranscriptService: GenService<{
     methodKind: "server_streaming";
     input: typeof GetTranscriptContentRequestSchema;
     output: typeof GetTranscriptContentResponseSchema;
+  },
+  /**
+   * Stream real-time transcript chunks for a task
+   *
+   * @generated from rpc orc.v1.TranscriptService.StreamTranscript
+   */
+  streamTranscript: {
+    methodKind: "server_streaming";
+    input: typeof StreamTranscriptRequestSchema;
+    output: typeof StreamTranscriptResponseSchema;
+  },
+  /**
+   * Get live transcript combining persisted and streaming content
+   *
+   * @generated from rpc orc.v1.TranscriptService.GetLiveTranscript
+   */
+  getLiveTranscript: {
+    methodKind: "unary";
+    input: typeof GetLiveTranscriptRequestSchema;
+    output: typeof GetLiveTranscriptResponseSchema;
   },
   /**
    * Get token usage for a task
