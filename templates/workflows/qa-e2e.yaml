@@ -1,5 +1,5 @@
 id: qa-e2e
-name: "E2E QA Testing"
+name: "QA E2E"
 description: "Browser-based E2E testing with automatic fix loop. Run via 'orc qa TASK-XXX'."
 
 phases:

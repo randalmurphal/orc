@@ -1,5 +1,5 @@
 id: review
-name: "Review Only"
+name: "Review"
 description: "Code review workflow for existing changes"
 
 phases:
