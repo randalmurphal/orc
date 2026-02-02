@@ -1,0 +1,160 @@
+/* WorkflowSettingsPanel styles */
+
+.workflow-settings-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	background: var(--bg-secondary);
+	/* QA-003 iter6: Restore pointer events for settings panel */
+	pointer-events: auto;
+}
+
+.workflow-settings-section {
+	padding: var(--space-3);
+	border-bottom: 1px solid var(--border);
+}
+
+.workflow-settings-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: var(--space-3);
+}
+
+.workflow-settings-header h3 {
+	margin: 0;
+	font-size: var(--text-sm);
+	font-weight: 600;
+	color: var(--text-primary);
+}
+
+.builtin-badge {
+	padding: var(--space-1) var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: 500;
+	color: var(--warning, #f59e0b);
+	background: color-mix(in srgb, var(--warning, #f59e0b) 10%, var(--bg-tertiary));
+	border-radius: var(--radius-sm);
+	border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 20%, transparent);
+}
+
+.readonly-message {
+	padding: var(--space-2);
+	margin-bottom: var(--space-3);
+	font-size: var(--text-xs);
+	color: var(--warning, #f59e0b);
+	background: color-mix(in srgb, var(--warning, #f59e0b) 10%, var(--bg-tertiary));
+	border-radius: var(--radius-sm);
+	text-align: center;
+}
+
+.error-message {
+	padding: var(--space-2);
+	margin-bottom: var(--space-3);
+	font-size: var(--text-xs);
+	color: var(--error, #dc2626);
+	background: color-mix(in srgb, var(--error, #dc2626) 10%, var(--bg-tertiary));
+	border-radius: var(--radius-sm);
+	border: 1px solid color-mix(in srgb, var(--error, #dc2626) 20%, transparent);
+}
+
+.settings-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+.form-section {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.form-section h4 {
+	margin: 0;
+	font-size: var(--text-xs);
+	font-weight: 600;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.form-field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.form-field label {
+	font-size: var(--text-xs);
+	font-weight: 500;
+	color: var(--text-secondary);
+}
+
+.form-field input,
+.form-field textarea,
+.form-field select {
+	padding: var(--space-1) var(--space-2);
+	font-size: var(--text-xs);
+	color: var(--text-primary);
+	background: var(--bg-primary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	outline: none;
+	transition: border-color 0.2s;
+}
+
+.form-field input:focus,
+.form-field textarea:focus,
+.form-field select:focus {
+	border-color: var(--accent);
+}
+
+.form-field input:disabled,
+.form-field textarea:disabled,
+.form-field select:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.form-field textarea {
+	resize: vertical;
+	min-height: 60px;
+}
+
+.checkbox-field {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.checkbox-field input[type="checkbox"] {
+	width: auto;
+	margin: 0;
+}
+
+.checkbox-field label {
+	margin: 0;
+	cursor: pointer;
+}
+
+.checkbox-field input[type="checkbox"]:disabled + label {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+	.workflow-settings-section {
+		padding: var(--space-2);
+	}
+
+	.form-section {
+		gap: var(--space-2);
+	}
+
+	.settings-form {
+		gap: var(--space-3);
+	}
+}
