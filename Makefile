@@ -18,7 +18,7 @@
 #
 # =============================================================================
 
-.PHONY: all setup build test lint doc-lint clean dev docker-build docker-test docker-shell help
+.PHONY: all setup build test lint doc-lint clean dev docker-build docker-test docker-shell proto help
 
 # Configuration
 BINARY := orc
@@ -60,6 +60,10 @@ setup:
 deps:
 	go mod download
 	go mod tidy
+
+## proto: Regenerate protobuf code (Go + TypeScript)
+proto:
+	cd proto && buf generate
 
 # =============================================================================
 # Development (Native)

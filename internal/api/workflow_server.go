@@ -874,6 +874,11 @@ func (s *workflowServer) CreatePhaseTemplate(
 	if req.Msg.OutputVarName != nil {
 		tmpl.OutputVarName = *req.Msg.OutputVarName
 	}
+	if len(req.Msg.InputVariables) > 0 {
+		if jsonBytes, err := json.Marshal(req.Msg.InputVariables); err == nil {
+			tmpl.InputVariables = string(jsonBytes)
+		}
+	}
 	// NOTE: model_override is now set via agent reference, not directly on phase template
 	if req.Msg.ThinkingEnabled != nil {
 		tmpl.ThinkingEnabled = req.Msg.ThinkingEnabled
