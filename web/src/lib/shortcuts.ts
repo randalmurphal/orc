@@ -331,14 +331,12 @@ export const SHORTCUTS = {
 	GO_BOARD: { keys: ['g', 'b'], description: 'Go to board' },
 	GO_INITIATIVES: { keys: ['g', 'i'], description: 'Go to initiatives' },
 	GO_STATS: { keys: ['g', 's'], description: 'Go to stats' },
-	GO_AGENTS: { keys: ['g', 'a'], description: 'Go to agents' },
 	GO_SETTINGS: { keys: ['g', ','], description: 'Go to settings' },
-	// Legacy navigation (kept for compatibility)
+	// Legacy navigation (kept for compatibility - redirect to appropriate routes)
 	GO_DASHBOARD: { keys: ['g', 'd'], description: 'Go to dashboard' },
 	GO_TASKS: { keys: ['g', 't'], description: 'Go to tasks' },
-	GO_ENVIRONMENT: { keys: ['g', 'e'], description: 'Go to environment' },
 	GO_PREFERENCES: { keys: ['g', 'r'], description: 'Go to preferences' },
-	GO_PROMPTS: { keys: ['g', 'p'], description: 'Go to prompts' },
+	// Environment shortcuts redirect to settings
 	GO_HOOKS: { keys: ['g', 'h'], description: 'Go to hooks' },
 	GO_SKILLS: { keys: ['g', 'k'], description: 'Go to skills' },
 
@@ -362,18 +360,16 @@ export function setupGlobalShortcuts(callbacks: {
 	onSearch?: ShortcutCallback;
 	onHelp?: ShortcutCallback;
 	onEscape?: ShortcutCallback;
-	// New navigation shortcuts
+	// Navigation shortcuts
 	onGoBoard?: ShortcutCallback;
 	onGoInitiatives?: ShortcutCallback;
 	onGoStats?: ShortcutCallback;
-	onGoAgents?: ShortcutCallback;
 	onGoSettings?: ShortcutCallback;
-	// Legacy navigation (kept for compatibility)
+	// Legacy navigation (kept for compatibility - redirect to appropriate routes)
 	onGoDashboard?: ShortcutCallback;
 	onGoTasks?: ShortcutCallback;
-	onGoEnvironment?: ShortcutCallback;
 	onGoPreferences?: ShortcutCallback;
-	onGoPrompts?: ShortcutCallback;
+	// Environment shortcuts redirect to settings
 	onGoHooks?: ShortcutCallback;
 	onGoSkills?: ShortcutCallback;
 }): () => void {
@@ -472,15 +468,6 @@ export function setupGlobalShortcuts(callbacks: {
 		);
 	}
 
-	if (callbacks.onGoAgents) {
-		unsubscribers.push(
-			manager.registerSequence({
-				...SHORTCUTS.GO_AGENTS,
-				action: callbacks.onGoAgents,
-			})
-		);
-	}
-
 	if (callbacks.onGoSettings) {
 		unsubscribers.push(
 			manager.registerSequence({
@@ -509,29 +496,11 @@ export function setupGlobalShortcuts(callbacks: {
 		);
 	}
 
-	if (callbacks.onGoEnvironment) {
-		unsubscribers.push(
-			manager.registerSequence({
-				...SHORTCUTS.GO_ENVIRONMENT,
-				action: callbacks.onGoEnvironment,
-			})
-		);
-	}
-
 	if (callbacks.onGoPreferences) {
 		unsubscribers.push(
 			manager.registerSequence({
 				...SHORTCUTS.GO_PREFERENCES,
 				action: callbacks.onGoPreferences,
-			})
-		);
-	}
-
-	if (callbacks.onGoPrompts) {
-		unsubscribers.push(
-			manager.registerSequence({
-				...SHORTCUTS.GO_PROMPTS,
-				action: callbacks.onGoPrompts,
 			})
 		);
 	}

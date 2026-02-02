@@ -363,7 +363,8 @@ describe('SHORTCUTS constants', () => {
 	it('should have navigation sequences', () => {
 		expect(SHORTCUTS.GO_DASHBOARD.keys).toEqual(['g', 'd']);
 		expect(SHORTCUTS.GO_TASKS.keys).toEqual(['g', 't']);
-		expect(SHORTCUTS.GO_ENVIRONMENT.keys).toEqual(['g', 'e']);
+		expect(SHORTCUTS.GO_HOOKS.keys).toEqual(['g', 'h']);
+		expect(SHORTCUTS.GO_SKILLS.keys).toEqual(['g', 'k']);
 	});
 
 	it('should have task context shortcuts', () => {

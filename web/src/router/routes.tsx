@@ -17,24 +17,17 @@ const StatsPage = lazy(() => import('@/pages/StatsPage').then(m => ({ default: m
 const TimelinePage = lazy(() => import('@/pages/TimelinePage').then(m => ({ default: m.TimelinePage })));
 const TaskDetail = lazy(() => import('@/pages/TaskDetail').then(m => ({ default: m.TaskDetail })));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
-const AgentsView = lazy(() => import('@/components/agents/AgentsView').then(m => ({ default: m.AgentsView })));
 const Mcp = lazy(() => import('@/pages/environment/Mcp').then(m => ({ default: m.Mcp })));
 const WorkflowsPage = lazy(() => import('@/pages/WorkflowsPage').then(m => ({ default: m.WorkflowsPage })));
 const WorkflowEditorPage = lazy(() => import('@/components/workflow-editor').then(m => ({ default: m.WorkflowEditorPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 const ProjectPickerPage = lazy(() => import('@/pages/ProjectPickerPage').then(m => ({ default: m.ProjectPickerPage })));
 
-// Environment section pages
-const EnvironmentLayout = lazy(() => import('@/pages/environment/EnvironmentLayout').then(m => ({ default: m.EnvironmentLayout })));
-const EnvSettings = lazy(() => import('@/pages/environment/Settings').then(m => ({ default: m.Settings })));
-const EnvPrompts = lazy(() => import('@/pages/environment/Prompts').then(m => ({ default: m.Prompts })));
-const EnvScripts = lazy(() => import('@/pages/environment/Scripts').then(m => ({ default: m.Scripts })));
+// Environment pages (accessed via Settings navigation)
 const EnvHooks = lazy(() => import('@/pages/environment/Hooks').then(m => ({ default: m.Hooks })));
 const EnvSkills = lazy(() => import('@/pages/environment/Skills').then(m => ({ default: m.Skills })));
 const EnvConfig = lazy(() => import('@/pages/environment/Config').then(m => ({ default: m.Config })));
-const EnvClaudeMd = lazy(() => import('@/pages/environment/ClaudeMd').then(m => ({ default: m.ClaudeMd })));
 const EnvTools = lazy(() => import('@/pages/environment/Tools').then(m => ({ default: m.Tools })));
-const EnvAgents = lazy(() => import('@/pages/environment/Agents').then(m => ({ default: m.Agents })));
 
 // Settings sub-components (loaded with SettingsPage chunk)
 const SettingsView = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsView })));
@@ -61,7 +54,6 @@ const Preferences = lazy(() => import('@/pages/Preferences').then(m => ({ defaul
  * | /initiatives | initiatives overview with stats and cards |
  * | /initiatives/:id | - |
  * | /stats | ?project (dashboard stats) |
- * | /agents | - |
  * | /settings/* | various sections |
  * | /tasks/:id | ?tab |
  *
@@ -69,7 +61,6 @@ const Preferences = lazy(() => import('@/pages/Preferences').then(m => ({ defaul
  * - g b -> navigate to /board
  * - g i -> navigate to /initiatives
  * - g s -> navigate to /stats
- * - g a -> navigate to /agents
  * - g , -> navigate to /settings
  */
 
@@ -205,15 +196,6 @@ export const routes: RouteObject[] = [
 					</LazyRoute>
 				),
 			},
-			// Agents - Agent configuration
-			{
-				path: 'agents',
-				element: (
-					<LazyRoute>
-						<AgentsView />
-					</LazyRoute>
-				),
-			},
 			// Workflows - Workflow and phase template configuration
 			{
 				path: 'workflows',
@@ -332,6 +314,23 @@ export const routes: RouteObject[] = [
 							</LazyRoute>
 						),
 					},
+					// ENVIRONMENT section (merged from /environment)
+					{
+						path: 'hooks',
+						element: <LazyRoute><EnvHooks /></LazyRoute>,
+					},
+					{
+						path: 'skills',
+						element: <LazyRoute><EnvSkills /></LazyRoute>,
+					},
+					{
+						path: 'tools',
+						element: <LazyRoute><EnvTools /></LazyRoute>,
+					},
+					{
+						path: 'config',
+						element: <LazyRoute><EnvConfig /></LazyRoute>,
+					},
 					// ACCOUNT section
 					{
 						path: 'profile',
@@ -405,61 +404,6 @@ export const routes: RouteObject[] = [
 						<Preferences />
 					</LazyRoute>
 				),
-			},
-			// Environment section with sub-navigation
-			{
-				path: 'environment',
-				element: (
-					<LazyRoute>
-						<EnvironmentLayout />
-					</LazyRoute>
-				),
-				children: [
-					{
-						index: true,
-						element: <Navigate to="/environment/hooks" replace />,
-					},
-					{
-						path: 'settings',
-						element: <LazyRoute><EnvSettings /></LazyRoute>,
-					},
-					{
-						path: 'prompts',
-						element: <LazyRoute><EnvPrompts /></LazyRoute>,
-					},
-					{
-						path: 'scripts',
-						element: <LazyRoute><EnvScripts /></LazyRoute>,
-					},
-					{
-						path: 'hooks',
-						element: <LazyRoute><EnvHooks /></LazyRoute>,
-					},
-					{
-						path: 'skills',
-						element: <LazyRoute><EnvSkills /></LazyRoute>,
-					},
-					{
-						path: 'mcp',
-						element: <LazyRoute><Mcp /></LazyRoute>,
-					},
-					{
-						path: 'config',
-						element: <LazyRoute><EnvConfig /></LazyRoute>,
-					},
-					{
-						path: 'claudemd',
-						element: <LazyRoute><EnvClaudeMd /></LazyRoute>,
-					},
-					{
-						path: 'tools',
-						element: <LazyRoute><EnvTools /></LazyRoute>,
-					},
-					{
-						path: 'agents',
-						element: <LazyRoute><EnvAgents /></LazyRoute>,
-					},
-				],
 			},
 			// 404 catch-all
 			{

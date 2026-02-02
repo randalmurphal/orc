@@ -460,15 +460,6 @@ describe('Routes', () => {
 		});
 	});
 
-	describe('/agents route', () => {
-		it('renders Agents page', async () => {
-			renderWithRouter('/agents');
-			// Just verify the route doesn't error and renders something
-			await waitFor(() => {
-				expect(screen.getByRole('navigation')).toBeInTheDocument();
-			});
-		});
-	});
 
 	describe('/preferences route', () => {
 		it('renders Preferences page', async () => {
@@ -568,20 +559,20 @@ describe('Routes', () => {
 		});
 	});
 
-	describe('/environment routes render environment pages', () => {
-		it('renders environment layout at /environment/hooks', async () => {
-			renderWithRouter('/environment/hooks');
+	describe('/settings environment routes render within settings layout', () => {
+		it('renders settings layout at /settings/hooks', async () => {
+			renderWithRouter('/settings/hooks');
 			await waitFor(() => {
-				// Should render the environment layout
-				expect(document.querySelector('.environment-layout')).toBeInTheDocument();
+				// Should render the settings layout
+				expect(document.querySelector('.settings-layout')).toBeInTheDocument();
 			});
 		});
 
-		it('renders environment layout at /environment/skills', async () => {
-			renderWithRouter('/environment/skills');
+		it('renders settings layout at /settings/skills', async () => {
+			renderWithRouter('/settings/skills');
 			await waitFor(() => {
-				// Should render the environment layout
-				expect(document.querySelector('.environment-layout')).toBeInTheDocument();
+				// Should render the settings layout
+				expect(document.querySelector('.settings-layout')).toBeInTheDocument();
 			});
 		});
 	});
