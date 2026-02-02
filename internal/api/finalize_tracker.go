@@ -328,6 +328,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 		executor.WithFinalizeOrcConfig(s.orcConfig),
 		executor.WithFinalizeWorkingDir(workDir),
 		executor.WithFinalizeBackend(backend),
+		executor.WithFinalizeGlobalDB(s.globalDB),
 		executor.WithFinalizeClaudePath(claudePath),
 		executor.WithFinalizeExecutionUpdater(func(exec *orcv1.ExecutionState) {
 			finState.mu.Lock()

@@ -6,6 +6,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -263,5 +264,60 @@ func ResolveTargetBranchWithWorkflowSource(t *orcv1.Task, wf *workflow.Workflow,
 	}
 
 	return branch, source
+}
+
+// ResolveTargetBranchWithGlobalDB is a convenience function that loads both the workflow
+// (from globalDB) and initiative (from backend) and uses the 6-level resolution chain.
+// This is useful in contexts like finalize where you have access to globalDB but not a
+// pre-loaded workflow.
+//
+// Parameters:
+//   - t: The task (may be nil)
+//   - backend: Storage backend for loading initiatives (may be nil)
+//   - globalDB: Global database for loading workflows (may be nil)
+//   - cfg: The orc configuration (may be nil)
+//
+// Returns the resolved target branch name.
+func ResolveTargetBranchWithGlobalDB(t *orcv1.Task, backend storage.Backend, globalDB *db.GlobalDB, cfg *config.Config) string {
+	branch, _ := ResolveTargetBranchWithGlobalDBSource(t, backend, globalDB, cfg)
+	return branch
+}
+
+// ResolveTargetBranchWithGlobalDBSource is like ResolveTargetBranchWithGlobalDB but also returns
+// the source of the resolution for debugging/logging purposes.
+func ResolveTargetBranchWithGlobalDBSource(t *orcv1.Task, backend storage.Backend, globalDB *db.GlobalDB, cfg *config.Config) (branch, source string) {
+	var init *initiative.Initiative
+	var wf *workflow.Workflow
+
+	// Load initiative if task belongs to one
+	initiativeID := task.GetInitiativeIDProto(t)
+	if t != nil && initiativeID != "" && backend != nil {
+		var err error
+		init, err = backend.LoadInitiative(initiativeID)
+		if err != nil {
+			slog.Debug("failed to load initiative for branch resolution",
+				"task_id", t.Id,
+				"initiative_id", initiativeID,
+				"error", err,
+			)
+			// Continue with nil initiative - will fall through to other resolution levels
+		}
+	}
+
+	// Load workflow if task specifies one
+	if t != nil && t.GetWorkflowId() != "" && globalDB != nil {
+		dbWf, err := globalDB.GetWorkflow(t.GetWorkflowId())
+		if err == nil && dbWf != nil {
+			wf = workflow.DBWorkflowToWorkflow(dbWf)
+		} else if err != nil {
+			slog.Debug("failed to load workflow for branch resolution",
+				"task_id", t.Id,
+				"workflow_id", t.GetWorkflowId(),
+				"error", err,
+			)
+		}
+	}
+
+	return ResolveTargetBranchWithWorkflowSource(t, wf, init, cfg)
 }
 

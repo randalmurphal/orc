@@ -16,6 +16,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -46,6 +47,7 @@ type FinalizeExecutor struct {
 	workingDir       string
 	executionUpdater func(*orcv1.ExecutionState)
 	backend          storage.Backend
+	globalDB         *db.GlobalDB // For loading workflows during target branch resolution
 
 	// turnExecutor allows injection of a mock for testing
 	turnExecutor TurnExecutor
@@ -96,6 +98,11 @@ func WithFinalizeExecutionUpdater(fn func(*orcv1.ExecutionState)) FinalizeExecut
 // WithFinalizeBackend sets the storage backend for initiative loading.
 func WithFinalizeBackend(b storage.Backend) FinalizeExecutorOption {
 	return func(e *FinalizeExecutor) { e.backend = b }
+}
+
+// WithFinalizeGlobalDB sets the global database for workflow loading during target branch resolution.
+func WithFinalizeGlobalDB(gdb *db.GlobalDB) FinalizeExecutorOption {
+	return func(e *FinalizeExecutor) { e.globalDB = gdb }
 }
 
 // WithFinalizeClaudePath sets the path to the claude binary.
@@ -187,7 +194,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *orcv1.Task, p *PhaseD
 		return result, nil
 	}
 
-	targetBranch := ResolveTargetBranchForTask(t, e.backend, e.orcConfig)
+	targetBranch := ResolveTargetBranchWithGlobalDB(t, e.backend, e.globalDB, e.orcConfig)
 
 	e.logger.Info("starting finalize phase",
 		"task", t.Id,

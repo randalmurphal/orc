@@ -14,6 +14,7 @@ import (
 	"github.com/randalmurphal/orc/internal/hosting"
 	_ "github.com/randalmurphal/orc/internal/hosting/github"
 	_ "github.com/randalmurphal/orc/internal/hosting/gitlab"
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
 )
@@ -54,8 +55,8 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *orcv1.Task) er
 		// Non-fatal: PR might still succeed if changes were committed by Claude
 	}
 
-	// Resolve target branch using 5-level priority: task > initiative > staging > config > default
-	targetBranch := ResolveTargetBranchForTask(t, we.backend, we.orcConfig)
+	// Resolve target branch using 6-level priority: task > workflow > initiative > staging > config > default
+	targetBranch := we.resolveTargetBranch(t)
 
 	we.logger.Info("syncing with target branch before completion",
 		"target", targetBranch,
@@ -500,7 +501,7 @@ func (we *WorkflowExecutor) detectExistingWork(t *orcv1.Task) (bool, string) {
 	}
 
 	// Check 2: Commits ahead of target branch
-	targetBranch := ResolveTargetBranchForTask(t, we.backend, we.orcConfig)
+	targetBranch := we.resolveTargetBranch(t)
 	target := "origin/" + targetBranch
 	ahead, _, err := gitOps.GetCommitCounts(target)
 	if err != nil {
@@ -546,8 +547,8 @@ func (we *WorkflowExecutor) effectiveWorkingDir() string {
 // syncOnTaskStart syncs the task branch with target before execution starts.
 // This catches conflicts from parallel tasks early.
 func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *orcv1.Task) error {
-	// Resolve target branch using 5-level priority: task > initiative > staging > config > default
-	targetBranch := ResolveTargetBranchForTask(t, we.backend, we.orcConfig)
+	// Resolve target branch using 6-level priority: task > workflow > initiative > staging > config > default
+	targetBranch := we.resolveTargetBranch(t)
 
 	// Use worktree git if available
 	gitOps := we.gitOps
@@ -751,4 +752,16 @@ func (we *WorkflowExecutor) attemptConflictResolution(
 	}
 
 	return result, nil
+}
+
+// resolveTargetBranch resolves the target branch using 6-level priority hierarchy:
+// task > workflow > initiative > staging > config > default.
+// This is a convenience method that uses the executor's loaded workflow.
+func (we *WorkflowExecutor) resolveTargetBranch(t *orcv1.Task) string {
+	// Load initiative if task belongs to one
+	var init *initiative.Initiative
+	if initiativeID := task.GetInitiativeIDProto(t); initiativeID != "" {
+		init, _ = we.backend.LoadInitiative(initiativeID)
+	}
+	return ResolveTargetBranchWithWorkflow(t, we.wf, init, we.orcConfig)
 }
