@@ -363,7 +363,7 @@ func (we *WorkflowExecutor) getHostingProvider() (hosting.Provider, error) {
 
 // setupWorktree creates or reuses an isolated worktree for the given task.
 func (we *WorkflowExecutor) setupWorktree(t *orcv1.Task) error {
-	result, err := SetupWorktreeForTask(t, we.orcConfig, we.gitOps, we.backend)
+	result, err := SetupWorktreeForTaskWithWorkflow(t, we.wf, we.orcConfig, we.gitOps, we.backend)
 	if err != nil {
 		return fmt.Errorf("setup worktree: %w", err)
 	}

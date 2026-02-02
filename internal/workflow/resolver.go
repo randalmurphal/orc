@@ -459,6 +459,7 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 		DefaultThinking:      wf.DefaultThinking,
 		DefaultMaxIterations: wf.DefaultMaxIterations,
 		CompletionAction:     wf.CompletionAction,
+		TargetBranch:         wf.TargetBranch,
 		BasedOn:              wf.BasedOn,
 	}
 
@@ -578,6 +579,7 @@ type workflowYAML struct {
 	DefaultThinking      bool                  `yaml:"default_thinking,omitempty"`
 	DefaultMaxIterations int                   `yaml:"default_max_iterations,omitempty"`
 	CompletionAction     string                `yaml:"completion_action,omitempty"`
+	TargetBranch         string                `yaml:"target_branch,omitempty"`
 	BasedOn              string                `yaml:"based_on,omitempty"`
 	Phases               []workflowPhaseYAML   `yaml:"phases,omitempty"`
 	Variables            []variableYAML        `yaml:"variables,omitempty"`
