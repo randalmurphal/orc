@@ -33,7 +33,7 @@
 - internal/api/CLAUDE.md - API server architecture
 
 ### Frontend Development
-- web/CLAUDE.md (243 lines) - Frontend overview
+- web/CLAUDE.md (1038 lines) - Frontend overview
 - web/QUICKREF.md - Code patterns, components
 - docs/specs/WEB_DASHBOARD.md - UI specification
 - docs/specs/KEYBOARD_SHORTCUTS.md - Shortcuts spec
