@@ -66,7 +66,7 @@ export function ChangesTabEnhanced({ taskId }: ChangesTabEnhancedProps) {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey) {
         switch (event.key) {
-          case 'f':
+          case 'f': {
             event.preventDefault();
             // Focus file panel
             const filesPanel = document.querySelector('[data-testid="files-panel"]');
@@ -74,6 +74,7 @@ export function ChangesTabEnhanced({ taskId }: ChangesTabEnhancedProps) {
               filesPanel.focus();
             }
             break;
+          }
           case 't':
             event.preventDefault();
             // Toggle view mode

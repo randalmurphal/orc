@@ -182,6 +182,42 @@ export function FileList({
     };
   }, [filteredFiles, statusFilter, stats]);
 
+  const toggleDirectory = useCallback((dirPath: string) => {
+    setLocalExpandedDirs(prev => {
+      const next = new Set(prev);
+      if (next.has(dirPath)) {
+        next.delete(dirPath);
+      } else {
+        next.add(dirPath);
+      }
+      return next;
+    });
+  }, []);
+
+  // Helper function to get all tree items for navigation
+  const getAllTreeItems = useMemo(() => {
+    const getItems = (node: DirectoryNode, depth = 0): Array<{type: 'directory' | 'file', path: string, depth: number}> => {
+      const items: Array<{type: 'directory' | 'file', path: string, depth: number}> = [];
+
+      // Add directories
+      for (const child of node.children) {
+        items.push({ type: 'directory', path: child.path, depth });
+        if (localExpandedDirs.has(child.path)) {
+          items.push(...getItems(child, depth + 1));
+        }
+      }
+
+      // Add files in this directory
+      for (const file of node.files) {
+        items.push({ type: 'file', path: file.path, depth });
+      }
+
+      return items;
+    };
+
+    return (node: DirectoryNode) => getItems(node);
+  }, [localExpandedDirs]);
+
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     if (viewMode === 'tree') {
       // Tree navigation logic
@@ -251,38 +287,7 @@ export function FileList({
           break;
       }
     }
-  }, [viewMode, fileTree, localExpandedDirs, focusedIndex, filteredFiles, onFileSelect]);
-
-  const toggleDirectory = useCallback((dirPath: string) => {
-    setLocalExpandedDirs(prev => {
-      const next = new Set(prev);
-      if (next.has(dirPath)) {
-        next.delete(dirPath);
-      } else {
-        next.add(dirPath);
-      }
-      return next;
-    });
-  }, []);
-
-  function getAllTreeItems(node: DirectoryNode, depth = 0): Array<{type: 'directory' | 'file', path: string, depth: number}> {
-    const items: Array<{type: 'directory' | 'file', path: string, depth: number}> = [];
-
-    // Add directories
-    for (const child of node.children) {
-      items.push({ type: 'directory', path: child.path, depth });
-      if (localExpandedDirs.has(child.path)) {
-        items.push(...getAllTreeItems(child, depth + 1));
-      }
-    }
-
-    // Add files in this directory
-    for (const file of node.files) {
-      items.push({ type: 'file', path: file.path, depth });
-    }
-
-    return items;
-  }
+  }, [viewMode, fileTree, localExpandedDirs, focusedIndex, filteredFiles, onFileSelect, getAllTreeItems, toggleDirectory]);
 
   // Loading state
   if (loading) {
