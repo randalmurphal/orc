@@ -252,6 +252,37 @@ func (we *WorkflowExecutor) executeParallelPhase(
 		}, fmt.Errorf("phase template not found: %s", phase.PhaseTemplateID)
 	}
 
+	// Check phase condition (skip if condition not met)
+	if phase.Condition != "" {
+		condCtx := &ConditionContext{
+			Task: t,
+			Vars: vars,
+			RCtx: rctx,
+		}
+		condResult, condErr := EvaluateCondition(phase.Condition, condCtx)
+		if condErr != nil {
+			we.logger.Warn("condition evaluation failed, executing phase",
+				"phase", phase.PhaseTemplateID, "error", condErr)
+		} else if !condResult {
+			// Condition not met - skip this phase
+			we.logger.Info("phase skipped by condition",
+				"phase", phase.PhaseTemplateID,
+				"condition", phase.Condition)
+
+			// Mark phase as skipped in task execution state
+			if t != nil {
+				task.EnsureExecutionProto(t)
+				task.SkipPhaseProto(t.Execution, phase.PhaseTemplateID, "condition not met")
+				_ = we.backend.SaveTask(t) // Best-effort
+			}
+
+			return PhaseResult{
+				PhaseID: phase.PhaseTemplateID,
+				Status:  orcv1.PhaseStatus_PHASE_STATUS_SKIPPED.String(),
+			}, nil
+		}
+	}
+
 	// Create run phase record
 	runPhase := &db.WorkflowRunPhase{
 		WorkflowRunID:   run.ID,
