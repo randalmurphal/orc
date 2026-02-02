@@ -105,18 +105,6 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ task, onTaskUpdate
 		loadFeedback();
 	}, [loadFeedback]);
 
-	// TODO: Add WebSocket support for real-time updates
-	// const ws = useWebSocket();
-	// useEffect(() => {
-	// 	const handleFeedbackUpdate = (event: FeedbackEvent) => {
-	// 		if (event.taskId === task.id) {
-	// 			loadFeedback();
-	// 		}
-	// 	};
-	// 	ws.on('feedback', handleFeedbackUpdate);
-	// 	return () => ws.off('feedback', handleFeedbackUpdate);
-	// }, [ws, task.id, loadFeedback]);
-
 	// Validate form data
 	const validateForm = (data: FormData): FormErrors => {
 		const errors: FormErrors = {};
@@ -277,24 +265,12 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ task, onTaskUpdate
 	const showNowWarning = formData.timing === FeedbackTiming.NOW && task.status === TaskStatus.RUNNING;
 	const showWhenDoneInfo = formData.timing === FeedbackTiming.WHEN_DONE;
 
-	// Helper functions to get enum string key from number value
-	const getTypeKey = (typeValue: FeedbackType): string => {
-		for (const [key, value] of Object.entries(FeedbackType)) {
-			if (value === typeValue && isNaN(Number(key))) {
-				return key;
-			}
-		}
-		return 'GENERAL';
-	};
+	// Get enum string key from numeric value using TypeScript's reverse mapping
+	const getTypeKey = (typeValue: FeedbackType): string =>
+		FeedbackType[typeValue] ?? 'GENERAL';
 
-	const getTimingKey = (timingValue: FeedbackTiming): string => {
-		for (const [key, value] of Object.entries(FeedbackTiming)) {
-			if (value === timingValue && isNaN(Number(key))) {
-				return key;
-			}
-		}
-		return 'WHEN_DONE';
-	};
+	const getTimingKey = (timingValue: FeedbackTiming): string =>
+		FeedbackTiming[timingValue] ?? 'WHEN_DONE';
 
 	return (
 		<div className="feedback-panel">
@@ -389,11 +365,6 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ task, onTaskUpdate
 					<div id="feedback-text-help" className="form-help">
 						Provide feedback for the agent working on this task
 					</div>
-					{errors.text && (
-						<div className="form-error" role="alert">
-							{errors.text}
-						</div>
-					)}
 				</div>
 
 				<div className="form-row">
@@ -409,13 +380,10 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ task, onTaskUpdate
 							aria-describedby="feedback-type-help"
 							aria-label="Feedback type"
 						>
-							{Object.keys(FeedbackType)
-								.filter(key => isNaN(Number(key)) && key !== 'UNSPECIFIED')
-								.map(key => (
-									<option key={key} value={key}>
-										{FEEDBACK_TYPE_LABELS[FeedbackType[key as keyof typeof FeedbackType]]}
-									</option>
-								))}
+							<option value="GENERAL">General</option>
+							<option value="INLINE">Inline Comment</option>
+							<option value="APPROVAL">Approval</option>
+							<option value="DIRECTION">Direction Change</option>
 						</select>
 						<div id="feedback-type-help" className="form-help">
 							Choose the type of feedback you're providing
@@ -434,13 +402,9 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ task, onTaskUpdate
 							aria-describedby="feedback-timing-help"
 							aria-label="Timing"
 						>
-							{Object.keys(FeedbackTiming)
-								.filter(key => isNaN(Number(key)) && key !== 'UNSPECIFIED')
-								.map(key => (
-									<option key={key} value={key}>
-										{FEEDBACK_TIMING_LABELS[FeedbackTiming[key as keyof typeof FeedbackTiming]]}
-									</option>
-								))}
+							<option value="NOW">Send Now</option>
+							<option value="WHEN_DONE">When Done</option>
+							<option value="MANUAL">Save for Later</option>
 						</select>
 						<div id="feedback-timing-help" className="form-help">
 							When should this feedback be delivered?
@@ -468,11 +432,6 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ task, onTaskUpdate
 							<div id="file-path-help" className="form-help">
 								Path to the file this comment applies to
 							</div>
-							{errors.file && (
-								<div className="form-error" role="alert">
-									{errors.file}
-								</div>
-							)}
 						</div>
 
 						<div className="form-group">
@@ -493,11 +452,6 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ task, onTaskUpdate
 							<div id="line-number-help" className="form-help">
 								Line number (optional)
 							</div>
-							{errors.line && (
-								<div className="form-error" role="alert">
-									{errors.line}
-								</div>
-							)}
 						</div>
 					</div>
 				)}

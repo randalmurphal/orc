@@ -20,7 +20,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FeedbackPanel } from './FeedbackPanel';
 import { FeedbackType, FeedbackTiming } from '@/gen/orc/v1/feedback_pb';
@@ -159,44 +159,52 @@ describe('FeedbackPanel', () => {
 
 		it('allows selecting GENERAL feedback type', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const typeSelect = screen.getByLabelText(/feedback type/i);
-			await user.click(typeSelect);
-			await user.click(screen.getByText('General'));
+			await user.selectOptions(typeSelect, 'GENERAL');
 
 			expect(typeSelect).toHaveValue('GENERAL');
 		});
 
 		it('allows selecting INLINE feedback type', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const typeSelect = screen.getByLabelText(/feedback type/i);
-			await user.click(typeSelect);
-			await user.click(screen.getByText('Inline Comment'));
+			await user.selectOptions(typeSelect, 'INLINE');
 
 			expect(typeSelect).toHaveValue('INLINE');
 		});
 
 		it('allows selecting APPROVAL feedback type', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const typeSelect = screen.getByLabelText(/feedback type/i);
-			await user.click(typeSelect);
-			await user.click(screen.getByText('Approval'));
+			await user.selectOptions(typeSelect, 'APPROVAL');
 
 			expect(typeSelect).toHaveValue('APPROVAL');
 		});
 
 		it('allows selecting DIRECTION feedback type', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const typeSelect = screen.getByLabelText(/feedback type/i);
-			await user.click(typeSelect);
-			await user.click(screen.getByText('Direction Change'));
+			await user.selectOptions(typeSelect, 'DIRECTION');
 
 			expect(typeSelect).toHaveValue('DIRECTION');
 		});
@@ -211,33 +219,39 @@ describe('FeedbackPanel', () => {
 
 		it('allows selecting NOW timing', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const timingSelect = screen.getByLabelText(/timing/i);
-			await user.click(timingSelect);
-			await user.click(screen.getByText('Send Now'));
+			await user.selectOptions(timingSelect, 'NOW');
 
 			expect(timingSelect).toHaveValue('NOW');
 		});
 
 		it('allows selecting WHEN_DONE timing', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const timingSelect = screen.getByLabelText(/timing/i);
-			await user.click(timingSelect);
-			await user.click(screen.getByText('When Done'));
+			await user.selectOptions(timingSelect, 'WHEN_DONE');
 
 			expect(timingSelect).toHaveValue('WHEN_DONE');
 		});
 
 		it('allows selecting MANUAL timing', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const timingSelect = screen.getByLabelText(/timing/i);
-			await user.click(timingSelect);
-			await user.click(screen.getByText('Save for Later'));
+			await user.selectOptions(timingSelect, 'MANUAL');
 
 			expect(timingSelect).toHaveValue('MANUAL');
 		});
@@ -246,11 +260,13 @@ describe('FeedbackPanel', () => {
 	describe('SC-4: Inline comments with file/line targeting', () => {
 		it('shows file and line inputs when INLINE type is selected', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const typeSelect = screen.getByLabelText(/feedback type/i);
-			await user.click(typeSelect);
-			await user.click(screen.getByText('Inline Comment'));
+			await user.selectOptions(typeSelect, 'INLINE');
 
 			expect(screen.getByLabelText(/file path/i)).toBeInTheDocument();
 			expect(screen.getByLabelText(/line number/i)).toBeInTheDocument();
@@ -258,11 +274,13 @@ describe('FeedbackPanel', () => {
 
 		it('hides file and line inputs for non-INLINE types', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const typeSelect = screen.getByLabelText(/feedback type/i);
-			await user.click(typeSelect);
-			await user.click(screen.getByText('General'));
+			await user.selectOptions(typeSelect, 'GENERAL');
 
 			expect(screen.queryByLabelText(/file path/i)).not.toBeInTheDocument();
 			expect(screen.queryByLabelText(/line number/i)).not.toBeInTheDocument();
@@ -270,12 +288,14 @@ describe('FeedbackPanel', () => {
 
 		it('creates inline feedback with file and line data', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			// Set up inline feedback
 			const typeSelect = screen.getByLabelText(/feedback type/i);
-			await user.click(typeSelect);
-			await user.click(screen.getByText('Inline Comment'));
+			await user.selectOptions(typeSelect, 'INLINE');
 
 			await user.type(screen.getByLabelText(/feedback text/i), 'Fix this bug');
 			await user.type(screen.getByLabelText(/file path/i), 'src/main.go');
@@ -408,11 +428,12 @@ describe('FeedbackPanel', () => {
 				status: TaskStatus.RUNNING,
 			});
 
-			render(<FeedbackPanel task={runningTask} onTaskUpdate={mockOnTaskUpdate} />);
+			await act(async () => {
+				render(<FeedbackPanel task={runningTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const timingSelect = screen.getByLabelText(/timing/i);
-			await user.click(timingSelect);
-			await user.click(screen.getByText('Send Now'));
+			await user.selectOptions(timingSelect, 'NOW');
 
 			expect(screen.getByText(/will pause the task/i)).toBeInTheDocument();
 		});
@@ -424,11 +445,12 @@ describe('FeedbackPanel', () => {
 				status: TaskStatus.COMPLETED,
 			});
 
-			render(<FeedbackPanel task={completedTask} onTaskUpdate={mockOnTaskUpdate} />);
+			await act(async () => {
+				render(<FeedbackPanel task={completedTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const timingSelect = screen.getByLabelText(/timing/i);
-			await user.click(timingSelect);
-			await user.click(screen.getByText('Send Now'));
+			await user.selectOptions(timingSelect, 'NOW');
 
 			expect(screen.queryByText(/will pause the task/i)).not.toBeInTheDocument();
 		});
@@ -437,11 +459,13 @@ describe('FeedbackPanel', () => {
 	describe('SC-8: WHEN_DONE queued feedback', () => {
 		it('shows info about WHEN_DONE timing', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const timingSelect = screen.getByLabelText(/timing/i);
-			await user.click(timingSelect);
-			await user.click(screen.getByText('When Done'));
+			await user.selectOptions(timingSelect, 'WHEN_DONE');
 
 			expect(screen.getByText(/queued until phase completion/i)).toBeInTheDocument();
 		});
@@ -449,48 +473,56 @@ describe('FeedbackPanel', () => {
 
 	describe('SC-10: Form validation', () => {
 		it('prevents submission with empty feedback text', async () => {
-			const user = userEvent.setup();
 			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
 
-			await user.click(screen.getByRole('button', { name: /add feedback/i }));
+			const form = document.querySelector('form')!;
+			fireEvent.submit(form);
 
-			expect(mockAddFeedback).not.toHaveBeenCalled();
-			expect(screen.getByText(/feedback text is required/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(mockAddFeedback).not.toHaveBeenCalled();
+				expect(screen.getByText(/feedback text is required/i)).toBeInTheDocument();
+			});
 		});
+
 
 		it('prevents submission of inline feedback without file path', async () => {
 			const user = userEvent.setup();
+
 			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
 
 			const typeSelect = screen.getByLabelText(/feedback type/i);
-			await user.click(typeSelect);
-			await user.click(screen.getByText('Inline Comment'));
+			await user.selectOptions(typeSelect, 'INLINE');
 
 			await user.type(screen.getByLabelText(/feedback text/i), 'Fix this');
 			await user.type(screen.getByLabelText(/line number/i), '42');
 
 			await user.click(screen.getByRole('button', { name: /add feedback/i }));
 
-			expect(mockAddFeedback).not.toHaveBeenCalled();
-			expect(screen.getByText(/file path is required for inline comments/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(mockAddFeedback).not.toHaveBeenCalled();
+				expect(screen.getByText(/file path is required for inline comments/i)).toBeInTheDocument();
+			});
 		});
 
 		it('prevents submission of inline feedback with invalid line number', async () => {
 			const user = userEvent.setup();
+
 			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
 
 			const typeSelect = screen.getByLabelText(/feedback type/i);
-			await user.click(typeSelect);
-			await user.click(screen.getByText('Inline Comment'));
+			await user.selectOptions(typeSelect, 'INLINE');
 
 			await user.type(screen.getByLabelText(/feedback text/i), 'Fix this');
 			await user.type(screen.getByLabelText(/file path/i), 'src/main.go');
 			await user.type(screen.getByLabelText(/line number/i), '-5');
 
-			await user.click(screen.getByRole('button', { name: /add feedback/i }));
+			const form = document.querySelector('form')!;
+			fireEvent.submit(form);
 
-			expect(mockAddFeedback).not.toHaveBeenCalled();
-			expect(screen.getByText(/line number must be positive/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(mockAddFeedback).not.toHaveBeenCalled();
+				expect(screen.getByText(/line number must be positive/i)).toBeInTheDocument();
+			});
 		});
 	});
 
@@ -589,17 +621,18 @@ describe('FeedbackPanel', () => {
 	describe('Form interaction flows', () => {
 		it('successfully creates general feedback', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			await user.type(screen.getByLabelText(/feedback text/i), 'Great work!');
 
 			const typeSelect = screen.getByLabelText(/feedback type/i);
-			await user.click(typeSelect);
-			await user.click(screen.getByText('General'));
+			await user.selectOptions(typeSelect, 'GENERAL');
 
 			const timingSelect = screen.getByLabelText(/timing/i);
-			await user.click(timingSelect);
-			await user.click(screen.getByText('When Done'));
+			await user.selectOptions(timingSelect, 'WHEN_DONE');
 
 			await user.click(screen.getByRole('button', { name: /add feedback/i }));
 
@@ -618,7 +651,10 @@ describe('FeedbackPanel', () => {
 
 		it('clears form after successful submission', async () => {
 			const user = userEvent.setup();
-			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+
+			await act(async () => {
+				render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
+			});
 
 			const textArea = screen.getByLabelText(/feedback text/i);
 			await user.type(textArea, 'Test feedback');

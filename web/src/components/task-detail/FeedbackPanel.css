@@ -283,10 +283,3 @@
 	outline: 2px solid var(--accent-primary);
 	outline-offset: 2px;
 }
-
-/* Dark mode support (if using CSS custom properties) */
-@media (prefers-color-scheme: dark) {
-	.feedback-panel {
-		/* Dark mode styles would go here if not using CSS custom properties */
-	}
-}
