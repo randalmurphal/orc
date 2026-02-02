@@ -33,15 +33,21 @@ vi.mock('@/lib/client', () => ({
 	},
 }));
 
-// Mock the workflow store
-vi.mock('@/stores/workflowStore', () => ({
-	useWorkflowStore: () => ({
-		workflows: [],
-		phaseTemplates: [],
-		setWorkflows: vi.fn(),
-		setPhaseTemplates: vi.fn(),
-		refreshKey: 0,
+// Mock the workflow store with stateful implementation
+const mockWorkflowStore = {
+	workflows: [],
+	phaseTemplates: [],
+	setWorkflows: vi.fn((workflows, _sources) => {
+		mockWorkflowStore.workflows = workflows;
 	}),
+	setPhaseTemplates: vi.fn((templates, _sources) => {
+		mockWorkflowStore.phaseTemplates = templates;
+	}),
+	refreshKey: 0,
+};
+
+vi.mock('@/stores/workflowStore', () => ({
+	useWorkflowStore: () => mockWorkflowStore,
 }));
 
 import { workflowClient } from '@/lib/client';
@@ -58,6 +64,10 @@ function renderWorkflowsView() {
 describe('WorkflowsView Redesign - TASK-750', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		// Reset mock store state
+		mockWorkflowStore.workflows = [];
+		mockWorkflowStore.phaseTemplates = [];
+		mockWorkflowStore.refreshKey = 0;
 	});
 
 	afterEach(() => {
@@ -247,8 +257,11 @@ describe('WorkflowsView Redesign - TASK-750', () => {
 				expect(screen.getByText('Medium')).toBeInTheDocument();
 			});
 
-			// Should be able to clone built-in workflows
-			const cloneButton = screen.getByRole('button', { name: /clone/i });
+			// Should be able to clone built-in workflows - find clone button within Medium workflow card
+			const mediumWorkflowCard = screen.getByText('Medium').closest('.workflow-card');
+			expect(mediumWorkflowCard).toBeInTheDocument();
+			const cloneButton = mediumWorkflowCard!.querySelector('button[title*="Clone"]') as HTMLElement;
+			expect(cloneButton).toBeInTheDocument();
 			await user.click(cloneButton);
 
 			expect(cloneEventHandler).toHaveBeenCalled();
