@@ -61,18 +61,6 @@ const secondaryNavItems: NavItemConfig[] = [
 		description: 'Workflow configuration',
 	},
 	{
-		icon: 'robot',
-		label: 'Agents',
-		path: '/agents',
-		description: 'Agent management',
-	},
-	{
-		icon: 'terminal',
-		label: 'Environ',
-		path: '/environment',
-		description: 'Environment: hooks, skills, and configuration',
-	},
-	{
 		icon: 'settings',
 		label: 'Settings',
 		path: '/settings',
@@ -104,7 +92,7 @@ function checkIsActive(path: string, pathname: string): boolean {
 	if (path === '/board' || path === '/help') {
 		return pathname === path || pathname.startsWith(`${path}/`);
 	}
-	// For settings, initiatives, agents, stats, workflows - match prefix for nested routes
+	// For settings, initiatives, stats, workflows - match prefix for nested routes
 	return pathname.startsWith(path);
 }
 

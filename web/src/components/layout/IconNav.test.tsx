@@ -29,7 +29,7 @@ describe('IconNav', () => {
 			expect(screen.getByText('Board')).toBeInTheDocument();
 			expect(screen.getByText('Initiatives')).toBeInTheDocument();
 			expect(screen.getByText('Stats')).toBeInTheDocument();
-			expect(screen.getByText('Agents')).toBeInTheDocument();
+			expect(screen.getByText('Workflows')).toBeInTheDocument();
 			expect(screen.getByText('Settings')).toBeInTheDocument();
 			expect(screen.getByText('Help')).toBeInTheDocument();
 		});
@@ -102,7 +102,7 @@ describe('IconNav', () => {
 			expect(screen.getByRole('link', { name: 'Task board view' })).toBeInTheDocument();
 			expect(screen.getByRole('link', { name: 'View and manage initiatives' })).toBeInTheDocument();
 			expect(screen.getByRole('link', { name: 'Statistics and metrics' })).toBeInTheDocument();
-			expect(screen.getByRole('link', { name: 'Agent management' })).toBeInTheDocument();
+			expect(screen.getByRole('link', { name: 'Workflow configuration' })).toBeInTheDocument();
 			expect(screen.getByRole('link', { name: 'Application settings' })).toBeInTheDocument();
 			expect(screen.getByRole('link', { name: 'Help and documentation' })).toBeInTheDocument();
 		});
@@ -118,7 +118,7 @@ describe('IconNav', () => {
 			renderWithProviders(<IconNav />);
 
 			const links = screen.getAllByRole('link');
-			expect(links.length).toBe(9); // 9 nav items (Board, Initiatives, Timeline, Stats, Workflows, Agents, Environ, Settings, Help)
+			expect(links.length).toBe(7); // 7 nav items (Board, Initiatives, Timeline, Stats, Workflows, Settings, Help)
 
 			// All links should be focusable (tabindex not -1)
 			links.forEach((link) => {
@@ -162,7 +162,8 @@ describe('IconNav', () => {
 			renderWithProviders(<IconNav />);
 
 			const links = screen.getAllByRole('link');
-			// All 7 nav items should have data-state from Tooltip wrapper
+			// All nav items should have data-state from Tooltip wrapper
+			expect(links.length).toBe(7);
 			links.forEach((link) => {
 				expect(link).toHaveAttribute('data-state');
 			});

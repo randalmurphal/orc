@@ -127,20 +127,18 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions = {}) {
 			onSearch: options.onSearch,
 			onHelp: options.onHelp,
 			onEscape: options.onEscape,
-			// New navigation shortcuts
+			// Navigation shortcuts
 			onGoBoard: () => navigate('/board'),
 			onGoInitiatives: () => navigate('/initiatives'),
 			onGoStats: () => navigate('/stats'),
-			onGoAgents: () => navigate('/agents'),
 			onGoSettings: () => navigate('/settings'),
 			// Legacy navigation (redirect to new routes)
 			onGoDashboard: () => navigate('/stats'),
 			onGoTasks: () => navigate('/board'),
-			onGoEnvironment: () => navigate('/environment'),
 			onGoPreferences: () => navigate('/preferences'),
-			onGoPrompts: () => navigate('/environment/prompts'),
-			onGoHooks: () => navigate('/environment/hooks'),
-			onGoSkills: () => navigate('/environment/skills'),
+			// Environment shortcuts redirect to settings
+			onGoHooks: () => navigate('/settings/hooks'),
+			onGoSkills: () => navigate('/settings/skills'),
 		});
 
 		return cleanup;
