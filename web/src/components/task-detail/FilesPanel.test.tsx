@@ -1,30 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { FilesPanel } from './FilesPanel';
-import type { FileDiff, DiffResult } from '@/gen/orc/v1/common_pb';
+import type { DiffResult } from '@/gen/orc/v1/common_pb';
 import '@testing-library/jest-dom';
 
 // Mock the taskClient
-const mockTaskClient = {
-  getDiff: vi.fn(),
-  getFileDiff: vi.fn(),
-};
-
 vi.mock('@/lib/client', () => ({
-  taskClient: mockTaskClient,
+  taskClient: {
+    getDiff: vi.fn(),
+    getFileDiff: vi.fn(),
+  },
 }));
+
+// Access the mocked client for setting up test scenarios
+import { taskClient } from '@/lib/client';
+const mockTaskClient = taskClient as any;
 
 // Mock diff data
 const mockDiffResult: DiffResult = {
+  $typeName: 'orc.v1.DiffResult',
   base: 'main',
   head: 'feature-branch',
   stats: {
+    $typeName: 'orc.v1.DiffStats',
     filesChanged: 3,
     additions: 25,
     deletions: 8,
-  },
+  } as any,
   files: [
     {
+      $typeName: 'orc.v1.FileDiff',
       path: 'src/components/Button.tsx',
       status: 'modified',
       additions: 15,
@@ -32,8 +37,9 @@ const mockDiffResult: DiffResult = {
       binary: false,
       syntax: 'typescript',
       hunks: [],
-    },
+    } as any,
     {
+      $typeName: 'orc.v1.FileDiff',
       path: 'src/utils/api.ts',
       status: 'added',
       additions: 10,
@@ -41,8 +47,9 @@ const mockDiffResult: DiffResult = {
       binary: false,
       syntax: 'typescript',
       hunks: [],
-    },
+    } as any,
     {
+      $typeName: 'orc.v1.FileDiff',
       path: 'legacy/old.js',
       status: 'deleted',
       additions: 0,
@@ -50,9 +57,9 @@ const mockDiffResult: DiffResult = {
       binary: false,
       syntax: 'javascript',
       hunks: [],
-    },
+    } as any,
   ],
-};
+} as DiffResult;
 
 describe('FilesPanel', () => {
   const defaultProps = {

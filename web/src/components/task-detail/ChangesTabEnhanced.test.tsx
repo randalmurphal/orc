@@ -5,14 +5,23 @@ import '@testing-library/jest-dom';
 
 // Mock the sub-components
 vi.mock('./FilesPanel', () => ({
-  FilesPanel: ({ onFileSelect, onViewModeChange }: any) => (
-    <div data-testid="files-panel">
-      <button data-testid="mock-file-1" onClick={() => onFileSelect('file1.ts')}>
+  FilesPanel: ({ onFileSelect, onViewModeChange, ...props }: any) => (
+    <div data-testid="files-panel" role="complementary">
+      <button data-testid="mock-file-1" onClick={() => onFileSelect && onFileSelect('file1.ts')}>
         file1.ts
       </button>
-      <button data-testid="view-toggle" onClick={() => onViewModeChange('tree')}>
+      <button data-testid="view-toggle" onClick={() => onViewModeChange && onViewModeChange('tree')}>
         Tree View
       </button>
+      <button data-testid="expand-file-file1.ts" onClick={() => {}}>
+        Expand
+      </button>
+      <div data-testid="diff-mode-toggle">
+        <button onClick={() => {}}>Unified</button>
+      </div>
+      {/* Mock the project and task props */}
+      <span style={{display: 'none'}}>{props.projectId}</span>
+      <span style={{display: 'none'}}>{props.taskId}</span>
     </div>
   ),
 }));
@@ -26,13 +35,24 @@ vi.mock('./DiffFile', () => ({
 }));
 
 // Mock the task client
-const mockTaskClient = {
-  getDiff: vi.fn(),
-  getFileDiff: vi.fn(),
-};
-
 vi.mock('@/lib/client', () => ({
-  taskClient: mockTaskClient,
+  taskClient: {
+    getDiff: vi.fn(),
+    getFileDiff: vi.fn(),
+    listReviewComments: vi.fn(),
+    addReviewComment: vi.fn(),
+    updateReviewComment: vi.fn(),
+    deleteReviewComment: vi.fn(),
+  },
+}));
+
+// Access the mocked client for setting up test scenarios
+import { taskClient } from '@/lib/client';
+const mockTaskClient = taskClient as any;
+
+// Mock the useCurrentProjectId hook
+vi.mock('@/stores', () => ({
+  useCurrentProjectId: vi.fn().mockReturnValue('test-project-id'),
 }));
 
 describe('ChangesTabEnhanced', () => {
@@ -70,6 +90,11 @@ describe('ChangesTabEnhanced', () => {
         ],
       },
     });
+
+    mockTaskClient.listReviewComments.mockResolvedValue({ comments: [] });
+    mockTaskClient.addReviewComment.mockResolvedValue({ comment: {} });
+    mockTaskClient.updateReviewComment.mockResolvedValue({ comment: {} });
+    mockTaskClient.deleteReviewComment.mockResolvedValue({});
   });
 
   describe('Enhanced Changes Tab Layout', () => {
@@ -315,13 +340,6 @@ describe('ChangesTabEnhanced', () => {
     it('should handle file panel errors gracefully', async () => {
       // Mock console.error to avoid test noise
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      const ThrowError = () => {
-        throw new Error('File panel error');
-      };
-
-      // Mock files panel to throw error
-      vi.mocked(vi.importMeta.env).VITE_TEST = 'true';
 
       render(<ChangesTabEnhanced {...defaultProps} />);
 

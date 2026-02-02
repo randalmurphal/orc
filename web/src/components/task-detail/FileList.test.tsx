@@ -6,13 +6,15 @@ import '@testing-library/jest-dom';
 
 // Mock data
 const mockStats: DiffStats = {
+  $typeName: 'orc.v1.DiffStats',
   filesChanged: 5,
   additions: 45,
   deletions: 12,
-};
+} as DiffStats;
 
 const mockFiles: FileDiff[] = [
   {
+    $typeName: 'orc.v1.FileDiff',
     path: 'src/components/ui/Button.tsx',
     status: 'modified',
     additions: 15,
@@ -22,8 +24,9 @@ const mockFiles: FileDiff[] = [
     hunks: [],
     oldPath: undefined,
     loadError: undefined,
-  },
+  } as FileDiff,
   {
+    $typeName: 'orc.v1.FileDiff',
     path: 'src/utils/helpers.ts',
     status: 'added',
     additions: 25,
@@ -33,8 +36,9 @@ const mockFiles: FileDiff[] = [
     hunks: [],
     oldPath: undefined,
     loadError: undefined,
-  },
+  } as FileDiff,
   {
+    $typeName: 'orc.v1.FileDiff',
     path: 'tests/utils.test.ts',
     status: 'deleted',
     additions: 0,
@@ -44,8 +48,9 @@ const mockFiles: FileDiff[] = [
     hunks: [],
     oldPath: undefined,
     loadError: undefined,
-  },
+  } as FileDiff,
   {
+    $typeName: 'orc.v1.FileDiff',
     path: 'package.json',
     status: 'modified',
     additions: 2,
@@ -55,8 +60,9 @@ const mockFiles: FileDiff[] = [
     hunks: [],
     oldPath: undefined,
     loadError: undefined,
-  },
+  } as FileDiff,
   {
+    $typeName: 'orc.v1.FileDiff',
     path: 'docs/README.md',
     status: 'modified',
     additions: 3,
@@ -66,7 +72,7 @@ const mockFiles: FileDiff[] = [
     hunks: [],
     oldPath: undefined,
     loadError: undefined,
-  },
+  } as FileDiff,
 ];
 
 describe('FileList', () => {
@@ -358,6 +364,7 @@ describe('FileList', () => {
 
     it('should handle binary files appropriately', () => {
       const binaryFile: FileDiff = {
+        $typeName: 'orc.v1.FileDiff',
         path: 'assets/logo.png',
         status: 'added',
         additions: 0,
@@ -367,7 +374,7 @@ describe('FileList', () => {
         hunks: [],
         oldPath: undefined,
         loadError: undefined,
-      };
+      } as FileDiff;
 
       render(<FileList {...defaultProps} files={[binaryFile]} />);
 
