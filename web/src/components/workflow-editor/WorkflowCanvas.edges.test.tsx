@@ -237,22 +237,22 @@ describe('WorkflowCanvas - Edge Deletion', () => {
 			});
 		});
 
-		it('does not call updatePhase when a sequential edge is removed', async () => {
+		it('does not call updatePhase when a gate edge is removed', async () => {
 			loadWorkflowWithDependency();
 			const mockUpdatePhase = vi.mocked(workflowClient.updatePhase);
 
 			render(<WorkflowCanvas />);
 
-			// Find a sequential edge
+			// Find a gate edge (these replaced sequential edges)
 			const edges = useWorkflowEditorStore.getState().edges;
-			const seqEdge = edges.find((e) => e.type === 'sequential');
-			expect(seqEdge).toBeDefined();
+			const gateEdge = edges.find((e) => e.type === 'gate');
+			expect(gateEdge).toBeDefined();
 
-			// Remove the sequential edge
-			const edgesWithout = edges.filter((e) => e.id !== seqEdge!.id);
+			// Remove the gate edge
+			const edgesWithout = edges.filter((e) => e.id !== gateEdge!.id);
 			useWorkflowEditorStore.getState().setEdges(edgesWithout);
 
-			// Sequential edges are auto-generated from sequence order
+			// Gate edges are auto-generated from sequence order
 			// Deleting them should NOT call updatePhase (they aren't in dependsOn)
 			// Wait a tick to ensure no API call was made
 			await new Promise((resolve) => setTimeout(resolve, 100));

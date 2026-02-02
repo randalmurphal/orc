@@ -1,5 +1,6 @@
 import type { GateType } from '@/gen/orc/v1/workflow_pb';
 import { PhaseNode } from './PhaseNode';
+import { VirtualNode } from './VirtualNode';
 
 /** Status of a phase during execution */
 export type PhaseStatus =
@@ -47,4 +48,5 @@ export interface PhaseNodeData {
  */
 export const nodeTypes = {
 	phase: PhaseNode,
+	virtual: VirtualNode,
 } as const;

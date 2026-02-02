@@ -13,7 +13,7 @@
  * These tests will FAIL until GateInspector is implemented.
  */
 
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import {
 	createMockWorkflowWithDetails,
@@ -167,7 +167,10 @@ describe('GateInspector', () => {
 				/>
 			);
 
-			expect(screen.getByText(/5/)).toBeTruthy();
+			// Max retries is shown in an input field
+			const maxRetriesInput = document.querySelector('input[type="number"]') as HTMLInputElement;
+			expect(maxRetriesInput).not.toBeNull();
+			expect(maxRetriesInput.value).toBe('5');
 		});
 
 		it('shows failure action when configured', () => {

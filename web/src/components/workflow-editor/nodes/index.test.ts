@@ -8,8 +8,12 @@ describe('nodeTypes export', () => {
 			expect(nodeTypes).toHaveProperty('phase');
 		});
 
-		it('has exactly 1 node type entry (start/end nodes removed per design spec)', () => {
-			expect(Object.keys(nodeTypes)).toHaveLength(1);
+		it('has exactly 2 node type entries (phase + virtual for gate edges)', () => {
+			expect(Object.keys(nodeTypes)).toHaveLength(2);
+		});
+
+		it('exports nodeTypes with virtual key', () => {
+			expect(nodeTypes).toHaveProperty('virtual');
 		});
 
 		it('is a stable reference (same object on re-import)', async () => {

@@ -215,7 +215,7 @@ If you see these patterns, the task is likely under-weighted:
 **Wiring Checklist** - Every spec's success criteria MUST include:
 - All new functions are called from at least one production code path
 - All new interfaces have registered implementations
-- Integration tests that **FAIL if wiring is missing** (not just unit tests of the new code)
+- Integration tests verify the wiring exists (tests that **FAIL if wiring is missing**, not just unit tests of the new code)
 
 **Behavioral Parity for Alternate Paths** - If your task adds a new execution path that mirrors an existing one (parallel vs sequential, async vs sync, cached vs uncached):
 

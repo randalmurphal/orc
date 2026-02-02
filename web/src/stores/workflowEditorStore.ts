@@ -17,6 +17,7 @@ interface WorkflowEditorStore {
 	edges: Edge[];
 	readOnly: boolean;
 	selectedNodeId: string | null;
+	selectedEdgeId: string | null;
 	workflowDetails: WorkflowWithDetails | null;
 
 	// Execution tracking state (TASK-639)
@@ -26,9 +27,11 @@ interface WorkflowEditorStore {
 	loadFromWorkflow: (details: WorkflowWithDetails) => void;
 	setReadOnly: (readOnly: boolean) => void;
 	selectNode: (nodeId: string | null) => void;
+	selectEdge: (edgeId: string | null) => void;
 	setNodes: (nodes: Node[]) => void;
 	setEdges: (edges: Edge[]) => void;
 	reset: () => void;
+	getSelectedEdge: () => Edge | null;
 
 	// Execution tracking actions (TASK-639)
 	setActiveRun: (run: WorkflowRunWithDetails | null) => void;
@@ -42,6 +45,7 @@ const initialState = {
 	edges: [] as Edge[],
 	readOnly: false,
 	selectedNodeId: null as string | null,
+	selectedEdgeId: null as string | null,
 	workflowDetails: null as WorkflowWithDetails | null,
 	activeRun: null as WorkflowRunWithDetails | null,
 };
@@ -65,13 +69,24 @@ export const useWorkflowEditorStore = create<WorkflowEditorStore>()(
 					workflowDetails: details,
 					readOnly: isBuiltin,
 					selectedNodeId: preservedSelection,
+					selectedEdgeId: null, // Clear edge selection when loading new workflow
 				};
 			});
 		},
 
 		setReadOnly: (readOnly: boolean) => set({ readOnly }),
 
-		selectNode: (nodeId: string | null) => set({ selectedNodeId: nodeId }),
+		selectNode: (nodeId: string | null) =>
+			set({ selectedNodeId: nodeId, selectedEdgeId: null }), // Clear edge when selecting node
+
+		selectEdge: (edgeId: string | null) =>
+			set({ selectedEdgeId: edgeId, selectedNodeId: null }), // Clear node when selecting edge
+
+		getSelectedEdge: () => {
+			const state = useWorkflowEditorStore.getState();
+			if (!state.selectedEdgeId) return null;
+			return state.edges.find((e) => e.id === state.selectedEdgeId) ?? null;
+		},
 
 		setNodes: (nodes: Node[]) => set({ nodes }),
 
@@ -185,6 +200,8 @@ export const useEditorReadOnly = () =>
 	useWorkflowEditorStore((state) => state.readOnly);
 export const useEditorSelectedNodeId = () =>
 	useWorkflowEditorStore((state) => state.selectedNodeId);
+export const useEditorSelectedEdgeId = () =>
+	useWorkflowEditorStore((state) => state.selectedEdgeId);
 export const useEditorWorkflowDetails = () =>
 	useWorkflowEditorStore((state) => state.workflowDetails);
 export const useEditorActiveRun = () =>
