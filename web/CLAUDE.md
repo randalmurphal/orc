@@ -39,7 +39,7 @@ web/src/
 │   ├── board/            # Board view (TaskCard, RunningCard, Swimlane, BoardCommandPanel)
 │   ├── layout/           # Shell (AppShell, TopBar, IconNav, RightPanel, AppShellContext)
 │   ├── agents/           # Agent config (AgentsView, AgentCard, ExecutionSettings)
-│   ├── overlays/         # Modal components (NewTaskModal, ProjectSwitcher)
+│   ├── overlays/         # Modal components (NewTaskWorkflowModal, TaskDetailsModal, WorkflowPickerModal, ProjectSwitcher)
 │   ├── task-detail/      # Task detail tabs (Overview, Transcript, TestResults, etc.)
 │   ├── timeline/         # Timeline event view
 │   ├── workflow-editor/  # Visual editor (React Flow canvas, dagre layout)
@@ -107,6 +107,9 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
 | `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
 | `TaskEditModal` | `task-detail/` | Edit task properties + branch/PR settings (`branchName`, `targetBranch`, `prDraft`, `prLabels`, `prReviewers`) |
+| `NewTaskWorkflowModal` | `overlays/` | Orchestrates 2-step workflow-first task creation: Step 1 (workflow picker) → Step 2 (task details) |
+| `WorkflowPickerModal` | `overlays/` | Step 1: Select workflow from grid (built-in + custom), shows phase count and description, keyboard navigation |
+| `TaskDetailsModal` | `overlays/` | Step 2: Enter task details (title/description), category/priority, advanced options, Create/Create & Run actions |
 | `WorkflowProgress` | `task-detail/` | Visual phase progression with gate diamonds, state indicators (✓/●/○/✗), and gate type colors (auto/human/ai) |
 | `TaskFooter` | `task-detail/` | Footer with session metrics (tokens/cost), action buttons (pause/resume/cancel/retry), error display with retry options |
 | `SettingsTabs` | `settings/` | Top-level 3-tab navigation (General, Agents, Environment) with URL-driven state |
