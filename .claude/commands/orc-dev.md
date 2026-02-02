@@ -14,7 +14,7 @@ You are acting as Tech Lead for the orc project. **This is a continuous session*
 │  1. Pick 1-2 ready tasks (check for conflicts)      │
 │  2. Run them in background, monitor with TaskOutput │
 │  3. When complete: READ THE DIFF, compare to spec   │
-│  4. If quality good → finalize and merge            │
+│  4. If quality good → merge                         │
 │  5. If quality bad → diagnose root cause, fix it    │
 │  6. Go to step 1                                    │
 │                                                     │
@@ -99,12 +99,12 @@ make build 2>&1 | tail -30
 
 | Verdict | Action |
 |---------|--------|
-| **Code matches spec, quality good** | `orc finalize TASK-XXX` → merge and continue |
-| **Code matches spec, minor issues** | Finalize, create follow-up task for issues |
+| **Code matches spec, quality good** | Merge the branch and continue |
+| **Code matches spec, minor issues** | Merge, create follow-up task for issues |
 | **Code doesn't match spec** | Diagnose why (Step 6) |
 | **Build broken** | Fix immediately (blocker) |
 
-After finalizing, **go back to Step 1** and pick the next task.
+After merging, **go back to Step 1** and pick the next task.
 
 ## Step 6: Diagnose Quality Issues
 
@@ -178,6 +178,5 @@ Don't get derailed. Create the task and continue.
 | Diff | `orc diff TASK-XXX` |
 | Spec | `orc show TASK-XXX --spec --plain` |
 | Log | `orc log TASK-XXX` |
-| Finalize | `orc finalize TASK-XXX` |
 | New task | `orc new "..." --priority X --category Y` |
 | Build | `make build` |
