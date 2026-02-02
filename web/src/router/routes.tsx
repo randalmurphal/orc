@@ -7,6 +7,7 @@ import { PageLoader } from '@/components/ui/PageLoader';
 import { NewTaskWorkflowModal, ProjectSwitcher } from '@/components/overlays';
 import { useTaskStore } from '@/stores/taskStore';
 import { useCurrentProjectId, useProjectLoading } from '@/stores';
+import type { Task } from '@/gen/orc/v1/task_pb';
 
 // Lazy-loaded page components for code splitting
 // Each becomes a separate chunk, loaded on-demand when the route is visited
@@ -138,7 +139,7 @@ function AppShellLayout() {
 			<NewTaskWorkflowModal
 				open={showNewTaskModal}
 				onClose={() => setShowNewTaskModal(false)}
-				onCreate={(task: any) => useTaskStore.getState().addTask(task)}
+				onCreate={(task: Task) => useTaskStore.getState().addTask(task)}
 			/>
 			<ProjectSwitcher
 				open={showProjectSwitcher}

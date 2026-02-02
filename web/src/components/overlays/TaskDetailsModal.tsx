@@ -12,7 +12,9 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { taskClient } from '@/lib/client';
 import { useCurrentProjectId, useInitiatives, toast } from '@/stores';
-import { TaskWeight, TaskCategory, TaskPriority, TaskQueue } from '@/gen/orc/v1/task_pb';
+import { TaskWeight, TaskCategory, TaskPriority, TaskQueue, type Task as ProtobufTask } from '@/gen/orc/v1/task_pb';
+
+export type Task = ProtobufTask;
 
 export interface WorkflowWithPhaseCount {
 	id: string;
@@ -20,13 +22,6 @@ export interface WorkflowWithPhaseCount {
 	description?: string;
 	isBuiltin: boolean;
 	phaseCount: number;
-}
-
-export interface Task {
-	id: string;
-	title: string;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	[key: string]: any;
 }
 
 export interface TaskDetailsModalProps {
