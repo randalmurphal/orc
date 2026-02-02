@@ -316,3 +316,87 @@ type mockDirEntry struct {
 
 func (m mockDirEntry) Name() string { return m.DirEntry.Name() }
 func (m mockDirEntry) IsDir() bool  { return m.DirEntry.IsDir() }
+
+// TestSQLiteMigrateWithFKDisable tests migrations that require FK constraints disabled
+func TestSQLiteMigrateWithFKDisable(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "migrate_fk_test.db")
+
+	drv := NewSQLite()
+	if err := drv.Open(dbPath); err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = drv.Close() }()
+
+	schemaDir := filepath.Join(tmpDir, "schema")
+	if err := os.MkdirAll(schemaDir, 0755); err != nil {
+		t.Fatalf("create schema dir: %v", err)
+	}
+
+	// Migration 1: Create parent and child tables with FK
+	migration1 := `
+		CREATE TABLE parent (id INTEGER PRIMARY KEY, name TEXT);
+		CREATE TABLE child (
+			id INTEGER PRIMARY KEY,
+			parent_id INTEGER,
+			FOREIGN KEY (parent_id) REFERENCES parent(id)
+		);
+		INSERT INTO parent (id, name) VALUES (1, 'test');
+		INSERT INTO child (id, parent_id) VALUES (1, 1);
+	`
+	if err := os.WriteFile(filepath.Join(schemaDir, "test_001.sql"), []byte(migration1), 0644); err != nil {
+		t.Fatalf("write migration 1: %v", err)
+	}
+
+	// Migration 2: Restructure tables (requires FK disabled)
+	// This simulates what project_052.sql does - renaming a referenced table
+	migration2 := `-- orc:disable_fk
+		-- Rename parent to parent_storage and create a view
+		ALTER TABLE parent RENAME TO parent_storage;
+		CREATE VIEW parent AS SELECT * FROM parent_storage;
+
+		-- Recreate child without FK (since parent is now a view)
+		CREATE TABLE child_new (id INTEGER PRIMARY KEY, parent_id INTEGER);
+		INSERT INTO child_new SELECT * FROM child;
+		DROP TABLE child;
+		ALTER TABLE child_new RENAME TO child;
+	`
+	if err := os.WriteFile(filepath.Join(schemaDir, "test_002.sql"), []byte(migration2), 0644); err != nil {
+		t.Fatalf("write migration 2: %v", err)
+	}
+
+	mockFS := &mockSchemaFS{dir: tmpDir}
+	ctx := context.Background()
+
+	// Apply migrations
+	if err := drv.Migrate(ctx, mockFS, "test"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	// Verify parent_storage table exists
+	var name string
+	err := drv.QueryRow(ctx, "SELECT name FROM sqlite_master WHERE type='table' AND name='parent_storage'").Scan(&name)
+	if err != nil {
+		t.Errorf("parent_storage table not created: %v", err)
+	}
+
+	// Verify parent view exists
+	err = drv.QueryRow(ctx, "SELECT name FROM sqlite_master WHERE type='view' AND name='parent'").Scan(&name)
+	if err != nil {
+		t.Errorf("parent view not created: %v", err)
+	}
+
+	// Verify data is still accessible through view
+	var count int
+	err = drv.QueryRow(ctx, "SELECT COUNT(*) FROM parent").Scan(&count)
+	if err != nil || count != 1 {
+		t.Errorf("expected 1 row in parent view, got %d: %v", count, err)
+	}
+
+	// Verify FKs are re-enabled after migration
+	var fkEnabled int
+	err = drv.QueryRow(ctx, "PRAGMA foreign_keys").Scan(&fkEnabled)
+	if err != nil || fkEnabled != 1 {
+		t.Errorf("foreign keys should be re-enabled after migration, got %d", fkEnabled)
+	}
+}

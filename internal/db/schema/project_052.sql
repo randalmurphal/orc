@@ -1,3 +1,4 @@
+-- orc:disable_fk
 -- Migration 052: Remove auto-generated executor agents
 -- Clean up legacy executor-* pattern agents created by migration 045.
 -- These were a design mistake - phases should not auto-generate wrapper agents.
@@ -6,13 +7,63 @@
 -- Inserts go to the underlying storage table, but SELECT queries filter them out.
 -- This makes executor-* agents effectively invisible to the application.
 
--- Step 1: Clear references in phase_templates that point to executor-* agents
+-- Step 1: Clear references in all tables that point to executor-* agents
 UPDATE phase_templates SET agent_id = NULL WHERE agent_id LIKE 'executor-%';
+DELETE FROM phase_agents WHERE agent_id LIKE 'executor-%';
+UPDATE workflow_phases SET agent_override = NULL WHERE agent_override LIKE 'executor-%';
 
 -- Step 2: Delete existing executor-* agents
 DELETE FROM agents WHERE id LIKE 'executor-%';
 
--- Step 3: Recreate phase_templates table with FK removed
+-- Step 3a: Recreate phase_agents table WITHOUT FK to agents
+-- (VIEW-based agents table breaks FK references)
+CREATE TABLE phase_agents_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phase_template_id TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    sequence INTEGER NOT NULL DEFAULT 0,
+    role TEXT,
+    weight_filter TEXT,
+    is_builtin BOOLEAN DEFAULT FALSE,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(phase_template_id, agent_id),
+    FOREIGN KEY (phase_template_id) REFERENCES phase_templates(id) ON DELETE CASCADE
+    -- Note: FK to agents removed - agents is now a VIEW
+);
+INSERT INTO phase_agents_new SELECT * FROM phase_agents;
+DROP TABLE phase_agents;
+ALTER TABLE phase_agents_new RENAME TO phase_agents;
+
+-- Step 3b: Recreate workflow_phases table WITHOUT FK to agents for agent_override
+CREATE TABLE workflow_phases_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_id TEXT NOT NULL,
+    phase_template_id TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    depends_on TEXT,
+    max_iterations_override INTEGER,
+    model_override TEXT,
+    thinking_override BOOLEAN,
+    gate_type_override TEXT,
+    condition TEXT,
+    quality_checks_override TEXT,
+    loop_config TEXT,
+    claude_config_override TEXT,
+    position_x REAL,
+    position_y REAL,
+    agent_override TEXT,  -- FK to agents removed - agents is now a VIEW
+    sub_agents_override TEXT,
+    before_triggers TEXT,
+    UNIQUE(workflow_id, phase_template_id),
+    FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE,
+    FOREIGN KEY (phase_template_id) REFERENCES phase_templates(id) ON DELETE RESTRICT
+);
+INSERT INTO workflow_phases_new SELECT * FROM workflow_phases;
+DROP TABLE workflow_phases;
+ALTER TABLE workflow_phases_new RENAME TO workflow_phases;
+
+-- Step 3c: Recreate phase_templates table with FK removed
 -- This allows referencing agents that may be filtered by the view.
 CREATE TABLE phase_templates_new (
     id TEXT PRIMARY KEY,
