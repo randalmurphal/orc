@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vite
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CreateWorkflowModal } from './CreateWorkflowModal';
-import { createMockWorkflow } from '@/test/factories';
+import { createMockWorkflow, createMockCreateWorkflowResponse } from '@/test/factories';
 
 // Mock the client module
 vi.mock('@/lib/client', () => ({
@@ -79,8 +79,6 @@ describe('CreateWorkflowModal - completion_action field', () => {
 	});
 
 	it('SC-7d: completion_action options include pr, commit, none', async () => {
-		const _user = userEvent.setup();
-
 		render(
 			<CreateWorkflowModal
 				open={true}
@@ -108,9 +106,9 @@ describe('CreateWorkflowModal - completion_action field', () => {
 			name: 'Test Workflow',
 		});
 
-		vi.mocked(workflowClient.createWorkflow).mockResolvedValue({
-			workflow: mockWorkflow,
-		});
+		vi.mocked(workflowClient.createWorkflow).mockResolvedValue(
+			createMockCreateWorkflowResponse(mockWorkflow)
+		);
 
 		render(
 			<CreateWorkflowModal
@@ -146,9 +144,9 @@ describe('CreateWorkflowModal - completion_action field', () => {
 			name: 'Commit Workflow',
 		});
 
-		vi.mocked(workflowClient.createWorkflow).mockResolvedValue({
-			workflow: mockWorkflow,
-		});
+		vi.mocked(workflowClient.createWorkflow).mockResolvedValue(
+			createMockCreateWorkflowResponse(mockWorkflow)
+		);
 
 		render(
 			<CreateWorkflowModal
@@ -181,9 +179,9 @@ describe('CreateWorkflowModal - completion_action field', () => {
 			name: 'Default Workflow',
 		});
 
-		vi.mocked(workflowClient.createWorkflow).mockResolvedValue({
-			workflow: mockWorkflow,
-		});
+		vi.mocked(workflowClient.createWorkflow).mockResolvedValue(
+			createMockCreateWorkflowResponse(mockWorkflow)
+		);
 
 		render(
 			<CreateWorkflowModal

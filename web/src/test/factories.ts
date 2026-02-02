@@ -56,6 +56,7 @@ import {
 	AddPhaseResponseSchema,
 	UpdatePhaseResponseSchema,
 	RemovePhaseResponseSchema,
+	CreateWorkflowResponseSchema,
 	GateType,
 	PromptSource,
 	VariableSourceType,
@@ -71,6 +72,7 @@ import {
 	type AddPhaseResponse,
 	type UpdatePhaseResponse,
 	type RemovePhaseResponse,
+	type CreateWorkflowResponse,
 	SaveWorkflowLayoutResponseSchema,
 	ValidateWorkflowResponseSchema,
 
@@ -247,6 +249,13 @@ export function createMockListWorkflowsResponse(workflows: Workflow[] = []): Lis
 		workflows,
 		phaseCounts: {},
 	});
+}
+
+/**
+ * Create a mock CreateWorkflowResponse with proto-compatible types
+ */
+export function createMockCreateWorkflowResponse(workflow: Workflow): CreateWorkflowResponse {
+	return create(CreateWorkflowResponseSchema, { workflow });
 }
 
 /**
