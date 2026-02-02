@@ -115,7 +115,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `GitSettingsPage` | `pages/settings/` | Read-only info page showing project-level git defaults and override options |
 | `WorkflowEditorPage` | `workflow-editor/` | 3-panel visual editor: palette \| canvas \| inspector |
 | `WorkflowCanvas` | `workflow-editor/` | React Flow canvas: drag-to-add, edge drawing/deletion with cycle detection, topo sort resequencing (`utils/topoSort.ts`), layout persistence |
-| Edge types | `workflow-editor/edges/` | 6 custom edges: sequential, loop, retry, dependency (badge + animated dots), conditional (condition label), gate (diamond symbol with type/status colors). Styles in `edges.css` |
+| Edge types | `workflow-editor/edges/` | 6 custom edges: sequential, loop (backward/forward detection with sequence-aware styling), retry, dependency (badge + animated dots), conditional (condition label), gate (diamond symbol with type/status colors). Styles in `edges.css` |
 | `PhaseNode` | `workflow-editor/nodes/` | Custom React Flow node: connection handles (L/R), category color accents, status states, gate badges |
 | `VirtualNode` | `workflow-editor/nodes/` | Invisible anchor nodes for entry/exit gate edges (20×20px, excluded from minimap) |
 | `GateEdge` | `workflow-editor/edges/` | Gate transition edge: diamond ◆ symbol on midpoint, type colors (gray/blue/yellow/purple), status override (green/red), hover tooltip |
