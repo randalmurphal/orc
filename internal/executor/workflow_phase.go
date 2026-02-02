@@ -679,11 +679,16 @@ func (we *WorkflowExecutor) resolveExecutorAgent(tmpl *db.PhaseTemplate, phase *
 }
 
 // resolvePhaseModel determines which model to use for a phase.
-// Priority: workflow phase override > executor agent model > config default
+// Priority: workflow phase override > workflow default_model > executor agent model > config default
 func (we *WorkflowExecutor) resolvePhaseModel(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) string {
 	// Workflow phase override takes precedence (per-workflow customization)
 	if phase.ModelOverride != "" {
 		return phase.ModelOverride
+	}
+
+	// Workflow default_model (workflow-level default)
+	if we.wf != nil && we.wf.DefaultModel != "" {
+		return we.wf.DefaultModel
 	}
 
 	// Executor agent model
