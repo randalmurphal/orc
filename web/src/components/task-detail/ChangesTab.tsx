@@ -4,6 +4,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { DiffFile } from '@/components/task-detail/diff/DiffFile';
 import { DiffStats } from '@/components/task-detail/diff/DiffStats';
+import { DiffViewModal } from '@/components/overlays/DiffViewModal';
 import { taskClient } from '@/lib/client';
 import {
 	type ReviewComment,
@@ -58,6 +59,8 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 	const [generalCommentContent, setGeneralCommentContent] = useState('');
 	const [generalCommentSeverity, setGeneralCommentSeverity] = useState<CommentSeverity>(CommentSeverity.ISSUE);
 	const [addingGeneralComment, setAddingGeneralComment] = useState(false);
+	const [modalOpen, setModalOpen] = useState(false);
+	const [selectedFilePath, setSelectedFilePath] = useState<string | undefined>();
 
 	// Comment stats
 	const openComments = comments.filter((c) => c.status === CommentStatus.OPEN);
@@ -104,6 +107,25 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 	useEffect(() => {
 		Promise.all([loadDiff(), loadComments()]);
 	}, [loadDiff, loadComments]);
+
+	// Modal handlers
+	const handleExpandDiff = useCallback(() => {
+		setModalOpen(true);
+	}, []);
+
+	// Keyboard shortcuts
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			// Ctrl+Shift+F - Expand diff modal
+			if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+				e.preventDefault();
+				handleExpandDiff();
+			}
+		};
+
+		document.addEventListener('keydown', handleKeyDown);
+		return () => document.removeEventListener('keydown', handleKeyDown);
+	}, [handleExpandDiff]);
 
 	// Load file hunks using Connect RPC
 	const loadFileHunks = useCallback(async (filePath: string) => {
@@ -188,6 +210,12 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 	const handleCloseThread = useCallback(() => {
 		setActiveLineNumber(null);
 		setActiveFilePath(null);
+	}, []);
+
+	// Modal handlers
+	const handleCloseModal = useCallback(() => {
+		setModalOpen(false);
+		setSelectedFilePath(undefined);
 	}, []);
 
 	// Comment handlers
@@ -404,6 +432,18 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 						</>
 					)}
 
+					{/* Expand Diff Button */}
+					<Button
+						variant="ghost"
+						size="sm"
+						className="expand-diff-btn"
+						onClick={handleExpandDiff}
+						leftIcon={<Icon name="maximize" size={14} />}
+						title="Expand Diff (Ctrl+Shift+F)"
+					>
+						Expand Diff
+					</Button>
+
 					{diff.stats && <DiffStats stats={diff.stats} />}
 				</div>
 			</div>
@@ -540,6 +580,17 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 					</div>
 				)}
 			</div>
+
+			{/* Diff View Modal */}
+			{modalOpen && projectId && (
+				<DiffViewModal
+					open={modalOpen}
+					taskId={taskId}
+					projectId={projectId!}
+					selectedFile={selectedFilePath}
+					onClose={handleCloseModal}
+				/>
+			)}
 		</div>
 	);
 }
