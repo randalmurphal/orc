@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 )
@@ -149,7 +150,7 @@ func TestTranscriptServer_EventIntegration(t *testing.T) {
 		// Arrange: Server with event publisher
 		mockBackend := &MockStreamingBackend{}
 		mockPublisher := &MockEventPublisher{
-			events: make([]*orcv1.Event, 0),
+			events: make([]events.Event, 0),
 		}
 
 		server := &transcriptServer{
@@ -172,9 +173,20 @@ func TestTranscriptServer_EventIntegration(t *testing.T) {
 		err := server.StoreTranscriptEntry(context.Background(), "test-project", transcript)
 		require.NoError(t, err)
 
-		// Assert: Event publishing is currently disabled (TODO in implementation)
-		// When event publishing is implemented, this test should be updated
-		assert.Equal(t, 0, len(mockPublisher.events), "Event publishing is currently disabled in StoreTranscriptEntry")
+		// Assert: Event should be published when transcript entry is stored
+		assert.Equal(t, 1, len(mockPublisher.events), "Event should be published for new transcript entries")
+
+		// Verify the published event
+		publishedEvent := mockPublisher.events[0]
+		assert.Equal(t, events.EventTranscript, publishedEvent.Type)
+		assert.Equal(t, "TASK-001", publishedEvent.TaskID)
+
+		// Verify the transcript data in the event
+		transcriptLine, ok := publishedEvent.Data.(events.TranscriptLine)
+		assert.True(t, ok, "Event data should be TranscriptLine")
+		assert.Equal(t, "implement", transcriptLine.Phase)
+		assert.Equal(t, "assistant", transcriptLine.Type)
+		assert.Equal(t, "New response content", transcriptLine.Content)
 	})
 
 	t.Run("should not publish events for transcript queries", func(t *testing.T) {
@@ -185,7 +197,7 @@ func TestTranscriptServer_EventIntegration(t *testing.T) {
 		}
 
 		mockPublisher := &MockEventPublisher{
-			events: make([]*orcv1.Event, 0),
+			events: make([]events.Event, 0),
 		}
 
 		server := &transcriptServer{
@@ -264,12 +276,25 @@ func (m *MockTranscriptStream) Send(resp *orcv1.StreamTranscriptResponse) error 
 // by creating a wrapper that satisfies the interface requirements
 
 type MockEventPublisher struct {
-	events []*orcv1.Event
+	events []events.Event
 }
 
-func (m *MockEventPublisher) PublishEvent(ctx context.Context, event *orcv1.Event) error {
+func (m *MockEventPublisher) Publish(event events.Event) {
 	m.events = append(m.events, event)
-	return nil
+}
+
+func (m *MockEventPublisher) Subscribe(taskID string) <-chan events.Event {
+	ch := make(chan events.Event, 10)
+	close(ch)
+	return ch
+}
+
+func (m *MockEventPublisher) Unsubscribe(taskID string, ch <-chan events.Event) {
+	// No-op for mock
+}
+
+func (m *MockEventPublisher) Close() {
+	// No-op for mock
 }
 
 // Methods are now implemented in transcript_server.go
