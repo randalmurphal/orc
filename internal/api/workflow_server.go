@@ -910,11 +910,23 @@ func (s *workflowServer) UpdatePhaseTemplate(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	// Resolve the phase template to get source info
-	resolved, err := s.resolver.ResolvePhase(req.Msg.Id)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("phase template %s not found", req.Msg.Id))
+	// Try to resolve from files first (file-based templates)
+	resolved, resolveErr := s.resolver.ResolvePhase(req.Msg.Id)
+
+	// If resolver fails, check database for DB-created templates
+	if resolveErr != nil {
+		dbTmpl, dbErr := s.globalDB.GetPhaseTemplate(req.Msg.Id)
+		if dbErr != nil || dbTmpl == nil {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("phase template %s not found", req.Msg.Id))
+		}
+		if dbTmpl.IsBuiltin {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot modify built-in phase template"))
+		}
+		// Handle DB-only template update
+		return s.updateDBOnlyPhaseTemplate(dbTmpl, req.Msg)
 	}
+
+	// File-based template found via resolver
 	if resolved.Source == workflow.SourceEmbedded {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot modify built-in phase template"))
 	}
@@ -992,6 +1004,80 @@ func (s *workflowServer) UpdatePhaseTemplate(
 
 	return connect.NewResponse(&orcv1.UpdatePhaseTemplateResponse{
 		Template: dbPhaseTemplateToProto(tmpl),
+	}), nil
+}
+
+// updateDBOnlyPhaseTemplate handles updates to templates created directly in DB (not from files).
+func (s *workflowServer) updateDBOnlyPhaseTemplate(
+	tmpl *db.PhaseTemplate,
+	req *orcv1.UpdatePhaseTemplateRequest,
+) (*connect.Response[orcv1.UpdatePhaseTemplateResponse], error) {
+	// Apply updates directly to db.PhaseTemplate
+	if req.Name != nil {
+		tmpl.Name = *req.Name
+	}
+	if req.Description != nil {
+		tmpl.Description = *req.Description
+	}
+	if req.PromptSource != nil {
+		tmpl.PromptSource = protoPromptSourceToString(*req.PromptSource)
+	}
+	if req.PromptContent != nil {
+		tmpl.PromptContent = *req.PromptContent
+	}
+	if req.PromptPath != nil {
+		tmpl.PromptPath = *req.PromptPath
+	}
+	if req.OutputSchema != nil {
+		tmpl.OutputSchema = *req.OutputSchema
+	}
+	if req.ProducesArtifact != nil {
+		tmpl.ProducesArtifact = *req.ProducesArtifact
+	}
+	if req.ArtifactType != nil {
+		tmpl.ArtifactType = *req.ArtifactType
+	}
+	if req.OutputVarName != nil {
+		tmpl.OutputVarName = *req.OutputVarName
+	}
+	// Handle InputVariables (repeated field) - marshal to JSON
+	if req.InputVariables != nil {
+		if len(req.InputVariables) > 0 {
+			data, _ := json.Marshal(req.InputVariables)
+			tmpl.InputVariables = string(data)
+		} else {
+			tmpl.InputVariables = "[]" // Empty array, not empty string
+		}
+	}
+	if req.MaxIterations != nil {
+		tmpl.MaxIterations = int(*req.MaxIterations)
+	}
+	if req.ThinkingEnabled != nil {
+		tmpl.ThinkingEnabled = req.ThinkingEnabled
+	}
+	if req.ClaudeConfig != nil {
+		tmpl.ClaudeConfig = *req.ClaudeConfig
+	}
+	if req.GateType != nil {
+		tmpl.GateType = protoGateTypeToString(*req.GateType)
+	}
+	if req.Checkpoint != nil {
+		tmpl.Checkpoint = *req.Checkpoint
+	}
+
+	// Save updated template to DB
+	if err := s.globalDB.SavePhaseTemplate(tmpl); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save phase template: %w", err))
+	}
+
+	// Reload from DB for response (ensures updated_at is fresh)
+	updated, err := s.globalDB.GetPhaseTemplate(tmpl.ID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get updated phase template: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.UpdatePhaseTemplateResponse{
+		Template: dbPhaseTemplateToProto(updated),
 	}), nil
 }
 
