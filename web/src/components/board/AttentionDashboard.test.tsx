@@ -264,8 +264,8 @@ describe('AttentionDashboard', () => {
 				taskTitle: 'Add authentication',
 				question: 'Which authentication method?',
 				options: [
-					{ id: 'jwt', label: 'JWT tokens', description: 'Stateless JWT tokens', recommended: true },
-					{ id: 'sessions', label: 'Server sessions', description: 'Traditional sessions', recommended: false },
+					{ $typeName: 'orc.v1.DecisionOption', id: 'jwt', label: 'JWT tokens', description: 'Stateless JWT tokens', recommended: true },
+					{ $typeName: 'orc.v1.DecisionOption', id: 'sessions', label: 'Server sessions', description: 'Traditional sessions', recommended: false },
 				],
 			});
 			mockPendingDecisions.push(decision);
@@ -311,7 +311,6 @@ describe('AttentionDashboard', () => {
 			const lowPriorityDecision = createMockDecision({
 				id: 'DEC-001',
 				taskId: 'TASK-002',
-				priority: 'low',
 			});
 
 			mockBlockedTasks.push(blockedTask);
@@ -481,7 +480,6 @@ describe('AttentionDashboard', () => {
 			const highDecision = createMockDecision({
 				id: 'DEC-001',
 				taskId: 'TASK-002',
-				priority: 'high',
 			});
 			const normalQueued = createMockTask({
 				id: 'TASK-003',
@@ -512,7 +510,7 @@ describe('AttentionDashboard', () => {
 			});
 			mockTasks.push(highPriorityTask);
 
-			const { container } = renderAttentionDashboard();
+			renderAttentionDashboard();
 
 			const taskCard = screen.getByText('TASK-001').closest('.task-card');
 			expect(taskCard).toHaveClass('high-priority'); // visual prominence

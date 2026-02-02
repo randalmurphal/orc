@@ -165,12 +165,24 @@ describe('FileList', () => {
     it('should expand directory when clicked', async () => {
       render(<FileList {...defaultProps} viewMode="tree" />);
 
-      const srcDirectory = screen.getByTestId('directory-src');
-      fireEvent.click(srcDirectory);
+      // First verify that subdirectories are visible (first two levels are expanded by default)
+      expect(screen.getByText('components/')).toBeVisible();
+      expect(screen.getByText('utils/')).toBeVisible();
+      expect(screen.getByText('ui/')).toBeVisible();
 
+      // Now test expansion of a third-level directory by first collapsing and then expanding
+      const componentsDirectory = screen.getByTestId('directory-src/components');
+
+      // Collapse first
+      fireEvent.click(componentsDirectory);
       await waitFor(() => {
-        expect(screen.getByText('components/')).toBeVisible();
-        expect(screen.getByText('utils/')).toBeVisible();
+        expect(screen.queryByText('ui/')).not.toBeInTheDocument();
+      });
+
+      // Then expand again
+      fireEvent.click(componentsDirectory);
+      await waitFor(() => {
+        expect(screen.getByText('ui/')).toBeVisible();
       });
     });
 
@@ -179,16 +191,19 @@ describe('FileList', () => {
 
       const srcDirectory = screen.getByTestId('directory-src');
 
-      // Expand first
+      // First verify it's expanded by default
+      expect(screen.getByText('components/')).toBeVisible();
+
+      // Click to collapse
+      fireEvent.click(srcDirectory);
+      await waitFor(() => {
+        expect(screen.queryByText('components/')).not.toBeInTheDocument();
+      });
+
+      // Click again to expand
       fireEvent.click(srcDirectory);
       await waitFor(() => {
         expect(screen.getByText('components/')).toBeVisible();
-      });
-
-      // Then collapse
-      fireEvent.click(srcDirectory);
-      await waitFor(() => {
-        expect(screen.queryByText('components/')).not.toBeVisible();
       });
     });
 
