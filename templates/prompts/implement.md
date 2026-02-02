@@ -182,12 +182,28 @@ Before completing, verify:
 - Code follows project patterns
 - No TODO comments left behind
 
-## Step 7: Self-Review
+## Step 7: Self-Review and Wiring Verification
 
-Dead code prevention checklist:
+**Dead code prevention checklist:**
 - All new functions are called from at least one production code path (no dead code)
 - All new interfaces are registered and wired into the system
 - No unused imports, variables, or helper functions left behind
+
+**Behavioral parity checklist (for parallel/async/alternate paths):**
+If you added a new execution path that mirrors an existing one:
+- List ALL behaviors from the original path
+- Verify EACH behavior exists in the new path
+- Common missed behaviors:
+  - Condition evaluation
+  - Hook/callback invocation
+  - State updates
+  - Error handling
+  - Logging/metrics
+
+**Integration verification:**
+For each new function/interface, answer: "What production code path calls this?"
+- If you can't answer → you have dead code → wire it in or delete it
+- If the answer is "tests only" → that's dead code (tests don't ship)
 
 ## Completion Criteria
 
@@ -212,8 +228,10 @@ Execute the verification steps defined in the Output Format section above:
 2. Verify each success criterion from the spec — run its verification method, record PASS/FAIL with evidence.
 3. {{#if BUILD_COMMAND}}Run `{{BUILD_COMMAND}}`{{else}}Run the project build command{{/if}} — fix any build errors.
 4. {{#if LINT_COMMAND}}Run `{{LINT_COMMAND}}`{{else}}Run the project linter{{/if}} — fix lint errors (unchecked returns, unused imports, type errors).
+5. **Wiring check** — For each new function/interface, grep to confirm it's called from production code. Dead code = FAIL.
+6. **Behavioral parity check** — If you added a parallel/async path, verify ALL original behaviors are present.
 
-**Only output completion JSON after all four checks pass.** See Output Format for the exact schema.
+**Only output completion JSON after all six checks pass.** See Output Format for the exact schema.
 </verification>
 
 <commit_step>
