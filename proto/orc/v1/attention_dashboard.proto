@@ -1,0 +1,231 @@
+// Proto definitions for TASK-734: Redesign Board as attention management dashboard
+//
+// This file defines the proto messages and service for the new attention management
+// dashboard API that supports the UX Simplification redesign with three main sections:
+// - Running: Active tasks with progress and timing
+// - Needs Attention: Blocked tasks, decisions, gates requiring action
+// - Queue: Ready tasks organized by initiative
+
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+import "orc/v1/task.proto";
+
+// Request for getting attention dashboard data
+message GetAttentionDashboardDataRequest {
+  string project_id = 1;
+}
+
+// Response containing all attention dashboard data
+message GetAttentionDashboardDataResponse {
+  RunningSummary running_summary = 1;
+  repeated AttentionItem attention_items = 2;
+  QueueSummary queue_summary = 3;
+}
+
+// Summary of currently running tasks
+message RunningSummary {
+  int32 task_count = 1;
+  repeated RunningTask tasks = 2;
+}
+
+// Detailed running task with timing and progress
+message RunningTask {
+  string id = 1;
+  string title = 2;
+  string current_phase = 3;
+  google.protobuf.Timestamp started_at = 4;
+  int64 elapsed_time_seconds = 5;
+  string initiative_id = 6;
+  string initiative_title = 7;
+  PhaseProgress phase_progress = 8;
+  repeated string output_lines = 9;
+}
+
+// Phase progress for pipeline visualization
+message PhaseProgress {
+  string current_phase = 1;
+  repeated PhaseStep steps = 2;
+}
+
+// Individual phase step in the 5-phase pipeline
+message PhaseStep {
+  string name = 1; // plan, code, test, review, done
+  PhaseStepStatus status = 2;
+}
+
+// Status of a phase step
+enum PhaseStepStatus {
+  PHASE_STEP_STATUS_UNSPECIFIED = 0;
+  PHASE_STEP_STATUS_PENDING = 1;
+  PHASE_STEP_STATUS_ACTIVE = 2;
+  PHASE_STEP_STATUS_COMPLETED = 3;
+  PHASE_STEP_STATUS_FAILED = 4;
+}
+
+// Item requiring user attention
+message AttentionItem {
+  string id = 1;
+  AttentionItemType type = 2;
+  string task_id = 3;
+  string title = 4;
+  string description = 5;
+  TaskPriority priority = 6;
+  google.protobuf.Timestamp created_at = 7;
+  repeated AttentionAction available_actions = 8;
+
+  // Type-specific data
+  repeated DecisionOption decision_options = 9; // For decisions
+  string blocked_reason = 10; // For blocked tasks
+  string gate_question = 11; // For gate approvals
+}
+
+// Types of attention items
+enum AttentionItemType {
+  ATTENTION_ITEM_TYPE_UNSPECIFIED = 0;
+  ATTENTION_ITEM_TYPE_BLOCKED_TASK = 1;
+  ATTENTION_ITEM_TYPE_PENDING_DECISION = 2;
+  ATTENTION_ITEM_TYPE_GATE_APPROVAL = 3;
+  ATTENTION_ITEM_TYPE_FAILED_TASK = 4;
+  ATTENTION_ITEM_TYPE_ERROR_STATE = 5;
+}
+
+// Actions available for attention items
+enum AttentionAction {
+  ATTENTION_ACTION_UNSPECIFIED = 0;
+  ATTENTION_ACTION_VIEW = 1;
+  ATTENTION_ACTION_APPROVE = 2;
+  ATTENTION_ACTION_REJECT = 3;
+  ATTENTION_ACTION_SKIP = 4;
+  ATTENTION_ACTION_FORCE = 5;
+  ATTENTION_ACTION_RETRY = 6;
+  ATTENTION_ACTION_RESOLVE = 7;
+}
+
+// Decision option for pending decisions
+message DecisionOption {
+  string id = 1;
+  string label = 2;
+  string description = 3;
+  bool recommended = 4;
+}
+
+// Summary of task queue organized by initiatives
+message QueueSummary {
+  int32 task_count = 1;
+  repeated InitiativeSwimlane swimlanes = 2;
+  repeated QueuedTask unassigned_tasks = 3; // Tasks without initiative
+}
+
+// Initiative swimlane containing related tasks
+message InitiativeSwimlane {
+  string initiative_id = 1;
+  string initiative_title = 2;
+  int32 task_count = 3;
+  float completion_percentage = 4;
+  repeated QueuedTask tasks = 5;
+  bool collapsed = 6; // UI state for collapsible swimlanes
+}
+
+// Queued task in compact format
+message QueuedTask {
+  string id = 1;
+  string title = 2;
+  TaskCategory category = 3;
+  TaskPriority priority = 4;
+  int32 position = 5; // Position within swimlane
+  google.protobuf.Timestamp created_at = 6;
+  string workflow_id = 7;
+  repeated string tags = 8;
+}
+
+// Event published when attention dashboard data changes
+message AttentionDashboardUpdateEvent {
+  string project_id = 1;
+  string task_id = 2;
+  AttentionUpdateType update_type = 3;
+  google.protobuf.Timestamp timestamp = 4;
+
+  // Updated data
+  oneof updated_data {
+    RunningTask updated_running_task = 5;
+    AttentionItem updated_attention_item = 6;
+    QueuedTask updated_queued_task = 7;
+  }
+}
+
+// Types of attention dashboard updates
+enum AttentionUpdateType {
+  ATTENTION_UPDATE_TYPE_UNSPECIFIED = 0;
+  ATTENTION_UPDATE_TYPE_TASK_STATUS_CHANGE = 1;
+  ATTENTION_UPDATE_TYPE_PHASE_PROGRESSION = 2;
+  ATTENTION_UPDATE_TYPE_BLOCKING_RESOLVED = 3;
+  ATTENTION_UPDATE_TYPE_DECISION_REQUESTED = 4;
+  ATTENTION_UPDATE_TYPE_GATE_READY = 5;
+  ATTENTION_UPDATE_TYPE_PRIORITY_CHANGED = 6;
+  ATTENTION_UPDATE_TYPE_INITIATIVE_UPDATED = 7;
+}
+
+// Service for attention dashboard operations
+service AttentionDashboardService {
+  // Get all data for the attention dashboard
+  rpc GetAttentionDashboardData(GetAttentionDashboardDataRequest) returns (GetAttentionDashboardDataResponse);
+
+  // Perform action on attention item
+  rpc PerformAttentionAction(PerformAttentionActionRequest) returns (PerformAttentionActionResponse);
+
+  // Update queue organization (e.g., collapse/expand swimlanes, reorder tasks)
+  rpc UpdateQueueOrganization(UpdateQueueOrganizationRequest) returns (UpdateQueueOrganizationResponse);
+}
+
+// Request to perform action on attention item
+message PerformAttentionActionRequest {
+  string project_id = 1;
+  string attention_item_id = 2;
+  AttentionAction action = 3;
+
+  // Action-specific parameters
+  string decision_option_id = 4; // For decision actions
+  string reason = 5; // For skip/force actions
+  string comment = 6; // For approval/rejection actions
+}
+
+// Response from performing attention action
+message PerformAttentionActionResponse {
+  bool success = 1;
+  string error_message = 2;
+
+  // Updated state after action
+  AttentionDashboardUpdateEvent update_event = 3;
+}
+
+// Request to update queue organization
+message UpdateQueueOrganizationRequest {
+  string project_id = 1;
+
+  oneof update {
+    SwimlaneStateUpdate swimlane_state = 2;
+    TaskReorderUpdate task_reorder = 3;
+  }
+}
+
+// Update swimlane collapsed state
+message SwimlaneStateUpdate {
+  string initiative_id = 1;
+  bool collapsed = 2;
+}
+
+// Reorder tasks within or between swimlanes
+message TaskReorderUpdate {
+  string task_id = 1;
+  string target_initiative_id = 2; // null for unassigned
+  int32 new_position = 3;
+}
+
+// Response from updating queue organization
+message UpdateQueueOrganizationResponse {
+  bool success = 1;
+  string error_message = 2;
+}
