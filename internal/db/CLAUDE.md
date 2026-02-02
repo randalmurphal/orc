@@ -37,6 +37,7 @@ Two database types with distinct responsibilities:
 | `schema/global_006.sql` | **Hook scripts and skills tables**: `hook_scripts` (id, name, description, content, event_type, is_builtin), `skills` (id, name, description, content, supporting_files, is_builtin) |
 | `schema/project_048.sql` | **Mirrors global_005** for project DB |
 | `schema/project_052.sql` | **VIEW-based agent filtering** (orc:disable_fk migration) |
+| `schema/project_053.sql` | **Feedback table**: real-time user feedback to agents (type, timing, file/line for inline comments) |
 
 ### FK-Disabling Migrations
 
@@ -80,6 +81,7 @@ The migration runner will:
 | `subtask.go` | Subtask queue operations |
 | `review_comment.go` | Review comment CRUD |
 | `task_comment.go` | Task comment CRUD |
+| `feedback.go` | User feedback to agents CRUD |
 | `team.go` | Team members, claims, activity |
 | `hook_scripts.go` | Hook script CRUD (GlobalDB): Save/Get/List/Delete, upsert pattern, built-in protection |
 | `skills.go` | Skill CRUD (GlobalDB): Save/Get/List/Delete, upsert pattern, built-in protection, JSON supporting_files |

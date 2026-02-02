@@ -298,6 +298,15 @@ func (b *emptyBackend) LoadAllReviewFindings(string) ([]*orcv1.ReviewRoundFindin
 }
 func (b *emptyBackend) SaveQAResult(*storage.QAResult) error           { return nil }
 func (b *emptyBackend) LoadQAResult(string) (*storage.QAResult, error) { return nil, nil }
+
+// Feedback operations (stub implementations)
+func (b *emptyBackend) SaveFeedback(*storage.Feedback) error                      { return nil }
+func (b *emptyBackend) GetFeedback(string, string) (*storage.Feedback, error)     { return nil, nil }
+func (b *emptyBackend) ListFeedback(string, bool) ([]*storage.Feedback, error)    { return nil, nil }
+func (b *emptyBackend) UpdateFeedback(*storage.Feedback) error                    { return nil }
+func (b *emptyBackend) DeleteFeedback(string, string) error                       { return nil }
+func (b *emptyBackend) MarkFeedbackReceived(string) (int, error)                  { return 0, nil }
+
 func (b *emptyBackend) SaveConstitution(string) error            { return nil }
 func (b *emptyBackend) LoadConstitution() (string, string, error) { return "", "", nil }
 func (b *emptyBackend) ConstitutionExists() (bool, error)              { return false, nil }
