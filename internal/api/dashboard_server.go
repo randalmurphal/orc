@@ -16,7 +16,6 @@ import (
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
-	"strings"
 )
 
 // DiffServicer defines the interface for diff operations needed by GetTopFiles.

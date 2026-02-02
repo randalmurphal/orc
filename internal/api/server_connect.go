@@ -57,6 +57,10 @@ func (s *Server) registerConnectHandlers() {
 	if ds, ok := dashboardSvc.(*dashboardServer); ok {
 		ds.SetProjectCache(s.projectCache)
 	}
+	attentionDashboardSvc := NewAttentionDashboardServer(s.backend, s.logger)
+	if ads, ok := attentionDashboardSvc.(*attentionDashboardServer); ok {
+		ads.SetProjectCache(s.projectCache)
+	}
 	projectSvc := NewProjectServer(s.backend, s.logger)
 	branchSvc := NewBranchServer(s.backend, s.logger)
 	if bs, ok := branchSvc.(*branchServer); ok {
@@ -103,6 +107,9 @@ func (s *Server) registerConnectHandlers() {
 	dashboardPath, dashboardHandler := orcv1connect.NewDashboardServiceHandler(dashboardSvc, interceptors)
 	s.mux.Handle(dashboardPath, corsHandler(dashboardHandler))
 
+	attentionDashboardPath, attentionDashboardHandler := orcv1connect.NewAttentionDashboardServiceHandler(attentionDashboardSvc, interceptors)
+	s.mux.Handle(attentionDashboardPath, corsHandler(attentionDashboardHandler))
+
 	projectPath, projectHandler := orcv1connect.NewProjectServiceHandler(projectSvc, interceptors)
 	s.mux.Handle(projectPath, corsHandler(projectHandler))
 
@@ -121,7 +128,7 @@ func (s *Server) registerConnectHandlers() {
 	feedbackPath, feedbackHandler := orcv1connect.NewFeedbackServiceHandler(feedbackSvc, interceptors)
 	s.mux.Handle(feedbackPath, corsHandler(feedbackHandler))
 
-	s.logger.Info("registered Connect RPC handlers", "count", 14)
+	s.logger.Info("registered Connect RPC handlers", "count", 15)
 }
 
 // corsHandler wraps a handler with CORS support for Connect/gRPC-web clients.
