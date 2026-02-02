@@ -7,6 +7,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -403,5 +404,101 @@ func TestShouldUseThinking(t *testing.T) {
 		result := env.executor.shouldUseThinking(tmpl, phase)
 
 		assert.False(t, result)
+	})
+}
+
+func TestResolvePhaseModel_WorkflowDefaultModel(t *testing.T) {
+	t.Run("uses workflow default model when no phase override", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		// Set workflow with default_model
+		env.executor.wf = &workflow.Workflow{
+			ID:           "test-workflow",
+			DefaultModel: "sonnet",
+		}
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{}
+
+		model := env.executor.resolvePhaseModel(tmpl, phase)
+
+		assert.Equal(t, "sonnet", model)
+	})
+
+	t.Run("workflow default model beats agent model", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		// Save an agent with model
+		testAgent := &db.Agent{
+			ID:    "impl-executor",
+			Name:  "Implementation Executor",
+			Model: "haiku",
+		}
+		require.NoError(t, env.projectDB.SaveAgent(testAgent))
+
+		// Set workflow with default_model
+		env.executor.wf = &workflow.Workflow{
+			ID:           "test-workflow",
+			DefaultModel: "sonnet",
+		}
+
+		tmpl := &db.PhaseTemplate{
+			ID:      "implement",
+			AgentID: "impl-executor",
+		}
+		phase := &db.WorkflowPhase{}
+
+		model := env.executor.resolvePhaseModel(tmpl, phase)
+
+		// Workflow default_model should win over agent model
+		assert.Equal(t, "sonnet", model)
+	})
+
+	t.Run("phase model override still beats workflow default model", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		// Set workflow with default_model
+		env.executor.wf = &workflow.Workflow{
+			ID:           "test-workflow",
+			DefaultModel: "sonnet",
+		}
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{
+			ModelOverride: "opus", // Phase override should win
+		}
+
+		model := env.executor.resolvePhaseModel(tmpl, phase)
+
+		assert.Equal(t, "opus", model)
+	})
+
+	t.Run("falls through to agent when workflow has no default model", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		// Save an agent with model
+		testAgent := &db.Agent{
+			ID:    "impl-executor",
+			Name:  "Implementation Executor",
+			Model: "haiku",
+		}
+		require.NoError(t, env.projectDB.SaveAgent(testAgent))
+
+		// Set workflow WITHOUT default_model
+		env.executor.wf = &workflow.Workflow{
+			ID:           "test-workflow",
+			DefaultModel: "", // Empty - should fall through
+		}
+
+		tmpl := &db.PhaseTemplate{
+			ID:      "implement",
+			AgentID: "impl-executor",
+		}
+		phase := &db.WorkflowPhase{}
+
+		model := env.executor.resolvePhaseModel(tmpl, phase)
+
+		// Should fall through to agent model
+		assert.Equal(t, "haiku", model)
 	})
 }
