@@ -346,8 +346,8 @@ export function FileList({
     );
   }
 
-  // Empty state
-  if (filteredFiles.length === 0) {
+  // Empty state - no files at all
+  if (files.length === 0) {
     return (
       <div className="file-list">
         <div data-testid="file-list-empty" className="file-list-empty">
@@ -358,8 +358,8 @@ export function FileList({
     );
   }
 
-  // Search no results
-  if (statusFilter !== 'all' && filteredFiles.length === 0) {
+  // Search/filter no results - have files but filter excludes all
+  if (filteredFiles.length === 0) {
     return (
       <div className="file-list">
         <div data-testid="search-no-results" className="search-no-results">
