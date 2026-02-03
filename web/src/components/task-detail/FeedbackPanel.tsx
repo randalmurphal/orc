@@ -39,6 +39,8 @@ interface FormData {
 
 interface FormErrors {
 	text?: string;
+	type?: string;
+	timing?: string;
 	file?: string;
 	line?: string;
 	submit?: string;
@@ -62,7 +64,7 @@ const FEEDBACK_TIMING_LABELS: Record<FeedbackTiming, string> = {
 export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ task, onTaskUpdate }) => {
 	const projectId = useCurrentProjectId();
 	const [feedback, setFeedback] = useState<Feedback[]>([]);
-	const [loading, setLoading] = useState(false);
+	const [loading, setLoading] = useState(true); // Start true since we load on mount
 	const [loadError, setLoadError] = useState<string>('');
 	const [submitting, setSubmitting] = useState(false);
 	const [sending, setSending] = useState(false);
@@ -111,6 +113,14 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({ task, onTaskUpdate
 
 		if (!data.text.trim()) {
 			errors.text = 'Feedback text is required';
+		}
+
+		if (data.type === FeedbackType.UNSPECIFIED) {
+			errors.type = 'Please select a feedback type';
+		}
+
+		if (data.timing === FeedbackTiming.UNSPECIFIED) {
+			errors.timing = 'Please select when to apply feedback';
 		}
 
 		if (data.type === FeedbackType.INLINE) {
