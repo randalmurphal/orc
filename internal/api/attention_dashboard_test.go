@@ -62,7 +62,7 @@ func TestGetAttentionDashboardData_ReturnsThreeSections(t *testing.T) {
 	require.NoError(t, backend.SaveTask(blockedTask))
 	require.NoError(t, backend.SaveTask(queuedTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -115,7 +115,7 @@ func TestGetRunningTaskDetails_IncludesTimingAndProgress(t *testing.T) {
 
 	require.NoError(t, backend.SaveTask(runningTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -160,7 +160,7 @@ func TestGetRunningTaskDetails_IncludesPipelineProgress(t *testing.T) {
 	// TODO: Create execution state with completed spec phase, active implement phase
 	// This will require integration with the execution state system
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -201,7 +201,7 @@ func TestGetAttentionItems_IncludesBlockedTasks(t *testing.T) {
 
 	require.NoError(t, backend.SaveTask(blockedTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -252,7 +252,7 @@ func TestGetAttentionItems_IncludesPendingDecisions(t *testing.T) {
 	// }
 	// require.NoError(t, backend.SaveDecisionProto(pendingDecision))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -304,7 +304,7 @@ func TestGetAttentionItems_IncludesGateApprovals(t *testing.T) {
 	// gateApproval.Status = orcv1.GateStatus_GATE_STATUS_PENDING
 	// require.NoError(t, backend.SaveGateApprovalProto(gateApproval))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -367,7 +367,7 @@ func TestGetQueueData_OrganizesByInitiative(t *testing.T) {
 	require.NoError(t, backend.SaveTask(task2))
 	require.NoError(t, backend.SaveTask(task3))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -427,7 +427,7 @@ func TestGetQueueData_IncludesTaskPositioning(t *testing.T) {
 	require.NoError(t, backend.SaveTask(task1))
 	require.NoError(t, backend.SaveTask(task2))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -461,7 +461,7 @@ func TestGetQueueData_IncludesPriorityIndicators(t *testing.T) {
 	require.NoError(t, backend.SaveTask(highPriorityTask))
 	require.NoError(t, backend.SaveTask(normalTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -532,7 +532,7 @@ func TestGetAttentionItems_SortedByPriority(t *testing.T) {
 	require.NoError(t, backend.SaveTask(highTask))
 	require.NoError(t, backend.SaveTask(normalTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -653,7 +653,7 @@ func TestAttentionDashboardData_CorrectDataFiltering(t *testing.T) {
 	require.NoError(t, backend.SaveTask(queuedLow))
 	require.NoError(t, backend.SaveTask(completedTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -692,6 +692,333 @@ func TestAttentionDashboardData_CorrectDataFiltering(t *testing.T) {
 }
 
 // ============================================================================
+// PerformAttentionAction Tests - TASK-772 Backend Integration
+// ============================================================================
+
+// TestPerformAttentionAction_SkipBlockedTask verifies SKIP action on blocked tasks
+func TestPerformAttentionAction_SkipBlockedTask(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	// Create a blocked task
+	blockedTask := task.NewProtoTask("TASK-001", "Blocked task")
+	blockedTask.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	blockedTask.BlockedBy = []string{"TASK-000"}
+	require.NoError(t, backend.SaveTask(blockedTask))
+
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+
+	req := connect.NewRequest(&orcv1.PerformAttentionActionRequest{
+		AttentionItemId: "blocked-TASK-001",
+		Action:          orcv1.AttentionAction_ATTENTION_ACTION_SKIP,
+		Reason:          "Dependencies resolved manually",
+	})
+
+	resp, err := server.PerformAttentionAction(context.Background(), req)
+	require.NoError(t, err)
+	assert.True(t, resp.Msg.Success)
+
+	// Verify task status changed to planned and blockers cleared
+	updatedTask, err := backend.LoadTask("TASK-001")
+	require.NoError(t, err)
+	assert.Equal(t, orcv1.TaskStatus_TASK_STATUS_PLANNED, updatedTask.Status)
+	assert.Nil(t, updatedTask.BlockedBy)
+}
+
+// TestPerformAttentionAction_ForceBlockedTask verifies FORCE action on blocked tasks
+func TestPerformAttentionAction_ForceBlockedTask(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	// Create a blocked task
+	blockedTask := task.NewProtoTask("TASK-002", "Force run blocked task")
+	blockedTask.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	blockedTask.BlockedBy = []string{"TASK-001"}
+	require.NoError(t, backend.SaveTask(blockedTask))
+
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+
+	req := connect.NewRequest(&orcv1.PerformAttentionActionRequest{
+		AttentionItemId: "blocked-TASK-002",
+		Action:          orcv1.AttentionAction_ATTENTION_ACTION_FORCE,
+		Reason:          "Urgent priority override",
+	})
+
+	resp, err := server.PerformAttentionAction(context.Background(), req)
+	require.NoError(t, err)
+	assert.True(t, resp.Msg.Success)
+
+	// Verify task status changed to running, blockers kept for tracking
+	updatedTask, err := backend.LoadTask("TASK-002")
+	require.NoError(t, err)
+	assert.Equal(t, orcv1.TaskStatus_TASK_STATUS_RUNNING, updatedTask.Status)
+	assert.NotNil(t, updatedTask.BlockedBy) // Should keep blockers for audit trail
+}
+
+// TestPerformAttentionAction_ResolveFailedTask verifies RESOLVE action on failed tasks
+func TestPerformAttentionAction_ResolveFailedTask(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	// Create a failed task
+	failedTask := task.NewProtoTask("TASK-003", "Failed task")
+	failedTask.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	require.NoError(t, backend.SaveTask(failedTask))
+
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+
+	req := connect.NewRequest(&orcv1.PerformAttentionActionRequest{
+		AttentionItemId: "failed-TASK-003",
+		Action:          orcv1.AttentionAction_ATTENTION_ACTION_RESOLVE,
+		Comment:         "Issue resolved, ready for retry",
+	})
+
+	resp, err := server.PerformAttentionAction(context.Background(), req)
+	require.NoError(t, err)
+	assert.True(t, resp.Msg.Success)
+
+	// Verify task status changed to planned for potential retry
+	updatedTask, err := backend.LoadTask("TASK-003")
+	require.NoError(t, err)
+	assert.Equal(t, orcv1.TaskStatus_TASK_STATUS_PLANNED, updatedTask.Status)
+}
+
+// TestPerformAttentionAction_RetryFailedTask verifies RETRY action on failed tasks
+func TestPerformAttentionAction_RetryFailedTask(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	// Create a failed task
+	failedTask := task.NewProtoTask("TASK-004", "Failed task to retry")
+	failedTask.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	require.NoError(t, backend.SaveTask(failedTask))
+
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+
+	req := connect.NewRequest(&orcv1.PerformAttentionActionRequest{
+		AttentionItemId: "failed-TASK-004",
+		Action:          orcv1.AttentionAction_ATTENTION_ACTION_RETRY,
+	})
+
+	resp, err := server.PerformAttentionAction(context.Background(), req)
+	require.NoError(t, err)
+	assert.True(t, resp.Msg.Success)
+
+	// Verify task status changed to running
+	updatedTask, err := backend.LoadTask("TASK-004")
+	require.NoError(t, err)
+	assert.Equal(t, orcv1.TaskStatus_TASK_STATUS_RUNNING, updatedTask.Status)
+}
+
+// TestPerformAttentionAction_InvalidTaskID verifies error handling for invalid task IDs
+func TestPerformAttentionAction_InvalidTaskID(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+
+	req := connect.NewRequest(&orcv1.PerformAttentionActionRequest{
+		AttentionItemId: "blocked-NONEXISTENT",
+		Action:          orcv1.AttentionAction_ATTENTION_ACTION_SKIP,
+	})
+
+	resp, err := server.PerformAttentionAction(context.Background(), req)
+	require.NoError(t, err)
+	assert.False(t, resp.Msg.Success)
+	assert.Contains(t, resp.Msg.ErrorMessage, "not found")
+}
+
+// TestPerformAttentionAction_InvalidStatus verifies error handling for wrong task status
+func TestPerformAttentionAction_InvalidStatus(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	// Create a running task (cannot be skipped)
+	runningTask := task.NewProtoTask("TASK-005", "Running task")
+	runningTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	require.NoError(t, backend.SaveTask(runningTask))
+
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+
+	req := connect.NewRequest(&orcv1.PerformAttentionActionRequest{
+		AttentionItemId: "blocked-TASK-005", // Wrong item type for running task
+		Action:          orcv1.AttentionAction_ATTENTION_ACTION_SKIP,
+	})
+
+	resp, err := server.PerformAttentionAction(context.Background(), req)
+	require.NoError(t, err)
+	assert.False(t, resp.Msg.Success)
+	assert.Contains(t, resp.Msg.ErrorMessage, "cannot be skipped")
+}
+
+// ============================================================================
+// UpdateQueueOrganization Tests - TASK-772 Backend Integration
+// ============================================================================
+
+// TestUpdateQueueOrganization_SwimlaneStateUpdate verifies swimlane collapse/expand
+func TestUpdateQueueOrganization_SwimlaneStateUpdate(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+
+	req := connect.NewRequest(&orcv1.UpdateQueueOrganizationRequest{
+		Update: &orcv1.UpdateQueueOrganizationRequest_SwimlaneState{
+			SwimlaneState: &orcv1.SwimlaneStateUpdate{
+				InitiativeId: "INIT-001",
+				Collapsed:    true,
+			},
+		},
+	})
+
+	resp, err := server.UpdateQueueOrganization(context.Background(), req)
+	require.NoError(t, err)
+	assert.True(t, resp.Msg.Success)
+}
+
+// TestUpdateQueueOrganization_TaskReorder verifies task reordering between initiatives
+func TestUpdateQueueOrganization_TaskReorder(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	// Create initiatives
+	sourceInit := initiative.NewProtoInitiative("INIT-001", "Source Initiative")
+	targetInit := initiative.NewProtoInitiative("INIT-002", "Target Initiative")
+	require.NoError(t, backend.SaveInitiativeProto(sourceInit))
+	require.NoError(t, backend.SaveInitiativeProto(targetInit))
+
+	// Create a planned task in source initiative
+	plannedTask := task.NewProtoTask("TASK-006", "Task to reorder")
+	plannedTask.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	sourceInitID := "INIT-001"
+	plannedTask.InitiativeId = &sourceInitID
+	require.NoError(t, backend.SaveTask(plannedTask))
+
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+
+	// Reorder task from INIT-001 to INIT-002
+	req := connect.NewRequest(&orcv1.UpdateQueueOrganizationRequest{
+		Update: &orcv1.UpdateQueueOrganizationRequest_TaskReorder{
+			TaskReorder: &orcv1.TaskReorderUpdate{
+				TaskId:               "TASK-006",
+				TargetInitiativeId:   "INIT-002",
+				NewPosition:          1,
+			},
+		},
+	})
+
+	resp, err := server.UpdateQueueOrganization(context.Background(), req)
+	require.NoError(t, err)
+	assert.True(t, resp.Msg.Success)
+
+	// Verify task moved to target initiative
+	updatedTask, err := backend.LoadTask("TASK-006")
+	require.NoError(t, err)
+	assert.NotNil(t, updatedTask.InitiativeId)
+	assert.Equal(t, "INIT-002", *updatedTask.InitiativeId)
+}
+
+// TestUpdateQueueOrganization_TaskReorderToUnassigned verifies moving task to unassigned
+func TestUpdateQueueOrganization_TaskReorderToUnassigned(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	// Create initiative
+	init := initiative.NewProtoInitiative("INIT-001", "Source Initiative")
+	require.NoError(t, backend.SaveInitiativeProto(init))
+
+	// Create a planned task in initiative
+	plannedTask := task.NewProtoTask("TASK-007", "Task to unassign")
+	plannedTask.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	initID := "INIT-001"
+	plannedTask.InitiativeId = &initID
+	require.NoError(t, backend.SaveTask(plannedTask))
+
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+
+	// Move task to unassigned (empty target initiative)
+	req := connect.NewRequest(&orcv1.UpdateQueueOrganizationRequest{
+		Update: &orcv1.UpdateQueueOrganizationRequest_TaskReorder{
+			TaskReorder: &orcv1.TaskReorderUpdate{
+				TaskId:               "TASK-007",
+				TargetInitiativeId:   "", // Empty = unassigned
+				NewPosition:          1,
+			},
+		},
+	})
+
+	resp, err := server.UpdateQueueOrganization(context.Background(), req)
+	require.NoError(t, err)
+	assert.True(t, resp.Msg.Success)
+
+	// Verify task moved to unassigned
+	updatedTask, err := backend.LoadTask("TASK-007")
+	require.NoError(t, err)
+	assert.Nil(t, updatedTask.InitiativeId)
+}
+
+// TestUpdateQueueOrganization_InvalidTaskReorder verifies error handling for task reordering
+func TestUpdateQueueOrganization_InvalidTaskReorder(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+
+	// Try to reorder non-existent task
+	req := connect.NewRequest(&orcv1.UpdateQueueOrganizationRequest{
+		Update: &orcv1.UpdateQueueOrganizationRequest_TaskReorder{
+			TaskReorder: &orcv1.TaskReorderUpdate{
+				TaskId:               "NONEXISTENT",
+				TargetInitiativeId:   "INIT-002",
+				NewPosition:          1,
+			},
+		},
+	})
+
+	resp, err := server.UpdateQueueOrganization(context.Background(), req)
+	require.NoError(t, err)
+	assert.False(t, resp.Msg.Success)
+	assert.Contains(t, resp.Msg.ErrorMessage, "not found")
+}
+
+// TestUpdateQueueOrganization_InvalidInitiative verifies error handling for invalid target initiative
+func TestUpdateQueueOrganization_InvalidInitiative(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	// Create a planned task
+	plannedTask := task.NewProtoTask("TASK-008", "Task to reorder")
+	plannedTask.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	require.NoError(t, backend.SaveTask(plannedTask))
+
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+
+	// Try to move to non-existent initiative
+	req := connect.NewRequest(&orcv1.UpdateQueueOrganizationRequest{
+		Update: &orcv1.UpdateQueueOrganizationRequest_TaskReorder{
+			TaskReorder: &orcv1.TaskReorderUpdate{
+				TaskId:               "TASK-008",
+				TargetInitiativeId:   "NONEXISTENT",
+				NewPosition:          1,
+			},
+		},
+	})
+
+	resp, err := server.UpdateQueueOrganization(context.Background(), req)
+	require.NoError(t, err)
+	assert.False(t, resp.Msg.Success)
+	assert.Contains(t, resp.Msg.ErrorMessage, "not found")
+}
+
+// ============================================================================
 // Helper Functions and Mocks
 // ============================================================================
 
@@ -715,5 +1042,5 @@ func (m *mockEventPublisher) PublishEvent(event interface{}) {
 func NewAttentionDashboardServerWithEventPublisher(backend storage.Backend, eventPublisher any) orcv1connect.AttentionDashboardServiceHandler {
 	// This would be implemented to inject a custom event publisher
 	// for testing event publication in SC-7
-	return NewAttentionDashboardServer(backend, nil)
+	return NewAttentionDashboardServer(backend, nil, nil, nil)
 }
