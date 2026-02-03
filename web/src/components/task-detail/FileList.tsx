@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import type { FileDiff, DiffStats } from '@/gen/orc/v1/common_pb';
+import './FileList.css';
 
 export interface FileListProps {
   files: FileDiff[];
