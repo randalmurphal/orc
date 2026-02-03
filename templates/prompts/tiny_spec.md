@@ -32,7 +32,8 @@ Output a JSON object with the spec, test information, **explicit coverage mappin
     {"id": "scope_explicit", "check": "What's in/out of scope is clear", "passed": true},
     {"id": "max_3_clarifications", "check": "No blocking questions remain", "passed": true},
     {"id": "initiative_aligned", "check": "All initiative vision requirements captured", "passed": true},
-    {"id": "complexity_within_weight", "check": "Scope fits small weight (≤3 files, ≤2 modules)", "passed": true}
+    {"id": "complexity_within_weight", "check": "Scope fits small weight (≤3 files, ≤2 modules)", "passed": true},
+    {"id": "wiring_declared", "check": "If creating new files: wiring field specifies which existing file imports them", "passed": true}
   ],
   "complexity_assessment": {
     "files_to_modify": 2,
@@ -41,6 +42,12 @@ Output a JSON object with the spec, test information, **explicit coverage mappin
     "data_model_changes": false,
     "cross_cutting_concerns": false,
     "exceeds_weight": false
+  },
+  "wiring": {
+    "new_component_path": "@/components/feature/NewComponent.tsx",
+    "imported_by": "@/pages/ExistingPage.tsx",
+    "integration_test_file": "ExistingPage.integration.test.tsx",
+    "integration_test_verifies": "ExistingPage renders NewComponent"
   }
 }
 ```
@@ -49,9 +56,12 @@ Output a JSON object with the spec, test information, **explicit coverage mappin
 - `tests[].covers` - Array of SC-X IDs this test covers
 - `coverage.covered` - All criteria with automated tests
 - `coverage.manual_verification` - Criteria that can't be automated (with justification)
-- `quality_checklist` - All 7 checks evaluated. Set `passed: false` for any that don't apply or aren't met.
+- `quality_checklist` - All 8 checks evaluated. Set `passed: false` for any that don't apply or aren't met.
+- `wiring` - **MANDATORY** if task creates new components/functions. Omit ONLY if modifying existing files without creating new ones.
 
 **Validation:** All SC-X from your Success Criteria table must appear in either `covered` or `manual_verification`.
+
+**Wiring validation:** If you're creating ANY new file that should be used by existing production code, the `wiring` field is REQUIRED. This prevents dead code.
 
 If blocked (genuinely unclear requirements):
 ```json
@@ -118,6 +128,14 @@ Before outputting the final JSON, STOP and verify:
 4. **Confirm tests will fail**
    - Run `{{TEST_COMMAND}}` mentally - tests should fail or not compile
    - If tests would pass, they're testing existing behavior, not new work
+
+5. **Verify wiring declaration (CRITICAL - prevents dead code)**
+   - If this task creates ANY new component, function, or file:
+     - You MUST specify `wiring.new_component_path` - exact path where new code will live
+     - You MUST specify `wiring.imported_by` - which EXISTING file will import it
+     - You MUST write an integration test that imports the EXISTING file and verifies the new component is present
+   - **WRONG**: Only unit tests that import the new component directly
+   - **RIGHT**: Integration test that imports the existing parent file and expects the new component to appear
 
 **Only after completing this verification, output the StructuredOutput.**
 </pre_output_verification>

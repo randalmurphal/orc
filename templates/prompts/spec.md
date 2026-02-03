@@ -124,10 +124,20 @@ If blocked due to complexity exceeding weight (task too large):
 |------|------------------------|
 | [path] | [what it does, not how] |
 
-### Integration Points
-| New Code | Connects To | Contract |
-|----------|-------------|----------|
-| [component] | [existing system] | [input → output behavior] |
+### Integration Points (CRITICAL - Prevents Dead Code)
+
+For EVERY new component/function, specify exactly how it connects to existing code:
+
+| New Code | Imported By | Import Statement | Integration Test |
+|----------|-------------|------------------|------------------|
+| `@/components/feature/Panel.tsx` | `@/pages/Dashboard.tsx` | `import { Panel } from '@/components/feature/Panel'` | `Dashboard.integration.test.tsx` |
+
+**This table is MANDATORY for any task that creates new files.** Omitting it causes the implement phase to create dead code.
+
+- **New Code**: Path where new file will be created
+- **Imported By**: EXISTING file that will import the new code
+- **Import Statement**: Exact import line that the existing file should add
+- **Integration Test**: Test file that verifies the integration works
 
 **DO NOT include:** Algorithms, data structures, implementation patterns, code structure, or technical approaches. Those details belong in the implement phase.
 
@@ -169,6 +179,7 @@ Self-evaluate before completing. **Implement phase blocked until all pass.**
 | max_3_clarifications | ≤3 clarifications, rest are assumptions |
 | initiative_aligned | All initiative vision requirements captured in SC |
 | complexity_within_weight | Scope fits weight classification (see Complexity Thresholds below) |
+| integration_points_complete | Every new file in "New Files" table has corresponding row in "Integration Points" table with explicit import target |
 
 ## Complexity Assessment
 
