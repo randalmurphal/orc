@@ -13,9 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import './AttentionDashboard.css';
 import { useCurrentProjectId } from '@/stores/projectStore';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { createClient } from '@connectrpc/connect';
-import { AttentionDashboardService } from '@/gen/orc/v1/attention_dashboard_connect';
+import { attentionDashboardClient } from '@/lib/client';
 import type {
 	GetAttentionDashboardDataResponse,
 	RunningTask,
@@ -25,6 +23,7 @@ import type {
 } from '@/gen/orc/v1/attention_dashboard_pb';
 import {
 	AttentionAction,
+	AttentionItemType,
 	PhaseStepStatus,
 } from '@/gen/orc/v1/attention_dashboard_pb';
 import type { TaskPriority, TaskCategory } from '@/gen/orc/v1/task_pb';
@@ -38,11 +37,7 @@ interface CollapsedState {
 	[swimlaneId: string]: boolean;
 }
 
-// Create Connect client
-const transport = createConnectTransport({
-	baseUrl: '/api',
-});
-const client = createClient(AttentionDashboardService, transport);
+// Use centralized client from @/lib/client
 
 /**
  * AttentionDashboard component - implements attention management dashboard
@@ -63,7 +58,7 @@ export function AttentionDashboard({ className }: AttentionDashboardProps) {
 			setLoading(true);
 			setError(null);
 
-			const response = await client.getAttentionDashboardData({
+			const response = await attentionDashboardClient.getAttentionDashboardData({
 				projectId,
 			});
 

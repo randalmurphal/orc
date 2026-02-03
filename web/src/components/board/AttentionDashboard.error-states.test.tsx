@@ -17,7 +17,7 @@ import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Task } from '@/gen/orc/v1/task_pb';
 import { TaskStatus, TaskPriority } from '@/gen/orc/v1/task_pb';
 import type { AttentionItem } from '@/gen/orc/v1/attention_dashboard_pb';
-import { AttentionItemType, PhaseStepStatus } from '@/gen/orc/v1/attention_dashboard_pb';
+import { AttentionAction, AttentionItemType, PhaseStepStatus } from '@/gen/orc/v1/attention_dashboard_pb';
 import { createMockTask, createTimestamp } from '@/test/factories';
 
 // Mock events module
@@ -132,6 +132,26 @@ function renderAttentionDashboard() {
 	);
 }
 
+// Helper to create properly structured AttentionItem
+function createMockAttentionItem(overrides: Partial<AttentionItem> = {}): AttentionItem {
+	const base = {
+		$typeName: 'orc.v1.AttentionItem' as const,
+		id: 'item-001',
+		type: AttentionItemType.FAILED_TASK,
+		taskId: 'TASK-001',
+		title: 'Test item',
+		description: 'Test description',
+		priority: TaskPriority.NORMAL,
+		createdAt: createTimestamp(),
+		availableActions: [] as AttentionAction[],
+		decisionOptions: [],
+		blockedReason: '',
+		gateQuestion: '',
+		errorMessage: '',
+	};
+	return Object.assign(base, overrides) as AttentionItem;
+}
+
 describe('AttentionDashboard Error States - TASK-744', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -154,8 +174,7 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 				priority: TaskPriority.HIGH,
 			});
 
-			const failedAttentionItem: AttentionItem = {
-				$typeName: 'orc.v1.AttentionItem',
+			const failedAttentionItem = createMockAttentionItem({
 				id: `failed-${failedTask.id}`,
 				type: AttentionItemType.FAILED_TASK,
 				taskId: failedTask.id!,
@@ -166,7 +185,7 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 				availableActions: [],
 				decisionOptions: [],
 				errorMessage: 'Phase implementation failed with exit code 1',
-			};
+			});
 
 			mockTasks.push(failedTask);
 			mockAttentionItems.push(failedAttentionItem);
@@ -245,14 +264,8 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 				priority: failedTask.priority,
 				createdAt: failedTask.updatedAt,
 				availableActions: [
-					{
-						$case: 'retry',
-						retry: {}
-					},
-					{
-						$case: 'view',
-						view: {}
-					}
+					AttentionAction.RETRY,
+					AttentionAction.VIEW
 				],
 				decisionOptions: [],
 			};
