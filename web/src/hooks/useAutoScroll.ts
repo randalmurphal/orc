@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface UseAutoScrollOptions {
   enabled?: boolean;
@@ -32,7 +32,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(enabled);
   const userScrolledRef = useRef(false);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
 
@@ -40,18 +40,18 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
       top: element.scrollHeight,
       behavior: smooth ? 'smooth' : 'instant'
     });
-  };
+  }, [smooth]);
 
-  const checkIfAtBottom = () => {
+  const checkIfAtBottom = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return false;
 
     const { scrollTop, scrollHeight, clientHeight } = element;
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
     return distanceFromBottom <= threshold;
-  };
+  }, [threshold]);
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
 
@@ -69,7 +69,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
       userScrolledRef.current = false;
       setIsAutoScrollEnabled(true);
     }
-  };
+  }, [checkIfAtBottom]);
 
   // Auto-scroll when content changes and auto-scroll is enabled
   useEffect(() => {
@@ -87,7 +87,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
 
       return () => observer.disconnect();
     }
-  }, [isAutoScrollEnabled, isAtBottom]);
+  }, [isAutoScrollEnabled, isAtBottom, scrollToBottom]);
 
   // Set up scroll event listener
   useEffect(() => {
@@ -96,7 +96,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}): UseAutoScroll
 
     element.addEventListener('scroll', handleScroll, { passive: true });
     return () => element.removeEventListener('scroll', handleScroll);
-  }, [threshold]);
+  }, [handleScroll]);
 
   const enableAutoScroll = () => {
     setIsAutoScrollEnabled(true);

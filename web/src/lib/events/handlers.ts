@@ -16,6 +16,28 @@ import { InitiativeSchema, InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import type { PhaseStatus as UIPhaseStatus } from '@/components/workflow-editor/nodes';
 import { estimatePhaseCompletion } from '@/lib/utils/progressEstimation';
 import type { SessionMetrics, PhaseProgress } from '@/components/common/RealTimeMetrics';
+import type { Task, ExecutionState } from '@/gen/orc/v1/task_pb';
+
+/**
+ * Interface for the subset of TaskStore methods used by event handlers
+ */
+interface TaskStoreActions {
+	getRunningTasks: () => Task[];
+	getTaskState: (taskId: string) => ExecutionState | undefined;
+	updateSessionMetrics: (taskId: string, metrics: SessionMetrics) => void;
+	updatePhaseProgress: (taskId: string, progress: PhaseProgress) => void;
+}
+
+/**
+ * Metrics payload from session_metrics events
+ */
+interface GlobalMetrics {
+	totalTokens: number;
+	estimatedCostUsd: number;
+	inputTokens: number;
+	outputTokens: number;
+	durationSeconds: number | bigint;
+}
 
 /**
  * Convert proto ActivityState enum to string format expected by components
@@ -45,7 +67,7 @@ function getActivityStateString(activity: ActivityState): string {
 /**
  * Update task-specific session metrics for running tasks
  */
-function updateTaskSpecificMetrics(taskStore: any, globalMetrics: any): void {
+function updateTaskSpecificMetrics(taskStore: TaskStoreActions, globalMetrics: GlobalMetrics): void {
 	// Get running tasks and distribute metrics proportionally
 	const runningTasks = taskStore.getRunningTasks();
 
@@ -59,13 +81,13 @@ function updateTaskSpecificMetrics(taskStore: any, globalMetrics: any): void {
 	const tokensPerTask = Math.floor(globalMetrics.totalTokens / tasksRunning);
 	const costPerTask = globalMetrics.estimatedCostUsd / tasksRunning;
 
-	runningTasks.forEach((task: any) => {
+	runningTasks.forEach((task: Task) => {
 		const taskMetrics: SessionMetrics = {
 			totalTokens: tokensPerTask,
 			estimatedCostUSD: costPerTask,
 			inputTokens: Math.floor(globalMetrics.inputTokens / tasksRunning),
 			outputTokens: Math.floor(globalMetrics.outputTokens / tasksRunning),
-			durationSeconds: globalMetrics.durationSeconds,
+			durationSeconds: Number(globalMetrics.durationSeconds),
 			tasksRunning: 1 // This task specifically
 		};
 
@@ -76,7 +98,7 @@ function updateTaskSpecificMetrics(taskStore: any, globalMetrics: any): void {
 /**
  * Update phase progress data when activity changes
  */
-function updatePhaseProgressFromActivity(taskStore: any, taskId: string, phaseId: string, activity: string): void {
+function updatePhaseProgressFromActivity(taskStore: TaskStoreActions, taskId: string, phaseId: string, activity: string): void {
 	const existingState = taskStore.getTaskState(taskId);
 
 	if (!existingState) {

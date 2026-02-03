@@ -115,7 +115,7 @@ export function DiffViewModal({
 				}
 
 				// Validate response data
-				const invalidFile = response.diff.files?.find((f: any) => !f.path || f.status === undefined);
+				const invalidFile = response.diff.files?.find((f: FileDiff) => !f.path || f.status === undefined);
 				if (invalidFile) {
 					throw new Error('Invalid diff data received');
 				}
@@ -146,7 +146,7 @@ export function DiffViewModal({
 			return;
 		}
 
-		let files = diffResult.files.map((file: any) => ({
+		let files = diffResult.files.map((file: FileDiff) => ({
 			path: file.path,
 			status: file.status,
 			additions: file.additions,
@@ -157,14 +157,14 @@ export function DiffViewModal({
 
 		// Apply search filter
 		if (searchQuery.trim()) {
-			files = files.filter((file: any) =>
+			files = files.filter((file) =>
 				file.path.toLowerCase().includes(searchQuery.toLowerCase())
 			);
 		}
 
 		// Apply status filter
 		if (statusFilter) {
-			files = files.filter((file: any) => file.status === statusFilter);
+			files = files.filter((file) => file.status === statusFilter);
 		}
 
 		setFilteredFiles(files);
@@ -178,7 +178,7 @@ export function DiffViewModal({
 	// Handle selected file change from prop
 	useEffect(() => {
 		if (selectedFile && diffResult?.files) {
-			const index = diffResult.files.findIndex((f: any) => f.path === selectedFile);
+			const index = diffResult.files.findIndex((f: FileDiff) => f.path === selectedFile);
 			if (index >= 0) {
 				setSelectedFileIndex(index);
 			}
@@ -275,7 +275,7 @@ export function DiffViewModal({
 	const selectFile = useCallback((filePath: string) => {
 		if (!diffResult?.files) return;
 
-		const index = diffResult.files.findIndex((f: any) => f.path === filePath);
+		const index = diffResult.files.findIndex((f: FileDiff) => f.path === filePath);
 		if (index >= 0) {
 			setSelectedFileIndex(index);
 		}
@@ -348,13 +348,14 @@ export function DiffViewModal({
 					setSearchVisible(true);
 					setTimeout(() => searchInputRef.current?.focus(), 0);
 					break;
-				case 'f':
+				case 'f': {
 					// Toggle status filter (cycle through: all -> added -> modified -> deleted -> all)
 					const statuses = [null, 'added', 'modified', 'deleted'];
 					const currentIndex = statuses.indexOf(statusFilter);
 					const nextIndex = (currentIndex + 1) % statuses.length;
 					setStatusFilter(statuses[nextIndex]);
 					break;
+				}
 				case 'Escape':
 				case 'q':
 					onClose();

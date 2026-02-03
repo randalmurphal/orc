@@ -14,7 +14,7 @@
  * - SC-7: Loading states work on buttons that previously had them
  */
 
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -68,19 +68,6 @@ vi.mock('@/stores/uiStore', () => ({
 
 import { taskClient, workflowClient } from '@/lib/client';
 
-// Mock browser APIs for Radix
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-});
-
 /**
  * Helper to check if an element uses the Button component
  * Button component renders <button> with specific CSS classes
@@ -101,6 +88,7 @@ function expectIconOnlyButton(element: HTMLElement) {
 	expect(element).toHaveAttribute('aria-label');
 }
 
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
 describe('TASK-554: Button Standardization', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -148,10 +136,16 @@ describe('TASK-554: Button Standardization', () => {
 			expect(backBtn).toHaveClass('btn-ghost'); // Back buttons should be ghost variant
 		});
 
-		it('run button uses Button component with primary variant', () => {
+		it('run button uses Button component with primary variant', async () => {
 			renderTaskHeader({ status: TaskStatus.CREATED });
 
-			const runBtn = screen.getByRole('button', { name: /run/i });
+			// Wait for component to stabilize after initial render
+			await waitFor(() => {
+				const runBtns = screen.getAllByRole('button', { name: /run/i });
+				expect(runBtns.length).toBeGreaterThan(0);
+			});
+
+			const runBtn = screen.getAllByRole('button', { name: /run/i })[0];
 			expectButtonComponent(runBtn);
 			expect(runBtn).toHaveClass('btn-primary');
 		});
@@ -176,7 +170,9 @@ describe('TASK-554: Button Standardization', () => {
 		it('edit button uses Button component with iconOnly and ghost variant', () => {
 			renderTaskHeader();
 
-			const editBtn = screen.getByRole('button', { name: /edit/i });
+			// Use getAllByRole since there might be multiple edit buttons in portals
+			const editBtns = screen.getAllByRole('button', { name: /edit/i });
+			const editBtn = editBtns[0];
 			expectIconOnlyButton(editBtn);
 			expect(editBtn).toHaveClass('btn-ghost');
 		});
@@ -184,7 +180,9 @@ describe('TASK-554: Button Standardization', () => {
 		it('delete button uses Button component with iconOnly and danger variant', () => {
 			renderTaskHeader();
 
-			const deleteBtn = screen.getByRole('button', { name: /delete/i });
+			// Use getAllByRole since there might be multiple delete buttons in portals
+			const deleteBtns = screen.getAllByRole('button', { name: /delete/i });
+			const deleteBtn = deleteBtns[0];
 			expectIconOnlyButton(deleteBtn);
 			expect(deleteBtn).toHaveClass('btn-danger');
 		});
@@ -197,13 +195,15 @@ describe('TASK-554: Button Standardization', () => {
 
 			renderTaskHeader({ status: TaskStatus.CREATED });
 
-			const runBtn = screen.getByRole('button', { name: /run/i });
+			const runBtns = screen.getAllByRole('button', { name: /run/i });
+			const runBtn = runBtns[0];
 			await user.click(runBtn);
 
 			// Button should show loading state
 			await waitFor(() => {
 				// Button component adds btn-loading class and aria-busy when loading
-				const loadingBtn = screen.getByRole('button', { name: /run/i });
+				const loadingBtns = screen.getAllByRole('button', { name: /run/i });
+				const loadingBtn = loadingBtns[0];
 				expect(loadingBtn).toHaveClass('btn-loading');
 				expect(loadingBtn).toHaveAttribute('aria-busy', 'true');
 			});
@@ -214,19 +214,19 @@ describe('TASK-554: Button Standardization', () => {
 			renderTaskHeader();
 
 			// Click delete to open confirmation
-			const deleteBtn = screen.getByRole('button', { name: /delete/i });
-			await user.click(deleteBtn);
+			const deleteBtns = screen.getAllByRole('button', { name: /delete/i });
+			await user.click(deleteBtns[0]);
 
 			// Modal should appear with Cancel and Delete buttons
 			await waitFor(() => {
-				const cancelBtn = screen.getByRole('button', { name: /cancel/i });
-				const confirmDeleteBtn = screen.getByRole('button', { name: /^delete$/i });
+				const cancelBtns = screen.getAllByRole('button', { name: /cancel/i });
+				const confirmDeleteBtns = screen.getAllByRole('button', { name: /^delete$/i });
 
-				expectButtonComponent(cancelBtn);
-				expect(cancelBtn).toHaveClass('btn-secondary');
+				expectButtonComponent(cancelBtns[0]);
+				expect(cancelBtns[0]).toHaveClass('btn-secondary');
 
-				expectButtonComponent(confirmDeleteBtn);
-				expect(confirmDeleteBtn).toHaveClass('btn-danger');
+				expectButtonComponent(confirmDeleteBtns[0]);
+				expect(confirmDeleteBtns[0]).toHaveClass('btn-danger');
 			});
 		});
 	});
@@ -258,18 +258,18 @@ describe('TASK-554: Button Standardization', () => {
 
 			renderCommentsTab();
 
-			// Open the comment form
+			// Open the comment form - use getAllByRole for multiple matches
 			await waitFor(async () => {
-				const addBtn = screen.getByRole('button', { name: /add comment/i });
-				await user.click(addBtn);
+				const addBtns = screen.getAllByRole('button', { name: /add comment/i });
+				await user.click(addBtns[0]);
 			});
 
 			// Close button should appear (aria-label="Close" for icon-only close button)
 			// AMEND-001: Changed from /cancel/i to /close/i since "Close" is semantically
 			// correct for an X icon button and avoids conflict with the Cancel text button
 			await waitFor(() => {
-				const closeBtn = screen.getByRole('button', { name: /close/i });
-				expectIconOnlyButton(closeBtn);
+				const closeBtns = screen.getAllByRole('button', { name: /close/i });
+				expectIconOnlyButton(closeBtns[0]);
 			});
 		});
 
@@ -300,9 +300,9 @@ describe('TASK-554: Button Standardization', () => {
 			renderCommentsTab();
 
 			await waitFor(() => {
-				const editBtn = screen.getByRole('button', { name: /edit/i });
-				expectIconOnlyButton(editBtn);
-				expect(editBtn).toHaveClass('btn-ghost');
+				const editBtns = screen.getAllByRole('button', { name: /edit/i });
+				expectIconOnlyButton(editBtns[0]);
+				expect(editBtns[0]).toHaveClass('btn-ghost');
 			});
 		});
 
@@ -316,9 +316,9 @@ describe('TASK-554: Button Standardization', () => {
 			renderCommentsTab();
 
 			await waitFor(() => {
-				const deleteBtn = screen.getByRole('button', { name: /delete/i });
-				expectIconOnlyButton(deleteBtn);
-				expect(deleteBtn).toHaveClass('btn-danger');
+				const deleteBtns = screen.getAllByRole('button', { name: /delete/i });
+				expectIconOnlyButton(deleteBtns[0]);
+				expect(deleteBtns[0]).toHaveClass('btn-danger');
 			});
 		});
 
@@ -328,10 +328,10 @@ describe('TASK-554: Button Standardization', () => {
 
 			renderCommentsTab();
 
-			// Open form
+			// Open form - use getAllByRole for multiple matches
 			await waitFor(async () => {
-				const addBtn = screen.getByRole('button', { name: /add comment/i });
-				await user.click(addBtn);
+				const addBtns = screen.getAllByRole('button', { name: /add comment/i });
+				await user.click(addBtns[0]);
 			});
 
 			await waitFor(() => {
@@ -352,16 +352,16 @@ describe('TASK-554: Button Standardization', () => {
 
 			renderCommentsTab();
 
-			// Open form
+			// Open form - use getAllByRole for multiple matches
 			await waitFor(async () => {
-				const addBtn = screen.getByRole('button', { name: /add comment/i });
-				await user.click(addBtn);
+				const addBtns = screen.getAllByRole('button', { name: /add comment/i });
+				await user.click(addBtns[0]);
 			});
 
 			await waitFor(() => {
-				const submitBtn = screen.getByRole('button', { name: /add comment$/i });
-				expectButtonComponent(submitBtn);
-				expect(submitBtn).toHaveClass('btn-primary');
+				const submitBtns = screen.getAllByRole('button', { name: /add comment$/i });
+				expectButtonComponent(submitBtns[0]);
+				expect(submitBtns[0]).toHaveClass('btn-primary');
 			});
 		});
 	});
@@ -425,7 +425,9 @@ describe('TASK-554: Button Standardization', () => {
 				await user.type(titleInput, 'Test Task');
 			});
 
-			const createBtn = screen.getByRole('button', { name: /create task/i });
+			// Use getAllByRole for multiple matches
+			const createBtns = screen.getAllByRole('button', { name: /create task/i });
+			const createBtn = createBtns[0];
 			await user.click(createBtn);
 
 			// Button should show loading state
@@ -441,8 +443,9 @@ describe('TASK-554: Button Standardization', () => {
 			renderNewTaskModal();
 
 			await waitFor(() => {
-				const retryBtn = screen.getByRole('button', { name: /retry/i });
-				expectButtonComponent(retryBtn);
+				// Use getAllByRole for multiple matches
+				const retryBtns = screen.getAllByRole('button', { name: /retry/i });
+				expectButtonComponent(retryBtns[0]);
 			});
 		});
 	});
@@ -532,7 +535,8 @@ describe('TASK-554: Button Standardization', () => {
 				</TooltipProvider>
 			);
 
-			const runBtn = screen.getByRole('button', { name: /run/i });
+			const runBtns = screen.getAllByRole('button', { name: /run/i });
+			const runBtn = runBtns[0];
 			// Must use Button component
 			expectButtonComponent(runBtn);
 			await user.click(runBtn);
@@ -561,7 +565,8 @@ describe('TASK-554: Button Standardization', () => {
 				await user.type(titleInput, 'Test Task');
 			});
 
-			const createBtn = screen.getByRole('button', { name: /create task/i });
+			const createBtns = screen.getAllByRole('button', { name: /create task/i });
+			const createBtn = createBtns[0];
 			await user.click(createBtn);
 
 			// Spinner should appear (Button component renders .btn-spinner when loading)
@@ -584,10 +589,10 @@ describe('TASK-554: Button Standardization', () => {
 				</TooltipProvider>
 			);
 
-			// Open form and fill it
+			// Open form and fill it - use getAllByRole for multiple matches
 			await waitFor(async () => {
-				const addBtn = screen.getByRole('button', { name: /add comment/i });
-				await user.click(addBtn);
+				const addBtns = screen.getAllByRole('button', { name: /add comment/i });
+				await user.click(addBtns[0]);
 			});
 
 			await waitFor(async () => {
@@ -595,8 +600,9 @@ describe('TASK-554: Button Standardization', () => {
 				await user.type(textarea, 'Test comment content');
 			});
 
-			// Submit
-			const submitBtn = screen.getByRole('button', { name: /add comment$/i });
+			// Submit - use getAllByRole for multiple matches
+			const submitBtns = screen.getAllByRole('button', { name: /add comment$/i });
+			const submitBtn = submitBtns[0];
 			await user.click(submitBtn);
 
 			// Button should show loading state
@@ -633,7 +639,9 @@ describe('Button Variant Consistency', () => {
 			</TooltipProvider>
 		);
 
-		const deleteBtn = screen.getByRole('button', { name: /delete/i });
+		// Use getAllByRole for multiple matches
+		const deleteBtns = screen.getAllByRole('button', { name: /delete/i });
+		const deleteBtn = deleteBtns[0];
 		// Must use Button component
 		expectButtonComponent(deleteBtn);
 		expect(deleteBtn).toHaveClass('btn-danger');
@@ -647,7 +655,9 @@ describe('Button Variant Consistency', () => {
 		render(<NewTaskModal open={true} onClose={vi.fn()} onCreate={vi.fn()} />);
 
 		await waitFor(() => {
-			const createBtn = screen.getByRole('button', { name: /create task/i });
+			// Use getAllByRole for multiple matches
+			const createBtns = screen.getAllByRole('button', { name: /create task/i });
+			const createBtn = createBtns[0];
 			// Must use Button component
 			expectButtonComponent(createBtn);
 			expect(createBtn).toHaveClass('btn-primary');
@@ -662,7 +672,9 @@ describe('Button Variant Consistency', () => {
 		render(<NewTaskModal open={true} onClose={vi.fn()} onCreate={vi.fn()} />);
 
 		await waitFor(() => {
-			const cancelBtn = screen.getByRole('button', { name: /cancel/i });
+			// Use getAllByRole for multiple matches
+			const cancelBtns = screen.getAllByRole('button', { name: /cancel/i });
+			const cancelBtn = cancelBtns[0];
 			// Must use Button component
 			expectButtonComponent(cancelBtn);
 			expect(cancelBtn).toHaveClass('btn-secondary');
@@ -742,7 +754,8 @@ describe('Button Accessibility', () => {
 			</TooltipProvider>
 		);
 
-		const runBtn = screen.getByRole('button', { name: /run/i });
+		const runBtns = screen.getAllByRole('button', { name: /run/i });
+		const runBtn = runBtns[0];
 		await user.click(runBtn);
 
 		await waitFor(() => {
@@ -758,8 +771,9 @@ describe('Button Accessibility', () => {
 		render(<NewTaskModal open={true} onClose={vi.fn()} onCreate={vi.fn()} />);
 
 		await waitFor(() => {
-			// Create button should be disabled when title is empty
-			const createBtn = screen.getByRole('button', { name: /create task/i });
+			// Create button should be disabled when title is empty - use getAllByRole
+			const createBtns = screen.getAllByRole('button', { name: /create task/i });
+			const createBtn = createBtns[0];
 			// Must use Button component (has 'btn' base class)
 			expectButtonComponent(createBtn);
 			expect(createBtn).toBeDisabled();

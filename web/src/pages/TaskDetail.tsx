@@ -6,7 +6,7 @@ import { TaskFooter } from '@/components/task-detail/TaskFooter';
 import { SplitPane } from '@/components/core/SplitPane';
 import { TranscriptTab } from '@/components/task-detail/TranscriptTab';
 import { ChangesTab } from '@/components/task-detail/ChangesTab';
-import { FeedbackPanel } from '@/components/feedback/FeedbackPanel';
+import { FeedbackPanel } from '@/components/task-detail/FeedbackPanel';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { taskClient } from '@/lib/client';
@@ -229,18 +229,10 @@ export function TaskDetail() {
 				{(task.status === TaskStatus.RUNNING || task.status === TaskStatus.PAUSED) && projectId && (
 					<div className="task-detail-feedback">
 						<FeedbackPanel
-							taskId={task.id}
-							projectId={projectId}
-							isTaskRunning={task.status === TaskStatus.RUNNING}
-							onFeedbackAdded={(_feedback) => {
-								// DEBUG:('Feedback added:', feedback);
-							}}
-							onTaskPaused={() => {
-								// DEBUG:('Task paused for feedback');
-								// The task status will be updated via WebSocket subscription
-							}}
-							onError={(error) => {
-								setError(error);
+							task={task}
+							onTaskUpdate={(updatedTask) => {
+								// Task status updated via feedback (e.g., paused)
+								setTask(updatedTask);
 							}}
 						/>
 					</div>

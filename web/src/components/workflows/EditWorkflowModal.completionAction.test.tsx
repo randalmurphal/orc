@@ -9,7 +9,7 @@
  * - SC-7g: Update request includes completion_action
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EditWorkflowModal } from './EditWorkflowModal';
@@ -42,20 +42,6 @@ vi.mock('@/stores/uiStore', () => ({
 // Import mocked modules for assertions
 import { workflowClient } from '@/lib/client';
 
-// Mock browser APIs
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-	window.confirm = vi.fn().mockReturnValue(true);
-});
-
 // Create mock phase templates
 const mockPhaseTemplates = [
 	createMockPhaseTemplate({ id: 'spec', name: 'Spec', isBuiltin: true }),
@@ -63,6 +49,8 @@ const mockPhaseTemplates = [
 ];
 
 describe('EditWorkflowModal - completion_action field', () => {
+	// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
+
 	const mockOnClose = vi.fn();
 	const mockOnUpdated = vi.fn();
 

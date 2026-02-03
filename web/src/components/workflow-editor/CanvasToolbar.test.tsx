@@ -12,7 +12,7 @@
  * - Zoom: +/- zoom level controls
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { CanvasToolbar } from './CanvasToolbar';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
@@ -51,19 +51,6 @@ vi.mock('@xyflow/react', async () => {
 	};
 });
 
-// Mock IntersectionObserver for React Flow
-beforeAll(() => {
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-});
-
 function loadCustomWorkflow() {
 	const details = createMockWorkflowWithDetails({
 		workflow: createMockWorkflow({ id: 'custom-wf', isBuiltin: false }),
@@ -87,6 +74,7 @@ function loadBuiltinWorkflow() {
 	return details;
 }
 
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 describe('CanvasToolbar', () => {
 	beforeEach(() => {
 		useWorkflowEditorStore.getState().reset();

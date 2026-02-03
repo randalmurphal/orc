@@ -23,8 +23,8 @@
  * - JSON override edited, then structured field edited → structured takes precedence
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
-import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EditPhaseTemplateModal } from './EditPhaseTemplateModal';
 import { create } from '@bufbuild/protobuf';
@@ -65,20 +65,6 @@ vi.mock('@/stores/uiStore', () => ({
 import { workflowClient, configClient, mcpClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 
-// Mock browser APIs for Radix
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-	window.confirm = vi.fn().mockReturnValue(true);
-});
-
 // Standard mock data for library pickers
 const mockHooks = [
 	createMockHook({ name: 'pre-guard', eventType: 'PreToolUse' }),
@@ -103,6 +89,8 @@ const mockOnClose = vi.fn();
 const mockOnUpdated = vi.fn();
 
 describe('EditPhaseTemplateModal - Claude Config Settings', () => {
+	// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		setupMocks();
@@ -668,6 +656,11 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			expect(
 				screen.getByText(/cannot edit built-in template/i)
 			).toBeInTheDocument();
+
+			// Wait for any pending async operations to complete
+			await act(async () => {
+				await new Promise(resolve => setTimeout(resolve, 0));
+			});
 		});
 
 		it('listHooks error does not break other sections', async () => {

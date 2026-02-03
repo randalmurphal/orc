@@ -261,9 +261,16 @@ export class ShortcutManager {
 	}
 
 	/**
-	 * Clean up event listeners
+	 * Clean up event listeners and timers
 	 */
 	destroy(): void {
+		// Clear any pending sequence timeout to prevent event loop hang
+		if (this.sequenceTimeout) {
+			clearTimeout(this.sequenceTimeout);
+			this.sequenceTimeout = null;
+		}
+		this.sequenceBuffer = [];
+
 		if (typeof window !== 'undefined') {
 			window.removeEventListener('keydown', this.boundHandleKeydown);
 		}

@@ -229,6 +229,127 @@ bun run test                    # Vitest unit tests
 bunx playwright test            # E2E tests
 ```
 
+### Global Test Setup (`test-setup.ts`)
+
+**CRITICAL:** All browser API mocks are defined globally in `test-setup.ts`. DO NOT duplicate these mocks in individual test files:
+
+| Mock | Purpose |
+|------|---------|
+| `ResizeObserver` | React Flow node dimensions (fires callback with 800×600) |
+| `IntersectionObserver` | Lazy loading, React Flow viewport |
+| `Element.prototype.*` | `scrollIntoView`, `hasPointerCapture`, `setPointerCapture`, `releasePointerCapture` for Radix UI |
+| `window.confirm` | Delete confirmations |
+| `getBoundingClientRect` | Returns fixed 800×600 dimensions for jsdom |
+| `offsetWidth/offsetHeight` | Returns 800/600 for React Flow node measurement |
+| `DOMMatrixReadOnly` | Zoom extraction for React Flow viewport |
+| `localStorage` | Test-isolated storage |
+| `requestAnimationFrame` | Synchronous execution in tests |
+
+**Why this matters:** Test files that define `beforeAll()` mocks without `afterAll()` cleanup cause mocks to accumulate across test files. By test #33+, the environment becomes corrupted and tests hang. The global test-setup.ts prevents this by:
+1. Setting up mocks once
+2. Restoring mocks in `afterEach()`
+3. Intercepting `Object.defineProperty` to prevent test files from overriding protected mocks
+
+**Correct pattern for test files:**
+```typescript
+// DO: Reference that mocks exist globally
+// NOTE: Browser API mocks are set up globally in test-setup.ts - do not duplicate here
+
+// DON'T: Add beforeAll mocks without cleanup
+beforeAll(() => {
+  global.ResizeObserver = ... // BAD - corrupts environment
+});
+```
+
+### Avoiding act() Warnings
+
+act() warnings occur when React state updates happen outside the test's control flow. Common causes and fixes:
+
+| Cause | Fix |
+|-------|-----|
+| Test ends before `useEffect` async call completes | Add `await waitFor(() => { expect(mockApi).toHaveBeenCalled(); })` |
+| Promise resolved without wrapping in act() | Wrap in `await act(async () => { resolvePromise(); })` |
+| Zustand store action outside act() | Wrap store calls: `await act(async () => { store.getState().action(); })` |
+| `window.dispatchEvent()` triggering state updates | Wrap in `await act(async () => { window.dispatchEvent(new Event('resize')); })` |
+| `fireEvent.keyDown()` on elements with handlers | Wrap in `await act(async () => { fireEvent.keyDown(el, { key: 'Enter' }); })` |
+| Child components making unmocked API calls | Mock ALL client methods used by child components, not just the parent's |
+
+**Basic pattern - wait for async effects:**
+```typescript
+// BAD - causes act() warnings
+it('renders modal', async () => {
+  render(<ModalWithAsyncLoad open={true} />);
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  // Test ends, but useEffect's setState is still pending
+});
+
+// GOOD - wait for async operations
+it('renders modal', async () => {
+  render(<ModalWithAsyncLoad open={true} />);
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  await waitFor(() => {
+    expect(someApiClient.loadData).toHaveBeenCalled();
+  });
+});
+```
+
+**Zustand store actions:**
+```typescript
+// BAD - store action triggers React state update outside act()
+useWorkflowEditorStore.getState().selectNode('node-1');
+
+// GOOD - wrap in act()
+await act(async () => {
+  useWorkflowEditorStore.getState().selectNode('node-1');
+});
+```
+
+**Pending promises:**
+```typescript
+// BAD - resolving promise triggers state update outside act()
+resolveCancelPromise!();
+
+// GOOD - wrap resolution in act()
+await act(async () => {
+  resolveCancelPromise!();
+});
+```
+
+**Incomplete mocks causing cascading effects:**
+```typescript
+// BAD - only mocks what parent uses, child components call unmocked methods
+vi.mock('@/lib/client', () => ({
+  taskClient: { getTask: vi.fn().mockResolvedValue({ task }) },
+}));
+
+// GOOD - mock everything child components might call
+vi.mock('@/lib/client', () => ({
+  taskClient: {
+    getTask: vi.fn().mockResolvedValue({ task }),
+    listReviewComments: vi.fn().mockResolvedValue({ comments: [] }),
+    getDiff: vi.fn().mockResolvedValue({ files: [] }),
+  },
+  feedbackClient: {
+    listFeedback: vi.fn().mockResolvedValue({ feedback: [] }),
+  },
+}));
+```
+
+**setInterval/auto-refresh causing background updates:**
+```typescript
+// For components with intervals, mock timer functions
+let setIntervalSpy: any;
+beforeEach(() => {
+  setIntervalSpy = vi.spyOn(global, 'setInterval')
+    .mockImplementation(() => 0 as unknown as ReturnType<typeof setInterval>);
+});
+afterEach(() => {
+  setIntervalSpy.mockRestore();
+});
+```
+
+### E2E Tests
+
 **CRITICAL:** E2E tests use sandbox in `/tmp`. Always import from `./fixtures`:
 
 ```ts

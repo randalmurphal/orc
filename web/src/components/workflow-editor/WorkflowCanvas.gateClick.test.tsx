@@ -12,8 +12,8 @@
  * These tests will FAIL until WorkflowCanvas is updated with onEdgeClick handler.
  */
 
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render, cleanup, act, waitFor } from '@testing-library/react';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
 import {
@@ -24,18 +24,7 @@ import {
 } from '@/test/factories';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
 
-// Mock IntersectionObserver for React Flow
-beforeAll(() => {
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 
 /** Load a workflow with gate edges into the store */
 function loadTestWorkflowWithGates(isBuiltin = true) {
@@ -76,10 +65,15 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 	});
 
 	describe('SC-4: onEdgeClick calls selectEdge for gate edges', () => {
-		it('calls selectEdge when a gate edge is clicked', () => {
+		it('calls selectEdge when a gate edge is clicked', async () => {
 			loadTestWorkflowWithGates();
 
 			render(<WorkflowCanvas />);
+
+			// Wait for React Flow to initialize
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().edges.length).toBeGreaterThan(0);
+			});
 
 			// Find a gate edge in the store
 			const edges = useWorkflowEditorStore.getState().edges;
@@ -91,27 +85,38 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 
 			// Use store action to select the edge (simulates click behavior)
 			// DOM interaction in tests is unreliable due to React Flow rendering
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 
 			// Verify the edge is now selected
 			expect(useWorkflowEditorStore.getState().selectedEdgeId).toBe(gateEdge!.id);
 		});
 
-		it('clears selectedNodeId when selecting a gate edge', () => {
+		it('clears selectedNodeId when selecting a gate edge', async () => {
 			loadTestWorkflowWithGates();
 
 			render(<WorkflowCanvas />);
 
+			// Wait for React Flow to initialize
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().nodes.length).toBeGreaterThan(0);
+			});
+
 			// First select a node
 			const nodes = useWorkflowEditorStore.getState().nodes;
 			const phaseNode = nodes.find((n) => n.type === 'phase');
-			useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			});
 			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNode!.id);
 
 			// Select a gate edge via store (equivalent to click in browser)
 			const edges = useWorkflowEditorStore.getState().edges;
 			const gateEdge = edges.find((e) => e.type === 'gate');
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 
 			// selectedNodeId should be cleared (selectEdge clears node selection)
 			expect(useWorkflowEditorStore.getState().selectedNodeId).toBeNull();
@@ -119,16 +124,23 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 			expect(useWorkflowEditorStore.getState().selectedEdgeId).toBe(gateEdge!.id);
 		});
 
-		it('clicking gate symbol on edge also selects the edge', () => {
+		it('clicking gate symbol on edge also selects the edge', async () => {
 			loadTestWorkflowWithGates();
 
 			render(<WorkflowCanvas />);
+
+			// Wait for React Flow to initialize
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().edges.length).toBeGreaterThan(0);
+			});
 
 			// The gate symbol is part of the edge via EdgeLabelRenderer
 			const gateSymbol = document.querySelector('.gate-edge__symbol');
 
 			if (gateSymbol) {
-				gateSymbol.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+				await act(async () => {
+					gateSymbol.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+				});
 
 				// Should select the parent edge
 				expect(useWorkflowEditorStore.getState().selectedEdgeId).toBeDefined();
@@ -137,7 +149,7 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 	});
 
 	describe('Failure mode: Click on non-gate edge (dependency)', () => {
-		it('does not select dependency edges', () => {
+		it('does not select dependency edges', async () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({
@@ -157,6 +169,11 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 
 			render(<WorkflowCanvas />);
 
+			// Wait for React Flow to initialize
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().edges.length).toBeGreaterThan(0);
+			});
+
 			// Find a dependency edge
 			const edges = useWorkflowEditorStore.getState().edges;
 			const depEdge = edges.find((e) => e.type === 'dependency');
@@ -164,7 +181,9 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 			if (depEdge) {
 				const edgeEl = document.querySelector(`[data-id="${depEdge.id}"]`);
 				if (edgeEl) {
-					edgeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+					await act(async () => {
+						edgeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+					});
 				}
 
 				// selectedEdgeId should NOT be set for dependency edges
@@ -172,7 +191,7 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 			}
 		});
 
-		it('does not select loop edges', () => {
+		it('does not select loop edges', async () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({
@@ -196,13 +215,20 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 
 			render(<WorkflowCanvas />);
 
+			// Wait for React Flow to initialize
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().edges.length).toBeGreaterThan(0);
+			});
+
 			const edges = useWorkflowEditorStore.getState().edges;
 			const loopEdge = edges.find((e) => e.type === 'loop');
 
 			if (loopEdge) {
 				const edgeEl = document.querySelector(`[data-id="${loopEdge.id}"]`);
 				if (edgeEl) {
-					edgeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+					await act(async () => {
+						edgeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+					});
 				}
 
 				// selectedEdgeId should NOT be set for loop edges
@@ -210,7 +236,7 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 			}
 		});
 
-		it('does not select retry edges', () => {
+		it('does not select retry edges', async () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({
@@ -230,13 +256,20 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 
 			render(<WorkflowCanvas />);
 
+			// Wait for React Flow to initialize
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().edges.length).toBeGreaterThan(0);
+			});
+
 			const edges = useWorkflowEditorStore.getState().edges;
 			const retryEdge = edges.find((e) => e.type === 'retry');
 
 			if (retryEdge) {
 				const edgeEl = document.querySelector(`[data-id="${retryEdge.id}"]`);
 				if (edgeEl) {
-					edgeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+					await act(async () => {
+						edgeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+					});
 				}
 
 				// selectedEdgeId should NOT be set for retry edges
@@ -246,10 +279,15 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 	});
 
 	describe('Edge selection in read-only mode', () => {
-		it('allows gate edge selection in read-only (built-in) mode', () => {
+		it('allows gate edge selection in read-only (built-in) mode', async () => {
 			loadTestWorkflowWithGates(true); // built-in → readOnly
 
 			render(<WorkflowCanvas />);
+
+			// Wait for React Flow to initialize
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().edges.length).toBeGreaterThan(0);
+			});
 
 			// Even in read-only mode, edges should be selectable for inspection
 			const edges = useWorkflowEditorStore.getState().edges;
@@ -260,27 +298,38 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 			expect(useWorkflowEditorStore.getState().readOnly).toBe(true);
 
 			// Selection should work even in read-only mode (via store action)
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 			expect(useWorkflowEditorStore.getState().selectedEdgeId).toBe(gateEdge!.id);
 		});
 	});
 
 	describe('Pane click clears edge selection', () => {
-		it('deselects edge when clicking empty canvas area', () => {
+		it('deselects edge when clicking empty canvas area', async () => {
 			loadTestWorkflowWithGates();
 
 			render(<WorkflowCanvas />);
 
+			// Wait for React Flow to initialize
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().edges.length).toBeGreaterThan(0);
+			});
+
 			// First select an edge
 			const edges = useWorkflowEditorStore.getState().edges;
 			const gateEdge = edges.find((e) => e.type === 'gate');
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 			expect(useWorkflowEditorStore.getState().selectedEdgeId).toBe(gateEdge!.id);
 
 			// Click the canvas pane (background)
 			const pane = document.querySelector('.react-flow__pane');
 			if (pane) {
-				pane.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+				await act(async () => {
+					pane.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+				});
 			}
 
 			// After pane click, selectedEdgeId should be null
@@ -289,15 +338,22 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 	});
 
 	describe('Switching between node and edge selection', () => {
-		it('clicking a node after selecting an edge clears edge selection', () => {
+		it('clicking a node after selecting an edge clears edge selection', async () => {
 			loadTestWorkflowWithGates();
 
 			render(<WorkflowCanvas />);
 
+			// Wait for React Flow to initialize
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().edges.length).toBeGreaterThan(0);
+			});
+
 			// Select an edge
 			const edges = useWorkflowEditorStore.getState().edges;
 			const gateEdge = edges.find((e) => e.type === 'gate');
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 			expect(useWorkflowEditorStore.getState().selectedEdgeId).toBe(gateEdge!.id);
 
 			// Click a node
@@ -306,7 +362,9 @@ describe('WorkflowCanvas - Gate Edge Click', () => {
 			const nodeEl = document.querySelector(`[data-id="${phaseNode!.id}"]`);
 
 			if (nodeEl) {
-				nodeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+				await act(async () => {
+					nodeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+				});
 			}
 
 			// Edge selection should be cleared, node should be selected

@@ -18,11 +18,21 @@ import { createMockTask } from '@/test/factories';
 // Mock the Connect RPC client
 const mockGetTask = vi.fn();
 const mockGetTaskPlan = vi.fn();
+const mockListReviewComments = vi.fn();
+const mockGetDiff = vi.fn();
+const mockListFeedback = vi.fn();
+const mockGetReviewFindings = vi.fn();
 
 vi.mock('@/lib/client', () => ({
 	taskClient: {
 		getTask: (...args: unknown[]) => mockGetTask(...args),
 		getTaskPlan: (...args: unknown[]) => mockGetTaskPlan(...args),
+		listReviewComments: (...args: unknown[]) => mockListReviewComments(...args),
+		getDiff: (...args: unknown[]) => mockGetDiff(...args),
+		getReviewFindings: (...args: unknown[]) => mockGetReviewFindings(...args),
+	},
+	feedbackClient: {
+		listFeedback: (...args: unknown[]) => mockListFeedback(...args),
 	},
 }));
 
@@ -75,6 +85,8 @@ function renderTaskDetail(taskId: string = 'TASK-001') {
 
 describe('TaskDetail', () => {
 	beforeEach(() => {
+		// Use clearAllMocks instead of resetAllMocks to preserve mock implementations
+		// (resetAllMocks clears implementations, causing useTaskSubscription to return undefined)
 		vi.clearAllMocks();
 		useTaskStore.getState().reset();
 
@@ -88,6 +100,14 @@ describe('TaskDetail', () => {
 		});
 		// taskClient.getTaskPlan returns { plan: TaskPlan | null }
 		mockGetTaskPlan.mockResolvedValue({ plan: null });
+		// taskClient.listReviewComments returns { comments: [] }
+		mockListReviewComments.mockResolvedValue({ comments: [] });
+		// taskClient.getDiff returns { files: [], stats: {} }
+		mockGetDiff.mockResolvedValue({ files: [], stats: {} });
+		// feedbackClient.listFeedback returns { feedback: [] }
+		mockListFeedback.mockResolvedValue({ feedback: [] });
+		// taskClient.getReviewFindings returns { findings: [] }
+		mockGetReviewFindings.mockResolvedValue({ findings: [] });
 	});
 
 	afterEach(() => {

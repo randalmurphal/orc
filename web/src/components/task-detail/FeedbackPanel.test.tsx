@@ -85,10 +85,15 @@ describe('FeedbackPanel', () => {
 	});
 
 	describe('SC-1: Display existing feedback list', () => {
-		it('renders feedback panel with title', () => {
+		it('renders feedback panel with title', async () => {
 			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
 
 			expect(screen.getByRole('heading', { name: /feedback/i })).toBeInTheDocument();
+
+			// Wait for initial load to complete
+			await waitFor(() => {
+				expect(mockListFeedback).toHaveBeenCalled();
+			});
 		});
 
 		it('displays list of existing feedback items', async () => {
@@ -149,12 +154,17 @@ describe('FeedbackPanel', () => {
 	});
 
 	describe('SC-2: Create feedback with different types', () => {
-		it('displays feedback creation form', () => {
+		it('displays feedback creation form', async () => {
 			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
 
 			expect(screen.getByLabelText(/feedback text/i)).toBeInTheDocument();
 			expect(screen.getByLabelText(/feedback type/i)).toBeInTheDocument();
 			expect(screen.getByRole('button', { name: /add feedback/i })).toBeInTheDocument();
+
+			// Wait for initial load to complete
+			await waitFor(() => {
+				expect(mockListFeedback).toHaveBeenCalled();
+			});
 		});
 
 		it('allows selecting GENERAL feedback type', async () => {
@@ -211,10 +221,15 @@ describe('FeedbackPanel', () => {
 	});
 
 	describe('SC-3: Select feedback timing', () => {
-		it('displays timing options', () => {
+		it('displays timing options', async () => {
 			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
 
 			expect(screen.getByLabelText(/timing/i)).toBeInTheDocument();
+
+			// Wait for initial load to complete
+			await waitFor(() => {
+				expect(mockListFeedback).toHaveBeenCalled();
+			});
 		});
 
 		it('allows selecting NOW timing', async () => {
@@ -572,12 +587,17 @@ describe('FeedbackPanel', () => {
 	});
 
 	describe('SC-12: Accessibility', () => {
-		it('has proper ARIA labels for form controls', () => {
+		it('has proper ARIA labels for form controls', async () => {
 			render(<FeedbackPanel task={mockTask} onTaskUpdate={mockOnTaskUpdate} />);
 
 			expect(screen.getByLabelText(/feedback text/i)).toHaveAttribute('aria-describedby');
 			expect(screen.getByLabelText(/feedback type/i)).toHaveAttribute('aria-describedby');
 			expect(screen.getByLabelText(/timing/i)).toHaveAttribute('aria-describedby');
+
+			// Wait for initial load to complete
+			await waitFor(() => {
+				expect(mockListFeedback).toHaveBeenCalled();
+			});
 		});
 
 		it('supports keyboard navigation', async () => {

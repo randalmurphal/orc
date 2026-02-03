@@ -2,8 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RunningCard } from '../RunningCard';
-import { Task, ExecutionState, PhaseStatus, TaskStatus, TaskSchema, ExecutionStateSchema, PhaseStateSchema } from '../../../gen/orc/v1/task_pb';
-import { Timestamp, TimestampSchema } from '@bufbuild/protobuf/wkt';
+import { PhaseStatus, TaskStatus, TaskSchema, ExecutionStateSchema, PhaseStateSchema } from '../../../gen/orc/v1/task_pb';
 import { create } from '@bufbuild/protobuf';
 import { useTaskStore } from '@/stores/taskStore';
 
@@ -362,7 +361,7 @@ describe('RunningCard Real-Time Progress Updates', () => {
     expect(liveOutput).toBeInTheDocument();
     expect(screen.queryByTestId('output-line')).toBeNull(); // No output lines
 
-    const metrics = screen.getByTestId('realtime-metrics');
+    const _metrics = screen.getByTestId('realtime-metrics');
     expect(screen.getByTestId('tokens')).toHaveTextContent('0');
     expect(screen.getByTestId('cost')).toHaveTextContent('0');
   });

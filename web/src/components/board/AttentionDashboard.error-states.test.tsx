@@ -10,15 +10,77 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AttentionDashboard } from './AttentionDashboard';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Task } from '@/gen/orc/v1/task_pb';
 import { TaskStatus, TaskPriority } from '@/gen/orc/v1/task_pb';
-import type { AttentionItem } from '@/gen/orc/v1/attention_dashboard_pb';
-import { AttentionAction, AttentionItemType, PhaseStepStatus } from '@/gen/orc/v1/attention_dashboard_pb';
+import type { AttentionItem, GetAttentionDashboardDataResponse } from '@/gen/orc/v1/attention_dashboard_pb';
+import {
+	AttentionAction,
+	AttentionItemType,
+	PhaseStepStatus,
+	PhaseStepSchema,
+	QueueSummarySchema,
+	RunningSummarySchema,
+	RunningTaskSchema,
+	PhaseProgressSchema,
+	GetAttentionDashboardDataResponseSchema,
+} from '@/gen/orc/v1/attention_dashboard_pb';
+import { create } from '@bufbuild/protobuf';
 import { createMockTask, createTimestamp } from '@/test/factories';
+
+// Helper functions to create proper protobuf mock objects
+function createPhaseStep(name: string, status: PhaseStepStatus) {
+	return create(PhaseStepSchema, { name, status });
+}
+
+function createPhaseProgress(currentPhase: string, steps: Array<{ name: string; status: PhaseStepStatus }>) {
+	return create(PhaseProgressSchema, {
+		currentPhase,
+		steps: steps.map(s => createPhaseStep(s.name, s.status)),
+	});
+}
+
+function createRunningTask(task: Task, phaseSteps?: Array<{ name: string; status: PhaseStepStatus }>) {
+	return create(RunningTaskSchema, {
+		id: task.id,
+		title: task.title,
+		currentPhase: task.currentPhase || '',
+		startedAt: task.startedAt,
+		elapsedTimeSeconds: BigInt(300),
+		initiativeId: task.initiativeId || '',
+		initiativeTitle: 'Mock Initiative',
+		phaseProgress: phaseSteps
+			? createPhaseProgress(task.currentPhase || '', phaseSteps)
+			: undefined,
+		outputLines: ['Task running...'],
+	});
+}
+
+function createEmptyRunningSummary() {
+	return create(RunningSummarySchema, { taskCount: 0, tasks: [] });
+}
+
+function createEmptyQueueSummary() {
+	return create(QueueSummarySchema, { taskCount: 0, swimlanes: [], unassignedTasks: [] });
+}
+
+function createDashboardResponse(options: {
+	runningTasks?: ReturnType<typeof createRunningTask>[];
+	attentionItems?: AttentionItem[];
+}): GetAttentionDashboardDataResponse {
+	const tasks = options.runningTasks ?? [];
+	return create(GetAttentionDashboardDataResponseSchema, {
+		runningSummary: create(RunningSummarySchema, {
+			taskCount: tasks.length,
+			tasks,
+		}),
+		attentionItems: options.attentionItems ?? [],
+		queueSummary: createEmptyQueueSummary(),
+	});
+}
 
 // Mock events module
 vi.mock('@/lib/events', () => ({
@@ -153,14 +215,24 @@ function createMockAttentionItem(overrides: Partial<AttentionItem> = {}): Attent
 }
 
 describe('AttentionDashboard Error States - TASK-744', () => {
+	 
+	let setIntervalSpy: any;
+	 
+	let clearIntervalSpy: any;
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockTasks.length = 0;
 		mockTaskStates.clear();
 		mockAttentionItems.length = 0;
+		// Mock setInterval to prevent the auto-refresh from triggering state updates
+		setIntervalSpy = vi.spyOn(global, 'setInterval').mockImplementation(() => 0 as unknown as ReturnType<typeof setInterval>);
+		clearIntervalSpy = vi.spyOn(global, 'clearInterval').mockImplementation(() => {});
 	});
 
 	afterEach(() => {
+		setIntervalSpy.mockRestore();
+		clearIntervalSpy.mockRestore();
 		cleanup();
 	});
 
@@ -192,15 +264,15 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 			// Override mock to return the attention item
 			const mockClient = await import('@/lib/client');
 			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
-				runningSummary: { taskCount: 0, tasks: [] },
+				runningSummary: createEmptyRunningSummary(),
 				attentionItems: [failedAttentionItem],
-				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+				queueSummary: createEmptyQueueSummary(),
 			} as never);
 
 			renderAttentionDashboard();
 
 			// Wait for async data loading
-			await vi.waitFor(() => {
+			await waitFor(() => {
 				expect(screen.getByText('Failed authentication setup')).toBeInTheDocument();
 			});
 
@@ -242,14 +314,14 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 
 			const mockClient = await import('@/lib/client');
 			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
-				runningSummary: { taskCount: 0, tasks: [] },
+				runningSummary: createEmptyRunningSummary(),
 				attentionItems: [failedAttentionItem],
-				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+				queueSummary: createEmptyQueueSummary(),
 			} as never);
 
 			renderAttentionDashboard();
 
-			await vi.waitFor(() => {
+			await waitFor(() => {
 				expect(screen.getByText('Database migration failed')).toBeInTheDocument();
 			});
 
@@ -282,14 +354,14 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 
 			const mockClient = await import('@/lib/client');
 			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
-				runningSummary: { taskCount: 0, tasks: [] },
+				runningSummary: createEmptyRunningSummary(),
 				attentionItems: [failedAttentionItem],
-				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+				queueSummary: createEmptyQueueSummary(),
 			} as never);
 
 			renderAttentionDashboard();
 
-			await vi.waitFor(() => {
+			await waitFor(() => {
 				expect(screen.getByText('API integration failed')).toBeInTheDocument();
 			});
 
@@ -313,41 +385,21 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 
 			// Mock the API to return a failed phase in the pipeline
 			const mockClient = await import('@/lib/client');
-			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValue({
-				runningSummary: {
-					taskCount: 1,
-					tasks: [{
-						id: runningTaskWithFailure.id,
-						title: runningTaskWithFailure.title,
-						currentPhase: runningTaskWithFailure.currentPhase,
-						startedAt: runningTaskWithFailure.startedAt,
-						elapsedTimeSeconds: 300,
-						initiativeId: runningTaskWithFailure.initiativeId,
-						initiativeTitle: 'Mock Initiative',
-						phaseProgress: {
-							currentPhase: runningTaskWithFailure.currentPhase,
-							steps: [
-								{ name: 'plan', status: PhaseStepStatus.COMPLETED },
-								{ name: 'code', status: PhaseStepStatus.FAILED },
-								{ name: 'test', status: PhaseStepStatus.ACTIVE },
-								{ name: 'review', status: PhaseStepStatus.PENDING },
-								{ name: 'done', status: PhaseStepStatus.PENDING },
-							]
-						},
-						outputLines: ['Task running...'],
-					}]
-				},
-				attentionItems: [],
-				queueSummary: {
-					taskCount: 0,
-					swimlanes: [],
-					unassignedTasks: [],
-				},
-			});
+			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValue(
+				createDashboardResponse({
+					runningTasks: [createRunningTask(runningTaskWithFailure, [
+						{ name: 'plan', status: PhaseStepStatus.COMPLETED },
+						{ name: 'code', status: PhaseStepStatus.FAILED },
+						{ name: 'test', status: PhaseStepStatus.ACTIVE },
+						{ name: 'review', status: PhaseStepStatus.PENDING },
+						{ name: 'done', status: PhaseStepStatus.PENDING },
+					])],
+				})
+			);
 
 			renderAttentionDashboard();
 
-			await vi.waitFor(() => {
+			await waitFor(() => {
 				expect(screen.getByText('Task with failed test phase')).toBeInTheDocument();
 			});
 
@@ -376,42 +428,21 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 			mockTasks.push(runningTaskWithFailure);
 
 			const mockClient = await import('@/lib/client');
-			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValue({
-				runningSummary: {
-					taskCount: 1,
-					tasks: [{
-						id: runningTaskWithFailure.id,
-						title: runningTaskWithFailure.title,
-						currentPhase: runningTaskWithFailure.currentPhase,
-						startedAt: runningTaskWithFailure.startedAt,
-						elapsedTimeSeconds: 300,
-						initiativeId: runningTaskWithFailure.initiativeId,
-						initiativeTitle: 'Mock Initiative',
-						hasFailures: true, // Indicates task has had phase failures
-						phaseProgress: {
-							currentPhase: runningTaskWithFailure.currentPhase,
-							steps: [
-								{ name: 'plan', status: PhaseStepStatus.COMPLETED },
-								{ name: 'code', status: PhaseStepStatus.COMPLETED },
-								{ name: 'test', status: PhaseStepStatus.FAILED },
-								{ name: 'review', status: PhaseStepStatus.ACTIVE },
-								{ name: 'done', status: PhaseStepStatus.PENDING },
-							]
-						},
-						outputLines: ['Task running...'],
-					}]
-				},
-				attentionItems: [],
-				queueSummary: {
-					taskCount: 0,
-					swimlanes: [],
-					unassignedTasks: [],
-				},
-			});
+			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValue(
+				createDashboardResponse({
+					runningTasks: [createRunningTask(runningTaskWithFailure, [
+						{ name: 'plan', status: PhaseStepStatus.COMPLETED },
+						{ name: 'code', status: PhaseStepStatus.COMPLETED },
+						{ name: 'test', status: PhaseStepStatus.FAILED },
+						{ name: 'review', status: PhaseStepStatus.ACTIVE },
+						{ name: 'done', status: PhaseStepStatus.PENDING },
+					])],
+				})
+			);
 
 			renderAttentionDashboard();
 
-			await vi.waitFor(() => {
+			await waitFor(() => {
 				expect(screen.getByText('Task with previous failure')).toBeInTheDocument();
 			});
 
@@ -436,14 +467,14 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 
 			const mockClient = await import('@/lib/client');
 			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
-				runningSummary: { taskCount: 0, tasks: [] },
+				runningSummary: createEmptyRunningSummary(),
 				attentionItems: [errorAttentionItem],
-				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+				queueSummary: createEmptyQueueSummary(),
 			} as never);
 
 			renderAttentionDashboard();
 
-			await vi.waitFor(() => {
+			await waitFor(() => {
 				expect(screen.getByText('Configuration Error')).toBeInTheDocument();
 			});
 
@@ -469,14 +500,14 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 
 			const mockClient = await import('@/lib/client');
 			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
-				runningSummary: { taskCount: 0, tasks: [] },
+				runningSummary: createEmptyRunningSummary(),
 				attentionItems: [errorAttentionItem],
-				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+				queueSummary: createEmptyQueueSummary(),
 			} as never);
 
 			renderAttentionDashboard();
 
-			await vi.waitFor(() => {
+			await waitFor(() => {
 				expect(screen.getByText('Database Connection Error')).toBeInTheDocument();
 			});
 
@@ -509,14 +540,14 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 
 			const mockClient = await import('@/lib/client');
 			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
-				runningSummary: { taskCount: 0, tasks: [] },
+				runningSummary: createEmptyRunningSummary(),
 				attentionItems: [failedAttentionItem],
-				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+				queueSummary: createEmptyQueueSummary(),
 			} as never);
 
 			renderAttentionDashboard();
 
-			await vi.waitFor(() => {
+			await waitFor(() => {
 				expect(screen.getByText('Deployment failed')).toBeInTheDocument();
 			});
 
@@ -554,14 +585,14 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 
 			const mockClient = await import('@/lib/client');
 			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
-				runningSummary: { taskCount: 0, tasks: [] },
+				runningSummary: createEmptyRunningSummary(),
 				attentionItems: [failedAttentionItem, errorAttentionItem],
-				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+				queueSummary: createEmptyQueueSummary(),
 			} as never);
 
 			renderAttentionDashboard();
 
-			await vi.waitFor(() => {
+			await waitFor(() => {
 				expect(screen.getByText('Visual styling test')).toBeInTheDocument();
 				expect(screen.getByText('Error state test')).toBeInTheDocument();
 			});
@@ -590,35 +621,21 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 			mockTasks.push(runningTask);
 
 			const mockClient = await import('@/lib/client');
-			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValue({
-				runningSummary: {
-					taskCount: 1,
-					tasks: [{
-						id: runningTask.id,
-						title: runningTask.title,
-						currentPhase: runningTask.currentPhase,
-						startedAt: runningTask.startedAt,
-						elapsedTimeSeconds: 300,
-						phaseProgress: {
-							currentPhase: runningTask.currentPhase,
-							steps: [
-								{ name: 'plan', status: PhaseStepStatus.COMPLETED },
-								{ name: 'code', status: PhaseStepStatus.FAILED },
-								{ name: 'test', status: PhaseStepStatus.FAILED },
-								{ name: 'review', status: PhaseStepStatus.ACTIVE },
-								{ name: 'done', status: PhaseStepStatus.PENDING },
-							]
-						},
-						outputLines: [],
-					}]
-				},
-				attentionItems: [],
-				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
-			});
+			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValue(
+				createDashboardResponse({
+					runningTasks: [createRunningTask(runningTask, [
+						{ name: 'plan', status: PhaseStepStatus.COMPLETED },
+						{ name: 'code', status: PhaseStepStatus.FAILED },
+						{ name: 'test', status: PhaseStepStatus.FAILED },
+						{ name: 'review', status: PhaseStepStatus.ACTIVE },
+						{ name: 'done', status: PhaseStepStatus.PENDING },
+					])],
+				})
+			);
 
 			renderAttentionDashboard();
 
-			await vi.waitFor(() => {
+			await waitFor(() => {
 				expect(screen.getByText('Code')).toBeInTheDocument();
 			});
 

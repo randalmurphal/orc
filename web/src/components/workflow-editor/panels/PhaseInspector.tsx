@@ -5,11 +5,13 @@ import { workflowClient, configClient, mcpClient } from '@/lib/client';
 import {
 	GateType,
 	VariableSourceType,
+	PromptSource,
 } from '@/gen/orc/v1/workflow_pb';
 import type {
 	WorkflowPhase,
 	WorkflowWithDetails,
 	WorkflowVariable,
+	PhaseTemplate,
 } from '@/gen/orc/v1/workflow_pb';
 import type { Agent, Hook, Skill } from '@/gen/orc/v1/config_pb';
 import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
@@ -53,7 +55,7 @@ interface FieldErrors {
 
 // Debounced save state
 interface PendingChanges {
-	[key: string]: any;
+	[key: string]: unknown;
 }
 
 const DEFAULT_SECTION_STATE: SectionState = {
@@ -221,7 +223,7 @@ export function PhaseInspector({
 
 	// Auto-save implementation with 500ms debounce
 	const autoSave = useCallback(
-		async (fieldName: string, value: any, immediate = false) => {
+		async (fieldName: string, value: unknown, immediate = false) => {
 			if (!phase || !workflowDetails?.workflow?.id) return;
 
 			// Update pending changes
@@ -466,13 +468,13 @@ export function PhaseInspector({
 
 interface AlwaysVisibleSectionProps {
 	phase: WorkflowPhase;
-	template: any;
+	template: PhaseTemplate;
 	agents: Agent[];
 	agentsLoading: boolean;
 	readOnly: boolean;
 	fieldErrors: FieldErrors;
 	savingFields: Set<string>;
-	autoSave: (field: string, value: any, immediate?: boolean) => void;
+	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
 	isMobile: boolean;
 }
 
@@ -735,7 +737,7 @@ interface SubAgentsSectionProps {
 	readOnly: boolean;
 	fieldErrors: FieldErrors;
 	savingFields: Set<string>;
-	autoSave: (field: string, value: any, immediate?: boolean) => void;
+	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
 }
 
 function SubAgentsSection({
@@ -848,16 +850,18 @@ function SubAgentsSection({
 
 interface PromptSectionProps {
 	phase: WorkflowPhase;
-	template: any;
+	template: PhaseTemplate;
 	readOnly: boolean;
 	fieldErrors: FieldErrors;
 }
 
 function PromptSection({ phase: _phase, template, readOnly, fieldErrors: _fieldErrors }: PromptSectionProps) {
-	const [promptSource, setPromptSource] = useState(template.promptSource || 'template');
+	const [promptSource, setPromptSource] = useState<PromptSource>(
+		template.promptSource || PromptSource.EMBEDDED
+	);
 	const [filePath, setFilePath] = useState('');
 
-	const handleSourceChange = (source: string) => {
+	const handleSourceChange = (source: PromptSource) => {
 		setPromptSource(source);
 	};
 
@@ -876,38 +880,38 @@ function PromptSection({ phase: _phase, template, readOnly, fieldErrors: _fieldE
 			<div className="prompt-source-toggle">
 				<button
 					type="button"
-					className={`source-button ${promptSource === 'template' ? 'active' : ''}`}
-					onClick={() => handleSourceChange('template')}
-					aria-pressed={promptSource === 'template'}
+					className={`source-button ${promptSource === PromptSource.EMBEDDED ? 'active' : ''}`}
+					onClick={() => handleSourceChange(PromptSource.EMBEDDED)}
+					aria-pressed={promptSource === PromptSource.EMBEDDED}
 				>
 					Template
 				</button>
 				<button
 					type="button"
-					className={`source-button ${promptSource === 'custom' ? 'active' : ''}`}
-					onClick={() => handleSourceChange('custom')}
-					aria-pressed={promptSource === 'custom'}
+					className={`source-button ${promptSource === PromptSource.DB ? 'active' : ''}`}
+					onClick={() => handleSourceChange(PromptSource.DB)}
+					aria-pressed={promptSource === PromptSource.DB}
 				>
 					Custom
 				</button>
 				<button
 					type="button"
-					className={`source-button ${promptSource === 'file' ? 'active' : ''}`}
-					onClick={() => handleSourceChange('file')}
-					aria-pressed={promptSource === 'file'}
+					className={`source-button ${promptSource === PromptSource.FILE ? 'active' : ''}`}
+					onClick={() => handleSourceChange(PromptSource.FILE)}
+					aria-pressed={promptSource === PromptSource.FILE}
 				>
 					File
 				</button>
 			</div>
 
 			{/* Content based on source */}
-			{promptSource === 'template' && (
+			{promptSource === PromptSource.EMBEDDED && (
 				<div className="prompt-template">
 					<p>Using template content: {template.promptContent?.slice(0, 100)}...</p>
 				</div>
 			)}
 
-			{promptSource === 'custom' && (
+			{promptSource === PromptSource.DB && (
 				<div className="prompt-custom" data-testid="prompt-editor">
 					<PromptEditor
 						phaseTemplateId={template.id}
@@ -921,7 +925,7 @@ function PromptSection({ phase: _phase, template, readOnly, fieldErrors: _fieldE
 				</div>
 			)}
 
-			{promptSource === 'file' && (
+			{promptSource === PromptSource.FILE && (
 				<div className="prompt-file">
 					<label htmlFor="prompt-file-path" className="field-label">
 						File Path
@@ -948,11 +952,11 @@ function PromptSection({ phase: _phase, template, readOnly, fieldErrors: _fieldE
 
 interface DataFlowSectionProps {
 	phase: WorkflowPhase;
-	template: any;
+	template: PhaseTemplate;
 	workflowDetails: WorkflowWithDetails;
 	readOnly: boolean;
 	fieldErrors: FieldErrors;
-	autoSave: (field: string, value: any, immediate?: boolean) => void;
+	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
 }
 
 function DataFlowSection({
@@ -1083,7 +1087,7 @@ interface EnvironmentSectionProps {
 	mcpLoading: boolean;
 	readOnly: boolean;
 	fieldErrors: FieldErrors;
-	autoSave: (field: string, value: any, immediate?: boolean) => void;
+	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
 }
 
 function EnvironmentSection({
@@ -1165,7 +1169,7 @@ interface AdvancedSectionProps {
 	phase: WorkflowPhase;
 	readOnly: boolean;
 	fieldErrors: FieldErrors;
-	autoSave: (field: string, value: any, immediate?: boolean) => void;
+	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
 	onDeletePhase?: () => void;
 }
 
@@ -1225,7 +1229,7 @@ interface CompletionCriteriaTabProps {
 	phase: WorkflowPhase;
 }
 
-export function _CompletionCriteriaTab({ phase }: CompletionCriteriaTabProps) {
+export function CompletionCriteriaTab({ phase }: CompletionCriteriaTabProps) {
 	const template = phase.template;
 	const gateType = phase.gateTypeOverride || template?.gateType || GateType.AUTO;
 	const maxIterations = phase.maxIterationsOverride ?? template?.maxIterations ?? 3;
@@ -1281,7 +1285,7 @@ interface AvailableVariablesListProps {
 	onWorkflowRefresh?: () => void;
 }
 
-export function _AvailableVariablesList({
+export function AvailableVariablesList({
 	variables,
 	workflowDetails,
 	workflowIsBuiltin,
@@ -1369,7 +1373,7 @@ interface SettingsTabProps {
 	onDeletePhase?: () => void;
 }
 
-export function _SettingsTab({
+export function SettingsTab({
 	phase,
 	workflowDetails,
 	readOnly,

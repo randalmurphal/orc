@@ -13,8 +13,8 @@
  * recalculation are implemented in WorkflowCanvas.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
-import { render, waitFor, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, waitFor, cleanup, act } from '@testing-library/react';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
 import { workflowClient } from '@/lib/client';
@@ -40,28 +40,7 @@ vi.mock('@/lib/client', () => ({
 	},
 }));
 
-// Mock IntersectionObserver and ResizeObserver for React Flow
-beforeAll(() => {
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-
-	class MockResizeObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'ResizeObserver', {
-		value: MockResizeObserver,
-		writable: true,
-	});
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 
 /**
  * Load a custom workflow with explicit dependencies to test edge deletion.
@@ -189,7 +168,9 @@ describe('WorkflowCanvas - Edge Deletion', () => {
 			// In React Flow, this triggers when user selects an edge and presses Delete/Backspace
 			// The implementation should handle the 'remove' edge change type
 			const edgesWithout = edges.filter((e) => e.id !== depEdge!.id);
-			useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			await act(async () => {
+				useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			});
 
 			// The onEdgesDelete/onEdgesChange handler should detect the removal
 			// and call updatePhase to remove 'spec' from implement's dependsOn
@@ -223,7 +204,9 @@ describe('WorkflowCanvas - Edge Deletion', () => {
 
 			// Delete only the spec -> implement dependency edge
 			const edgesWithout = edges.filter((e) => e.id !== specToImplEdge!.id);
-			useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			await act(async () => {
+				useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			});
 
 			// Should call updatePhase with 'spec' removed but 'tdd_write' preserved
 			await waitFor(() => {
@@ -250,12 +233,16 @@ describe('WorkflowCanvas - Edge Deletion', () => {
 
 			// Remove the gate edge
 			const edgesWithout = edges.filter((e) => e.id !== gateEdge!.id);
-			useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			await act(async () => {
+				useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			});
 
 			// Gate edges are auto-generated from sequence order
 			// Deleting them should NOT call updatePhase (they aren't in dependsOn)
 			// Wait a tick to ensure no API call was made
-			await new Promise((resolve) => setTimeout(resolve, 100));
+			await act(async () => {
+				await new Promise((resolve) => setTimeout(resolve, 100));
+			});
 			expect(mockUpdatePhase).not.toHaveBeenCalled();
 		});
 
@@ -273,7 +260,9 @@ describe('WorkflowCanvas - Edge Deletion', () => {
 			const edges = useWorkflowEditorStore.getState().edges;
 			const depEdge = edges.find((e) => e.type === 'dependency');
 			const edgesWithout = edges.filter((e) => e.id !== depEdge!.id);
-			useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			await act(async () => {
+				useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			});
 
 			await waitFor(() => {
 				expect(refreshCallback).toHaveBeenCalled();
@@ -293,11 +282,14 @@ describe('WorkflowCanvas - Edge Deletion', () => {
 			const depEdge = edges.find((e) => e.type === 'dependency');
 			if (depEdge) {
 				const edgesWithout = edges.filter((e) => e.id !== depEdge.id);
-				useWorkflowEditorStore.getState().setEdges(edgesWithout);
+				await act(async () => {
+					useWorkflowEditorStore.getState().setEdges(edgesWithout);
+				});
 			}
 
 			// API should not be called in read-only mode
-			await new Promise((resolve) => setTimeout(resolve, 100));
+			// Flush any pending React updates before asserting
+			await act(async () => {});
 			expect(mockUpdatePhase).not.toHaveBeenCalled();
 		});
 	});
@@ -314,7 +306,9 @@ describe('WorkflowCanvas - Edge Deletion', () => {
 			const edges = useWorkflowEditorStore.getState().edges;
 			const depEdge = edges.find((e) => e.type === 'dependency');
 			const edgesWithout = edges.filter((e) => e.id !== depEdge!.id);
-			useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			await act(async () => {
+				useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			});
 
 			// Error should be handled (implementation shows toast)
 			await waitFor(() => {
@@ -337,7 +331,9 @@ describe('WorkflowCanvas - Edge Deletion', () => {
 			const edges = useWorkflowEditorStore.getState().edges;
 			const depEdge = edges.find((e) => e.type === 'dependency');
 			const edgesWithout = edges.filter((e) => e.id !== depEdge!.id);
-			useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			await act(async () => {
+				useWorkflowEditorStore.getState().setEdges(edgesWithout);
+			});
 
 			await waitFor(() => {
 				expect(mockUpdatePhase).toHaveBeenCalled();
@@ -427,7 +423,9 @@ describe('WorkflowCanvas - Sequence Recalculation', () => {
 			);
 			if (depEdge) {
 				const edgesWithout = edges.filter((e) => e.id !== depEdge.id);
-				useWorkflowEditorStore.getState().setEdges(edgesWithout);
+				await act(async () => {
+					useWorkflowEditorStore.getState().setEdges(edgesWithout);
+				});
 			}
 
 			// After deletion, sequences should be recalculated

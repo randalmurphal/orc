@@ -16,7 +16,7 @@
  * - SC-10: Built-in workflows are sorted before custom workflows
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WorkflowPickerModal } from './WorkflowPickerModal';
@@ -89,19 +89,7 @@ const mockPhaseCounts = {
 // Import mocked modules for assertions
 import { workflowClient } from '@/lib/client';
 
-// Mock browser APIs for Radix
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-});
-
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
 describe('WorkflowPickerModal - Workflow-First Task Creation', () => {
 	const mockOnClose = vi.fn();
 	const mockOnSelectWorkflow = vi.fn();
