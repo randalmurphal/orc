@@ -141,15 +141,15 @@ export function FilesPanel({
 	);
 
 	const handleKeyDown = useCallback(
-		(file: ChangedFile, event: any) => {
-			if (event.key === 'Enter' || event.key === ' ') {
-				event.preventDefault();
-				onFileClick(file);
-			} else if (event.shiftKey && event.key === 'Enter') {
+		(file: ChangedFile, event: React.KeyboardEvent) => {
+			if (event.shiftKey && event.key === 'Enter') {
 				// Shift+Enter to open modal for this file
 				event.preventDefault();
 				setSelectedFilePath(file.path);
 				setModalOpen(true);
+			} else if (event.key === 'Enter' || event.key === ' ') {
+				event.preventDefault();
+				onFileClick(file);
 			}
 		},
 		[onFileClick]
@@ -164,7 +164,7 @@ export function FilesPanel({
 	);
 
 	const handleFileCtrlClick = useCallback(
-		(file: ChangedFile, event: any) => {
+		(file: ChangedFile, event: React.MouseEvent) => {
 			if (event.ctrlKey) {
 				event.preventDefault();
 				setSelectedFilePath(file.path);
@@ -258,7 +258,7 @@ export function FilesPanel({
 							<div className="files-task-header">
 								<span className="files-task-header-id">{taskId}</span>
 							</div>
-							{taskFiles.map((file: any) => (
+							{taskFiles.map((file: ChangedFile) => (
 								<FileItem
 									key={file.path}
 									file={file}
@@ -273,7 +273,7 @@ export function FilesPanel({
 				) : (
 					// Flat list
 					<>
-						{visibleFiles.map((file: any) => (
+						{visibleFiles.map((file: ChangedFile) => (
 							<FileItem
 								key={file.path}
 								file={file}
@@ -333,16 +333,16 @@ export function FilesPanel({
 interface FileItemProps {
 	file: ChangedFile;
 	onClick: (file: ChangedFile) => void;
-	onKeyDown: (file: ChangedFile, event: any) => void;
+	onKeyDown: (file: ChangedFile, event: React.KeyboardEvent) => void;
 	onDoubleClick?: (file: ChangedFile) => void;
-	onCtrlClick?: (file: ChangedFile, event: any) => void;
+	onCtrlClick?: (file: ChangedFile, event: React.MouseEvent) => void;
 }
 
 function FileItem({ file, onClick, onKeyDown, onDoubleClick, onCtrlClick }: FileItemProps) {
 	const isBinary = file.binary ?? isBinaryFile(file.path);
 	const fileName = getFileName(file.path);
 
-	const handleClick = (e: any) => {
+	const handleClick = (e: React.MouseEvent) => {
 		if (onCtrlClick && e.ctrlKey) {
 			onCtrlClick(file, e);
 		} else {

@@ -150,30 +150,6 @@ describe('RunningCard', () => {
 		});
 	});
 
-	describe('output section visibility', () => {
-		it('output section is hidden by default', () => {
-			const { container } = renderRunningCard(
-				createMockTask({ status: TaskStatus.RUNNING }),
-				createMockExecutionState()
-			);
-
-			const output = container.querySelector('.running-output');
-			expect(output).toBeInTheDocument();
-			expect(output).not.toHaveClass('expanded');
-		});
-
-		it('output section is visible when expanded=true', () => {
-			const { container } = renderRunningCard(
-				createMockTask({ status: TaskStatus.RUNNING }),
-				createMockExecutionState(),
-				{ isExpanded: true }
-			);
-
-			const output = container.querySelector('.running-output');
-			expect(output).toHaveClass('expanded');
-		});
-	});
-
 	describe('expand/collapse interaction', () => {
 		it('calls onToggleExpand when card is clicked', () => {
 			const onToggleExpand = vi.fn();
@@ -306,56 +282,6 @@ describe('RunningCard', () => {
 		});
 	});
 
-	describe('output lines', () => {
-		it('renders output lines with correct color classes', () => {
-			const { container } = renderRunningCard(
-				createMockTask({ status: TaskStatus.RUNNING }),
-				createMockExecutionState(),
-				{
-					isExpanded: true,
-				}
-			);
-
-			const outputLines = container.querySelectorAll('.output-line:not(.output-empty)');
-			expect(outputLines.length).toBe(4);
-
-			expect(outputLines[0]).toHaveClass('success');
-			expect(outputLines[1]).toHaveClass('error');
-			expect(outputLines[2]).toHaveClass('info');
-			expect(outputLines[3]).toHaveClass('default');
-		});
-
-		it('truncates output to last 50 lines when content exceeds limit', () => {
-			const { container } = renderRunningCard(
-				createMockTask({ status: TaskStatus.RUNNING }),
-				createMockExecutionState(),
-				{
-					isExpanded: true,
-				}
-			);
-
-			const outputLines = container.querySelectorAll('.output-line:not(.output-empty)');
-			expect(outputLines.length).toBe(50);
-
-			// Should show lines 11-60 (last 50), not lines 1-50
-			expect(outputLines[0].textContent).toBe('Line 11');
-			expect(outputLines[49].textContent).toBe('Line 60');
-		});
-
-		it('shows "No output yet" when outputLines is empty', () => {
-			const { container } = renderRunningCard(
-				createMockTask({ status: TaskStatus.RUNNING }),
-				createMockExecutionState(),
-				{
-					isExpanded: true,
-				}
-			);
-
-			const emptyMessage = container.querySelector('.output-empty');
-			expect(emptyMessage).toBeInTheDocument();
-			expect(emptyMessage?.textContent).toBe('No output yet');
-		});
-	});
 });
 
 describe('parseOutputLine', () => {

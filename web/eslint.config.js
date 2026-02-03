@@ -44,6 +44,8 @@ export default tseslint.config(
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
+      // Allow require() for dynamic mocking in tests (vi.mock + require pattern)
+      '@typescript-eslint/no-require-imports': 'off',
     },
   }
 );

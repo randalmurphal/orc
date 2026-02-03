@@ -8,23 +8,12 @@
  *         showing badge count of active items
  */
 
-import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CollapsibleSettingsSection } from './CollapsibleSettingsSection';
 
-// Mock browser APIs for Radix
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
 
 describe('CollapsibleSettingsSection', () => {
 	afterEach(() => {

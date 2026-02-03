@@ -16,35 +16,14 @@
  * These tests will FAIL until GateEdge is implemented.
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { ReactFlowProvider, ReactFlow } from '@xyflow/react';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
 
 import { GateEdge } from './GateEdge';
 
-// Mock ResizeObserver for React Flow
-beforeAll(() => {
-	class MockResizeObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'ResizeObserver', {
-		value: MockResizeObserver,
-		writable: true,
-	});
-
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 
 /** Gate status for execution tracking */
 type GateStatus = 'pending' | 'passed' | 'blocked' | 'failed';

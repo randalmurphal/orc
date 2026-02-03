@@ -1,17 +1,9 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { createRef } from 'react';
 import { Select, type SelectOption } from './Select';
 
-// Mock browser APIs not available in jsdom (required for Radix Select)
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
 
 const defaultOptions: SelectOption[] = [
 	{ value: 'apple', label: 'Apple' },

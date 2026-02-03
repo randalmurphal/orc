@@ -20,7 +20,7 @@
  * - SC-13: Component handles loading states
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TaskDetailsModal } from './TaskDetailsModal';
@@ -584,8 +584,15 @@ describe('TaskDetailsModal (Step 2: Details)', () => {
 				expect(screen.getByText('Creating & Running...')).toBeInTheDocument();
 			});
 
-			// Resolve promise
-			resolveRun!({ task: { id: 'TASK-001' } });
+			// Resolve promise and wait for state update to complete
+			await act(async () => {
+				resolveRun!({ task: { id: 'TASK-001' } });
+			});
+
+			// Wait for loading state to clear
+			await waitFor(() => {
+				expect(createAndRunButton).not.toHaveAttribute('data-loading', 'true');
+			});
 		});
 	});
 

@@ -11,7 +11,7 @@
  * - SC-6: The board should display the newly created task in the Queue column
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NewTaskModal } from './NewTaskModal';
@@ -57,19 +57,7 @@ const mockWorkflows = [
 	createMockWorkflow({ id: 'large', name: 'Large', isBuiltin: true }),
 ];
 
-// Mock browser APIs for Radix
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-});
-
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
 describe('NewTaskModal - Real-time Board Updates', () => {
 	const mockOnClose = vi.fn();
 	const mockOnCreate = vi.fn();

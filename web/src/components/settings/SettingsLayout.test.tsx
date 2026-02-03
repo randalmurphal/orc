@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { configClient } from '@/lib/client';
 
 // Mock API clients used by SettingsLayout for badge counts
 vi.mock('@/lib/client', () => ({
@@ -53,9 +54,19 @@ function renderWithRouter(initialRoute: string = '/settings/general/commands') {
 	);
 }
 
+/**
+ * Wait for the async API call in SettingsLayout's useEffect to complete.
+ * This prevents act() warnings from state updates after tests end.
+ */
+async function waitForAsyncLoad() {
+	await waitFor(() => {
+		expect(configClient.getConfigStats).toHaveBeenCalled();
+	});
+}
+
 describe('SettingsLayout', () => {
 	describe('rendering', () => {
-		it('renders sidebar and content outlet', () => {
+		it('renders sidebar and content outlet', async () => {
 			const { container } = renderWithRouter();
 
 			// Sidebar should be present
@@ -68,16 +79,20 @@ describe('SettingsLayout', () => {
 
 			// Outlet content should be rendered
 			expect(screen.getByTestId('commands-content')).toBeInTheDocument();
+
+			await waitForAsyncLoad();
 		});
 
-		it('renders sidebar header with title and subtitle', () => {
+		it('renders sidebar header with title and subtitle', async () => {
 			renderWithRouter();
 
 			expect(screen.getByText('Settings')).toBeInTheDocument();
 			expect(screen.getByText('Configure ORC and Claude')).toBeInTheDocument();
+
+			await waitForAsyncLoad();
 		});
 
-		it('renders all navigation groups', () => {
+		it('renders all navigation groups', async () => {
 			renderWithRouter();
 
 			// SettingsLayout now only shows CLAUDE CODE, ORC, and ACCOUNT groups
@@ -85,9 +100,11 @@ describe('SettingsLayout', () => {
 			expect(screen.getByText('CLAUDE CODE')).toBeInTheDocument();
 			expect(screen.getByText('ORC')).toBeInTheDocument();
 			expect(screen.getByText('ACCOUNT')).toBeInTheDocument();
+
+			await waitForAsyncLoad();
 		});
 
-		it('renders all navigation items', () => {
+		it('renders all navigation items', async () => {
 			renderWithRouter();
 
 			// CLAUDE CODE section
@@ -106,11 +123,13 @@ describe('SettingsLayout', () => {
 			// ACCOUNT section
 			expect(screen.getByText('Profile')).toBeInTheDocument();
 			expect(screen.getByText('API Keys')).toBeInTheDocument();
+
+			await waitForAsyncLoad();
 		});
 	});
 
 	describe('sidebar layout', () => {
-		it('sidebar has correct 240px width class', () => {
+		it('sidebar has correct 240px width class', async () => {
 			const { container } = renderWithRouter();
 
 			const layout = container.querySelector('.settings-layout');
@@ -119,21 +138,27 @@ describe('SettingsLayout', () => {
 			// The CSS grid defines 240px for sidebar - test class presence
 			const sidebar = container.querySelector('.settings-sidebar');
 			expect(sidebar).toBeInTheDocument();
+
+			await waitForAsyncLoad();
 		});
 
-		it('sidebar has bg-elevated background', () => {
+		it('sidebar has bg-elevated background', async () => {
 			const { container } = renderWithRouter();
 
 			const sidebar = container.querySelector('.settings-sidebar');
 			expect(sidebar).toBeInTheDocument();
 			// CSS class should apply bg-elevated - verified by class presence
+
+			await waitForAsyncLoad();
 		});
 
-		it('content area exists for scrolling', () => {
+		it('content area exists for scrolling', async () => {
 			const { container } = renderWithRouter();
 
 			const content = container.querySelector('.settings-content');
 			expect(content).toBeInTheDocument();
+
+			await waitForAsyncLoad();
 		});
 	});
 
@@ -150,9 +175,11 @@ describe('SettingsLayout', () => {
 
 			// Content should change to claude-md
 			expect(screen.getByTestId('claude-md-content')).toBeInTheDocument();
+
+			await waitForAsyncLoad();
 		});
 
-		it('active nav item has correct styling class', () => {
+		it('active nav item has correct styling class', async () => {
 			const { container } = renderWithRouter('/settings/general/commands');
 
 			// Find the active nav item (commands)
@@ -161,9 +188,11 @@ describe('SettingsLayout', () => {
 
 			// Verify it's the Slash Commands item
 			expect(within(activeItem as HTMLElement).getByText('Slash Commands')).toBeInTheDocument();
+
+			await waitForAsyncLoad();
 		});
 
-		it('clicking different sections updates active state', () => {
+		it('clicking different sections updates active state', async () => {
 			const { container } = renderWithRouter('/settings/general/commands');
 
 			// Initially commands is active
@@ -176,6 +205,8 @@ describe('SettingsLayout', () => {
 			// MCP should now be active
 			activeItem = container.querySelector('.settings-nav-item--active');
 			expect(within(activeItem as HTMLElement).getByText('MCP Servers')).toBeInTheDocument();
+
+			await waitForAsyncLoad();
 		});
 	});
 
@@ -206,7 +237,7 @@ describe('SettingsLayout', () => {
 	});
 
 	describe('keyboard accessibility', () => {
-		it('navigation items are focusable', () => {
+		it('navigation items are focusable', async () => {
 			renderWithRouter();
 
 			const navItems = screen.getAllByRole('link');
@@ -216,9 +247,11 @@ describe('SettingsLayout', () => {
 			navItems.forEach((item) => {
 				expect(item.tagName).toBe('A');
 			});
+
+			await waitForAsyncLoad();
 		});
 
-		it('Enter key on nav item triggers navigation', () => {
+		it('Enter key on nav item triggers navigation', async () => {
 			renderWithRouter('/settings/general/commands');
 
 			// MCP Servers link is in CLAUDE CODE section, links to /settings/general/mcp
@@ -229,72 +262,87 @@ describe('SettingsLayout', () => {
 			// Should navigate (Enter on links is handled by browser, but we can check click effect)
 			fireEvent.click(mcpLink);
 			expect(screen.getByTestId('mcp-content')).toBeInTheDocument();
+
+			await waitForAsyncLoad();
 		});
 	});
 
 	describe('aria attributes', () => {
-		it('sidebar has navigation role and aria-label', () => {
+		it('sidebar has navigation role and aria-label', async () => {
 			renderWithRouter();
 
 			const sidebar = screen.getByRole('navigation', { name: 'Settings navigation' });
 			expect(sidebar).toBeInTheDocument();
+
+			await waitForAsyncLoad();
 		});
 	});
 
 	describe('route integration', () => {
-		it('renders correct content for /settings/general/commands', () => {
+		it('renders correct content for /settings/general/commands', async () => {
 			renderWithRouter('/settings/general/commands');
 			expect(screen.getByTestId('commands-content')).toBeInTheDocument();
+			await waitForAsyncLoad();
 		});
 
-		it('renders correct content for /settings/general/claude-md', () => {
+		it('renders correct content for /settings/general/claude-md', async () => {
 			renderWithRouter('/settings/general/claude-md');
 			expect(screen.getByTestId('claude-md-content')).toBeInTheDocument();
+			await waitForAsyncLoad();
 		});
 
-		it('renders correct content for /settings/general/mcp', () => {
+		it('renders correct content for /settings/general/mcp', async () => {
 			renderWithRouter('/settings/general/mcp');
 			expect(screen.getByTestId('mcp-content')).toBeInTheDocument();
+			await waitForAsyncLoad();
 		});
 
-		it('renders correct content for /settings/general/permissions', () => {
+		it('renders correct content for /settings/general/permissions', async () => {
 			renderWithRouter('/settings/general/permissions');
 			expect(screen.getByTestId('permissions-content')).toBeInTheDocument();
+			await waitForAsyncLoad();
 		});
 
-		it('renders correct content for /settings/general/projects', () => {
+		it('renders correct content for /settings/general/projects', async () => {
 			renderWithRouter('/settings/general/projects');
 			expect(screen.getByTestId('projects-content')).toBeInTheDocument();
+			await waitForAsyncLoad();
 		});
 
-		it('renders correct content for /settings/general/git', () => {
+		it('renders correct content for /settings/general/git', async () => {
 			renderWithRouter('/settings/general/git');
 			expect(screen.getByTestId('git-content')).toBeInTheDocument();
+			await waitForAsyncLoad();
 		});
 
-		it('renders correct content for /settings/general/billing', () => {
+		it('renders correct content for /settings/general/billing', async () => {
 			renderWithRouter('/settings/general/billing');
 			expect(screen.getByTestId('billing-content')).toBeInTheDocument();
+			await waitForAsyncLoad();
 		});
 
-		it('renders correct content for /settings/general/import-export', () => {
+		it('renders correct content for /settings/general/import-export', async () => {
 			renderWithRouter('/settings/general/import-export');
 			expect(screen.getByTestId('import-export-content')).toBeInTheDocument();
+			await waitForAsyncLoad();
 		});
 
-		it('renders correct content for /settings/general/constitution', () => {
+		it('renders correct content for /settings/general/constitution', async () => {
 			renderWithRouter('/settings/general/constitution');
 			expect(screen.getByTestId('constitution-content')).toBeInTheDocument();
+			await waitForAsyncLoad();
 		});
 
-		it('renders correct content for /settings/general/profile', () => {
+		it('renders correct content for /settings/general/profile', async () => {
 			renderWithRouter('/settings/general/profile');
 			expect(screen.getByTestId('profile-content')).toBeInTheDocument();
+			await waitForAsyncLoad();
 		});
 
-		it('renders correct content for /settings/general/api-keys', () => {
+		it('renders correct content for /settings/general/api-keys', async () => {
 			renderWithRouter('/settings/general/api-keys');
 			expect(screen.getByTestId('api-keys-content')).toBeInTheDocument();
+			await waitForAsyncLoad();
 		});
 	});
 });

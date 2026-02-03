@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { PhaseNode } from './PhaseNode';
@@ -44,19 +44,7 @@ function createDefaultData(
 	};
 }
 
-// Mock IntersectionObserver for React Flow internals
-beforeAll(() => {
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-});
-
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 describe('PhaseNode', () => {
 	describe('SC-1: template name and ID display', () => {
 		it('renders template name as header text', () => {

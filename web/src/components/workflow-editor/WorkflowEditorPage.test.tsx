@@ -19,8 +19,8 @@
  * - Workflow with empty name → breadcrumb falls back to ID
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { WorkflowEditorPage } from './WorkflowEditorPage';
@@ -43,24 +43,13 @@ vi.mock('@/lib/client', () => ({
 	},
 	configClient: {
 		listAgents: vi.fn().mockResolvedValue({ agents: [] }),
+		listHooks: vi.fn().mockResolvedValue({ hooks: [] }),
+		listSkills: vi.fn().mockResolvedValue({ skills: [] }),
 	},
 }));
 
 // Import mocked module for assertions
 import { workflowClient } from '@/lib/client';
-
-// Mock IntersectionObserver for React Flow
-beforeAll(() => {
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-});
 
 /** Render WorkflowEditorPage at /workflows/:id */
 function renderEditorPage(workflowId: string = 'implement-medium') {
@@ -114,6 +103,7 @@ function createMultiPhaseWorkflow(overrides: { id?: string; name?: string; isBui
 	});
 }
 
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 describe('WorkflowEditorPage', () => {
 	beforeEach(() => {
 		useWorkflowEditorStore.getState().reset();
@@ -292,7 +282,9 @@ describe('WorkflowEditorPage', () => {
 			const phaseNode = nodes.find((n) => n.type === 'phase');
 			expect(phaseNode).toBeDefined();
 
-			useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			});
 
 			await waitFor(() => {
 				// Body should have the inspector-open class for 3-column layout
@@ -321,7 +313,9 @@ describe('WorkflowEditorPage', () => {
 			);
 			expect(specNode).toBeDefined();
 
-			useWorkflowEditorStore.getState().selectNode(specNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(specNode!.id);
+			});
 
 			await waitFor(() => {
 				// Right panel should show the phase template name
@@ -362,7 +356,9 @@ describe('WorkflowEditorPage', () => {
 			);
 			expect(reviewNode).toBeDefined();
 
-			useWorkflowEditorStore.getState().selectNode(reviewNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(reviewNode!.id);
+			});
 
 			await waitFor(() => {
 				const inspector = document.querySelector('.workflow-editor-inspector');
@@ -390,7 +386,9 @@ describe('WorkflowEditorPage', () => {
 			// Select a node
 			const nodes = useWorkflowEditorStore.getState().nodes;
 			const phaseNode = nodes.find((n) => n.type === 'phase');
-			useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			});
 
 			await waitFor(() => {
 				const body = document.querySelector('.workflow-editor-body');
@@ -398,7 +396,9 @@ describe('WorkflowEditorPage', () => {
 			});
 
 			// Deselect (simulating pane click)
-			useWorkflowEditorStore.getState().selectNode(null);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(null);
+			});
 
 			await waitFor(() => {
 				const body = document.querySelector('.workflow-editor-body');
@@ -527,8 +527,15 @@ describe('WorkflowEditorPage', () => {
 
 			expect(screen.getByText(/Loading/i)).toBeTruthy();
 
-			// Resolve to avoid hanging
-			resolvePromise!(createMockGetWorkflowResponse(createMultiPhaseWorkflow()));
+			// Resolve and wait for state updates to complete
+			await act(async () => {
+				resolvePromise!(createMockGetWorkflowResponse(createMultiPhaseWorkflow()));
+			});
+
+			// Wait for loading to complete
+			await waitFor(() => {
+				expect(screen.getByText('Implement (Medium)')).toBeTruthy();
+			});
 		});
 	});
 });

@@ -15,23 +15,11 @@
  * - Escape key closes dialog
  */
 
-import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { DeletePhaseDialog } from './DeletePhaseDialog';
 
-// Mock IntersectionObserver for potential portal/overlay usage
-beforeAll(() => {
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-});
-
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 describe('DeletePhaseDialog', () => {
 	afterEach(() => {
 		cleanup();

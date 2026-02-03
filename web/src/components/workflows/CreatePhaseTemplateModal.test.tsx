@@ -31,8 +31,8 @@
  * - Create with minimal fields (ID + Name only) → Creates template with defaults
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
-import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CreatePhaseTemplateModal } from './CreatePhaseTemplateModal';
 import { create } from '@bufbuild/protobuf';
@@ -73,20 +73,6 @@ vi.mock('@/stores/uiStore', () => ({
 import { workflowClient, configClient, mcpClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 
-// Mock browser APIs for Radix components
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-	window.confirm = vi.fn().mockReturnValue(true);
-});
-
 // Standard mock data for library pickers
 const mockHooks = [
 	createMockHook({ name: 'pre-guard', eventType: 'PreToolUse' }),
@@ -123,8 +109,10 @@ const mockOnClose = vi.fn();
 const mockOnCreated = vi.fn();
 
 describe('CreatePhaseTemplateModal', () => {
+	// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
+
 	beforeEach(() => {
-		vi.clearAllMocks();
+		vi.resetAllMocks();
 		setupMocks();
 	});
 
@@ -149,7 +137,7 @@ describe('CreatePhaseTemplateModal', () => {
 			expect(screen.getByText('Create Phase Template')).toBeInTheDocument();
 		});
 
-		it('does not render when open is false', () => {
+		it('does not render when open is false', async () => {
 			render(
 				<CreatePhaseTemplateModal
 					open={false}
@@ -159,6 +147,11 @@ describe('CreatePhaseTemplateModal', () => {
 			);
 
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+			// Wait for any pending async operations to complete
+			await act(async () => {
+				await new Promise(resolve => setTimeout(resolve, 0));
+			});
 		});
 
 		it('renders required form fields: ID, Name, Description', async () => {

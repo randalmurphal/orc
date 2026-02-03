@@ -12,8 +12,8 @@
  * These tests will FAIL until WorkflowEditorPage is updated to render GateInspector.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { WorkflowEditorPage } from './WorkflowEditorPage';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
@@ -33,26 +33,19 @@ vi.mock('@/lib/client', () => ({
 		getWorkflow: vi.fn(),
 		listPhaseTemplates: vi.fn().mockResolvedValue({ templates: [], sources: {} }),
 		listWorkflowRuns: vi.fn().mockResolvedValue({ runs: [] }),
+		saveWorkflowLayout: vi.fn().mockResolvedValue({}),
 	},
 	configClient: {
 		listAgents: vi.fn().mockResolvedValue({ agents: [] }),
+		listHooks: vi.fn().mockResolvedValue({ hooks: [] }),
+		listSkills: vi.fn().mockResolvedValue({ skills: [] }),
+	},
+	mcpClient: {
+		listMCPServers: vi.fn().mockResolvedValue({ servers: [] }),
 	},
 }));
 
 import { workflowClient } from '@/lib/client';
-
-// Mock IntersectionObserver for React Flow
-beforeAll(() => {
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-});
 
 /** Render WorkflowEditorPage at /workflows/:id */
 function renderEditorPage(workflowId: string = 'test-wf') {
@@ -110,6 +103,7 @@ function createWorkflowWithGates(overrides: { isBuiltin?: boolean } = {}) {
 	});
 }
 
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 	beforeEach(() => {
 		useWorkflowEditorStore.getState().reset();
@@ -139,7 +133,9 @@ describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 			const gateEdge = edges.find((e) => e.type === 'gate');
 			expect(gateEdge).toBeDefined();
 
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 
 			await waitFor(() => {
 				// GateInspector should be visible
@@ -165,7 +161,9 @@ describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 			const phaseNode = nodes.find((n) => n.type === 'phase');
 			expect(phaseNode).toBeDefined();
 
-			useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			});
 
 			await waitFor(() => {
 				// PhaseInspector should be visible (not GateInspector)
@@ -214,7 +212,9 @@ describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 			// First select a node
 			const nodes = useWorkflowEditorStore.getState().nodes;
 			const phaseNode = nodes.find((n) => n.type === 'phase');
-			useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			});
 
 			await waitFor(() => {
 				expect(document.querySelector('.phase-inspector')).not.toBeNull();
@@ -223,7 +223,9 @@ describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 			// Now select an edge (this should clear node selection and show gate inspector)
 			const edges = useWorkflowEditorStore.getState().edges;
 			const gateEdge = edges.find((e) => e.type === 'gate');
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 
 			await waitFor(() => {
 				// GateInspector should be visible
@@ -248,7 +250,9 @@ describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 			// First select an edge
 			const edges = useWorkflowEditorStore.getState().edges;
 			const gateEdge = edges.find((e) => e.type === 'gate');
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 
 			await waitFor(() => {
 				expect(document.querySelector('.gate-inspector')).not.toBeNull();
@@ -257,7 +261,9 @@ describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 			// Now select a node
 			const nodes = useWorkflowEditorStore.getState().nodes;
 			const phaseNode = nodes.find((n) => n.type === 'phase');
-			useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			});
 
 			await waitFor(() => {
 				// PhaseInspector should be visible
@@ -284,7 +290,9 @@ describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 			// Select an edge
 			const edges = useWorkflowEditorStore.getState().edges;
 			const gateEdge = edges.find((e) => e.type === 'gate');
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 
 			await waitFor(() => {
 				const body = document.querySelector('.workflow-editor-body');
@@ -310,11 +318,17 @@ describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 			// Select an edge
 			const edges = useWorkflowEditorStore.getState().edges;
 			const gateEdge = edges.find((e) => e.type === 'gate');
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 
 			await waitFor(() => {
 				// Should show "Clone to customize" notice in GateInspector
-				expect(screen.getByText(/Clone to customize/i)).toBeTruthy();
+				const gateInspector = document.querySelector('.gate-inspector');
+				expect(gateInspector).not.toBeNull();
+				const readonlyNotice = gateInspector!.querySelector('.gate-inspector__readonly-notice');
+				expect(readonlyNotice).not.toBeNull();
+				expect(readonlyNotice!.textContent).toMatch(/Clone to customize/i);
 			});
 		});
 
@@ -333,7 +347,9 @@ describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 			// Select an edge
 			const edges = useWorkflowEditorStore.getState().edges;
 			const gateEdge = edges.find((e) => e.type === 'gate');
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 
 			await waitFor(() => {
 				const gateInspector = document.querySelector('.gate-inspector');
@@ -363,11 +379,13 @@ describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 			);
 
 			if (humanGateEdge) {
-				useWorkflowEditorStore.getState().selectEdge(humanGateEdge.id);
+				await act(async () => {
+					useWorkflowEditorStore.getState().selectEdge(humanGateEdge.id);
+				});
 
 				await waitFor(() => {
-					// GateInspector should show "Human" gate type
-					expect(screen.getByText(/Human/i)).toBeTruthy();
+					// GateInspector should show "Human Configuration" section for human gate type
+					expect(screen.getByText(/Human Configuration/i)).toBeTruthy();
 				});
 			}
 		});
@@ -389,7 +407,9 @@ describe('WorkflowEditorPage - Gate Inspector Panel', () => {
 			// Select an edge
 			const edges = useWorkflowEditorStore.getState().edges;
 			const gateEdge = edges.find((e) => e.type === 'gate');
-			useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectEdge(gateEdge!.id);
+			});
 			expect(useWorkflowEditorStore.getState().selectedEdgeId).toBe(gateEdge!.id);
 
 			unmount();

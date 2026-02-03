@@ -45,6 +45,9 @@ export class EventSubscription {
 	private status: ConnectionStatus = 'disconnected';
 	private reconnectAttempts = 0;
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	// Guard flag to prevent reconnection after cleanup - fixes race condition where
+	// connect()'s catch block runs after cleanup() has already been called
+	private isCleanedUp = true;
 
 	private readonly maxReconnects = 5;
 	private readonly baseDelay = 1000; // 1 second
@@ -62,6 +65,9 @@ export class EventSubscription {
 
 		// Clean up any existing connection
 		this.cleanup();
+
+		// Reset cleanup flag - we're starting a new connection
+		this.isCleanedUp = false;
 
 		this.setStatus('connecting');
 		this.abortController = new AbortController();
@@ -155,6 +161,9 @@ export class EventSubscription {
 	}
 
 	private cleanup(): void {
+		// Set cleanup flag to prevent reconnection attempts after this point
+		this.isCleanedUp = true;
+
 		if (this.reconnectTimer) {
 			clearTimeout(this.reconnectTimer);
 			this.reconnectTimer = null;
@@ -182,6 +191,12 @@ export class EventSubscription {
 	}
 
 	private attemptReconnect(): void {
+		// Guard against reconnection after cleanup - fixes race condition where
+		// connect()'s catch block executes after cleanup() was already called
+		if (this.isCleanedUp) {
+			return;
+		}
+
 		if (this.reconnectAttempts >= this.maxReconnects) {
 			console.warn(`Event subscription: max reconnect attempts (${this.maxReconnects}) reached`);
 			this.setStatus('disconnected');

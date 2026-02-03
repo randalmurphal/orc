@@ -2,8 +2,8 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { create } from '@bufbuild/protobuf';
 import { DetailedPhaseProgress } from '../DetailedPhaseProgress';
-import { PhaseStatus, ExecutionStateSchema, type ExecutionState } from '../../../gen/orc/v1/task_pb';
-import { TimestampSchema, Timestamp } from '@bufbuild/protobuf/wkt';
+import { PhaseStatus, ExecutionStateSchema } from '../../../gen/orc/v1/task_pb';
+import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 
 import * as progressEstimationModule from '../../../lib/utils/progressEstimation';
 import * as phaseActivityMapperModule from '../../../lib/mappers/phaseActivityMapper';

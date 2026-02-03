@@ -15,7 +15,7 @@
  * - SC-9: Built-in workflows cannot be edited (read-only)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EditWorkflowModal } from './EditWorkflowModal';
@@ -57,20 +57,8 @@ vi.mock('@/stores/uiStore', () => ({
 import { workflowClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 
-// Mock browser APIs for Radix
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-	// Mock window.confirm for delete confirmations
-	window.confirm = vi.fn().mockReturnValue(true);
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, Element.prototype methods,
+// window.confirm) are set up globally in test-setup.ts - do not duplicate here
 
 // Create mock phase templates
 const mockPhaseTemplates = [
@@ -142,6 +130,11 @@ describe('EditWorkflowModal', () => {
 			// Modal should be visible
 			expect(screen.getByRole('dialog')).toBeInTheDocument();
 			expect(screen.getByText(/edit workflow/i)).toBeInTheDocument();
+
+			// Wait for async loading to complete to prevent act() warnings
+			await waitFor(() => {
+				expect(workflowClient.getWorkflow).toHaveBeenCalled();
+			});
 		});
 
 		it('should not render modal when open is false', () => {

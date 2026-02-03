@@ -29,8 +29,8 @@
  * - promptPath prefix is visual-only, not stored in value
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EditPhaseTemplateModal } from './EditPhaseTemplateModal';
 import { create } from '@bufbuild/protobuf';
@@ -71,20 +71,6 @@ vi.mock('@/stores/uiStore', () => ({
 
 // Import mocked modules for assertions
 import { workflowClient, configClient, mcpClient } from '@/lib/client';
-
-// Mock browser APIs for Radix UI components
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-	window.confirm = vi.fn().mockReturnValue(true);
-});
 
 function setupMocks() {
 	vi.mocked(configClient.listAgents).mockResolvedValue(
@@ -140,6 +126,8 @@ function setupSave() {
 }
 
 describe('EditPhaseTemplateModal - Data Flow Fields (TASK-683)', () => {
+	// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		setupMocks();
@@ -590,6 +578,11 @@ describe('EditPhaseTemplateModal - Data Flow Fields (TASK-683)', () => {
 			expect(screen.getByText(/cannot edit built-in template/i)).toBeInTheDocument();
 			expect(screen.queryByText(/^Data Flow$/i)).not.toBeInTheDocument();
 			expect(screen.queryByText(/^Prompt$/i)).not.toBeInTheDocument();
+
+			// Wait for any pending async operations to complete
+			await act(async () => {
+				await new Promise(resolve => setTimeout(resolve, 0));
+			});
 		});
 	});
 });

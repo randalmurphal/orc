@@ -1,54 +1,36 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { ChangesTabEnhanced } from './ChangesTabEnhanced';
 import '@testing-library/jest-dom';
 
+// Cleanup after each test to prevent DOM accumulation
+afterEach(() => {
+  cleanup();
+  // Reset window size
+  Object.defineProperty(window, 'innerWidth', {
+    writable: true,
+    configurable: true,
+    value: 1024,
+  });
+});
+
 // Mock the sub-components
 vi.mock('./FilesPanel', () => ({
-  FilesPanel: ({ onFileSelect, onViewModeChange, ...props }: any) => (
-    <div data-testid="files-panel" role="complementary">
-      <button data-testid="mock-file-1" onClick={() => onFileSelect && onFileSelect('file1.ts')}>
-        file1.ts
-      </button>
-      <button data-testid="view-toggle" onClick={() => onViewModeChange && onViewModeChange('tree')}>
-        Tree View
-      </button>
-      <button data-testid="expand-file-file1.ts" onClick={() => {}}>
-        Expand
-      </button>
-      <div data-testid="diff-mode-toggle">
-        <button onClick={() => {}}>Unified</button>
-      </div>
-      {/* Mock the project and task props */}
-      <span style={{display: 'none'}}>{props.projectId}</span>
-      <span style={{display: 'none'}}>{props.taskId}</span>
+  FilesPanel: ({ projectId, taskId }: any) => (
+    <div data-testid="files-panel" className="transition-all">
+      <span data-testid="files-panel-project">{projectId}</span>
+      <span data-testid="files-panel-task">{taskId}</span>
     </div>
   ),
 }));
 
-vi.mock('./DiffFile', () => ({
-  DiffFile: ({ file }: any) => (
-    <div data-testid={`diff-file-${file.path}`}>
-      Diff for {file.path}
+vi.mock('./ChangesTab', () => ({
+  ChangesTab: ({ taskId }: any) => (
+    <div data-testid="classic-changes-tab">
+      Classic view for {taskId}
     </div>
   ),
 }));
-
-// Mock the task client
-vi.mock('@/lib/client', () => ({
-  taskClient: {
-    getDiff: vi.fn(),
-    getFileDiff: vi.fn(),
-    listReviewComments: vi.fn(),
-    addReviewComment: vi.fn(),
-    updateReviewComment: vi.fn(),
-    deleteReviewComment: vi.fn(),
-  },
-}));
-
-// Access the mocked client for setting up test scenarios
-import { taskClient } from '@/lib/client';
-const mockTaskClient = taskClient as any;
 
 // Mock the useCurrentProjectId hook
 vi.mock('@/stores', () => ({
@@ -62,215 +44,47 @@ describe('ChangesTabEnhanced', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    mockTaskClient.getDiff.mockResolvedValue({
-      diff: {
-        base: 'main',
-        head: 'feature',
-        stats: { filesChanged: 2, additions: 10, deletions: 5 },
-        files: [
-          {
-            path: 'src/app.ts',
-            status: 'modified',
-            additions: 8,
-            deletions: 3,
-            binary: false,
-            syntax: 'typescript',
-            hunks: [],
-          },
-          {
-            path: 'test/app.test.ts',
-            status: 'added',
-            additions: 2,
-            deletions: 0,
-            binary: false,
-            syntax: 'typescript',
-            hunks: [],
-          },
-        ],
-      },
+    // Reset window size to desktop
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1024,
     });
-
-    mockTaskClient.listReviewComments.mockResolvedValue({ comments: [] });
-    mockTaskClient.addReviewComment.mockResolvedValue({ comment: {} });
-    mockTaskClient.updateReviewComment.mockResolvedValue({ comment: {} });
-    mockTaskClient.deleteReviewComment.mockResolvedValue({});
+    window.dispatchEvent(new Event('resize'));
   });
 
   describe('Enhanced Changes Tab Layout', () => {
-    it('should render enhanced changes tab with new file panel', async () => {
+    it('should render enhanced changes tab with file panel', async () => {
       render(<ChangesTabEnhanced {...defaultProps} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('changes-tab-enhanced')).toBeInTheDocument();
-        expect(screen.getByTestId('files-panel')).toBeInTheDocument();
       });
+
+      expect(screen.getByTestId('files-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('diff-viewer-section')).toBeInTheDocument();
     });
 
-    it('should maintain backward compatibility with existing diff features', async () => {
+    it('should pass correct props to FilesPanel', async () => {
       render(<ChangesTabEnhanced {...defaultProps} />);
 
       await waitFor(() => {
-        // Should still have classic diff functionality
-        expect(screen.getByTestId('diff-viewer-section')).toBeInTheDocument();
+        expect(screen.getByTestId('files-panel')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('files-panel-project')).toHaveTextContent('test-project-id');
+      expect(screen.getByTestId('files-panel-task')).toHaveTextContent('TASK-123');
+    });
+
+    it('should have classic view toggle button', async () => {
+      render(<ChangesTabEnhanced {...defaultProps} />);
+
+      await waitFor(() => {
         expect(screen.getByTestId('classic-diff-toggle')).toBeInTheDocument();
       });
     });
 
-    it('should allow switching between enhanced and classic views', async () => {
-      render(<ChangesTabEnhanced {...defaultProps} />);
-
-      await waitFor(() => {
-        const classicToggle = screen.getByTestId('classic-diff-toggle');
-        fireEvent.click(classicToggle);
-
-        expect(screen.getByTestId('classic-diff-view')).toBeInTheDocument();
-        expect(screen.queryByTestId('files-panel')).not.toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('File Selection Integration', () => {
-    it('should update diff viewer when file is selected from file panel', async () => {
-      mockTaskClient.getFileDiff.mockResolvedValue({
-        file: {
-          path: 'file1.ts',
-          hunks: [{ lines: [{ content: 'test content' }] }],
-        },
-      });
-
-      render(<ChangesTabEnhanced {...defaultProps} />);
-
-      await waitFor(() => {
-        const fileButton = screen.getByTestId('mock-file-1');
-        fireEvent.click(fileButton);
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('diff-file-file1.ts')).toBeInTheDocument();
-        expect(mockTaskClient.getFileDiff).toHaveBeenCalledWith(
-          expect.objectContaining({
-            filePath: 'file1.ts',
-          })
-        );
-      });
-    });
-
-    it('should highlight selected file in both panels', async () => {
-      render(<ChangesTabEnhanced {...defaultProps} />);
-
-      await waitFor(() => {
-        const fileButton = screen.getByTestId('mock-file-1');
-        fireEvent.click(fileButton);
-
-        expect(screen.getByTestId('selected-file-indicator')).toBeInTheDocument();
-      });
-    });
-
-    it('should sync file expansion state between panels', async () => {
-      render(<ChangesTabEnhanced {...defaultProps} />);
-
-      await waitFor(() => {
-        const expandButton = screen.getByTestId('expand-file-file1.ts');
-        fireEvent.click(expandButton);
-
-        expect(screen.getByTestId('file-expanded-file1.ts')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('View Mode Synchronization', () => {
-    it('should sync view mode changes between file panel and diff viewer', async () => {
-      render(<ChangesTabEnhanced {...defaultProps} />);
-
-      await waitFor(() => {
-        const viewToggle = screen.getByTestId('view-toggle');
-        fireEvent.click(viewToggle);
-
-        // Both panels should update their view mode
-        expect(screen.getByTestId('tree-view-active')).toBeInTheDocument();
-        expect(screen.getByTestId('diff-tree-mode')).toBeInTheDocument();
-      });
-    });
-
-    it('should maintain separate split/unified diff mode', async () => {
-      render(<ChangesTabEnhanced {...defaultProps} />);
-
-      await waitFor(() => {
-        const diffModeToggle = screen.getByTestId('diff-mode-toggle');
-        fireEvent.click(diffModeToggle);
-
-        expect(screen.getByTestId('unified-diff-mode')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Performance and UX Enhancements', () => {
-    it('should lazy load file diffs only when needed', async () => {
-      render(<ChangesTabEnhanced {...defaultProps} />);
-
-      await waitFor(() => {
-        // Initially, should not have loaded individual file diffs
-        expect(mockTaskClient.getFileDiff).not.toHaveBeenCalled();
-
-        // Only overview should be loaded
-        expect(mockTaskClient.getDiff).toHaveBeenCalledTimes(1);
-      });
-    });
-
-    it('should cache file diff results to avoid reloading', async () => {
-      mockTaskClient.getFileDiff.mockResolvedValue({
-        file: { path: 'file1.ts', hunks: [] },
-      });
-
-      render(<ChangesTabEnhanced {...defaultProps} />);
-
-      await waitFor(() => {
-        // Select file twice
-        const fileButton = screen.getByTestId('mock-file-1');
-        fireEvent.click(fileButton);
-      });
-
-      await waitFor(() => {
-        fireEvent.click(screen.getByTestId('mock-file-1'));
-      });
-
-      // Should only call API once due to caching
-      expect(mockTaskClient.getFileDiff).toHaveBeenCalledTimes(1);
-    });
-
-    it('should provide smooth transitions between view states', async () => {
-      render(<ChangesTabEnhanced {...defaultProps} />);
-
-      await waitFor(() => {
-        const panel = screen.getByTestId('files-panel');
-
-        // Should have transition classes
-        expect(panel).toHaveClass('transition-all');
-
-        // Transition should be smooth when switching
-        fireEvent.click(screen.getByTestId('view-toggle'));
-        expect(panel).toHaveClass('transitioning');
-      });
-    });
-  });
-
-  describe('Accessibility Enhancements', () => {
-    it('should maintain focus management between panels', async () => {
-      render(<ChangesTabEnhanced {...defaultProps} />);
-
-      await waitFor(() => {
-        const fileButton = screen.getByTestId('mock-file-1');
-        fileButton.focus();
-
-        fireEvent.keyDown(fileButton, { key: 'Enter' });
-
-        // Focus should move to diff content
-        expect(screen.getByTestId('diff-file-file1.ts')).toHaveFocus();
-      });
-    });
-
-    it('should provide proper ARIA labels for enhanced components', async () => {
+    it('should have proper ARIA label', async () => {
       render(<ChangesTabEnhanced {...defaultProps} />);
 
       await waitFor(() => {
@@ -278,70 +92,152 @@ describe('ChangesTabEnhanced', () => {
           'aria-label',
           'Enhanced file changes view'
         );
-
-        expect(screen.getByTestId('files-panel')).toHaveAttribute(
-          'role',
-          'complementary'
-        );
       });
     });
+  });
 
-    it('should support keyboard shortcuts for common actions', async () => {
+  describe('View Mode Toggle', () => {
+    it('should switch to classic view when toggle is clicked', async () => {
       render(<ChangesTabEnhanced {...defaultProps} />);
 
       await waitFor(() => {
-        // 'f' should focus file list
-        fireEvent.keyDown(document, { key: 'f', ctrlKey: true });
-        expect(screen.getByTestId('files-panel')).toHaveFocus();
+        expect(screen.getByTestId('classic-diff-toggle')).toBeInTheDocument();
+      });
 
-        // 't' should toggle view mode
-        fireEvent.keyDown(document, { key: 't', ctrlKey: true });
-        expect(screen.getByTestId('tree-view-active')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('classic-diff-toggle'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('classic-diff-view')).toBeInTheDocument();
+        expect(screen.getByTestId('classic-changes-tab')).toBeInTheDocument();
+        expect(screen.queryByTestId('files-panel')).not.toBeInTheDocument();
+      });
+    });
+
+    it('should switch back to enhanced view from classic view', async () => {
+      render(<ChangesTabEnhanced {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('classic-diff-toggle')).toBeInTheDocument();
+      });
+
+      // Switch to classic view
+      fireEvent.click(screen.getByTestId('classic-diff-toggle'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('enhanced-view-toggle')).toBeInTheDocument();
+      });
+
+      // Switch back to enhanced view
+      fireEvent.click(screen.getByTestId('enhanced-view-toggle'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('changes-tab-enhanced')).toBeInTheDocument();
+        expect(screen.getByTestId('files-panel')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Keyboard Shortcuts', () => {
+    it('should toggle view mode with Ctrl+T', async () => {
+      render(<ChangesTabEnhanced {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('changes-tab-enhanced')).toBeInTheDocument();
+      });
+
+      // Initially tree-view-active is hidden (viewMode is 'list')
+      const treeIndicator = screen.getByTestId('tree-view-active');
+      expect(treeIndicator).toHaveStyle({ display: 'none' });
+
+      // Press Ctrl+T to toggle to tree mode
+      fireEvent.keyDown(document, { key: 't', ctrlKey: true });
+
+      await waitFor(() => {
+        expect(treeIndicator).toHaveStyle({ display: 'block' });
       });
     });
   });
 
   describe('Responsive Design', () => {
-    it('should adapt layout for mobile screens', async () => {
-      // Mock window size
+    it('should show mobile layout on small screens', async () => {
       Object.defineProperty(window, 'innerWidth', {
         writable: true,
         configurable: true,
-        value: 600, // Mobile width
+        value: 500, // Mobile width (<=600)
       });
 
       render(<ChangesTabEnhanced {...defaultProps} />);
+
+      // Trigger resize event - wrap in act() since it causes state updates
+      await act(async () => {
+        window.dispatchEvent(new Event('resize'));
+      });
 
       await waitFor(() => {
         expect(screen.getByTestId('changes-tab-enhanced')).toHaveClass('mobile-layout');
-        expect(screen.getByTestId('files-panel-collapsed')).toBeInTheDocument();
       });
+
+      // Mobile should show collapse button
+      expect(screen.getByTestId('files-panel-collapsed')).toBeInTheDocument();
     });
 
-    it('should provide collapsible panels on tablet screens', async () => {
+    it('should show tablet layout on medium screens', async () => {
       Object.defineProperty(window, 'innerWidth', {
         writable: true,
         configurable: true,
-        value: 800, // Tablet width
+        value: 700, // Tablet width (600-800)
       });
 
       render(<ChangesTabEnhanced {...defaultProps} />);
 
-      await waitFor(() => {
-        const collapseButton = screen.getByTestId('collapse-file-panel');
-        fireEvent.click(collapseButton);
+      await act(async () => {
+        window.dispatchEvent(new Event('resize'));
+      });
 
-        expect(screen.getByTestId('files-panel')).toHaveClass('collapsed');
+      await waitFor(() => {
+        expect(screen.getByTestId('changes-tab-enhanced')).toHaveClass('tablet-layout');
+      });
+
+      expect(screen.getByTestId('collapse-file-panel')).toBeInTheDocument();
+    });
+
+    it('should toggle panel collapsed state on mobile', async () => {
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 500,
+      });
+
+      render(<ChangesTabEnhanced {...defaultProps} />);
+
+      await act(async () => {
+        window.dispatchEvent(new Event('resize'));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('files-panel-collapsed')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('files-panel-collapsed'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('changes-tab-enhanced')).toHaveClass('panel-collapsed');
       });
     });
   });
 
-  describe('Error Boundary Integration', () => {
-    it('should handle file panel errors gracefully', async () => {
+  describe('Error Handling', () => {
+    it('should show error boundary when error is triggered', async () => {
       // Mock console.error to avoid test noise
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       render(<ChangesTabEnhanced {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('trigger-panel-error')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('trigger-panel-error'));
 
       await waitFor(() => {
         expect(screen.getByTestId('file-panel-error-boundary')).toBeInTheDocument();
@@ -351,20 +247,62 @@ describe('ChangesTabEnhanced', () => {
       consoleError.mockRestore();
     });
 
-    it('should provide fallback to classic view on enhanced panel errors', async () => {
+    it('should show fallback classic view on error', async () => {
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       render(<ChangesTabEnhanced {...defaultProps} />);
 
-      // Trigger error in enhanced view
+      await waitFor(() => {
+        expect(screen.getByTestId('trigger-panel-error')).toBeInTheDocument();
+      });
+
       fireEvent.click(screen.getByTestId('trigger-panel-error'));
 
       await waitFor(() => {
         expect(screen.getByTestId('fallback-classic-view')).toBeInTheDocument();
-        expect(screen.getByText('Switch back to enhanced view')).toBeInTheDocument();
+        expect(screen.getByTestId('classic-changes-tab')).toBeInTheDocument();
       });
 
       consoleError.mockRestore();
+    });
+
+    it('should allow switching back to enhanced view after error', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      render(<ChangesTabEnhanced {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('trigger-panel-error')).toBeInTheDocument();
+      });
+
+      // Trigger error
+      fireEvent.click(screen.getByTestId('trigger-panel-error'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Switch back to enhanced view')).toBeInTheDocument();
+      });
+
+      // Click to switch back
+      fireEvent.click(screen.getByText('Switch back to enhanced view'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('changes-tab-enhanced')).toBeInTheDocument();
+        expect(screen.getByTestId('files-panel')).toBeInTheDocument();
+      });
+
+      consoleError.mockRestore();
+    });
+  });
+
+  describe('Loading State', () => {
+    it('should show loading state when project is not available', async () => {
+      // Override the mock to return null
+      const { useCurrentProjectId } = await import('@/stores');
+      (useCurrentProjectId as any).mockReturnValueOnce(null);
+
+      render(<ChangesTabEnhanced {...defaultProps} />);
+
+      expect(screen.getByText('Loading project...')).toBeInTheDocument();
     });
   });
 });

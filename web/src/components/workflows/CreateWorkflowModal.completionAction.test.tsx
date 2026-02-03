@@ -10,7 +10,7 @@
  * - SC-7d: Valid options are: "", "pr", "commit", "none"
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CreateWorkflowModal } from './CreateWorkflowModal';
@@ -26,20 +26,8 @@ vi.mock('@/lib/client', () => ({
 // Import mocked module for assertions
 import { workflowClient } from '@/lib/client';
 
-// Mock browser APIs
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-});
-
 describe('CreateWorkflowModal - completion_action field', () => {
+	// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
 	const mockOnClose = vi.fn();
 	const mockOnCreated = vi.fn();
 

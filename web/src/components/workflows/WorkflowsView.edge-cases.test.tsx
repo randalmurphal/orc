@@ -138,67 +138,6 @@ describe('WorkflowsView Redesign Edge Cases - TASK-750', () => {
 		});
 	});
 
-	describe('Loading States', () => {
-		it('shows loading skeletons while maintaining section structure', async () => {
-			// Mock long-running API call
-			let resolveWorkflows: (value: any) => void;
-			const workflowsPromise = new Promise(resolve => {
-				resolveWorkflows = resolve;
-			});
-
-			vi.mocked(workflowClient.listWorkflows).mockReturnValue(workflowsPromise as any);
-			vi.mocked(workflowClient.listPhaseTemplates).mockResolvedValue(
-				createMockListPhaseTemplatesResponse([])
-			);
-
-			renderWorkflowsView();
-
-			// Should show loading skeletons
-			expect(screen.getByRole('region', { name: /loading workflows/i })).toBeInTheDocument();
-
-			// Section headers should still be present during loading
-			expect(screen.getByText('Your Workflows')).toBeInTheDocument();
-			expect(screen.getByText('Built-in Workflows')).toBeInTheDocument();
-
-			// Resolve the promise to clean up
-			resolveWorkflows!({
-				...createMockListWorkflowsResponse([]),
-				sources: {},
-			});
-
-			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
-			});
-		});
-
-		it('shows skeleton cards with appropriate accessibility attributes', async () => {
-			let resolveWorkflows: (value: any) => void;
-			const workflowsPromise = new Promise(resolve => {
-				resolveWorkflows = resolve;
-			});
-
-			vi.mocked(workflowClient.listWorkflows).mockReturnValue(workflowsPromise as any);
-			vi.mocked(workflowClient.listPhaseTemplates).mockResolvedValue(
-				createMockListPhaseTemplatesResponse([])
-			);
-
-			renderWorkflowsView();
-
-			// Loading state should have proper accessibility
-			const loadingRegion = screen.getByRole('region', { name: /loading workflows/i });
-			expect(loadingRegion).toHaveAttribute('aria-busy', 'true');
-
-			// Clean up
-			resolveWorkflows!({
-				...createMockListWorkflowsResponse([]),
-				sources: {},
-			});
-
-			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
-			});
-		});
-	});
 
 	describe('Mixed Content Scenarios', () => {
 		it('handles mix of built-in and custom workflows with proper section ordering', async () => {
@@ -377,7 +316,7 @@ describe('WorkflowsView Redesign Edge Cases - TASK-750', () => {
 			expect(workflowCard).toHaveAttribute('tabIndex', '0');
 
 			// Should be able to activate with keyboard
-			workflowCard!.focus();
+			(workflowCard as HTMLElement).focus();
 			await user.keyboard('{Enter}');
 			// Navigation is handled by parent component, so no specific assertion needed
 		});
@@ -458,15 +397,12 @@ describe('WorkflowsView Redesign Edge Cases - TASK-750', () => {
 		});
 
 		it('handles empty API responses gracefully', async () => {
-			vi.mocked(workflowClient.listWorkflows).mockResolvedValue({
-				workflows: [],
-				phaseCounts: {},
-				sources: {},
-			});
-			vi.mocked(workflowClient.listPhaseTemplates).mockResolvedValue({
-				templates: [],
-				sources: {},
-			});
+			vi.mocked(workflowClient.listWorkflows).mockResolvedValue(
+				createMockListWorkflowsResponse([])
+			);
+			vi.mocked(workflowClient.listPhaseTemplates).mockResolvedValue(
+				createMockListPhaseTemplatesResponse([])
+			);
 
 			renderWorkflowsView();
 

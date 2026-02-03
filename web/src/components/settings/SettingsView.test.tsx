@@ -1,19 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { SettingsView } from './SettingsView';
 import { configClient } from '@/lib/client';
 import type { Skill } from '@/gen/orc/v1/config_pb';
 import { SettingsScope } from '@/gen/orc/v1/config_pb';
 
-// Mock browser APIs not available in jsdom (required for Radix)
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
 
 // Mock the configClient
 vi.mock('@/lib/client', () => ({
@@ -93,6 +85,11 @@ describe('SettingsView', () => {
 
 			expect(screen.getByText('Slash Commands')).toBeInTheDocument();
 			expect(screen.getByText('Custom commands for Claude Code (~/.claude/commands)')).toBeInTheDocument();
+
+			// Wait for async loading to complete
+			await waitFor(() => {
+				expect(configClient.listSkills).toHaveBeenCalled();
+			});
 		});
 
 		it('renders New Command button', async () => {
@@ -100,6 +97,11 @@ describe('SettingsView', () => {
 
 			const newButton = screen.getByRole('button', { name: /new command/i });
 			expect(newButton).toBeInTheDocument();
+
+			// Wait for async loading to complete
+			await waitFor(() => {
+				expect(configClient.listSkills).toHaveBeenCalled();
+			});
 		});
 
 		it('renders CommandList component', async () => {
@@ -146,6 +148,11 @@ describe('SettingsView', () => {
 
 			const headerContent = container.querySelector('.settings-view__header-content');
 			expect(headerContent).toBeInTheDocument();
+
+			// Wait for async loading to complete
+			await waitFor(() => {
+				expect(configClient.listSkills).toHaveBeenCalled();
+			});
 		});
 
 		it('has content area with list and editor', async () => {
@@ -159,6 +166,11 @@ describe('SettingsView', () => {
 
 			const editor = container.querySelector('.settings-view__editor');
 			expect(editor).toBeInTheDocument();
+
+			// Wait for async loading to complete
+			await waitFor(() => {
+				expect(configClient.listSkills).toHaveBeenCalled();
+			});
 		});
 	});
 
@@ -307,6 +319,11 @@ describe('SettingsView', () => {
 		it('clicking New Command is clickable', async () => {
 			render(<SettingsView />);
 
+			// Wait for async loading to complete first
+			await waitFor(() => {
+				expect(configClient.listSkills).toHaveBeenCalled();
+			});
+
 			const newButton = screen.getByRole('button', { name: /new command/i });
 			// Button should be clickable
 			fireEvent.click(newButton);
@@ -374,6 +391,11 @@ describe('SettingsView', () => {
 
 			const heading = screen.getByRole('heading', { level: 2, name: 'Slash Commands' });
 			expect(heading).toBeInTheDocument();
+
+			// Wait for async loading to complete
+			await waitFor(() => {
+				expect(configClient.listSkills).toHaveBeenCalled();
+			});
 		});
 
 		it('command list items are keyboard navigable', async () => {

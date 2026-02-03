@@ -11,33 +11,12 @@
  * These tests will FAIL until ConditionalEdge is implemented.
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { ReactFlowProvider, ReactFlow } from '@xyflow/react';
 import { ConditionalEdge } from './ConditionalEdge';
 
-// Mock ResizeObserver for React Flow
-beforeAll(() => {
-	class MockResizeObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'ResizeObserver', {
-		value: MockResizeObserver,
-		writable: true,
-	});
-
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 
 /** Render an edge inside React Flow context (required for EdgeLabelRenderer) */
 function renderEdge(edgeData?: Record<string, unknown>) {

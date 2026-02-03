@@ -6,7 +6,7 @@
  * (category, priority, queue, initiative, PR settings, etc.)
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Modal } from './Modal';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -78,7 +78,7 @@ export function TaskDetailsModal({
 
 	const isFormValid = title.trim().length > 0;
 
-	const handleCreate = async () => {
+	const handleCreate = useCallback(async () => {
 		if (!isFormValid || isCreating) return;
 
 		try {
@@ -118,7 +118,7 @@ export function TaskDetailsModal({
 		} finally {
 			setIsCreating(false);
 		}
-	};
+	}, [isFormValid, isCreating, prLabels, prReviewers, currentProjectId, title, description, selectedWorkflow.id, category, priority, queue, initiativeId, targetBranch, branchName, prDraft, onTaskCreated]);
 
 	const handleCreateAndRun = async () => {
 		if (!isFormValid || isCreatingAndRunning) return;

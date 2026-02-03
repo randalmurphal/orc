@@ -648,34 +648,26 @@ describe('StatsStore', () => {
 	});
 
 	describe('TASK-526: Concurrent fetches do not corrupt cache (SC-5)', () => {
+		// NOTE: This describe block uses the same fake timers as the parent.
+		// Concurrent fetch behavior is tested via Promise resolution, not real delays.
+		// Switching timer modes mid-test-suite causes cleanup failures and hangs.
 		beforeEach(() => {
-			// Use real timers for concurrent fetch tests (setTimeout must work)
-			vi.useRealTimers();
 			// TASK-553: Add mocks for new APIs (these don't need to be slow)
 			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
 			mockGetMetrics.mockResolvedValue(createMockMetricsResponse());
 			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
 		});
 
-		afterEach(() => {
-			// Restore fake timers for other tests
-			vi.useFakeTimers();
-		});
-
 		it('concurrent fetches for same period should not corrupt cache', async () => {
-			// Simulate slow responses
-			mockGetStats.mockImplementation(async () => {
-				await new Promise((resolve) => setTimeout(resolve, 50));
-				return createMockStatsResponse({
+			// Mock responses - concurrency is tested by starting both fetches before either resolves
+			mockGetStats.mockResolvedValue(
+				createMockStatsResponse({
 					taskCounts: { completed: 10 },
 					todayTokens: { totalTokens: 50000 },
 					todayCostUsd: 5.0,
-				});
-			});
-			mockGetCostSummary.mockImplementation(async () => {
-				await new Promise((resolve) => setTimeout(resolve, 50));
-				return createMockCostResponse({ totalCostUsd: 5.0 });
-			});
+				})
+			);
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({ totalCostUsd: 5.0 }));
 
 			// Act: Trigger two concurrent fetches for the same period
 			const fetch1 = useStatsStore.getState().fetchStats('7d');
@@ -689,22 +681,18 @@ describe('StatsStore', () => {
 			expect(state.summaryStats.tokensUsed).toBe(50000);
 			expect(state._cache.has('7d')).toBe(true);
 			expect(state._cache.get('7d')?.data.summaryStats.tasksCompleted).toBe(10);
-		}, 10000);
+		});
 
 		it('concurrent fetches for different periods should not overwrite each other', async () => {
-			// Simulate slow responses with different data per period
-			mockGetStats.mockImplementation(async () => {
-				await new Promise((resolve) => setTimeout(resolve, 50));
-				return createMockStatsResponse({
+			// Mock responses - concurrency is tested by starting both fetches before either resolves
+			mockGetStats.mockResolvedValue(
+				createMockStatsResponse({
 					taskCounts: { completed: 10 },
 					todayTokens: { totalTokens: 50000 },
 					todayCostUsd: 5.0,
-				});
-			});
-			mockGetCostSummary.mockImplementation(async () => {
-				await new Promise((resolve) => setTimeout(resolve, 50));
-				return createMockCostResponse({ totalCostUsd: 5.0 });
-			});
+				})
+			);
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({ totalCostUsd: 5.0 }));
 
 			// Act: Trigger fetches for different periods concurrently
 			const fetch7d = useStatsStore.getState().fetchStats('7d');
@@ -716,7 +704,7 @@ describe('StatsStore', () => {
 			const state = useStatsStore.getState();
 			expect(state._cache.has('7d')).toBe(true);
 			expect(state._cache.has('30d')).toBe(true);
-		}, 10000);
+		});
 	});
 
 	describe('TASK-526: Initial loading state (SC-2)', () => {

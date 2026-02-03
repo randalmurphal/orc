@@ -9,7 +9,7 @@
  * limitations with ResizeObserver, scrollIntoView, and pointer events.
  */
 
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -19,16 +19,7 @@ import * as Tabs from '@radix-ui/react-tabs';
 import * as Popover from '@radix-ui/react-popover';
 import { Slot } from '@radix-ui/react-slot';
 
-// Mock browser APIs not available in jsdom
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-});
-
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
 describe('Radix UI React 19 Compatibility', () => {
 	describe('Package imports', () => {
 		it('imports all packages without errors', () => {

@@ -9,7 +9,7 @@
  * Note: Visual polish tests focus on verifiable DOM/CSS output.
  */
 
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
@@ -19,28 +19,7 @@ import {
 	createMockWorkflowPhase,
 } from '@/test/factories';
 
-// Mock IntersectionObserver and ResizeObserver for React Flow
-beforeAll(() => {
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	class MockResizeObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-	Object.defineProperty(window, 'ResizeObserver', {
-		value: MockResizeObserver,
-		writable: true,
-	});
-});
-
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 describe('WorkflowCanvas Polish', () => {
 	beforeEach(() => {
 		useWorkflowEditorStore.getState().reset();
