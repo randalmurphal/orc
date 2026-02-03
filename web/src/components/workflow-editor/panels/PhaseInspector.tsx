@@ -177,6 +177,13 @@ export function PhaseInspector({
 		}
 	}, [phase, sectionState]);
 
+	// Clear cache on unmount to prevent test pollution
+	useEffect(() => {
+		return () => {
+			sectionStateCache.clear();
+		};
+	}, []);
+
 	// Load data on mount
 	useEffect(() => {
 		const loadData = async () => {
@@ -619,7 +626,7 @@ function AlwaysVisibleSection({
 						</option>
 						{agents.map((agent) => (
 							<option key={agent.name} value={agent.name}>
-								{agent.name}
+								{agent.name}{agent.description ? ` (${agent.description})` : ''}
 							</option>
 						))}
 					</select>
@@ -752,6 +759,7 @@ function SubAgentsSection({
 	const [subAgentsOverride, setSubAgentsOverride] = useState<string[]>(
 		phase.subAgentsOverride ?? []
 	);
+	const [draggedAgent, setDraggedAgent] = useState<string | null>(null);
 
 	useEffect(() => {
 		setSubAgentsOverride(phase.subAgentsOverride ?? []);
@@ -767,6 +775,35 @@ function SubAgentsSection({
 		const newSubAgents = subAgentsOverride.filter(name => name !== agentName);
 		setSubAgentsOverride(newSubAgents);
 		autoSave('subAgentsOverride', newSubAgents);
+	};
+
+	const handleDragStart = (agentName: string) => {
+		setDraggedAgent(agentName);
+	};
+
+	const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+		e.preventDefault();
+	};
+
+	const handleDrop = (targetAgentName: string) => {
+		if (!draggedAgent || draggedAgent === targetAgentName) return;
+
+		const currentOrder = [...subAgentsOverride];
+		const draggedIndex = currentOrder.indexOf(draggedAgent);
+		const targetIndex = currentOrder.indexOf(targetAgentName);
+
+		if (draggedIndex === -1 || targetIndex === -1) return;
+
+		// Remove dragged item and insert at target position
+		currentOrder.splice(draggedIndex, 1);
+		currentOrder.splice(targetIndex, 0, draggedAgent);
+
+		setSubAgentsOverride(currentOrder);
+		autoSave('subAgentsOverride', currentOrder);
+	};
+
+	const handleDragEnd = () => {
+		setDraggedAgent(null);
 	};
 
 	if (agentsLoading) {
@@ -790,12 +827,16 @@ function SubAgentsSection({
 				<p className="sub-agents-empty">None assigned</p>
 			) : (
 				<div className="sub-agents-list">
-					{assignedAgents.map((agentName, _index) => (
+					{assignedAgents.map((agentName) => (
 						<div
 							key={agentName}
-							className="sub-agent-item"
+							className={`sub-agent-item ${draggedAgent === agentName ? 'sub-agent-item--dragging' : ''}`}
 							draggable={!readOnly}
 							data-testid={`drag-handle-${agentName}`}
+							onDragStart={() => handleDragStart(agentName)}
+							onDragOver={handleDragOver}
+							onDrop={() => handleDrop(agentName)}
+							onDragEnd={handleDragEnd}
 						>
 							{!readOnly && <GripVertical size={14} className="drag-handle" />}
 							<span className="agent-name">{agentName}</span>
@@ -1091,7 +1132,7 @@ interface EnvironmentSectionProps {
 }
 
 function EnvironmentSection({
-	phase: _phase,
+	phase,
 	hooks,
 	skills,
 	mcpServers,
@@ -1105,6 +1146,24 @@ function EnvironmentSection({
 	const [workingDirectory, setWorkingDirectory] = useState('inherit');
 	const [envVars, setEnvVars] = useState<Record<string, string>>({});
 
+	// Parse current claudeConfigOverride to get selections
+	const currentConfig = useMemo(
+		() => parseClaudeConfig(phase.claudeConfigOverride),
+		[phase.claudeConfigOverride]
+	);
+
+	const [selectedMCPServers, setSelectedMCPServers] = useState<string[]>(currentConfig.mcpServers);
+	const [selectedSkills, setSelectedSkills] = useState<string[]>(currentConfig.skillRefs);
+	const [selectedHooks, setSelectedHooks] = useState<string[]>(currentConfig.hooks);
+
+	// Update selections when phase changes
+	useEffect(() => {
+		const config = parseClaudeConfig(phase.claudeConfigOverride);
+		setSelectedMCPServers(config.mcpServers);
+		setSelectedSkills(config.skillRefs);
+		setSelectedHooks(config.hooks);
+	}, [phase.id, phase.claudeConfigOverride]);
+
 	const handleWorkingDirectoryChange = (directory: string) => {
 		setWorkingDirectory(directory);
 		autoSave('workingDirectory', directory);
@@ -1113,6 +1172,38 @@ function EnvironmentSection({
 	const handleEnvVarsChange = (vars: Record<string, string>) => {
 		setEnvVars(vars);
 		autoSave('envVars', vars);
+	};
+
+	// Helper to save updated config
+	const saveConfigUpdate = useCallback(
+		(update: Partial<{ mcpServers: string[]; skillRefs: string[]; hooks: string[] }>) => {
+			const newConfig = serializeClaudeConfig({
+				hooks: update.hooks ?? selectedHooks,
+				skillRefs: update.skillRefs ?? selectedSkills,
+				mcpServers: update.mcpServers ?? selectedMCPServers,
+				allowedTools: currentConfig.allowedTools,
+				disallowedTools: currentConfig.disallowedTools,
+				env: currentConfig.env,
+				extra: currentConfig.extra,
+			});
+			autoSave('claudeConfigOverride', newConfig);
+		},
+		[selectedHooks, selectedSkills, selectedMCPServers, currentConfig, autoSave]
+	);
+
+	const handleMCPServersChange = (names: string[]) => {
+		setSelectedMCPServers(names);
+		saveConfigUpdate({ mcpServers: names });
+	};
+
+	const handleSkillsChange = (names: string[]) => {
+		setSelectedSkills(names);
+		saveConfigUpdate({ skillRefs: names });
+	};
+
+	const handleHooksChange = (names: string[]) => {
+		setSelectedHooks(names);
+		saveConfigUpdate({ hooks: names });
 	};
 
 	const isLoading = hooksLoading || skillsLoading || mcpLoading;
@@ -1155,8 +1246,47 @@ function EnvironmentSection({
 				<p className="empty-state">None configured</p>
 			) : (
 				<div className="environment-tools">
-					<h4 className="section-title">Tools & Extensions</h4>
-					<p className="section-hint">MCP servers, skills, and hooks will be shown here</p>
+					{mcpServers.length > 0 && (
+						<div className="env-tool-section">
+							<h4 className="section-title">MCP Servers</h4>
+							<LibraryPicker
+								type="mcpServers"
+								items={mcpServers}
+								selectedNames={selectedMCPServers}
+								onSelectionChange={handleMCPServersChange}
+								loading={mcpLoading}
+								disabled={readOnly}
+							/>
+						</div>
+					)}
+
+					{skills.length > 0 && (
+						<div className="env-tool-section">
+							<h4 className="section-title">Skills</h4>
+							<LibraryPicker
+								type="skills"
+								items={skills}
+								selectedNames={selectedSkills}
+								onSelectionChange={handleSkillsChange}
+								loading={skillsLoading}
+								disabled={readOnly}
+							/>
+						</div>
+					)}
+
+					{hooks.length > 0 && (
+						<div className="env-tool-section">
+							<h4 className="section-title">Hooks</h4>
+							<LibraryPicker
+								type="hooks"
+								items={hooks}
+								selectedNames={selectedHooks}
+								onSelectionChange={handleHooksChange}
+								loading={hooksLoading}
+								disabled={readOnly}
+							/>
+						</div>
+					)}
 				</div>
 			)}
 		</div>
