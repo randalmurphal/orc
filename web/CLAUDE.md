@@ -104,6 +104,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `TaskCard` | `board/` | Compact task card. `memo()`-wrapped with memo-friendly callbacks |
 | `RunningCard` | `board/` | Active task card with pipeline + output. `memo()`-wrapped |
 | `Swimlane` | `board/` | Initiative group in queue column. `memo()`-wrapped |
+| `AttentionDashboard` | `board/` | Three-section dashboard: running tasks, attention items, queue. Error states with visual indicators for failed tasks and phases |
 | `AppShell` | `layout/` | Main layout shell. Route-aware panel rendering via `useLocation` |
 | `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
 | `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
@@ -114,6 +115,8 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `DiffViewModal` | `overlays/` | Lazygit-style full-screen diff modal: file navigation, split/unified view, vim keybinds, search/filter, accessibility |
 | `WorkflowProgress` | `task-detail/` | Visual phase progression with gate diamonds, state indicators (✓/●/○/✗), and gate type colors (auto/human/ai) |
 | `TaskFooter` | `task-detail/` | Footer with session metrics (tokens/cost), action buttons (pause/resume/cancel/retry), error display with retry options |
+| `LiveOutputPanel` | `task-detail/` | Real-time transcript streaming: WebSocket events, auto-scroll, virtual scrolling for large transcripts, message styling by type |
+| `FeedbackPanel` | `task-detail/` | Agent feedback UI: create feedback (general/inline/approval/direction), timing controls (now/when-done/manual), send pending, form validation |
 | `SettingsTabs` | `settings/` | Top-level 3-tab navigation (General, Agents, Environment) with URL-driven state |
 | `SettingsLayout` | `settings/` | General tab: 240px sidebar with CLAUDE CODE/ORC/ACCOUNT groups |
 | `EnvironmentLayout` | `pages/environment/` | Environment tab: horizontal sub-nav for hooks/skills/tools/config |
