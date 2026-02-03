@@ -74,6 +74,9 @@ Weight: {{WEIGHT}}
 Path: {{WORKTREE_PATH}}
 Branch: {{TASK_BRANCH}}
 Target: {{TARGET_BRANCH}}
+
+**Git State**: Previous phases (spec, tdd_write, implement, review) have already committed their work. The worktree is clean. Use `git log --oneline -10` to see recent commits.
+
 DO NOT push to {{TARGET_BRANCH}} or any protected branch.
 DO NOT checkout {{TARGET_BRANCH}} - stay on your task branch.
 </worktree_safety>
