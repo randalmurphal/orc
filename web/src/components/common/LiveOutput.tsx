@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAutoScroll } from '../../hooks/useAutoScroll';
 
 export interface LiveOutputProps {
@@ -20,6 +20,15 @@ interface OutputLine {
   level: 'success' | 'info' | 'error' | 'warning' | 'default';
 }
 
+// Format time as HH:MM:SS
+function formatTime(): string {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
+}
+
 export function LiveOutput({
   taskId,
   outputLines,
@@ -35,14 +44,15 @@ export function LiveOutput({
   const [searchTerm, setSearchTerm] = useState('');
   const [searchIndex, setSearchIndex] = useState(0);
   const [selectedLines, setSelectedLines] = useState<number[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const { scrollRef, scrollToBottom } = useAutoScroll({
+  const { scrollRef, isAtBottom, scrollToBottom } = useAutoScroll({
     enabled: autoScroll,
     smooth: true
   });
 
   const parseOutputLine = (line: string, _index: number): OutputLine => {
-    const timestamp = new Date().toLocaleTimeString();
+    const timestamp = formatTime();
 
     // Determine line type based on content
     let level: OutputLine['level'] = 'default';
@@ -66,6 +76,14 @@ export function LiveOutput({
   const parsedLines = useMemo(() => {
     return outputLines.map(parseOutputLine);
   }, [outputLines]);
+
+  // Calculate how many lines are hidden due to truncation
+  const hiddenLinesCount = useMemo(() => {
+    if (parsedLines.length > maxLines) {
+      return parsedLines.length - maxLines;
+    }
+    return 0;
+  }, [parsedLines.length, maxLines]);
 
   const filteredLines = useMemo(() => {
     const levelOrder: Record<string, number> = {
@@ -162,14 +180,14 @@ export function LiveOutput({
 
   if (outputLines.length === 0) {
     return (
-      <div className="flex items-center justify-center h-32 text-gray-500 bg-gray-50 rounded">
-        No output available
+      <div data-testid="live-output" data-task-id={taskId} className="flex items-center justify-center h-32 text-gray-500 bg-gray-50 rounded">
+        <span data-testid="empty-output-message">No output available</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div data-testid="live-output" data-task-id={taskId} className="space-y-2">
       {/* Controls */}
       {(searchable || allowCopy || filterByLevel) && (
         <div className="flex items-center gap-2 text-sm">
@@ -177,6 +195,7 @@ export function LiveOutput({
             <div className="flex items-center gap-1 flex-1">
               <input
                 type="text"
+                data-testid="output-search"
                 placeholder="Search output..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -184,17 +203,19 @@ export function LiveOutput({
               />
               {searchMatches.length > 0 && (
                 <div className="flex items-center gap-1">
-                  <span className="text-xs text-gray-600">
+                  <span data-testid="search-count" className="text-xs text-gray-600">
                     {searchIndex + 1} of {searchMatches.length}
                   </span>
                   <button
                     onClick={handleSearchPrev}
+                    data-testid="search-prev-btn"
                     className="px-1 py-0.5 text-xs border rounded hover:bg-gray-50"
                   >
                     ↑
                   </button>
                   <button
                     onClick={handleSearchNext}
+                    data-testid="search-next-btn"
                     className="px-1 py-0.5 text-xs border rounded hover:bg-gray-50"
                   >
                     ↓
@@ -206,6 +227,7 @@ export function LiveOutput({
 
           {filterByLevel && (
             <select
+              data-testid="level-filter"
               value={minLevel}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="px-2 py-1 border border-gray-300 rounded text-sm"
@@ -220,6 +242,7 @@ export function LiveOutput({
           {allowCopy && (
             <button
               onClick={handleCopyToClipboard}
+              data-testid="copy-output-btn"
               className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
             >
               Copy {selectedLines.length > 0 ? 'Selected' : 'All'}
@@ -228,9 +251,24 @@ export function LiveOutput({
         </div>
       )}
 
+      {/* Truncation indicator - shown before output when lines are hidden */}
+      {hiddenLinesCount > 0 && (
+        <div
+          data-testid="truncation-indicator"
+          className="text-center text-gray-500 text-xs py-1 bg-gray-100 rounded"
+        >
+          ... {hiddenLinesCount} earlier lines hidden
+        </div>
+      )}
+
       {/* Output container */}
       <div
-        ref={scrollRef}
+        ref={(el) => {
+          // Assign to both refs
+          (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+          (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+        }}
+        data-testid="output-container"
         className="bg-gray-900 text-gray-100 p-3 rounded font-mono text-sm overflow-y-auto max-h-64"
         style={{ scrollBehavior: 'smooth' }}
       >
@@ -242,19 +280,20 @@ export function LiveOutput({
           return (
             <div
               key={`${taskId}-line-${index}`}
-              className={`flex items-start gap-2 py-0.5 hover:bg-gray-800 cursor-pointer ${
-                isSelected ? 'bg-blue-900' : ''
+              data-testid={isSearchMatch ? 'highlighted-line' : 'output-line'}
+              className={`flex items-start gap-2 py-0.5 hover:bg-gray-800 cursor-pointer ${getLineColor(line.level)} ${
+                isSelected ? 'bg-blue-50 border-l-4 border-blue-400' : ''
               } ${
                 isCurrentSearchMatch ? 'bg-yellow-900' : ''
               }`}
               onClick={() => handleLineSelect(index)}
             >
               {showTimestamps && (
-                <span className="text-gray-500 text-xs shrink-0 w-16">
+                <span data-testid="output-timestamp" className="text-gray-500 text-xs shrink-0 w-16">
                   {line.timestamp}
                 </span>
               )}
-              <span className={`${getLineColor(line.level)} break-all`}>
+              <span className="break-all">
                 {isSearchMatch && searchTerm ? (
                   <span
                     dangerouslySetInnerHTML={{
@@ -271,13 +310,18 @@ export function LiveOutput({
             </div>
           );
         })}
-
-        {outputLines.length > maxLines && (
-          <div className="text-center text-gray-500 text-xs mt-2 border-t border-gray-700 pt-2">
-            Showing last {maxLines} of {outputLines.length} lines
-          </div>
-        )}
       </div>
+
+      {/* Scroll to bottom button - shown when user has scrolled up */}
+      {autoScroll && !isAtBottom && (
+        <button
+          data-testid="scroll-to-bottom-btn"
+          onClick={scrollToBottom}
+          className="w-full py-1 text-xs text-center bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+        >
+          ↓ Scroll to bottom
+        </button>
+      )}
 
       {selectedLines.length > 0 && selectable && (
         <div className="text-xs text-gray-600">
