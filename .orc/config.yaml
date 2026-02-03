@@ -211,7 +211,7 @@ automation:
     global_cooldown: 30m0s
     max_concurrent: 1
     default_mode: auto
-model: claude-sonnet-4-20250514
+model: opus
 max_iterations: 30
 timeout: 10m0s
 branch_prefix: orc/
