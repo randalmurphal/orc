@@ -11,11 +11,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import './AttentionDashboard.css';
 import { useCurrentProjectId } from '@/stores/projectStore';
-// TODO: Fix Connect service type issues and re-enable these imports
-// import { createConnectTransport } from '@connectrpc/connect-web';
-// import { createClient } from '@connectrpc/connect';
-// import { AttentionDashboardService } from '@/gen/orc/v1/attention_dashboard_connect';
+import { attentionDashboardClient } from '@/lib/client';
 import type {
 	GetAttentionDashboardDataResponse,
 	RunningTask,
@@ -25,6 +23,7 @@ import type {
 } from '@/gen/orc/v1/attention_dashboard_pb';
 import {
 	AttentionAction,
+	AttentionItemType,
 	PhaseStepStatus,
 } from '@/gen/orc/v1/attention_dashboard_pb';
 import type { TaskPriority, TaskCategory } from '@/gen/orc/v1/task_pb';
@@ -38,12 +37,7 @@ interface CollapsedState {
 	[swimlaneId: string]: boolean;
 }
 
-// TODO: Fix Connect service type issues and re-enable
-// Create Connect client
-// const transport = createConnectTransport({
-// 	baseUrl: '/api',
-// });
-// const client = createClient(AttentionDashboardService as any, transport);
+// Use centralized client from @/lib/client
 
 /**
  * AttentionDashboard component - implements attention management dashboard
@@ -64,26 +58,9 @@ export function AttentionDashboard({ className }: AttentionDashboardProps) {
 			setLoading(true);
 			setError(null);
 
-			// TODO: Fix Connect service type issues
-			// const response = await (client as any).getAttentionDashboardData({
-			//   projectId,
-			// });
-
-			// Mock response for now to avoid type issues
-			const response = {
-				$typeName: 'orc.v1.GetAttentionDashboardDataResponse',
-				blockedTasks: [],
-				pendingDecisions: [],
-				runningTasks: [],
-				queuedTasks: [],
-				stats: {
-					$typeName: 'orc.v1.DashboardStats',
-					totalTasks: 0,
-					completedTasks: 0,
-					blockedTasks: 0,
-					runningTasks: 0,
-				}
-			} as any;
+			const response = await attentionDashboardClient.getAttentionDashboardData({
+				projectId,
+			});
 
 			setDashboardData(response);
 		} catch (err) {
@@ -301,9 +278,15 @@ interface RunningTaskCardProps {
 }
 
 function RunningTaskCard({ task, expanded, onClick, onToggle }: RunningTaskCardProps) {
+	// Check if any phase has failed
+	const hasFailures = task.phaseProgress?.steps.some(step => step.status === PhaseStepStatus.FAILED) || false;
+
 	return (
 		<div
-			className={cn('running-card', { expanded })}
+			className={cn('running-card', {
+				expanded,
+				'has-failures': hasFailures
+			})}
 			onClick={(e) => {
 				e.stopPropagation();
 				onToggle();
@@ -371,11 +354,15 @@ function PhasePipeline({ progress }: PhasePipelineProps) {
 						active: step.status === PhaseStepStatus.ACTIVE,
 						completed: step.status === PhaseStepStatus.COMPLETED,
 						failed: step.status === PhaseStepStatus.FAILED,
+						pending: step.status === PhaseStepStatus.PENDING,
 					})}
 				>
 					<span className="step-name">
 						{step.name.charAt(0).toUpperCase() + step.name.slice(1)}
 					</span>
+					{step.status === PhaseStepStatus.FAILED && (
+						<span className="error-indicator" title="Phase failed">⚠</span>
+					)}
 				</div>
 			))}
 		</div>
@@ -413,8 +400,22 @@ interface AttentionItemCardProps {
 }
 
 function AttentionItemCard({ item, onTaskClick }: AttentionItemCardProps) {
+	// Get type-specific styling class
+	const getTypeClass = (type: typeof item.type) => {
+		switch (type) {
+			case AttentionItemType.FAILED_TASK:
+				return 'failed-task';
+			case AttentionItemType.ERROR_STATE:
+				return 'error-state';
+			case AttentionItemType.BLOCKED_TASK:
+				return 'blocked-task';
+			default:
+				return 'normal';
+		}
+	};
+
 	return (
-		<div className={cn('attention-item', getPriorityClass(item.priority))}>
+		<div className={cn('attention-item', getPriorityClass(item.priority), getTypeClass(item.type))}>
 			<div className="item-header">
 				<span className="task-id">{item.taskId}</span>
 				<span className={cn('priority-badge', getPriorityClass(item.priority))}>
@@ -424,6 +425,14 @@ function AttentionItemCard({ item, onTaskClick }: AttentionItemCardProps) {
 
 			<h3 className="item-title">{item.title}</h3>
 			<p className="item-description">{item.description}</p>
+
+			{/* Show error message if available */}
+			{item.errorMessage && (
+				<div className="error-message">
+					<span className="error-icon">⚠</span>
+					<span>{item.errorMessage}</span>
+				</div>
+			)}
 
 			<div className="item-actions">
 				{item.availableActions.includes(AttentionAction.VIEW) && (

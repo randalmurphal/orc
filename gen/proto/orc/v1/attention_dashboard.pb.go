@@ -664,6 +664,7 @@ type AttentionItem struct {
 	DecisionOptions []*DecisionOption `protobuf:"bytes,9,rep,name=decision_options,json=decisionOptions,proto3" json:"decision_options,omitempty"` // For decisions
 	BlockedReason   string            `protobuf:"bytes,10,opt,name=blocked_reason,json=blockedReason,proto3" json:"blocked_reason,omitempty"`      // For blocked tasks
 	GateQuestion    string            `protobuf:"bytes,11,opt,name=gate_question,json=gateQuestion,proto3" json:"gate_question,omitempty"`         // For gate approvals
+	ErrorMessage    string            `protobuf:"bytes,12,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`         // For failed tasks and error states
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -771,6 +772,13 @@ func (x *AttentionItem) GetBlockedReason() string {
 func (x *AttentionItem) GetGateQuestion() string {
 	if x != nil {
 		return x.GateQuestion
+	}
+	return ""
+}
+
+func (x *AttentionItem) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
 	}
 	return ""
 }
@@ -1596,7 +1604,7 @@ const file_orc_v1_attention_dashboard_proto_rawDesc = "" +
 	"\x05steps\x18\x02 \x03(\v2\x11.orc.v1.PhaseStepR\x05steps\"P\n" +
 	"\tPhaseStep\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x17.orc.v1.PhaseStepStatusR\x06status\"\xe1\x03\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x17.orc.v1.PhaseStepStatusR\x06status\"\x86\x04\n" +
 	"\rAttentionItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12-\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x19.orc.v1.AttentionItemTypeR\x04type\x12\x17\n" +
@@ -1610,7 +1618,8 @@ const file_orc_v1_attention_dashboard_proto_rawDesc = "" +
 	"\x10decision_options\x18\t \x03(\v2\x16.orc.v1.DecisionOptionR\x0fdecisionOptions\x12%\n" +
 	"\x0eblocked_reason\x18\n" +
 	" \x01(\tR\rblockedReason\x12#\n" +
-	"\rgate_question\x18\v \x01(\tR\fgateQuestion\"\xa6\x01\n" +
+	"\rgate_question\x18\v \x01(\tR\fgateQuestion\x12#\n" +
+	"\rerror_message\x18\f \x01(\tR\ferrorMessage\"\xa6\x01\n" +
 	"\fQueueSummary\x12\x1d\n" +
 	"\n" +
 	"task_count\x18\x01 \x01(\x05R\ttaskCount\x128\n" +

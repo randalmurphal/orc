@@ -1,0 +1,233 @@
+/**
+ * AttentionDashboard CSS - Error State Styling
+ * TASK-744: Add error states to Board task cards
+ */
+
+/* Error indicators for running task cards */
+.running-card.has-failures {
+  border-left: 4px solid #ef4444;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, transparent 10%);
+}
+
+.running-card.has-failures .card-header {
+  position: relative;
+}
+
+.running-card.has-failures .card-header::after {
+  content: "⚠";
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: #ef4444;
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* Phase pipeline error states */
+.pipeline-step.failed {
+  background-color: #fef2f2;
+  border: 2px solid #fecaca;
+  color: #dc2626;
+}
+
+.pipeline-step.failed .step-name {
+  font-weight: 600;
+}
+
+.pipeline-step.failed .error-indicator {
+  color: #dc2626;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.pipeline-step.active {
+  background-color: #dbeafe;
+  border: 2px solid #93c5fd;
+  color: #1d4ed8;
+}
+
+.pipeline-step.completed {
+  background-color: #f0fdf4;
+  border: 2px solid #bbf7d0;
+  color: #166534;
+}
+
+.pipeline-step.pending {
+  background-color: #f9fafb;
+  border: 2px solid #d1d5db;
+  color: #6b7280;
+}
+
+.pipeline-step {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+}
+
+/* Attention item error states */
+.attention-item.failed-task {
+  background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+  border: 1px solid #fecaca;
+  border-left: 4px solid #ef4444;
+}
+
+.attention-item.failed-task .item-title {
+  color: #dc2626;
+}
+
+.attention-item.error-state {
+  background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+  border: 1px solid #fed7aa;
+  border-left: 4px solid #f59e0b;
+}
+
+.attention-item.error-state .item-title {
+  color: #d97706;
+}
+
+.attention-item.blocked-task {
+  background: linear-gradient(135deg, #f3f4f6 0%, #ffffff 100%);
+  border: 1px solid #d1d5db;
+  border-left: 4px solid #6b7280;
+}
+
+/* Error message display */
+.error-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.error-message .error-icon {
+  color: #dc2626;
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.error-message span:last-child {
+  color: #7f1d1d;
+  flex: 1;
+}
+
+/* Priority indicators with error state compatibility */
+.attention-item .priority-badge {
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.attention-item .priority-badge.critical {
+  background-color: #7c2d12;
+  color: white;
+}
+
+.attention-item .priority-badge.high {
+  background-color: #dc2626;
+  color: white;
+}
+
+.attention-item .priority-badge.normal {
+  background-color: #6b7280;
+  color: white;
+}
+
+.attention-item .priority-badge.low {
+  background-color: #9ca3af;
+  color: white;
+}
+
+/* Enhanced action buttons for error states */
+.attention-item.failed-task .action-btn.primary,
+.attention-item.error-state .action-btn.primary {
+  background-color: #dc2626;
+  border-color: #dc2626;
+}
+
+.attention-item.failed-task .action-btn.primary:hover,
+.attention-item.error-state .action-btn.primary:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.attention-item.failed-task .action-btn.secondary,
+.attention-item.error-state .action-btn.secondary {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.attention-item.failed-task .action-btn.secondary:hover,
+.attention-item.error-state .action-btn.secondary:hover {
+  background-color: #fef2f2;
+  border-color: #b91c1c;
+}
+
+/* Animation for error indicators */
+@keyframes pulse-error {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.running-card.has-failures .card-header::after {
+  animation: pulse-error 2s ease-in-out infinite;
+}
+
+.pipeline-step.failed .error-indicator {
+  animation: pulse-error 2s ease-in-out infinite;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .running-card.has-failures {
+    border-left-width: 6px;
+    border-left-color: #000;
+  }
+
+  .pipeline-step.failed {
+    border-width: 3px;
+    border-color: #000;
+    background-color: #fff;
+    color: #000;
+  }
+
+  .attention-item.failed-task,
+  .attention-item.error-state {
+    border-width: 2px;
+    border-left-width: 6px;
+    border-color: #000;
+  }
+
+  .error-message {
+    border-width: 2px;
+    border-color: #000;
+    background-color: #fff;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .running-card.has-failures .card-header::after,
+  .pipeline-step.failed .error-indicator {
+    animation: none;
+  }
+
+  .pipeline-step {
+    transition: none;
+  }
+}

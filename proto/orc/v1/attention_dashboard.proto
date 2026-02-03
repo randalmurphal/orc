@@ -81,6 +81,7 @@ message AttentionItem {
   repeated DecisionOption decision_options = 9; // For decisions
   string blocked_reason = 10; // For blocked tasks
   string gate_question = 11; // For gate approvals
+  string error_message = 12; // For failed tasks and error states
 }
 
 // Types of attention items
