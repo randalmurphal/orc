@@ -424,19 +424,15 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 	// SC-3: Error messages are displayed in attention items
 	describe('SC-3: Error messages in attention items', () => {
 		it('displays detailed error messages for attention items', async () => {
-			const errorAttentionItem: AttentionItem = {
-				$typeName: 'orc.v1.AttentionItem',
+			const errorAttentionItem = createMockAttentionItem({
 				id: 'error-001',
 				type: AttentionItemType.ERROR_STATE,
 				taskId: 'TASK-006',
 				title: 'Configuration Error',
 				description: 'System configuration is invalid and needs correction',
 				priority: TaskPriority.CRITICAL,
-				createdAt: createTimestamp(),
-				availableActions: [],
-				decisionOptions: [],
 				errorMessage: 'Invalid API key configuration in settings.yaml line 42',
-			};
+			});
 
 			const mockClient = await import('@/lib/client');
 			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
@@ -527,15 +523,10 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 			const retryButton = screen.getByRole('button', { name: /retry/i });
 			expect(retryButton).toBeInTheDocument();
 
-			// Mock the retry action
-			const mockRetryAction = vi.fn();
-			vi.mock('@/lib/attention-actions', () => ({
-				performAttentionAction: mockRetryAction,
-			}));
-
+			// Verify retry button is clickable (action handler testing would require component refactor)
 			fireEvent.click(retryButton);
 
-			// Should trigger retry action (implementation will call API)
+			// Button should remain after click (not disappear)
 			expect(retryButton).toBeInTheDocument();
 		});
 	});
