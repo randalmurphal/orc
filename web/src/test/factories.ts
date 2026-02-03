@@ -96,6 +96,12 @@ import {
 	MCPServerInfoSchema,
 	type MCPServerInfo,
 } from '@/gen/orc/v1/mcp_pb';
+import {
+	FeedbackSchema,
+	type Feedback,
+	FeedbackType,
+	FeedbackTiming,
+} from '@/gen/orc/v1/feedback_pb';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 
 /**
@@ -522,4 +528,23 @@ export function createMockUpdatePhaseTemplateResponse(template: PhaseTemplate): 
  */
 export function createMockCreatePhaseTemplateResponse(template: PhaseTemplate): CreatePhaseTemplateResponse {
 	return create(CreatePhaseTemplateResponseSchema, { template });
+}
+
+/**
+ * Create a mock Feedback with proto-compatible types
+ */
+export function createMockFeedback(overrides: Partial<Omit<Feedback, '$typeName' | '$unknown'>> = {}): Feedback {
+	const base = create(FeedbackSchema, {
+		id: 'feedback-001',
+		taskId: 'TASK-001',
+		type: FeedbackType.GENERAL,
+		text: 'Test feedback',
+		timing: FeedbackTiming.WHEN_DONE,
+		file: '',
+		line: 0,
+		received: false,
+		sentAt: createTimestamp('2024-01-01T00:00:00Z'),
+		createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+	});
+	return Object.assign(base, overrides);
 }

@@ -21,6 +21,7 @@ import { HostingService } from '@/gen/orc/v1/hosting_pb';
 import { DecisionService } from '@/gen/orc/v1/decision_pb';
 import { NotificationService } from '@/gen/orc/v1/notification_pb';
 import { MCPService } from '@/gen/orc/v1/mcp_pb';
+import { FeedbackService } from '@/gen/orc/v1/feedback_pb';
 
 /**
  * Connect transport configured for the orc API.
@@ -45,3 +46,4 @@ export const hostingClient = createClient(HostingService, transport);
 export const decisionClient = createClient(DecisionService, transport);
 export const notificationClient = createClient(NotificationService, transport);
 export const mcpClient = createClient(MCPService, transport);
+export const feedbackClient = createClient(FeedbackService, transport);
