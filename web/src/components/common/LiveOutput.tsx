@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAutoScroll } from '../../hooks/useAutoScroll';
 
 export interface LiveOutputProps {
@@ -39,6 +39,25 @@ function parseFileReference(content: string): { filePath: string; line?: number 
   return null;
 }
 
+// Escape special regex characters to prevent ReDoS and ensure literal matching
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Safely highlight search matches without XSS vulnerability
+function highlightSearchTerm(text: string, term: string): React.ReactNode {
+  if (!term) return text;
+
+  const escapedTerm = escapeRegex(term);
+  const parts = text.split(new RegExp(`(${escapedTerm})`, 'gi'));
+
+  return parts.map((part, i) =>
+    part.toLowerCase() === term.toLowerCase()
+      ? <mark key={i} className="bg-yellow-300 text-black">{part}</mark>
+      : part
+  );
+}
+
 export function LiveOutput({
   taskId,
   outputLines,
@@ -57,7 +76,6 @@ export function LiveOutput({
   const [selectedLines, setSelectedLines] = useState<number[]>([]);
   const [copySuccess, setCopySuccess] = useState(false);
   const [internalMinLevel, setInternalMinLevel] = useState(minLevel);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const { scrollRef, isAtBottom, scrollToBottom } = useAutoScroll({
     enabled: autoScroll,
@@ -337,15 +355,7 @@ export function LiveOutput({
 
       {/* Output container */}
       <div
-        ref={(el) => {
-          // Assign to both refs using type assertion
-          if (scrollRef && 'current' in scrollRef) {
-            (scrollRef as { current: HTMLDivElement | null }).current = el;
-          }
-          if (containerRef && 'current' in containerRef) {
-            (containerRef as { current: HTMLDivElement | null }).current = el;
-          }
-        }}
+        ref={scrollRef}
         data-testid="output-container"
         className="bg-gray-900 text-gray-100 p-3 rounded font-mono text-sm overflow-y-auto max-h-64"
         style={{ scrollBehavior: 'smooth' }}
@@ -374,14 +384,10 @@ export function LiveOutput({
               )}
               <span className="break-all flex-1">
                 {isSearchMatch && searchTerm ? (
-                  <span
-                    dangerouslySetInnerHTML={{
-                      __html: line.content.replace(
-                        new RegExp(searchTerm, 'gi'),
-                        '<mark class="bg-yellow-300 text-black">$&</mark>'
-                      )
-                    }}
-                  />
+                  highlightSearchTerm(
+                    line.content.length > 2000 ? line.content.substring(0, 2000) + '...' : line.content,
+                    searchTerm
+                  )
                 ) : (
                   line.content.length > 2000 ? line.content.substring(0, 2000) + '...' : line.content
                 )}
