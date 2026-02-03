@@ -4,8 +4,8 @@ import { TaskDetail } from './TaskDetail';
 import '@testing-library/jest-dom';
 
 // Mock the enhanced changes tab
-vi.mock('@/components/task-detail/ChangesTab', () => ({
-  ChangesTab: ({ taskId }: any) => (
+vi.mock('@/components/task-detail/ChangesTabEnhanced', () => ({
+  ChangesTabEnhanced: ({ taskId }: any) => (
     <div data-testid="changes-tab">
       <div data-testid="enhanced-file-panel">
         <button data-testid="file-button">src/app.ts</button>
