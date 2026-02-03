@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { TaskDetail } from './TaskDetail';
 import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import { createMockTask, createMockTaskPlan, createMockFeedback } from '@/test/factories';
@@ -56,13 +56,16 @@ vi.mock('@/hooks', () => ({
 
 vi.mock('@/stores/taskStore', () => ({
 	useTask: () => null,
+	useTaskState: () => null,
 }));
 
 // Helper to render TaskDetail with router context
 function renderTaskDetail(taskId: string = 'TASK-123') {
 	return render(
 		<MemoryRouter initialEntries={[`/tasks/${taskId}`]}>
-			<TaskDetail />
+			<Routes>
+				<Route path="/tasks/:id" element={<TaskDetail />} />
+			</Routes>
 		</MemoryRouter>
 	);
 }
@@ -157,10 +160,9 @@ describe('TaskDetail - FeedbackPanel Integration', () => {
 			expect(screen.getByText('Test Task for Feedback')).toBeInTheDocument();
 		});
 
-		// Select NOW timing
+		// Select NOW timing - use selectOptions for native <select> element
 		const timingSelect = screen.getByLabelText(/timing/i);
-		await user.click(timingSelect);
-		await user.click(screen.getByText('Send Now'));
+		await user.selectOptions(timingSelect, '1');  // 1 = FeedbackTiming.NOW
 
 		// Create feedback
 		await user.type(screen.getByLabelText(/feedback text/i), 'Stop and fix this');
@@ -267,6 +269,7 @@ describe('TaskDetail - FeedbackPanel Integration', () => {
 	it('conditionally shows feedback panel based on task status', async () => {
 		const completedTask = createMockTask({
 			id: 'TASK-123',
+			title: 'Test Task for Feedback',
 			status: TaskStatus.COMPLETED,
 		});
 
