@@ -516,21 +516,6 @@ export function FileList({
         // Only show children if directory is expanded
         if (localExpandedDirs.has(child.path)) {
           items.push(...renderTreeNode(child, depth + 1));
-        } else {
-          // For tree view, render collapsed children but hide them to support .not.toBeVisible() tests
-          const hiddenChildItems = renderTreeNode(child, depth + 1);
-          const hiddenChildren = hiddenChildItems.map((childItem, index) => {
-            const element = childItem as React.ReactElement<{ style?: React.CSSProperties; 'aria-hidden'?: boolean }>;
-            return React.cloneElement(element, {
-              key: `hidden-${element.key || child.path}-${index}`,
-              style: {
-                ...(element.props.style || {}),
-                display: 'none'
-              },
-              'aria-hidden': true
-            });
-          });
-          items.push(...hiddenChildren);
         }
       });
 

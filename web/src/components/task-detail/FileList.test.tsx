@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { FileList } from './FileList';
 import type { FileDiff, DiffStats } from '@/gen/orc/v1/common_pb';
 import '@testing-library/jest-dom';
@@ -266,9 +266,11 @@ describe('FileList', () => {
       render(<FileList {...defaultProps} onFileSelect={onFileSelect} />);
 
       const firstFile = screen.getByTestId('file-src/components/ui/Button.tsx');
-      firstFile.focus();
 
-      fireEvent.keyDown(firstFile, { key: 'Enter' });
+      await act(async () => {
+        firstFile.focus();
+        fireEvent.keyDown(firstFile, { key: 'Enter' });
+      });
 
       expect(onFileSelect).toHaveBeenCalledWith('src/components/ui/Button.tsx');
     });
@@ -277,20 +279,24 @@ describe('FileList', () => {
       render(<FileList {...defaultProps} viewMode="tree" />);
 
       const srcDir = screen.getByTestId('directory-src');
-      srcDir.focus();
 
       // Right arrow should expand
-      fireEvent.keyDown(srcDir, { key: 'ArrowRight' });
+      await act(async () => {
+        srcDir.focus();
+        fireEvent.keyDown(srcDir, { key: 'ArrowRight' });
+      });
 
       await waitFor(() => {
         expect(screen.getByText('components/')).toBeVisible();
       });
 
       // Left arrow should collapse
-      fireEvent.keyDown(srcDir, { key: 'ArrowLeft' });
+      await act(async () => {
+        fireEvent.keyDown(srcDir, { key: 'ArrowLeft' });
+      });
 
       await waitFor(() => {
-        expect(screen.queryByText('components/')).not.toBeVisible();
+        expect(screen.queryByText('components/')).not.toBeInTheDocument();
       });
     });
 
