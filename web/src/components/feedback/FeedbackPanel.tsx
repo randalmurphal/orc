@@ -102,7 +102,7 @@ export function FeedbackPanel({
 		loadPendingFeedback();
 	}, [loadPendingFeedback]);
 
-	const handleInputChange = useCallback((field: keyof FeedbackFormData, value: any) => {
+	const handleInputChange = useCallback((field: keyof FeedbackFormData, value: string | FeedbackType | FeedbackTiming | number) => {
 		setFormData(prev => ({ ...prev, [field]: value }));
 	}, []);
 

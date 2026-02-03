@@ -232,7 +232,7 @@ export function TaskDetail() {
 							taskId={task.id}
 							projectId={projectId}
 							isTaskRunning={task.status === TaskStatus.RUNNING}
-							onFeedbackAdded={(feedback) => {
+							onFeedbackAdded={(_feedback) => {
 								// DEBUG:('Feedback added:', feedback);
 							}}
 							onTaskPaused={() => {
