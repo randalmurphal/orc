@@ -1,41 +1,39 @@
 /* eslint-disable react-refresh/only-export-components */
 /**
- * RunningCard - Expanded card component for actively executing tasks.
+ * RunningCard - Enhanced card component for actively executing tasks with real-time progress updates.
  *
  * Displays rich execution context including:
  * - Header with task ID, title, initiative badge, phase name, elapsed timer
+ * - Real-time activity indicators with current state
  * - Pipeline visualization showing current phase progress
- * - Collapsible output section with color-coded lines
+ * - Live output section with color-coded lines
+ * - Session metrics including tokens, cost, and duration
  */
 
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { Pipeline } from './Pipeline';
+import { ActivityIndicator } from '../common/ActivityIndicator';
+import { RealTimeMetrics } from '../common/RealTimeMetrics';
+import { LiveOutput } from '../common/LiveOutput';
 import { type Task, type ExecutionState, PhaseStatus } from '@/gen/orc/v1/task_pb';
 import { timestampToDate } from '@/lib/time';
+import { useTaskStore } from '@/stores/taskStore';
 import './RunningCard.css';
 
 export interface RunningCardProps {
 	/** The task being displayed */
 	task: Task;
 	/** Current execution state of the task (from WebSocket or task.execution) */
-	state?: ExecutionState;
+	executionState?: ExecutionState;
 	/** Whether the output section is expanded */
-	expanded?: boolean;
+	isExpanded?: boolean;
 	/** Callback when card is clicked to toggle expand */
-	onToggleExpand?: () => void;
-	/** Output lines to display (passed from parent, typically via WebSocket) */
-	outputLines?: string[];
+	onToggleExpand?: (taskId: string) => void;
 	/** Additional CSS class names */
 	className?: string;
 	/** Number of pending decisions for this task */
 	pendingDecisionCount?: number;
-}
-
-/** Output line with type for color coding */
-export interface OutputLine {
-	type: 'success' | 'error' | 'info' | 'default';
-	content: string;
 }
 
 /** Standard 5 phases for pipeline display */
@@ -45,8 +43,11 @@ const DISPLAY_PHASES = ['Plan', 'Code', 'Test', 'Review', 'Done'];
 function mapPhaseToDisplay(phase: string): string {
 	const mapping: Record<string, string> = {
 		spec: 'Plan',
+		tiny_spec: 'Plan',
 		design: 'Plan',
 		research: 'Plan',
+		tdd_write: 'Plan',
+		breakdown: 'Plan',
 		implement: 'Code',
 		review: 'Review',
 		test: 'Test',
@@ -56,11 +57,10 @@ function mapPhaseToDisplay(phase: string): string {
 	return mapping[phase.toLowerCase()] || phase;
 }
 
-/** Get completed phases based on task state */
-function getCompletedPhases(state: ExecutionState | undefined): string[] {
+/** Get completed phases based on execution state */
+function getCompletedPhases(executionState: ExecutionState | undefined): string[] {
 	const completed: string[] = [];
-	if (!state) return completed;
-	const phases = state.phases || {};
+	const phases = executionState?.phases || {};
 
 	for (const [phaseName, phaseState] of Object.entries(phases)) {
 		if (phaseState.status === PhaseStatus.COMPLETED) {
@@ -92,34 +92,8 @@ function formatElapsedTime(startedAt: Date | null): string {
 	return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-/** Parse output content and determine line type */
-function parseOutputLine(line: string): OutputLine {
-	const trimmed = line.trim();
-
-	// Success: lines with checkmarks or containing 'success'
-	if (trimmed.startsWith('✓') || trimmed.toLowerCase().includes('success')) {
-		return { type: 'success', content: line };
-	}
-
-	// Error: lines with X marks or containing 'error'/'fail'
-	if (
-		trimmed.startsWith('✗') ||
-		trimmed.toLowerCase().includes('error') ||
-		trimmed.toLowerCase().includes('fail')
-	) {
-		return { type: 'error', content: line };
-	}
-
-	// Info: lines with arrows or containing 'info'
-	if (trimmed.startsWith('→') || trimmed.startsWith('◐') || trimmed.toLowerCase().includes('info')) {
-		return { type: 'info', content: line };
-	}
-
-	return { type: 'default', content: line };
-}
-
 /** Build accessible aria-label for running card */
-function buildAriaLabel(task: Task, expanded: boolean): string {
+function buildAriaLabel(task: Task, isExpanded: boolean): string {
 	const rawPhase = task.currentPhase || 'starting';
 	const displayPhase = mapPhaseToDisplay(rawPhase);
 	const parts = [`Running task ${task.id}: ${task.title}`, `phase: ${displayPhase}`];
@@ -128,23 +102,29 @@ function buildAriaLabel(task: Task, expanded: boolean): string {
 		parts.push(`initiative: ${task.initiativeId}`);
 	}
 
-	parts.push(expanded ? 'expanded' : 'collapsed');
+	parts.push(isExpanded ? 'expanded' : 'collapsed');
 
 	return parts.join(', ');
 }
 
 /**
- * RunningCard component for displaying active task execution.
+ * RunningCard component for displaying active task execution with real-time updates.
  */
 export const RunningCard = memo(function RunningCard({
 	task,
-	state,
-	expanded = false,
+	executionState,
+	isExpanded = false,
 	onToggleExpand,
-	outputLines: rawOutputLines = [],
 	className = '',
 	pendingDecisionCount = 0,
 }: RunningCardProps) {
+	const {
+		getTaskActivity,
+		getTaskOutputLines,
+		getSessionMetrics,
+		getPhaseProgress
+	} = useTaskStore();
+
 	// Get started timestamp from task (proto Timestamp -> Date)
 	const startedAt = useMemo(() => timestampToDate(task.startedAt), [task.startedAt]);
 
@@ -175,39 +155,35 @@ export const RunningCard = memo(function RunningCard({
 	}, [task.currentPhase]);
 
 	// Completed phases for pipeline
-	const completedPhases = useMemo(() => getCompletedPhases(state), [state]);
+	const completedPhases = useMemo(() => getCompletedPhases(executionState), [executionState]);
 
-	// Parse raw output lines into typed output lines with color coding
-	const parsedOutputLines = useMemo(() => {
-		return rawOutputLines.map(parseOutputLine);
-	}, [rawOutputLines]);
-
-	// Slice to last 50 lines — memoized to avoid recomputing on every render
-	const visibleOutputLines = useMemo(() => {
-		return parsedOutputLines.slice(-50);
-	}, [parsedOutputLines]);
+	// Get real-time data from stores
+	const taskActivity = getTaskActivity(task.id);
+	const outputLines = getTaskOutputLines(task.id) || [];
+	const sessionMetrics = getSessionMetrics(task.id);
+	const phaseProgress = getPhaseProgress(task.id);
 
 	// Click handler
 	const handleClick = useCallback(() => {
-		onToggleExpand?.();
-	}, [onToggleExpand]);
+		onToggleExpand?.(task.id);
+	}, [onToggleExpand, task.id]);
 
 	// Keyboard handler for accessibility
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (e.key === 'Enter' || e.key === ' ') {
 				e.preventDefault();
-				onToggleExpand?.();
+				onToggleExpand?.(task.id);
 			}
 		},
-		[onToggleExpand]
+		[onToggleExpand, task.id]
 	);
 
 	// Build class names
 	const hasPendingDecision = pendingDecisionCount > 0;
 	const cardClasses = [
 		'running-card',
-		expanded && 'expanded',
+		isExpanded && 'expanded',
 		hasPendingDecision && 'has-pending-decision',
 		className
 	].filter(Boolean).join(' ');
@@ -220,8 +196,8 @@ export const RunningCard = memo(function RunningCard({
 			onKeyDown={handleKeyDown}
 			tabIndex={0}
 			role="button"
-			aria-label={buildAriaLabel(task, expanded)}
-			aria-expanded={expanded}
+			aria-label={buildAriaLabel(task, isExpanded)}
+			aria-expanded={isExpanded}
 		>
 			{/* Header */}
 			<div className="running-header">
@@ -241,6 +217,17 @@ export const RunningCard = memo(function RunningCard({
 				</div>
 			</div>
 
+			{/* Real-time Activity Indicator */}
+			{taskActivity && (
+				<div className="running-activity">
+					<ActivityIndicator
+						activity={taskActivity.activity.toString()}
+						phase={taskActivity.phase}
+						className="mb-2"
+					/>
+				</div>
+			)}
+
 			{/* Pipeline */}
 			<div className="running-card__pipeline">
 				<Pipeline
@@ -251,26 +238,69 @@ export const RunningCard = memo(function RunningCard({
 				/>
 			</div>
 
-			{/* Output section (collapsible) */}
-			<div className={`running-output ${expanded ? 'expanded' : ''}`}>
-				{visibleOutputLines.length > 0 ? (
-					visibleOutputLines.map((line, index) => (
-						<span key={`line-${index}`} className={`output-line ${line.type}`}>
-							{line.content}
-						</span>
-					))
-				) : (
-					<span className="output-line output-empty">No output yet</span>
-				)}
-			</div>
+			{/* Session Metrics (when expanded) */}
+			{isExpanded && sessionMetrics && (
+				<div className="running-metrics">
+					<RealTimeMetrics
+						taskId={task.id}
+						sessionMetrics={sessionMetrics}
+						phaseProgress={phaseProgress}
+						showDetailed={false}
+					/>
+				</div>
+			)}
+
+			{/* Live Output section (when expanded) */}
+			{isExpanded && (
+				<div className="running-output-section">
+					<LiveOutput
+						taskId={task.id}
+						outputLines={outputLines}
+						maxLines={50}
+						showTimestamps={false}
+						autoScroll={true}
+						searchable={false}
+						allowCopy={true}
+					/>
+				</div>
+			)}
 
 			{/* Expand toggle indicator */}
 			<div className="running-expand-toggle" aria-hidden="true">
-				<Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={12} />
+				<Icon name={isExpanded ? 'chevron-up' : 'chevron-down'} size={12} />
 			</div>
 		</article>
 	);
 });
 
+/** Output line type classification */
+export interface OutputLine {
+	type: 'success' | 'error' | 'info' | 'default';
+	content: string;
+}
+
+/** Parse output line and classify by content */
+function parseOutputLine(line: string): OutputLine {
+	const content = line.trim();
+
+	// Success patterns
+	if (content.includes('✓') || /\b(success|successful|completed|passed)\b/i.test(content)) {
+		return { type: 'success', content };
+	}
+
+	// Error patterns
+	if (content.includes('✗') || /\b(error|failed?|exception)\b/i.test(content)) {
+		return { type: 'error', content };
+	}
+
+	// Info patterns (arrows, spinners, processing indicators)
+	if (content.includes('→') || content.includes('◐') || /\b(processing|running|analyzing)\b/i.test(content)) {
+		return { type: 'info', content };
+	}
+
+	// Default
+	return { type: 'default', content };
+}
+
 // Export utilities for parent components
-export { parseOutputLine, formatElapsedTime, mapPhaseToDisplay };
+export { formatElapsedTime, mapPhaseToDisplay, parseOutputLine };
