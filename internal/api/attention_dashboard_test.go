@@ -62,7 +62,7 @@ func TestGetAttentionDashboardData_ReturnsThreeSections(t *testing.T) {
 	require.NoError(t, backend.SaveTask(blockedTask))
 	require.NoError(t, backend.SaveTask(queuedTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -115,7 +115,7 @@ func TestGetRunningTaskDetails_IncludesTimingAndProgress(t *testing.T) {
 
 	require.NoError(t, backend.SaveTask(runningTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -160,7 +160,7 @@ func TestGetRunningTaskDetails_IncludesPipelineProgress(t *testing.T) {
 	// TODO: Create execution state with completed spec phase, active implement phase
 	// This will require integration with the execution state system
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -201,7 +201,7 @@ func TestGetAttentionItems_IncludesBlockedTasks(t *testing.T) {
 
 	require.NoError(t, backend.SaveTask(blockedTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -252,7 +252,7 @@ func TestGetAttentionItems_IncludesPendingDecisions(t *testing.T) {
 	// }
 	// require.NoError(t, backend.SaveDecisionProto(pendingDecision))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -304,7 +304,7 @@ func TestGetAttentionItems_IncludesGateApprovals(t *testing.T) {
 	// gateApproval.Status = orcv1.GateStatus_GATE_STATUS_PENDING
 	// require.NoError(t, backend.SaveGateApprovalProto(gateApproval))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -367,7 +367,7 @@ func TestGetQueueData_OrganizesByInitiative(t *testing.T) {
 	require.NoError(t, backend.SaveTask(task2))
 	require.NoError(t, backend.SaveTask(task3))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -427,7 +427,7 @@ func TestGetQueueData_IncludesTaskPositioning(t *testing.T) {
 	require.NoError(t, backend.SaveTask(task1))
 	require.NoError(t, backend.SaveTask(task2))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -461,7 +461,7 @@ func TestGetQueueData_IncludesPriorityIndicators(t *testing.T) {
 	require.NoError(t, backend.SaveTask(highPriorityTask))
 	require.NoError(t, backend.SaveTask(normalTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -532,7 +532,7 @@ func TestGetAttentionItems_SortedByPriority(t *testing.T) {
 	require.NoError(t, backend.SaveTask(highTask))
 	require.NoError(t, backend.SaveTask(normalTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -653,7 +653,7 @@ func TestAttentionDashboardData_CorrectDataFiltering(t *testing.T) {
 	require.NoError(t, backend.SaveTask(queuedLow))
 	require.NoError(t, backend.SaveTask(completedTask))
 
-	server := NewAttentionDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		// ProjectId: empty for unit tests (no project cache needed)
@@ -715,5 +715,5 @@ func (m *mockEventPublisher) PublishEvent(event interface{}) {
 func NewAttentionDashboardServerWithEventPublisher(backend storage.Backend, eventPublisher any) orcv1connect.AttentionDashboardServiceHandler {
 	// This would be implemented to inject a custom event publisher
 	// for testing event publication in SC-7
-	return NewAttentionDashboardServer(backend, nil)
+	return NewAttentionDashboardServer(backend, nil, nil, nil)
 }
