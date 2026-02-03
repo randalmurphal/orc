@@ -502,14 +502,14 @@ func (s *attentionDashboardServer) PerformAttentionAction(
 	case orcv1.AttentionAction_ATTENTION_ACTION_REJECT:
 		return s.handleRejectAction(backend, targetID)
 
-	case orcv1.AttentionAction_ATTENTION_ACTION_SKIP,
-		orcv1.AttentionAction_ATTENTION_ACTION_FORCE,
-		orcv1.AttentionAction_ATTENTION_ACTION_RESOLVE:
-		// TODO: Implement skip/force/resolve actions
-		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
-			Success:      false,
-			ErrorMessage: fmt.Sprintf("action %s not yet implemented", action.String()),
-		}), nil
+	case orcv1.AttentionAction_ATTENTION_ACTION_SKIP:
+		return s.handleSkipAction(backend, targetID, req.Msg.Reason)
+
+	case orcv1.AttentionAction_ATTENTION_ACTION_FORCE:
+		return s.handleForceAction(backend, targetID, req.Msg.Reason)
+
+	case orcv1.AttentionAction_ATTENTION_ACTION_RESOLVE:
+		return s.handleResolveAction(backend, targetID, req.Msg.Comment)
 
 	default:
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
@@ -663,32 +663,145 @@ func (s *attentionDashboardServer) handleRejectAction(backend storage.Backend, d
 	}), nil
 }
 
+// handleSkipAction handles skipping a blocked task (moves it back to planned).
+func (s *attentionDashboardServer) handleSkipAction(backend storage.Backend, taskID, reason string) (*connect.Response[orcv1.PerformAttentionActionResponse], error) {
+	// Load the task
+	t, err := backend.LoadTask(taskID)
+	if err != nil {
+		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("task %s not found", taskID),
+		}), nil
+	}
+
+	// Check if task can be skipped (should be blocked)
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
+		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("task %s cannot be skipped (status: %s)", taskID, t.Status.String()),
+		}), nil
+	}
+
+	// Skip task by setting it back to planned status
+	// Clear blockers since user explicitly chose to skip
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	t.BlockedBy = nil
+	task.UpdateTimestampProto(t)
+
+	if err := backend.SaveTask(t); err != nil {
+		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("failed to save task: %v", err),
+		}), nil
+	}
+
+	// Publish event if publisher is available
+	if s.publisher != nil {
+		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+	}
+
+	return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+		Success: true,
+	}), nil
+}
+
+// handleForceAction handles forcing a blocked task to continue (sets to running).
+func (s *attentionDashboardServer) handleForceAction(backend storage.Backend, taskID, reason string) (*connect.Response[orcv1.PerformAttentionActionResponse], error) {
+	// Load the task
+	t, err := backend.LoadTask(taskID)
+	if err != nil {
+		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("task %s not found", taskID),
+		}), nil
+	}
+
+	// Check if task can be forced (should be blocked)
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
+		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("task %s cannot be forced (status: %s)", taskID, t.Status.String()),
+		}), nil
+	}
+
+	// Force task by setting it to running despite blockage
+	// Keep blockers in case we need to track what was overridden
+	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	task.UpdateTimestampProto(t)
+
+	if err := backend.SaveTask(t); err != nil {
+		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("failed to save task: %v", err),
+		}), nil
+	}
+
+	// Publish event if publisher is available
+	if s.publisher != nil {
+		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+	}
+
+	return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+		Success: true,
+	}), nil
+}
+
+// handleResolveAction handles resolving a failed task (sets to planned for retry).
+func (s *attentionDashboardServer) handleResolveAction(backend storage.Backend, taskID, comment string) (*connect.Response[orcv1.PerformAttentionActionResponse], error) {
+	// Load the task
+	t, err := backend.LoadTask(taskID)
+	if err != nil {
+		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("task %s not found", taskID),
+		}), nil
+	}
+
+	// Check if task can be resolved (should be failed or error state)
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_FAILED {
+		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("task %s cannot be resolved (status: %s)", taskID, t.Status.String()),
+		}), nil
+	}
+
+	// Resolve task by setting it back to planned for potential retry
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	task.UpdateTimestampProto(t)
+
+	if err := backend.SaveTask(t); err != nil {
+		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("failed to save task: %v", err),
+		}), nil
+	}
+
+	// Publish event if publisher is available
+	if s.publisher != nil {
+		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+	}
+
+	return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+		Success: true,
+	}), nil
+}
+
 // UpdateQueueOrganization handles queue organization updates.
 func (s *attentionDashboardServer) UpdateQueueOrganization(
 	ctx context.Context,
 	req *connect.Request[orcv1.UpdateQueueOrganizationRequest],
 ) (*connect.Response[orcv1.UpdateQueueOrganizationResponse], error) {
-	_, err := s.getBackend(req.Msg.GetProjectId())
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get backend: %w", err))
 	}
 
-	switch req.Msg.Update.(type) {
+	switch update := req.Msg.Update.(type) {
 	case *orcv1.UpdateQueueOrganizationRequest_SwimlaneState:
-		// Handle swimlane collapse/expand state
-		// For now, we don't persist swimlane state - just return success
-		// This could be extended to store in user preferences or initiative metadata
-		return connect.NewResponse(&orcv1.UpdateQueueOrganizationResponse{
-			Success: true,
-		}), nil
+		return s.handleSwimlaneStateUpdate(backend, update.SwimlaneState)
 
 	case *orcv1.UpdateQueueOrganizationRequest_TaskReorder:
-		// Handle task reordering
-		// This would involve updating task order within initiatives
-		// For now, return success without implementing the full logic
-		return connect.NewResponse(&orcv1.UpdateQueueOrganizationResponse{
-			Success: true,
-		}), nil
+		return s.handleTaskReorderUpdate(backend, update.TaskReorder)
 
 	default:
 		return connect.NewResponse(&orcv1.UpdateQueueOrganizationResponse{
@@ -696,6 +809,97 @@ func (s *attentionDashboardServer) UpdateQueueOrganization(
 			ErrorMessage: "unknown update type",
 		}), nil
 	}
+}
+
+// handleSwimlaneStateUpdate handles updating swimlane collapsed/expanded state.
+func (s *attentionDashboardServer) handleSwimlaneStateUpdate(backend storage.Backend, swimlaneState *orcv1.SwimlaneStateUpdate) (*connect.Response[orcv1.UpdateQueueOrganizationResponse], error) {
+	// For now, we'll just return success as swimlane state is primarily UI state
+	// In a more complete implementation, this could be stored in:
+	// 1. User preferences table
+	// 2. Initiative metadata
+	// 3. Separate UI state storage
+
+	if s.logger != nil {
+		s.logger.Info("Swimlane state updated",
+			"initiative_id", swimlaneState.InitiativeId,
+			"collapsed", swimlaneState.Collapsed,
+		)
+	}
+
+	return connect.NewResponse(&orcv1.UpdateQueueOrganizationResponse{
+		Success: true,
+	}), nil
+}
+
+// handleTaskReorderUpdate handles reordering tasks within or between initiatives.
+func (s *attentionDashboardServer) handleTaskReorderUpdate(backend storage.Backend, taskReorder *orcv1.TaskReorderUpdate) (*connect.Response[orcv1.UpdateQueueOrganizationResponse], error) {
+	// Load the task to be reordered
+	t, err := backend.LoadTask(taskReorder.TaskId)
+	if err != nil {
+		return connect.NewResponse(&orcv1.UpdateQueueOrganizationResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("task %s not found", taskReorder.TaskId),
+		}), nil
+	}
+
+	// Only allow reordering of planned tasks (tasks in the queue)
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_PLANNED {
+		return connect.NewResponse(&orcv1.UpdateQueueOrganizationResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("task %s cannot be reordered (status: %s)", taskReorder.TaskId, t.Status.String()),
+		}), nil
+	}
+
+	// Update task initiative assignment
+	targetInitiativeID := taskReorder.TargetInitiativeId
+	if targetInitiativeID == "" {
+		// Moving to unassigned
+		t.InitiativeId = nil
+	} else {
+		// Moving to specific initiative - validate initiative exists
+		if _, err := backend.LoadInitiativeProto(targetInitiativeID); err != nil {
+			return connect.NewResponse(&orcv1.UpdateQueueOrganizationResponse{
+				Success:      false,
+				ErrorMessage: fmt.Sprintf("target initiative %s not found", targetInitiativeID),
+			}), nil
+		}
+		t.InitiativeId = &targetInitiativeID
+	}
+
+	// Note: Position ordering within initiatives is not currently implemented
+	// in the task storage model. This would require either:
+	// 1. Adding an "order" field to tasks
+	// 2. Using creation timestamps for ordering
+	// 3. Storing ordering separately in initiative metadata
+	// For now, we'll just handle the initiative assignment
+
+	// Update task timestamp
+	task.UpdateTimestampProto(t)
+
+	// Save the updated task
+	if err := backend.SaveTask(t); err != nil {
+		return connect.NewResponse(&orcv1.UpdateQueueOrganizationResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("failed to save task: %v", err),
+		}), nil
+	}
+
+	// Publish event for real-time updates
+	if s.publisher != nil {
+		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+	}
+
+	if s.logger != nil {
+		s.logger.Info("Task reordered",
+			"task_id", taskReorder.TaskId,
+			"target_initiative", targetInitiativeID,
+			"position", taskReorder.NewPosition,
+		)
+	}
+
+	return connect.NewResponse(&orcv1.UpdateQueueOrganizationResponse{
+		Success: true,
+	}), nil
 }
 
 // ptrStringValue returns the value of a string pointer, or empty string if nil.
