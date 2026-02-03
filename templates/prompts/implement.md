@@ -1,16 +1,43 @@
+<common_failure_mode>
+## CRITICAL: Most Common Implementation Failure
+
+**Creating dead code that passes all tests but is never used in production.**
+
+This happens when:
+1. You create a new component/function
+2. Tests pass (because unit tests test the component in isolation)
+3. But you forget to wire it into the existing production code path
+4. The new code is never called → dead code ships → review rejects
+
+**Prevention:** Before claiming completion, for EVERY new file you created, verify an existing production file imports it. If nothing imports your new code, it's dead code.
+</common_failure_mode>
+
 <output_format>
 ## Pre-Completion Verification (MANDATORY - DO NOT SKIP)
 
-Before outputting completion JSON, you MUST run all four checks and include evidence for each:
+Before outputting completion JSON, you MUST run all FIVE checks and include evidence for each:
 
 1. **Tests**: Run `{{TEST_COMMAND}}` — exit code 0, all tests pass. If fails: fix implementation and re-run.
 2. **Success Criteria**: For each SC-X in spec, run its verification method, record PASS/FAIL with evidence. If any FAIL: fix and re-verify.
 3. **Build**: {{#if BUILD_COMMAND}}Run `{{BUILD_COMMAND}}`{{else}}Run the project build command{{/if}} — if fails, fix build errors.
 4. **Linting**: {{#if LINT_COMMAND}}Run `{{LINT_COMMAND}}`{{else}}Run the project linter{{/if}} — if fails, fix lint errors.
+5. **Wiring**: For EVERY new file created, grep the codebase to find which production file imports it. If no production file imports it → dead code → FAIL.
 
 ## Completion Output Format
 
-ONLY after ALL verifications PASS, output JSON with `status`, `summary`, and `verification` fields containing `tests`, `success_criteria`, `build`, and `linting` — each with `status` and `evidence`. See `<example_good_completion>` below for exact schema.
+ONLY after ALL verifications PASS, output JSON with `status`, `summary`, and `verification` fields containing `tests`, `success_criteria`, `build`, `linting`, and `wiring` — each with `status` and `evidence`. See `<example_good_completion>` below for exact schema.
+
+**Wiring verification evidence format:**
+```json
+"wiring": {
+  "status": "pass",
+  "evidence": "Created components/feature/Panel.tsx → imported by pages/Dashboard.tsx:15",
+  "new_files": [
+    {"file": "components/feature/Panel.tsx", "imported_by": "pages/Dashboard.tsx:15"}
+  ]
+}
+```
+If ANY new file has no production importer, wiring status is "fail".
 
 **CRITICAL:** The `verification` field is MANDATORY. Completion without verification evidence will be REJECTED.
 
@@ -95,6 +122,15 @@ Address ALL issues identified above before proceeding with implementation.
 {{TDD_TESTS_CONTENT}}
 
 Your implementation MUST make these tests pass.
+
+### Wiring Requirements (from TDD phase)
+
+If the TDD tests include a `wiring` section, you MUST follow it exactly:
+- Create new files at the paths specified in `new_component_path`
+- Wire them into the files specified in `imported_by`
+- The integration tests verify the wiring is correct
+
+**Example:** If TDD says `"imported_by": "@/pages/Dashboard.tsx"`, then Dashboard.tsx MUST import your new component. Don't create it in a different location.
 
 **Before claiming completion:**
 1. Run all tests: `{{TEST_COMMAND}}`
