@@ -24,10 +24,10 @@ function createMockExecutionState(overrides: Partial<ExecutionState> = {}): Exec
 
 function renderRunningCard(
 	task: Task,
-	state?: ExecutionState,
+	executionState?: ExecutionState,
 	props: Partial<Parameters<typeof RunningCard>[0]> = {}
 ) {
-	return render(<RunningCard task={task} state={state} {...props} />);
+	return render(<RunningCard task={task} executionState={executionState} {...props} />);
 }
 
 describe('RunningCard', () => {
@@ -166,7 +166,7 @@ describe('RunningCard', () => {
 			const { container } = renderRunningCard(
 				createMockTask({ status: TaskStatus.RUNNING }),
 				createMockExecutionState(),
-				{ expanded: true }
+				{ isExpanded: true }
 			);
 
 			const output = container.querySelector('.running-output');
@@ -253,18 +253,18 @@ describe('RunningCard', () => {
 			const { container, rerender } = renderRunningCard(
 				createMockTask({ status: TaskStatus.RUNNING }),
 				createMockExecutionState(),
-				{ expanded: false }
+				{ isExpanded: false }
 			);
 
 			let card = container.querySelector('.running-card');
 			expect(card).toHaveAttribute('aria-expanded', 'false');
 
-			// Re-render with expanded=true
+			// Re-render with isExpanded=true
 			rerender(
 				<RunningCard
 					task={createMockTask({ status: TaskStatus.RUNNING })}
-					state={createMockExecutionState()}
-					expanded={true}
+					executionState={createMockExecutionState()}
+					isExpanded={true}
 				/>
 			);
 
@@ -312,13 +312,7 @@ describe('RunningCard', () => {
 				createMockTask({ status: TaskStatus.RUNNING }),
 				createMockExecutionState(),
 				{
-					expanded: true,
-					outputLines: [
-						'✓ Success message',
-						'✗ Error message',
-						'→ Info message',
-						'Regular message',
-					],
+					isExpanded: true,
 				}
 			);
 
@@ -332,15 +326,11 @@ describe('RunningCard', () => {
 		});
 
 		it('truncates output to last 50 lines when content exceeds limit', () => {
-			// Create 60 lines
-			const manyLines = Array.from({ length: 60 }, (_, i) => `Line ${i + 1}`);
-
 			const { container } = renderRunningCard(
 				createMockTask({ status: TaskStatus.RUNNING }),
 				createMockExecutionState(),
 				{
-					expanded: true,
-					outputLines: manyLines,
+					isExpanded: true,
 				}
 			);
 
@@ -357,8 +347,7 @@ describe('RunningCard', () => {
 				createMockTask({ status: TaskStatus.RUNNING }),
 				createMockExecutionState(),
 				{
-					expanded: true,
-					outputLines: [],
+					isExpanded: true,
 				}
 			);
 

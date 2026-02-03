@@ -98,10 +98,6 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 		return record;
 	}, [taskStates]);
 
-	// Task outputs placeholder - real implementation tracks WebSocket transcript events
-	const taskOutputs = useMemo((): Record<string, string[]> => {
-		return {};
-	}, []);
 
 	// Handlers
 	const handleToggleSwimlane = useCallback((id: string) => {
@@ -173,7 +169,6 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 				<RunningColumn
 					tasks={runningTasks}
 					taskStates={taskStatesRecord}
-					taskOutputs={taskOutputs}
 					onTaskClick={handleTaskClick}
 					taskDecisionCounts={taskDecisionCounts}
 				/>

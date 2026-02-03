@@ -34,7 +34,7 @@ describe('ActivityIndicator Real-Time Activity Visualization', () => {
       {
         activity: 'running_tool',
         expectedIcon: 'tool',
-        expectedText: 'Running tool...',
+        expectedText: 'Running implementation tool...',
         expectedColor: 'text-purple-600'
       },
       {

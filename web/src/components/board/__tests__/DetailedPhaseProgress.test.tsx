@@ -1,9 +1,12 @@
-import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { create } from '@bufbuild/protobuf';
 import { DetailedPhaseProgress } from '../DetailedPhaseProgress';
-import { PhaseStatus, ExecutionState } from '../../../gen/orc/v1/task_pb';
-import { Timestamp } from '../../../gen/google/protobuf/timestamp_pb';
+import { PhaseStatus, ExecutionStateSchema, type ExecutionState } from '../../../gen/orc/v1/task_pb';
+import { TimestampSchema, Timestamp } from '@bufbuild/protobuf/wkt';
+
+import * as progressEstimationModule from '../../../lib/utils/progressEstimation';
+import * as phaseActivityMapperModule from '../../../lib/mappers/phaseActivityMapper';
 
 // Mock the progress estimation utilities
 vi.mock('../../../lib/utils/progressEstimation', () => ({
@@ -16,36 +19,31 @@ vi.mock('../../../lib/utils/progressEstimation', () => ({
 vi.mock('../../../lib/mappers/phaseActivityMapper', () => ({
   mapActivityToProgress: vi.fn(),
   getActivityDescription: vi.fn(),
+  getPhaseDisplayName: vi.fn(),
 }));
 
 describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
-  const mockEstimatePhaseCompletion = vi.mocked(
-    require('../../../lib/utils/progressEstimation').estimatePhaseCompletion
-  );
-  const mockCalculateTimeRemaining = vi.mocked(
-    require('../../../lib/utils/progressEstimation').calculateTimeRemaining
-  );
-  const mockGetPhaseSubSteps = vi.mocked(
-    require('../../../lib/utils/progressEstimation').getPhaseSubSteps
-  );
-  const mockMapActivityToProgress = vi.mocked(
-    require('../../../lib/mappers/phaseActivityMapper').mapActivityToProgress
-  );
-  const mockGetActivityDescription = vi.mocked(
-    require('../../../lib/mappers/phaseActivityMapper').getActivityDescription
-  );
+  const mockEstimatePhaseCompletion = vi.mocked(progressEstimationModule.estimatePhaseCompletion);
+  const mockCalculateTimeRemaining = vi.mocked(progressEstimationModule.calculateTimeRemaining);
+  const mockGetPhaseSubSteps = vi.mocked(progressEstimationModule.getPhaseSubSteps);
+  const mockMapActivityToProgress = vi.mocked(phaseActivityMapperModule.mapActivityToProgress);
+  const mockGetActivityDescription = vi.mocked(phaseActivityMapperModule.getActivityDescription);
+  const mockGetPhaseDisplayName = vi.mocked(phaseActivityMapperModule.getPhaseDisplayName);
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('SC-5.1: displays detailed phase progress with sub-steps', () => {
-    const executionState = new ExecutionState({
+    const executionState = create(ExecutionStateSchema, {
       currentIteration: 2,
       phases: {
         'implement': {
           status: PhaseStatus.PENDING,
-          startedAt: Timestamp.fromDate(new Date(Date.now() - 300000)), // 5 minutes ago
+          startedAt: create(TimestampSchema, {
+            seconds: BigInt(Math.floor((Date.now() - 300000) / 1000)),
+            nanos: ((Date.now() - 300000) % 1000) * 1_000_000,
+          }),
           iterations: 2,
         }
       }
@@ -67,6 +65,7 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
     });
 
     mockGetActivityDescription.mockReturnValue('Running implementation tests...');
+    mockGetPhaseDisplayName.mockReturnValue('Implementation');
 
     render(
       <DetailedPhaseProgress
@@ -104,12 +103,16 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
   });
 
   it('SC-5.2: shows iteration progress and retry indicators', () => {
-    const executionState = new ExecutionState({
+    mockGetPhaseDisplayName.mockReturnValue('Review');
+    const executionState = create(ExecutionStateSchema, {
       currentIteration: 3,
       phases: {
         'review': {
           status: PhaseStatus.PENDING,
-          startedAt: Timestamp.fromDate(new Date(Date.now() - 600000)), // 10 minutes ago
+          startedAt: create(TimestampSchema, {
+            seconds: BigInt(Math.floor((Date.now() - 600000) / 1000)),
+            nanos: ((Date.now() - 600000) % 1000) * 1_000_000,
+          }),
           iterations: 3,
         }
       }
@@ -143,17 +146,20 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
   });
 
   it('SC-5.3: displays phase duration and performance metrics', () => {
-    const executionState = new ExecutionState({
+    mockGetPhaseDisplayName.mockReturnValue('Implementation');
+    const executionState = create(ExecutionStateSchema, {
       currentIteration: 1,
       phases: {
         'implement': {
           status: PhaseStatus.PENDING,
-          startedAt: Timestamp.fromDate(new Date(Date.now() - 480000)), // 8 minutes ago
+          startedAt: create(TimestampSchema, {
+            seconds: BigInt(Math.floor((Date.now() - 480000) / 1000)),
+            nanos: ((Date.now() - 480000) % 1000) * 1_000_000,
+          }),
           iterations: 1,
           tokens: {
-            input: 5000,
-            output: 3500,
-            total: 8500,
+            inputTokens: 5000,
+            outputTokens: 3500,
           }
         }
       }
@@ -176,7 +182,7 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
     expect(screen.getByTestId('phase-duration')).toHaveTextContent('8:00');
 
     // Should show token usage
-    expect(screen.getByTestId('phase-tokens')).toHaveTextContent('8,500');
+    expect(screen.getByTestId('phase-tokens')).toHaveTextContent('8.5K');
     expect(screen.getByTestId('token-breakdown')).toHaveTextContent('5K in / 3.5K out');
 
     // Should show progress rate
@@ -184,12 +190,16 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
   });
 
   it('SC-5.4: handles long-running phases with heartbeat indicators', () => {
-    const executionState = new ExecutionState({
+    mockGetPhaseDisplayName.mockReturnValue('Implementation');
+    const executionState = create(ExecutionStateSchema,{
       currentIteration: 1,
       phases: {
         'implement': {
           status: PhaseStatus.PENDING,
-          startedAt: Timestamp.fromDate(new Date(Date.now() - 1800000)), // 30 minutes ago
+          startedAt: create(TimestampSchema, {
+            seconds: BigInt(Math.floor((Date.now() - 1800000) / 1000)),
+            nanos: ((Date.now() - 1800000) % 1000) * 1_000_000,
+          }),
           iterations: 1,
         }
       }
@@ -221,17 +231,21 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
   });
 
   it('SC-5.5: shows completion confidence and quality indicators', () => {
-    const executionState = new ExecutionState({
+    mockGetPhaseDisplayName.mockReturnValue('Review');
+    const executionState = create(ExecutionStateSchema,{
       currentIteration: 1,
       phases: {
         'review': {
           status: PhaseStatus.PENDING,
-          startedAt: Timestamp.fromDate(new Date(Date.now() - 120000)), // 2 minutes ago
+          startedAt: create(TimestampSchema, {
+            seconds: BigInt(Math.floor((Date.now() - 120000) / 1000)),
+            nanos: ((Date.now() - 120000) % 1000) * 1_000_000,
+          }),
           iterations: 1,
-          validation: [
-            { type: 'syntax_check', passed: true },
-            { type: 'test_coverage', passed: true },
-            { type: 'security_scan', passed: false },
+          validationHistory: [
+            { type: 'syntax_check' },
+            { type: 'test_coverage' },
+            { type: 'security_scan' },
           ]
         }
       }
@@ -268,7 +282,12 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
   });
 
   it('SC-5.6: provides expandable detailed view', () => {
-    const executionState = new ExecutionState({
+    mockGetPhaseDisplayName.mockReturnValue('Implementation');
+    mockGetPhaseSubSteps.mockReturnValue([
+      { step: 'Processing task', completed: true },
+      { step: 'Generating output', completed: false, inProgress: true },
+    ]);
+    const executionState = create(ExecutionStateSchema,{
       currentIteration: 1,
       phases: {
         'implement': {
@@ -286,6 +305,7 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
         currentActivity="streaming"
         collapsible={true}
         defaultExpanded={false}
+        showSubSteps={true}
       />
     );
 
@@ -295,15 +315,20 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
 
     // Should expand when clicked
     const expandButton = screen.getByTestId('expand-button');
-    expandButton.click();
+    act(() => {
+      expandButton.click();
+    });
 
     expect(screen.getByTestId('detailed-progress')).toBeInTheDocument();
     expect(screen.getByTestId('progress-substeps')).toBeInTheDocument();
   });
 
   it('SC-5.7: handles phase transitions with smooth animations', async () => {
+    mockGetPhaseDisplayName.mockImplementation((phase: string) => {
+      return phase === 'implement' ? 'Implementation' : 'Test';
+    });
     let currentPhase = 'implement';
-    let executionState = new ExecutionState({
+    let executionState = create(ExecutionStateSchema,{
       currentIteration: 1,
       phases: {
         'implement': { status: PhaseStatus.PENDING, iterations: 1 },
@@ -323,7 +348,7 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
 
     // Simulate phase transition
     currentPhase = 'test';
-    executionState = new ExecutionState({
+    executionState = create(ExecutionStateSchema,{
       currentIteration: 1,
       phases: {
         'implement': { status: PhaseStatus.COMPLETED, iterations: 1 },
@@ -350,7 +375,8 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
   });
 
   it('SC-5.8: integrates with pause/resume controls', () => {
-    const executionState = new ExecutionState({
+    mockGetPhaseDisplayName.mockReturnValue('Implementation');
+    const executionState = create(ExecutionStateSchema,{
       currentIteration: 1,
       phases: {
         'implement': {
@@ -363,7 +389,7 @@ describe('DetailedPhaseProgress Enhanced Progress Indicators', () => {
     const mockOnPause = vi.fn();
     const mockOnResume = vi.fn();
 
-    render(
+    const { rerender } = render(
       <DetailedPhaseProgress
         taskId="TASK-008"
         currentPhase="implement"

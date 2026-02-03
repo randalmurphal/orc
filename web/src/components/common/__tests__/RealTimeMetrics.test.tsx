@@ -12,6 +12,17 @@ vi.mock('../../../lib/utils/formatting', () => ({
     const secs = seconds % 60;
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   }),
+  formatPercentage: vi.fn((value: number) => `${Math.round(value * 100)}%`),
+  formatTimeRemaining: vi.fn((seconds: number) => {
+    if (seconds <= 0) return 'Complete';
+    if (seconds < 60) return `~${seconds}s remaining`;
+    if (seconds < 3600) {
+      const minutes = Math.ceil(seconds / 60);
+      return `~${minutes} min remaining`;
+    }
+    const hours = Math.ceil(seconds / 3600);
+    return `~${hours}h remaining`;
+  }),
 }));
 
 describe('RealTimeMetrics Enhanced Session Display', () => {
@@ -76,7 +87,7 @@ describe('RealTimeMetrics Enhanced Session Display', () => {
       <RealTimeMetrics
         taskId="TASK-002"
         sessionMetrics={sessionMetrics}
-        phaseProgress={null}
+        phaseProgress={undefined}
         showDetailed={true}
       />
     );
@@ -103,7 +114,7 @@ describe('RealTimeMetrics Enhanced Session Display', () => {
       <RealTimeMetrics
         taskId="TASK-003"
         sessionMetrics={sessionMetrics}
-        phaseProgress={null}
+        phaseProgress={undefined}
         showDetailed={false}
       />
     );
@@ -131,7 +142,7 @@ describe('RealTimeMetrics Enhanced Session Display', () => {
       <RealTimeMetrics
         taskId="TASK-004"
         sessionMetrics={sessionMetrics}
-        phaseProgress={null}
+        phaseProgress={undefined}
         showDetailed={true}
       />
     );
@@ -152,7 +163,7 @@ describe('RealTimeMetrics Enhanced Session Display', () => {
       <RealTimeMetrics
         taskId="TASK-004"
         sessionMetrics={sessionMetrics}
-        phaseProgress={null}
+        phaseProgress={undefined}
         showDetailed={true}
       />
     );
@@ -170,7 +181,7 @@ describe('RealTimeMetrics Enhanced Session Display', () => {
       estimatedCostUSD: 0.65,
       durationSeconds: 200,
       tasksRunning: 1,
-      costTrend: 'increasing', // Mock trend data
+      costTrend: 'increasing' as const, // Mock trend data
       tokenRate: 100, // tokens per minute
     };
 
@@ -178,14 +189,14 @@ describe('RealTimeMetrics Enhanced Session Display', () => {
       <RealTimeMetrics
         taskId="TASK-005"
         sessionMetrics={sessionMetrics}
-        phaseProgress={null}
+        phaseProgress={undefined}
         showDetailed={true}
       />
     );
 
     // Should show cost trend indicator
     expect(screen.getByTestId('cost-trend')).toBeInTheDocument();
-    expect(screen.getByTestId('cost-trend')).toHaveClass('text-red-500'); // increasing trend
+    expect(screen.getByTestId('cost-trend')).toHaveClass('text-red-600'); // increasing trend
     expect(screen.getByTestId('trend-icon')).toHaveAttribute('data-trend', 'up');
 
     // Should show token rate
@@ -204,7 +215,7 @@ describe('RealTimeMetrics Enhanced Session Display', () => {
     render(
       <RealTimeMetrics
         taskId="TASK-006"
-        sessionMetrics={null}
+        sessionMetrics={undefined}
         phaseProgress={phaseProgress}
         showDetailed={true}
       />
@@ -224,8 +235,8 @@ describe('RealTimeMetrics Enhanced Session Display', () => {
     render(
       <RealTimeMetrics
         taskId="TASK-007"
-        sessionMetrics={null}
-        phaseProgress={null}
+        sessionMetrics={undefined}
+        phaseProgress={undefined}
         showDetailed={true}
       />
     );
@@ -252,7 +263,7 @@ describe('RealTimeMetrics Enhanced Session Display', () => {
       <RealTimeMetrics
         taskId="TASK-008"
         sessionMetrics={sessionMetrics}
-        phaseProgress={null}
+        phaseProgress={undefined}
         showDetailed={true}
       />
     );
