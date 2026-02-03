@@ -88,6 +88,9 @@ Category: {{TASK_CATEGORY}}
 Path: {{WORKTREE_PATH}}
 Branch: {{TASK_BRANCH}}
 Target: {{TARGET_BRANCH}}
+
+**Git State**: Previous phases (spec, tdd_write, implement) have already committed their work. The worktree is clean. Use `git log --oneline -10` or `git diff main..HEAD` to see what was implemented.
+
 DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 </worktree_safety>
 

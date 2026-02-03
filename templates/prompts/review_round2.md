@@ -55,6 +55,9 @@ Weight: {{WEIGHT}}
 Path: {{WORKTREE_PATH}}
 Branch: {{TASK_BRANCH}}
 Target: {{TARGET_BRANCH}}
+
+**Git State**: Previous phases have committed their work. Worktree is clean. Use `git diff main..HEAD` to see changes.
+
 DO NOT push to {{TARGET_BRANCH}} or checkout other branches. Stay on {{TASK_BRANCH}}.
 </worktree_safety>
 </context>
