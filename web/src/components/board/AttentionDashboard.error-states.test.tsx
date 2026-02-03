@@ -188,7 +188,14 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 			});
 
 			mockTasks.push(failedTask);
-			mockAttentionItems.push(failedAttentionItem);
+
+			// Override mock to return the attention item
+			const mockClient = await import('@/lib/client');
+			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
+				runningSummary: { taskCount: 0, tasks: [] },
+				attentionItems: [failedAttentionItem],
+				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+			} as never);
 
 			renderAttentionDashboard();
 
@@ -220,8 +227,7 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 				status: TaskStatus.FAILED,
 			});
 
-			const failedAttentionItem: AttentionItem = {
-				$typeName: 'orc.v1.AttentionItem',
+			const failedAttentionItem = createMockAttentionItem({
 				id: `failed-${failedTask.id}`,
 				type: AttentionItemType.FAILED_TASK,
 				taskId: failedTask.id!,
@@ -229,13 +235,17 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 				description: 'Task execution failed and requires attention',
 				priority: failedTask.priority,
 				createdAt: failedTask.updatedAt,
-				availableActions: [],
-				decisionOptions: [],
 				errorMessage: 'Migration script failed: Connection timeout to database',
-			};
+			});
 
 			mockTasks.push(failedTask);
-			mockAttentionItems.push(failedAttentionItem);
+
+			const mockClient = await import('@/lib/client');
+			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
+				runningSummary: { taskCount: 0, tasks: [] },
+				attentionItems: [failedAttentionItem],
+				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+			} as never);
 
 			renderAttentionDashboard();
 
@@ -254,8 +264,7 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 				status: TaskStatus.FAILED,
 			});
 
-			const failedAttentionItem: AttentionItem = {
-				$typeName: 'orc.v1.AttentionItem',
+			const failedAttentionItem = createMockAttentionItem({
 				id: `failed-${failedTask.id}`,
 				type: AttentionItemType.FAILED_TASK,
 				taskId: failedTask.id!,
@@ -267,11 +276,16 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 					AttentionAction.RETRY,
 					AttentionAction.VIEW
 				],
-				decisionOptions: [],
-			};
+			});
 
 			mockTasks.push(failedTask);
-			mockAttentionItems.push(failedAttentionItem);
+
+			const mockClient = await import('@/lib/client');
+			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
+				runningSummary: { taskCount: 0, tasks: [] },
+				attentionItems: [failedAttentionItem],
+				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+			} as never);
 
 			renderAttentionDashboard();
 
@@ -424,7 +438,12 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 				errorMessage: 'Invalid API key configuration in settings.yaml line 42',
 			};
 
-			mockAttentionItems.push(errorAttentionItem);
+			const mockClient = await import('@/lib/client');
+			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
+				runningSummary: { taskCount: 0, tasks: [] },
+				attentionItems: [errorAttentionItem],
+				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+			} as never);
 
 			renderAttentionDashboard();
 
@@ -440,27 +459,24 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 			expect(errorItem).toHaveClass('error-state');
 		});
 
-		it('handles error states with resolve actions', async () => {
-			const errorAttentionItem: AttentionItem = {
-				$typeName: 'orc.v1.AttentionItem',
+		it('handles error states with retry actions', async () => {
+			const errorAttentionItem = createMockAttentionItem({
 				id: 'error-002',
 				type: AttentionItemType.ERROR_STATE,
 				taskId: 'TASK-007',
 				title: 'Database Connection Error',
 				description: 'Unable to connect to database server',
 				priority: TaskPriority.HIGH,
-				createdAt: createTimestamp(),
-				availableActions: [
-					{
-						$case: 'resolve',
-						resolve: {}
-					}
-				],
-				decisionOptions: [],
+				availableActions: [AttentionAction.RETRY],
 				errorMessage: 'Connection refused: database server not responding',
-			};
+			});
 
-			mockAttentionItems.push(errorAttentionItem);
+			const mockClient = await import('@/lib/client');
+			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
+				runningSummary: { taskCount: 0, tasks: [] },
+				attentionItems: [errorAttentionItem],
+				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+			} as never);
 
 			renderAttentionDashboard();
 
@@ -468,8 +484,8 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 				expect(screen.getByText('Database Connection Error')).toBeInTheDocument();
 			});
 
-			// Should show resolve button
-			expect(screen.getByRole('button', { name: /resolve/i })).toBeInTheDocument();
+			// Should show retry button for recoverable errors
+			expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
 		});
 	});
 
@@ -482,8 +498,7 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 				status: TaskStatus.FAILED,
 			});
 
-			const failedAttentionItem: AttentionItem = {
-				$typeName: 'orc.v1.AttentionItem',
+			const failedAttentionItem = createMockAttentionItem({
 				id: `failed-${failedTask.id}`,
 				type: AttentionItemType.FAILED_TASK,
 				taskId: failedTask.id!,
@@ -491,17 +506,17 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 				description: 'Task execution failed and requires attention',
 				priority: failedTask.priority,
 				createdAt: failedTask.updatedAt,
-				availableActions: [
-					{
-						$case: 'retry',
-						retry: {}
-					}
-				],
-				decisionOptions: [],
-			};
+				availableActions: [AttentionAction.RETRY],
+			});
 
 			mockTasks.push(failedTask);
-			mockAttentionItems.push(failedAttentionItem);
+
+			const mockClient = await import('@/lib/client');
+			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
+				runningSummary: { taskCount: 0, tasks: [] },
+				attentionItems: [failedAttentionItem],
+				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+			} as never);
 
 			renderAttentionDashboard();
 
@@ -528,33 +543,30 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 	// SC-5: Error states are visually distinct from other states
 	describe('SC-5: Visual distinction of error states', () => {
 		it('applies distinct styling to failed tasks in different sections', async () => {
-			const failedAttentionItem: AttentionItem = {
-				$typeName: 'orc.v1.AttentionItem',
+			const failedAttentionItem = createMockAttentionItem({
 				id: 'failed-TASK-009',
 				type: AttentionItemType.FAILED_TASK,
 				taskId: 'TASK-009',
 				title: 'Visual styling test',
 				description: 'Failed task for visual testing',
 				priority: TaskPriority.NORMAL,
-				createdAt: createTimestamp(),
-				availableActions: [],
-				decisionOptions: [],
-			};
+			});
 
-			const errorAttentionItem: AttentionItem = {
-				$typeName: 'orc.v1.AttentionItem',
+			const errorAttentionItem = createMockAttentionItem({
 				id: 'error-010',
 				type: AttentionItemType.ERROR_STATE,
 				taskId: 'TASK-010',
 				title: 'Error state test',
 				description: 'Error state for visual testing',
 				priority: TaskPriority.NORMAL,
-				createdAt: createTimestamp(),
-				availableActions: [],
-				decisionOptions: [],
-			};
+			});
 
-			mockAttentionItems.push(failedAttentionItem, errorAttentionItem);
+			const mockClient = await import('@/lib/client');
+			vi.mocked(mockClient.attentionDashboardClient.getAttentionDashboardData).mockResolvedValueOnce({
+				runningSummary: { taskCount: 0, tasks: [] },
+				attentionItems: [failedAttentionItem, errorAttentionItem],
+				queueSummary: { taskCount: 0, swimlanes: [], unassignedTasks: [] },
+			} as never);
 
 			renderAttentionDashboard();
 
@@ -571,9 +583,10 @@ describe('AttentionDashboard Error States - TASK-744', () => {
 			const errorCard = screen.getByText('Error state test').closest('.attention-item');
 			expect(errorCard).toHaveClass('error-state');
 
-			// Both should be visually distinct from normal items
-			expect(failedCard).not.toHaveClass('normal');
-			expect(errorCard).not.toHaveClass('normal');
+			// Both should have the type-specific classes that make them visually distinct
+			// (Priority class 'normal' is separate from type class)
+			expect(failedCard?.className).toContain('failed-task');
+			expect(errorCard?.className).toContain('error-state');
 		});
 
 		it('shows error indicators in phase pipeline with distinct colors', async () => {
