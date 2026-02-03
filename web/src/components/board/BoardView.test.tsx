@@ -26,15 +26,21 @@ const mockTaskStates = new Map();
 const mockLoading = false;
 const mockInitiatives: Initiative[] = [];
 
-// Mock taskStore
+// Mock taskStore - handles both selector pattern and direct access
 vi.mock('@/stores/taskStore', () => ({
-	useTaskStore: (selector: (state: unknown) => unknown) => {
+	useTaskStore: (selector?: (state: unknown) => unknown) => {
 		const state = {
 			tasks: mockTasks,
 			taskStates: mockTaskStates,
 			loading: mockLoading,
+			// Methods used by RunningCard
+			getTaskActivity: () => null,
+			getTaskOutputLines: () => [],
+			getSessionMetrics: () => null,
+			getPhaseProgress: () => null,
 		};
-		return selector(state);
+		// If selector provided, use it; otherwise return entire store
+		return selector ? selector(state) : state;
 	},
 }));
 
@@ -46,7 +52,7 @@ vi.mock('@/stores/initiativeStore', () => ({
 // Mock uiStore — stable reference to prevent re-render loops
 const mockPendingDecisions: unknown[] = [];
 vi.mock('@/stores/uiStore', () => ({
-	useUIStore: (selector: (state: unknown) => unknown) => {
+	useUIStore: (selector?: (state: unknown) => unknown) => {
 		const state = {
 			pendingDecisions: mockPendingDecisions,
 			removePendingDecision: vi.fn(),
@@ -55,7 +61,8 @@ vi.mock('@/stores/uiStore', () => ({
 			toasts: [],
 			addToast: vi.fn(),
 		};
-		return selector(state);
+		// If selector provided, use it; otherwise return entire store
+		return selector ? selector(state) : state;
 	},
 	usePendingDecisions: () => mockPendingDecisions,
 }));

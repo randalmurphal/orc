@@ -30,7 +30,7 @@ import { workflowClient } from '@/lib/client';
 
 describe('PromptEditor', () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		vi.resetAllMocks();
 		vi.useFakeTimers({ shouldAdvanceTime: true });
 	});
 

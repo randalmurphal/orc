@@ -18,7 +18,7 @@
  * - SC-8: Phases display in sequence order with visual indicators
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PhaseListEditor } from './PhaseListEditor';
@@ -28,20 +28,6 @@ import {
 	createMockPhaseTemplate,
 } from '@/test/factories';
 import type { WorkflowPhase, PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
-
-// Mock browser APIs for Radix
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-	window.confirm = vi.fn().mockReturnValue(true);
-});
 
 // Create mock phase templates
 const mockPhaseTemplates: PhaseTemplate[] = [
@@ -62,6 +48,8 @@ function createMockPhases(): WorkflowPhase[] {
 }
 
 describe('PhaseListEditor', () => {
+	// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
+
 	const mockOnAddPhase = vi.fn();
 	const mockOnUpdatePhase = vi.fn();
 	const mockOnRemovePhase = vi.fn();

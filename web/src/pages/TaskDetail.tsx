@@ -6,6 +6,7 @@ import { TaskFooter } from '@/components/task-detail/TaskFooter';
 import { SplitPane } from '@/components/core/SplitPane';
 import { TranscriptTab } from '@/components/task-detail/TranscriptTab';
 import { ChangesTab } from '@/components/task-detail/ChangesTab';
+import { FeedbackPanel } from '@/components/task-detail/FeedbackPanel';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { taskClient } from '@/lib/client';
@@ -13,7 +14,7 @@ import { useTaskSubscription, useDocumentTitle } from '@/hooks';
 import { useTask as useStoreTask } from '@/stores/taskStore';
 import { useCurrentProjectId } from '@/stores';
 import type { Task, TaskPlan } from '@/gen/orc/v1/task_pb';
-import { GetTaskRequestSchema, GetTaskPlanRequestSchema } from '@/gen/orc/v1/task_pb';
+import { GetTaskRequestSchema, GetTaskPlanRequestSchema, TaskStatus } from '@/gen/orc/v1/task_pb';
 import './TaskDetail.css';
 
 /**
@@ -223,6 +224,19 @@ export function TaskDetail() {
 					leftEmptyMessage="No output yet"
 					rightEmptyMessage="No changes yet"
 				/>
+
+				{/* Feedback Panel - shown for running tasks or when feedback is available */}
+				{(task.status === TaskStatus.RUNNING || task.status === TaskStatus.PAUSED) && projectId && (
+					<div className="task-detail-feedback">
+						<FeedbackPanel
+							task={task}
+							onTaskUpdate={(updatedTask) => {
+								// Task status updated via feedback (e.g., paused)
+								setTask(updatedTask);
+							}}
+						/>
+					</div>
+				)}
 			</div>
 
 			{/* Footer */}

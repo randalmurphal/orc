@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { SettingsView } from './SettingsView';
 import { configClient } from '@/lib/client';
 import type { Skill } from '@/gen/orc/v1/config_pb';
@@ -202,9 +202,16 @@ describe('SettingsView API Integration', () => {
 			// For now, we test the API function would be called
 			render(<SettingsView />);
 
+			// Wait for the component's useEffect to complete (listSkills call)
+			await waitFor(() => {
+				expect(configClient.listSkills).toHaveBeenCalled();
+			});
+
 			// Since SettingsView only shows slash commands currently,
 			// this verifies the API function exists and can be called
-			await configClient.getClaudeMd({});
+			await act(async () => {
+				await configClient.getClaudeMd({});
+			});
 
 			expect(configClient.getClaudeMd).toHaveBeenCalled();
 		});

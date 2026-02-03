@@ -439,7 +439,7 @@ func followTranscripts(taskID string, opts transcriptDisplayOptions) error {
 				// If task completed/failed/paused, show message and exit
 				switch t.Status {
 				case orcv1.TaskStatus_TASK_STATUS_COMPLETED,
-					orcv1.TaskStatus_TASK_STATUS_RESOLVED,
+					orcv1.TaskStatus_TASK_STATUS_CLOSED,
 					orcv1.TaskStatus_TASK_STATUS_FAILED,
 					orcv1.TaskStatus_TASK_STATUS_PAUSED,
 					orcv1.TaskStatus_TASK_STATUS_BLOCKED:

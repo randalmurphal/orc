@@ -310,7 +310,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
 	[TaskStatus.FINALIZING]: 'finalizing',
 	[TaskStatus.COMPLETED]: 'completed',
 	[TaskStatus.FAILED]: 'failed',
-	[TaskStatus.RESOLVED]: 'resolved',
+	[TaskStatus.CLOSED]: 'closed',
 	[TaskStatus.UNSPECIFIED]: '',
 };
 

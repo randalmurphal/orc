@@ -132,6 +132,9 @@ type Config struct {
 	// Weights configuration - maps task weights to workflow IDs
 	Weights WeightsConfig `yaml:"weights"`
 
+	// Workflow defaults - maps task categories to workflow IDs
+	WorkflowDefaults WorkflowDefaults `yaml:"workflow_defaults"`
+
 	// Artifact skip configuration
 	ArtifactSkip ArtifactSkipConfig `yaml:"artifact_skip"`
 
@@ -565,6 +568,39 @@ func (c *Config) EffectiveMaxRetries() int {
 	}
 	// Default to 5
 	return 5
+}
+
+// ResolveWorkflow resolves the workflow ID using the priority hierarchy.
+// Priority: explicit > weight-based > category-based > general default > legacy
+// Returns the resolved workflow ID and the source of the resolution.
+func (c *Config) ResolveWorkflow(explicitWorkflow, category string) (string, string) {
+	// 1. Explicit workflow has highest priority
+	if explicitWorkflow != "" {
+		return explicitWorkflow, "explicit"
+	}
+
+	// 2. Category-based default from WorkflowDefaults
+	if categoryDefault := c.WorkflowDefaults.GetDefaultWorkflow(category); categoryDefault != "" {
+		if category != "" && categoryDefault != c.WorkflowDefaults.Default {
+			return categoryDefault, "category_default"
+		}
+		if categoryDefault == c.WorkflowDefaults.Default {
+			return categoryDefault, "general_default"
+		}
+	}
+
+	// 3. General default from WorkflowDefaults
+	if c.WorkflowDefaults.Default != "" {
+		return c.WorkflowDefaults.Default, "general_default"
+	}
+
+	// 4. Legacy single workflow field (backward compatibility)
+	if c.Workflow != "" {
+		return c.Workflow, "legacy"
+	}
+
+	// No workflow configured
+	return "", "none"
 }
 
 // ShouldSyncForWeight returns true if sync should be performed for this weight.

@@ -26,8 +26,8 @@ func StatusToProto(s string) orcv1.TaskStatus {
 		return orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	case "failed":
 		return orcv1.TaskStatus_TASK_STATUS_FAILED
-	case "resolved":
-		return orcv1.TaskStatus_TASK_STATUS_RESOLVED
+	case "closed":
+		return orcv1.TaskStatus_TASK_STATUS_CLOSED
 	default:
 		return orcv1.TaskStatus_TASK_STATUS_UNSPECIFIED
 	}
@@ -54,8 +54,8 @@ func StatusFromProto(s orcv1.TaskStatus) string {
 		return "completed"
 	case orcv1.TaskStatus_TASK_STATUS_FAILED:
 		return "failed"
-	case orcv1.TaskStatus_TASK_STATUS_RESOLVED:
-		return "resolved"
+	case orcv1.TaskStatus_TASK_STATUS_CLOSED:
+		return "closed"
 	default:
 		return "created"
 	}

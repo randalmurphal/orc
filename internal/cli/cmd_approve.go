@@ -105,7 +105,7 @@ Examples:
 See also:
   orc approve  - Approve a gate and allow execution to continue
   orc reset    - Clear task state to retry from scratch
-  orc resolve  - Mark failed task as resolved without re-running`,
+  orc close    - Close task without re-running`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {

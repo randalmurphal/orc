@@ -1,0 +1,40 @@
+--- a/web/src/components/workflows/WorkflowsView.edge-cases.test.tsx
++++ b/web/src/components/workflows/WorkflowsView.edge-cases.test.tsx
+@@ -26,11 +26,18 @@ vi.mock('@/lib/client', () => ({
+ 	},
+ }));
+ 
+-// Mock the workflow store
++// Mock the workflow store with stateful implementation
++const mockWorkflowStore = {
++	workflows: [],
++	phaseTemplates: [],
++	setWorkflows: vi.fn((workflows, _sources) => {
++		mockWorkflowStore.workflows = workflows;
++	}),
++	setPhaseTemplates: vi.fn((templates, _sources) => {
++		mockWorkflowStore.phaseTemplates = templates;
++	}),
++	refreshKey: 0,
++};
++
+ vi.mock('@/stores/workflowStore', () => ({
+-	useWorkflowStore: () => ({
+-		workflows: [],
+-		phaseTemplates: [],
+-		setWorkflows: vi.fn(),
+-		setPhaseTemplates: vi.fn(),
+-		refreshKey: 0,
+-	}),
++	useWorkflowStore: () => mockWorkflowStore,
+ }));
+@@ -50,6 +57,10 @@ describe('WorkflowsView Redesign Edge Cases - TASK-750', () => {
+ 	beforeEach(() => {
+ 		vi.clearAllMocks();
++		// Reset mock store state
++		mockWorkflowStore.workflows = [];
++		mockWorkflowStore.phaseTemplates = [];
++		mockWorkflowStore.refreshKey = 0;
+ 	});
+ 
+ 	afterEach(() => {

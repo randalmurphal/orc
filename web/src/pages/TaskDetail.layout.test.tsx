@@ -28,6 +28,8 @@ const mockGetTask = vi.fn();
 const mockGetTaskPlan = vi.fn();
 const mockPauseTask = vi.fn();
 const mockResumeTask = vi.fn();
+const mockListReviewComments = vi.fn();
+const mockListFeedback = vi.fn();
 
 vi.mock('@/lib/client', () => ({
 	taskClient: {
@@ -35,6 +37,10 @@ vi.mock('@/lib/client', () => ({
 		getTaskPlan: (...args: unknown[]) => mockGetTaskPlan(...args),
 		pauseTask: (...args: unknown[]) => mockPauseTask(...args),
 		resumeTask: (...args: unknown[]) => mockResumeTask(...args),
+		listReviewComments: (...args: unknown[]) => mockListReviewComments(...args),
+	},
+	feedbackClient: {
+		listFeedback: (...args: unknown[]) => mockListFeedback(...args),
 	},
 }));
 
@@ -99,6 +105,10 @@ describe('TaskDetail Layout (TASK-736)', () => {
 		vi.clearAllMocks();
 		useTaskStore.getState().reset();
 		useProjectStore.setState({ currentProjectId: 'test-project' });
+
+		// Default mock responses for child components
+		mockListReviewComments.mockResolvedValue({ comments: [] });
+		mockListFeedback.mockResolvedValue({ feedback: [] });
 
 		// Default mock responses
 		mockGetTask.mockResolvedValue({

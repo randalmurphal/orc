@@ -406,22 +406,22 @@ orc reset TASK-001 --force   # Skip confirmation (for scripts/automation)
 
 ---
 
-### orc resolve
+### orc close
 
-Mark a task as resolved without re-running.
+Mark a task as closed without re-running.
 
 ```bash
-orc resolve <task-id> [--yes] [--message <msg>] [--cleanup] [--force]
+orc close <task-id> [--yes] [--message <msg>] [--cleanup] [--force]
 ```
 
 | Option | Description |
 |--------|-------------|
 | `--yes`, `-y` | Skip confirmation prompt (does not imply `--force`) |
-| `--message`, `-m` | Resolution message explaining why task was resolved |
+| `--message`, `-m` | Close message explaining why task was closed |
 | `--cleanup` | Abort in-progress git operations and discard uncommitted changes in worktree |
-| `--force`, `-f` | Skip confirmation and allow resolving non-failed tasks (implies `--yes`) |
+| `--force`, `-f` | Skip confirmation and allow closing non-failed tasks (implies `--yes`) |
 
-Marks a task as completed (resolved) without clearing its execution state. Unlike `reset` which clears progress for retry, `resolve` closes out a task while preserving execution context.
+Marks a task as completed (closed) without clearing its execution state. Unlike `reset` which clears progress for retry, `close` closes out a task while preserving execution context.
 
 **Use cases**:
 - Issue was fixed manually outside of orc
@@ -430,24 +430,24 @@ Marks a task as completed (resolved) without clearing its execution state. Unlik
 - **Task stuck in 'running' status but its PR was already merged** (use `--force`)
 - **Executor crashed after merge but before marking task complete** (use `--force`)
 
-**Force resolving non-failed tasks**:
+**Force closing non-failed tasks**:
 
-By default, `resolve` only works on failed tasks. Use `--force` to resolve tasks in any status (running, paused, blocked, created, etc.). This is useful when a task is stuck but the work is already complete.
+By default, `close` only works on failed tasks. Use `--force` to close tasks in any status (running, paused, blocked, created, etc.). This is useful when a task is stuck but the work is already complete.
 
-When force-resolving:
+When force closing:
 - If the task has a merged PR, it is reported: `PR merged (PR #123)`
 - If no PR exists, a warning is shown: `Warning: No PR found for this task. Work may be incomplete.`
 - If the PR exists but isn't merged, a warning is shown: `Warning: PR #45 is not merged (status: pending_review). Work may be incomplete.`
-- The original status and force_resolved flag are recorded in metadata
+- The original status and force_closed flag are recorded in metadata
 
 ```
-$ orc resolve TASK-201 --force
+$ orc close TASK-201 --force
 PR merged (PR #123)
-Task TASK-201 marked as resolved (was: running)
+Task TASK-201 marked as closed (was: running)
 
-$ orc resolve TASK-202 --force  # task with no PR
+$ orc close TASK-202 --force  # task with no PR
 Warning: No PR found for this task. Work may be incomplete.
-Task TASK-202 marked as resolved (was: running)
+Task TASK-202 marked as closed (was: running)
 ```
 
 **Worktree handling**:
@@ -462,35 +462,35 @@ If the task has an associated worktree with uncommitted changes, in-progress git
 
 | Flag | Behavior |
 |------|----------|
-| `--cleanup` | Abort in-progress git ops, discard uncommitted changes, then resolve |
+| `--cleanup` | Abort in-progress git ops, discard uncommitted changes, then close |
 | `--yes` | Skip confirmation prompt only (still requires failed status) |
-| `--force` | Skip confirmation and status checks (resolve any status) |
+| `--force` | Skip confirmation and status checks (close any status) |
 | (default) | Show warnings and prompt for confirmation |
 
 **Metadata stored**:
-- `resolved: true` - Indicates task was resolved, not executed to completion
-- `resolved_at` - Timestamp of resolution
-- `resolution_message` - Optional explanation (if provided via `-m`)
-- `force_resolved: true` - Set when `--force` was used on a non-failed task
-- `original_status` - The task's status before resolution (when force-resolved)
-- `pr_was_merged: true` - Set if PR was merged at resolution time (when force-resolved)
+- `closed: true` - Indicates task was closed, not executed to completion
+- `closed_at` - Timestamp of close
+- `close_message` - Optional explanation (if provided via `-m`)
+- `force_closed: true` - Set when `--force` was used on a non-failed task
+- `original_status` - The task's status before closing (when force-closed)
+- `pr_was_merged: true` - Set if PR was merged at close time (when force-closed)
 - `worktree_was_dirty` - Set if worktree had uncommitted changes
 - `worktree_had_conflicts` - Set if worktree had unresolved merge conflicts
 - `worktree_had_incomplete_operation` - Set if worktree had rebase/merge in progress
 
 **Status behavior**:
-- Without `--force`: Only failed tasks can be resolved
-- With `--force`: Any status can be resolved (running, paused, blocked, created, etc.)
+- Without `--force`: Only failed tasks can be closed
+- With `--force`: Any status can be closed (running, paused, blocked, created, etc.)
 - Confirmation prompt unless `--yes` or `--force` is used
 
 **Examples**:
 ```bash
-orc resolve TASK-001                          # Resolve failed task with confirmation
-orc resolve TASK-001 --yes                    # Skip confirmation prompt
-orc resolve TASK-001 -y -m "Fixed manually"   # Skip prompt with message
-orc resolve TASK-001 --cleanup                # Clean up worktree state first
-orc resolve TASK-001 --force                  # Resolve any status (skip checks)
-orc resolve TASK-001 --force -m "PR merged"   # Force resolve with message
+orc close TASK-001                          # Close failed task with confirmation
+orc close TASK-001 --yes                    # Skip confirmation prompt
+orc close TASK-001 -y -m "Fixed manually"   # Skip prompt with message
+orc close TASK-001 --cleanup                # Clean up worktree state first
+orc close TASK-001 --force                  # Close any status (skip checks)
+orc close TASK-001 --force -m "PR merged"   # Force close with message
 ```
 
 ---

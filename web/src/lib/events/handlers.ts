@@ -6,13 +6,125 @@
  */
 
 import type { Event } from '@/gen/orc/v1/events_pb';
+import { ActivityState } from '@/gen/orc/v1/events_pb';
 import { useTaskStore, useInitiativeStore, useSessionStore, useUIStore, toast } from '@/stores';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
 import { create } from '@bufbuild/protobuf';
 import { PendingDecisionSchema } from '@/gen/orc/v1/decision_pb';
-import { TaskSchema, TaskStatus, TaskQueue, TaskPriority, TaskCategory, PhaseStatus } from '@/gen/orc/v1/task_pb';
+import { TaskSchema, TaskStatus, TaskQueue, TaskPriority, TaskCategory, PhaseStatus, PhaseStateSchema } from '@/gen/orc/v1/task_pb';
 import { InitiativeSchema, InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import type { PhaseStatus as UIPhaseStatus } from '@/components/workflow-editor/nodes';
+import { estimatePhaseCompletion } from '@/lib/utils/progressEstimation';
+import type { SessionMetrics, PhaseProgress } from '@/components/common/RealTimeMetrics';
+import type { Task, ExecutionState } from '@/gen/orc/v1/task_pb';
+
+/**
+ * Interface for the subset of TaskStore methods used by event handlers
+ */
+interface TaskStoreActions {
+	getRunningTasks: () => Task[];
+	getTaskState: (taskId: string) => ExecutionState | undefined;
+	updateSessionMetrics: (taskId: string, metrics: SessionMetrics) => void;
+	updatePhaseProgress: (taskId: string, progress: PhaseProgress) => void;
+}
+
+/**
+ * Metrics payload from session_metrics events
+ */
+interface GlobalMetrics {
+	totalTokens: number;
+	estimatedCostUsd: number;
+	inputTokens: number;
+	outputTokens: number;
+	durationSeconds: number | bigint;
+}
+
+/**
+ * Convert proto ActivityState enum to string format expected by components
+ */
+function getActivityStateString(activity: ActivityState): string {
+	switch (activity) {
+		case ActivityState.IDLE:
+			return 'idle';
+		case ActivityState.WAITING_API:
+			return 'waiting_api';
+		case ActivityState.STREAMING:
+			return 'streaming';
+		case ActivityState.RUNNING_TOOL:
+			return 'running_tool';
+		case ActivityState.PROCESSING:
+			return 'processing';
+		case ActivityState.SPEC_ANALYZING:
+			return 'spec_analyzing';
+		case ActivityState.SPEC_WRITING:
+			return 'spec_writing';
+		case ActivityState.UNSPECIFIED:
+		default:
+			return 'unknown_activity';
+	}
+}
+
+/**
+ * Update task-specific session metrics for running tasks
+ */
+function updateTaskSpecificMetrics(taskStore: TaskStoreActions, globalMetrics: GlobalMetrics): void {
+	// Get running tasks and distribute metrics proportionally
+	const runningTasks = taskStore.getRunningTasks();
+
+	if (runningTasks.length === 0) {
+		return;
+	}
+
+	// For now, divide metrics equally among running tasks
+	// In a real implementation, this might be more sophisticated
+	const tasksRunning = runningTasks.length;
+	const tokensPerTask = Math.floor(globalMetrics.totalTokens / tasksRunning);
+	const costPerTask = globalMetrics.estimatedCostUsd / tasksRunning;
+
+	runningTasks.forEach((task: Task) => {
+		const taskMetrics: SessionMetrics = {
+			totalTokens: tokensPerTask,
+			estimatedCostUSD: costPerTask,
+			inputTokens: Math.floor(globalMetrics.inputTokens / tasksRunning),
+			outputTokens: Math.floor(globalMetrics.outputTokens / tasksRunning),
+			durationSeconds: Number(globalMetrics.durationSeconds),
+			tasksRunning: 1 // This task specifically
+		};
+
+		taskStore.updateSessionMetrics(task.id, taskMetrics);
+	});
+}
+
+/**
+ * Update phase progress data when activity changes
+ */
+function updatePhaseProgressFromActivity(taskStore: TaskStoreActions, taskId: string, phaseId: string, activity: string): void {
+	const existingState = taskStore.getTaskState(taskId);
+
+	if (!existingState) {
+		return;
+	}
+
+	const phaseState = existingState.phases[phaseId];
+	if (!phaseState) {
+		return;
+	}
+
+	const iterations = phaseState.iterations || 1;
+	const phaseStartTime = phaseState.startedAt?.seconds ?
+		Number(phaseState.startedAt.seconds) * 1000 : Date.now();
+
+	// Compute progress estimation
+	const estimatedCompletion = estimatePhaseCompletion(activity, phaseStartTime);
+
+	const phaseProgress: PhaseProgress = {
+		iterations,
+		currentActivity: activity,
+		estimatedCompletion
+	};
+
+	taskStore.updatePhaseProgress(taskId, phaseProgress);
+}
 
 /**
  * Map proto PhaseStatus to UI PhaseStatus string
@@ -115,6 +227,26 @@ export function handleEvent(event: Event): void {
 				currentPhase: phaseName,
 			});
 
+			// Update ExecutionState phases for real-time progress
+			const existingState = taskStore.getTaskState(taskId);
+			if (existingState) {
+				// Create proper PhaseState proto object
+				const phaseState = create(PhaseStateSchema, {
+					status,
+					iterations: iteration,
+					...(error && { error }),
+				});
+
+				const updatedState = {
+					...existingState,
+					phases: {
+						...existingState.phases,
+						[phaseName]: phaseState
+					}
+				};
+				taskStore.updateTaskState(taskId, updatedState);
+			}
+
 			// TASK-639: Also update workflow editor store if this event matches active run
 			const editorStore = useWorkflowEditorStore.getState();
 			const activeRun = editorStore.activeRun;
@@ -160,8 +292,12 @@ export function handleEvent(event: Event): void {
 
 		case 'activity': {
 			const { taskId, phaseId, activity } = event.payload.value;
-			// Activity is proto ActivityState enum - matches store directly
+			// Activity is proto ActivityState enum - convert to string for store
+			const activityString = getActivityStateString(activity);
 			taskStore.updateTaskActivity(taskId, phaseId, activity);
+
+			// Compute and update phase progress when activity changes
+			updatePhaseProgressFromActivity(taskStore, taskId, phaseId, activityString);
 			break;
 		}
 
@@ -245,6 +381,8 @@ export function handleEvent(event: Event): void {
 			// Aggregate session metrics (tokens, cost, etc.)
 			const sessionStore = useSessionStore.getState();
 			const metrics = event.payload.value;
+
+			// Update global session metrics
 			sessionStore.updateFromMetricsEvent({
 				durationSeconds: metrics.durationSeconds,
 				totalTokens: metrics.totalTokens,
@@ -254,6 +392,9 @@ export function handleEvent(event: Event): void {
 				tasksRunning: metrics.tasksRunning,
 				isPaused: metrics.isPaused,
 			});
+
+			// Update task-specific metrics for running tasks
+			updateTaskSpecificMetrics(taskStore, metrics);
 			break;
 		}
 
@@ -289,3 +430,4 @@ export function handleEvent(event: Event): void {
 		}
 	}
 }
+

@@ -581,6 +581,25 @@ type WeightsConfig struct {
 	Large string `yaml:"large,omitempty"`
 }
 
+// WorkflowDefaults defines default workflow IDs for different task categories.
+// This enables category-based workflow selection (feature -> feature-complete, bug -> hotfix).
+type WorkflowDefaults struct {
+	// Feature is the default workflow for feature tasks
+	Feature string `yaml:"feature,omitempty"`
+	// Bug is the default workflow for bug tasks
+	Bug string `yaml:"bug,omitempty"`
+	// Refactor is the default workflow for refactor tasks
+	Refactor string `yaml:"refactor,omitempty"`
+	// Chore is the default workflow for chore tasks
+	Chore string `yaml:"chore,omitempty"`
+	// Docs is the default workflow for docs tasks
+	Docs string `yaml:"docs,omitempty"`
+	// Test is the default workflow for test tasks
+	Test string `yaml:"test,omitempty"`
+	// Default is the fallback workflow for unknown/unspecified categories
+	Default string `yaml:"default,omitempty"`
+}
+
 // GetWorkflowID returns the workflow ID for a given weight.
 // Falls back to "implement-{weight}" if not configured.
 func (w WeightsConfig) GetWorkflowID(weight string) string {
@@ -608,6 +627,121 @@ func (w WeightsConfig) GetWorkflowID(weight string) string {
 	default:
 		return ""
 	}
+}
+
+// GetDefaultWorkflow returns the default workflow ID for a given task category.
+// If the category-specific workflow is empty, returns the general default.
+// Returns empty string if no default is configured at all.
+func (w WorkflowDefaults) GetDefaultWorkflow(category string) string {
+	var categoryWorkflow string
+	switch category {
+	case "feature":
+		categoryWorkflow = w.Feature
+	case "bug":
+		categoryWorkflow = w.Bug
+	case "refactor":
+		categoryWorkflow = w.Refactor
+	case "chore":
+		categoryWorkflow = w.Chore
+	case "docs":
+		categoryWorkflow = w.Docs
+	case "test":
+		categoryWorkflow = w.Test
+	default:
+		return w.Default
+	}
+
+	// If category-specific workflow is configured, use it
+	if categoryWorkflow != "" {
+		return categoryWorkflow
+	}
+
+	// Fall back to general default
+	return w.Default
+}
+
+// SetDefaultWorkflow sets the default workflow ID for a given task category.
+// If category is empty, sets the general default.
+func (w *WorkflowDefaults) SetDefaultWorkflow(category, workflowID string) {
+	switch category {
+	case "feature":
+		w.Feature = workflowID
+	case "bug":
+		w.Bug = workflowID
+	case "refactor":
+		w.Refactor = workflowID
+	case "chore":
+		w.Chore = workflowID
+	case "docs":
+		w.Docs = workflowID
+	case "test":
+		w.Test = workflowID
+	default:
+		w.Default = workflowID
+	}
+}
+
+// ListCategories returns all categories that have non-empty workflow defaults.
+func (w WorkflowDefaults) ListCategories() []string {
+	var categories []string
+	if w.Feature != "" {
+		categories = append(categories, "feature")
+	}
+	if w.Bug != "" {
+		categories = append(categories, "bug")
+	}
+	if w.Refactor != "" {
+		categories = append(categories, "refactor")
+	}
+	if w.Chore != "" {
+		categories = append(categories, "chore")
+	}
+	if w.Docs != "" {
+		categories = append(categories, "docs")
+	}
+	if w.Test != "" {
+		categories = append(categories, "test")
+	}
+	return categories
+}
+
+// ValidateWorkflowIDs validates that all configured workflow IDs exist in the provided list.
+func (w WorkflowDefaults) ValidateWorkflowIDs(validWorkflows []string) error {
+	isValid := func(id string) bool {
+		if id == "" {
+			return true // empty is valid (means not configured)
+		}
+		for _, valid := range validWorkflows {
+			if id == valid {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !isValid(w.Feature) {
+		return fmt.Errorf("invalid workflow ID for feature: %s", w.Feature)
+	}
+	if !isValid(w.Bug) {
+		return fmt.Errorf("invalid workflow ID for bug: %s", w.Bug)
+	}
+	if !isValid(w.Refactor) {
+		return fmt.Errorf("invalid workflow ID for refactor: %s", w.Refactor)
+	}
+	if !isValid(w.Chore) {
+		return fmt.Errorf("invalid workflow ID for chore: %s", w.Chore)
+	}
+	if !isValid(w.Docs) {
+		return fmt.Errorf("invalid workflow ID for docs: %s", w.Docs)
+	}
+	if !isValid(w.Test) {
+		return fmt.Errorf("invalid workflow ID for test: %s", w.Test)
+	}
+	if !isValid(w.Default) {
+		return fmt.Errorf("invalid default workflow ID: %s", w.Default)
+	}
+
+	return nil
 }
 
 // ArtifactSkipConfig defines artifact detection and auto-skip behavior.

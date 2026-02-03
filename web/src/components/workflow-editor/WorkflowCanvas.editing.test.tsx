@@ -19,7 +19,7 @@
  *       SC-12 (toolbar) tested in CanvasToolbar.test.tsx
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
@@ -49,29 +49,7 @@ vi.mock('@/lib/client', () => ({
 	},
 }));
 
-// Mock IntersectionObserver for React Flow
-beforeAll(() => {
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-
-	// Mock ResizeObserver for React Flow
-	class MockResizeObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'ResizeObserver', {
-		value: MockResizeObserver,
-		writable: true,
-	});
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 
 /** Load a custom (editable) workflow into the store */
 function loadCustomWorkflow() {
@@ -155,9 +133,11 @@ describe('WorkflowCanvas - Drag-to-Add', () => {
 			const canvas = document.querySelector('.workflow-canvas');
 			expect(canvas).not.toBeNull();
 
-			// Simulate drop
+			// Simulate drop - wrap in act() to handle state updates
 			const dropEvent = createDragEvent('drop', 'review');
-			canvas!.dispatchEvent(dropEvent);
+			await act(async () => {
+				canvas!.dispatchEvent(dropEvent);
+			});
 
 			await waitFor(() => {
 				expect(mockAddPhase).toHaveBeenCalledWith(
@@ -189,7 +169,9 @@ describe('WorkflowCanvas - Drag-to-Add', () => {
 
 			const canvas = document.querySelector('.workflow-canvas');
 			const dropEvent = createDragEvent('drop', 'docs');
-			canvas!.dispatchEvent(dropEvent);
+			await act(async () => {
+				canvas!.dispatchEvent(dropEvent);
+			});
 
 			await waitFor(() => {
 				expect(mockAddPhase).toHaveBeenCalledWith(
@@ -214,7 +196,9 @@ describe('WorkflowCanvas - Drag-to-Add', () => {
 
 			const canvas = document.querySelector('.workflow-canvas');
 			const dropEvent = createDragEvent('drop', 'spec');
-			canvas!.dispatchEvent(dropEvent);
+			await act(async () => {
+				canvas!.dispatchEvent(dropEvent);
+			});
 
 			await waitFor(() => {
 				expect(mockAddPhase).toHaveBeenCalledWith(
@@ -238,7 +222,9 @@ describe('WorkflowCanvas - Drag-to-Add', () => {
 
 			const canvas = document.querySelector('.workflow-canvas');
 			const dropEvent = createDragEvent('drop', 'review');
-			canvas!.dispatchEvent(dropEvent);
+			await act(async () => {
+				canvas!.dispatchEvent(dropEvent);
+			});
 
 			await waitFor(() => {
 				expect(mockSaveLayout).toHaveBeenCalledWith(
@@ -256,7 +242,7 @@ describe('WorkflowCanvas - Drag-to-Add', () => {
 	});
 
 	describe('SC-3: Visual drop indicator during dragover', () => {
-		it('adds drop-target class on dragover with valid template', () => {
+		it('adds drop-target class on dragover with valid template', async () => {
 			loadCustomWorkflow();
 
 			render(<WorkflowCanvas />);
@@ -266,12 +252,14 @@ describe('WorkflowCanvas - Drag-to-Add', () => {
 			expect(canvas!.classList.contains('workflow-canvas--drop-target')).toBe(false);
 
 			const dragOverEvent = createDragEvent('dragover', 'review');
-			canvas!.dispatchEvent(dragOverEvent);
+			await act(async () => {
+				canvas!.dispatchEvent(dragOverEvent);
+			});
 
 			expect(canvas!.classList.contains('workflow-canvas--drop-target')).toBe(true);
 		});
 
-		it('removes drop-target class on dragleave', () => {
+		it('removes drop-target class on dragleave', async () => {
 			loadCustomWorkflow();
 
 			render(<WorkflowCanvas />);
@@ -280,23 +268,29 @@ describe('WorkflowCanvas - Drag-to-Add', () => {
 
 			// First add the class via dragover
 			const dragOverEvent = createDragEvent('dragover', 'review');
-			canvas!.dispatchEvent(dragOverEvent);
+			await act(async () => {
+				canvas!.dispatchEvent(dragOverEvent);
+			});
 			expect(canvas!.classList.contains('workflow-canvas--drop-target')).toBe(true);
 
 			// Then remove via dragleave
 			const dragLeaveEvent = createDragEvent('dragleave');
-			canvas!.dispatchEvent(dragLeaveEvent);
+			await act(async () => {
+				canvas!.dispatchEvent(dragLeaveEvent);
+			});
 			expect(canvas!.classList.contains('workflow-canvas--drop-target')).toBe(false);
 		});
 
-		it('does not show drop indicator in read-only mode', () => {
+		it('does not show drop indicator in read-only mode', async () => {
 			loadBuiltinWorkflow();
 
 			render(<WorkflowCanvas />);
 
 			const canvas = document.querySelector('.workflow-canvas');
 			const dragOverEvent = createDragEvent('dragover', 'review');
-			canvas!.dispatchEvent(dragOverEvent);
+			await act(async () => {
+				canvas!.dispatchEvent(dragOverEvent);
+			});
 
 			expect(canvas!.classList.contains('workflow-canvas--drop-target')).toBe(false);
 		});
@@ -314,7 +308,9 @@ describe('WorkflowCanvas - Drag-to-Add', () => {
 
 			const canvas = document.querySelector('.workflow-canvas');
 			const dropEvent = createDragEvent('drop', 'review');
-			canvas!.dispatchEvent(dropEvent);
+			await act(async () => {
+				canvas!.dispatchEvent(dropEvent);
+			});
 
 			await waitFor(() => {
 				// Node count should remain the same
@@ -345,11 +341,15 @@ describe('WorkflowCanvas - Drag-to-Add', () => {
 
 			// First drop
 			const dropEvent1 = createDragEvent('drop', 'review');
-			canvas!.dispatchEvent(dropEvent1);
+			await act(async () => {
+				canvas!.dispatchEvent(dropEvent1);
+			});
 
 			// Second drop while first is in progress
 			const dropEvent2 = createDragEvent('drop', 'docs');
-			canvas!.dispatchEvent(dropEvent2);
+			await act(async () => {
+				canvas!.dispatchEvent(dropEvent2);
+			});
 
 			// Only first call should have been made
 			expect(mockAddPhase).toHaveBeenCalledTimes(1);
@@ -357,8 +357,10 @@ describe('WorkflowCanvas - Drag-to-Add', () => {
 				expect.objectContaining({ phaseTemplateId: 'review' })
 			);
 
-			// Resolve the first promise
-			resolveFirst!({ phase: createMockWorkflowPhase({ id: 3, sequence: 3 }) });
+			// Resolve the first promise and wait for state updates
+			await act(async () => {
+				resolveFirst!({ phase: createMockWorkflowPhase({ id: 3, sequence: 3 }) });
+			});
 		});
 	});
 });
@@ -374,45 +376,57 @@ describe('WorkflowCanvas - Delete Phase', () => {
 	});
 
 	describe('SC-4: Delete/Backspace opens confirmation dialog', () => {
-		it('shows confirmation dialog when Delete is pressed with phase selected', () => {
+		it('shows confirmation dialog when Delete is pressed with phase selected', async () => {
 			loadCustomWorkflow();
 
 			render(<WorkflowCanvas />);
 
 			// Select a phase node
 			const phaseNode = useWorkflowEditorStore.getState().nodes.find((n) => n.type === 'phase');
-			useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			});
 
 			// Press Delete key
-			fireEvent.keyDown(document, { key: 'Delete' });
+			await act(async () => {
+				fireEvent.keyDown(document, { key: 'Delete' });
+			});
 
 			// Confirmation dialog should appear
 			expect(screen.getByRole('dialog')).toBeInTheDocument();
 			expect(screen.getByText(/remove phase/i)).toBeInTheDocument();
 		});
 
-		it('shows confirmation dialog when Backspace is pressed with phase selected', () => {
+		it('shows confirmation dialog when Backspace is pressed with phase selected', async () => {
 			loadCustomWorkflow();
 
 			render(<WorkflowCanvas />);
 
 			const phaseNode = useWorkflowEditorStore.getState().nodes.find((n) => n.type === 'phase');
-			useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			});
 
-			fireEvent.keyDown(document, { key: 'Backspace' });
+			await act(async () => {
+				fireEvent.keyDown(document, { key: 'Backspace' });
+			});
 
 			expect(screen.getByRole('dialog')).toBeInTheDocument();
 		});
 
-		it('does not show dialog when no phase is selected', () => {
+		it('does not show dialog when no phase is selected', async () => {
 			loadCustomWorkflow();
 
 			render(<WorkflowCanvas />);
 
 			// Ensure no node is selected
-			useWorkflowEditorStore.getState().selectNode(null);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(null);
+			});
 
-			fireEvent.keyDown(document, { key: 'Delete' });
+			await act(async () => {
+				fireEvent.keyDown(document, { key: 'Delete' });
+			});
 
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 		});
@@ -427,14 +441,20 @@ describe('WorkflowCanvas - Delete Phase', () => {
 			render(<WorkflowCanvas />);
 
 			// Select phase with id=1
-			useWorkflowEditorStore.getState().selectNode('phase-1');
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode('phase-1');
+			});
 
 			// Press Delete to open dialog
-			fireEvent.keyDown(document, { key: 'Delete' });
+			await act(async () => {
+				fireEvent.keyDown(document, { key: 'Delete' });
+			});
 
 			// Click confirm button
 			const confirmButton = screen.getByRole('button', { name: /remove phase/i });
-			fireEvent.click(confirmButton);
+			await act(async () => {
+				fireEvent.click(confirmButton);
+			});
 
 			await waitFor(() => {
 				expect(mockRemovePhase).toHaveBeenCalledWith(
@@ -454,11 +474,17 @@ describe('WorkflowCanvas - Delete Phase', () => {
 			render(<WorkflowCanvas />);
 
 
-			useWorkflowEditorStore.getState().selectNode('phase-1');
-			fireEvent.keyDown(document, { key: 'Delete' });
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode('phase-1');
+			});
+			await act(async () => {
+				fireEvent.keyDown(document, { key: 'Delete' });
+			});
 
 			const confirmButton = screen.getByRole('button', { name: /remove phase/i });
-			fireEvent.click(confirmButton);
+			await act(async () => {
+				fireEvent.click(confirmButton);
+			});
 
 			await waitFor(() => {
 				// Canvas should be refreshed with one less phase
@@ -467,16 +493,22 @@ describe('WorkflowCanvas - Delete Phase', () => {
 			});
 		});
 
-		it('closes dialog and preserves phase when cancel is clicked', () => {
+		it('closes dialog and preserves phase when cancel is clicked', async () => {
 			loadCustomWorkflow();
 
 			render(<WorkflowCanvas />);
 
-			useWorkflowEditorStore.getState().selectNode('phase-1');
-			fireEvent.keyDown(document, { key: 'Delete' });
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode('phase-1');
+			});
+			await act(async () => {
+				fireEvent.keyDown(document, { key: 'Delete' });
+			});
 
 			const cancelButton = screen.getByRole('button', { name: /cancel/i });
-			fireEvent.click(cancelButton);
+			await act(async () => {
+				fireEvent.click(cancelButton);
+			});
 
 			// Dialog should close
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -487,17 +519,21 @@ describe('WorkflowCanvas - Delete Phase', () => {
 	});
 
 	describe('SC-6: Delete disabled in read-only mode', () => {
-		it('shows toast instead of dialog for built-in workflow', () => {
+		it('shows toast instead of dialog for built-in workflow', async () => {
 			loadBuiltinWorkflow();
 
 			render(<WorkflowCanvas />);
 
 			// Select a phase
 			const phaseNode = useWorkflowEditorStore.getState().nodes.find((n) => n.type === 'phase');
-			useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			});
 
 			// Press Delete
-			fireEvent.keyDown(document, { key: 'Delete' });
+			await act(async () => {
+				fireEvent.keyDown(document, { key: 'Delete' });
+			});
 
 			// Dialog should NOT appear
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -515,11 +551,17 @@ describe('WorkflowCanvas - Delete Phase', () => {
 
 			render(<WorkflowCanvas />);
 
-			useWorkflowEditorStore.getState().selectNode('phase-1');
-			fireEvent.keyDown(document, { key: 'Delete' });
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode('phase-1');
+			});
+			await act(async () => {
+				fireEvent.keyDown(document, { key: 'Delete' });
+			});
 
 			const confirmButton = screen.getByRole('button', { name: /remove phase/i });
-			fireEvent.click(confirmButton);
+			await act(async () => {
+				fireEvent.click(confirmButton);
+			});
 
 			await waitFor(() => {
 				// Dialog should close even on error
@@ -544,11 +586,17 @@ describe('WorkflowCanvas - Delete Phase', () => {
 
 			render(<WorkflowCanvas />);
 
-			useWorkflowEditorStore.getState().selectNode('phase-1');
-			fireEvent.keyDown(document, { key: 'Delete' });
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode('phase-1');
+			});
+			await act(async () => {
+				fireEvent.keyDown(document, { key: 'Delete' });
+			});
 
 			const confirmButton = screen.getByRole('button', { name: /remove phase/i });
-			fireEvent.click(confirmButton);
+			await act(async () => {
+				fireEvent.click(confirmButton);
+			});
 
 			await waitFor(() => {
 				expect(mockRemovePhase).toHaveBeenCalled();
@@ -747,7 +795,10 @@ describe('WorkflowCanvas - Layout Persistence', () => {
 			// Node can be dragged to negative coordinates or far outside viewport
 			// Position should still be saved
 
-			vi.advanceTimersByTime(1000);
+			// Use act() to properly flush React updates with fake timers
+			await act(async () => {
+				vi.advanceTimersByTime(1000);
+			});
 
 			// Verify save was called (position validation is in the API, not frontend)
 		});
@@ -761,7 +812,10 @@ describe('WorkflowCanvas - Layout Persistence', () => {
 
 			render(<WorkflowCanvas />);
 
-			vi.advanceTimersByTime(1000);
+			// Use act() to properly flush React updates with fake timers
+			await act(async () => {
+				vi.advanceTimersByTime(1000);
+			});
 
 			// Error should be shown via toast
 			// Positions will revert when workflow is reloaded

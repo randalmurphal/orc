@@ -105,7 +105,7 @@ func init() {
 	// Phase Control
 	addCmd(newRewindCmd(), groupPhaseControl)
 	addCmd(newResetCmd(), groupPhaseControl)
-	addCmd(newResolveCmd(), groupPhaseControl)
+	addCmd(newCloseCmd(), groupPhaseControl)
 	addCmd(newFinalizeCmd(), groupPhaseControl)
 	addCmd(newSkipCmd(), groupPhaseControl)
 	addCmd(newApproveCmd(), groupPhaseControl)

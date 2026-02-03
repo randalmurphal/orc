@@ -10,8 +10,8 @@
  * The /timeline route does not yet exist in routes.tsx.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter, useRoutes } from 'react-router-dom';
 import { routes } from './routes';
 import { EventProvider } from '@/hooks';
@@ -59,6 +59,28 @@ vi.mock('@/lib/api', () => ({
 		mcpServersCount: 0,
 		permissionsProfile: 'default',
 	}),
+}));
+
+// Mock client to prevent actual API calls during route rendering
+vi.mock('@/lib/client', () => ({
+	taskClient: {
+		listTasks: vi.fn().mockResolvedValue({ tasks: [] }),
+	},
+	initiativeClient: {
+		listInitiatives: vi.fn().mockResolvedValue({ initiatives: [] }),
+	},
+	configClient: {
+		getConfigStats: vi.fn().mockResolvedValue({
+			stats: {
+				slashCommandsCount: 0,
+				claudeMdSize: BigInt(0),
+				mcpServersCount: 0,
+				permissionsProfile: 'default',
+			},
+		}),
+		listAgents: vi.fn().mockResolvedValue({ agents: [] }),
+		listSkills: vi.fn().mockResolvedValue({ skills: [] }),
+	},
 }));
 
 // Test wrapper
@@ -120,6 +142,10 @@ describe('Timeline Route', () => {
 			loading: false,
 			error: null,
 		});
+	});
+
+	afterEach(() => {
+		cleanup();
 	});
 
 	describe('/timeline route (SC-1)', () => {

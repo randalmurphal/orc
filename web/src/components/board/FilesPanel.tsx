@@ -13,6 +13,9 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
+import { DiffViewModal } from '@/components/overlays/DiffViewModal';
+import { useCurrentProjectId } from '@/stores';
 import './FilesPanel.css';
 
 /** File status type matching FileDiff.status from types.ts */
@@ -121,6 +124,10 @@ export function FilesPanel({
 }: FilesPanelProps) {
 	const [collapsed, setCollapsed] = useState(false);
 	const [showAll, setShowAll] = useState(false);
+	const [modalOpen, setModalOpen] = useState(false);
+	const [selectedFilePath, setSelectedFilePath] = useState<string | undefined>();
+
+	const projectId = useCurrentProjectId();
 
 	const handleToggle = useCallback(() => {
 		setCollapsed((prev) => !prev);
@@ -135,13 +142,44 @@ export function FilesPanel({
 
 	const handleKeyDown = useCallback(
 		(file: ChangedFile, event: React.KeyboardEvent) => {
-			if (event.key === 'Enter' || event.key === ' ') {
+			if (event.shiftKey && event.key === 'Enter') {
+				// Shift+Enter to open modal for this file
+				event.preventDefault();
+				setSelectedFilePath(file.path);
+				setModalOpen(true);
+			} else if (event.key === 'Enter' || event.key === ' ') {
 				event.preventDefault();
 				onFileClick(file);
 			}
 		},
 		[onFileClick]
 	);
+
+	const handleFileDoubleClick = useCallback(
+		(file: ChangedFile) => {
+			setSelectedFilePath(file.path);
+			setModalOpen(true);
+		},
+		[]
+	);
+
+	const handleFileCtrlClick = useCallback(
+		(file: ChangedFile, event: React.MouseEvent) => {
+			if (event.ctrlKey) {
+				event.preventDefault();
+				setSelectedFilePath(file.path);
+				setModalOpen(true);
+			}
+		},
+		[]
+	);
+
+	const handleViewFullDiff = useCallback(() => {
+		if (files.length > 0) {
+			setSelectedFilePath(undefined); // No specific file selected
+			setModalOpen(true);
+		}
+	}, [files]);
 
 	const handleShowMore = useCallback(() => {
 		if (onShowMore) {
@@ -167,6 +205,14 @@ export function FilesPanel({
 
 	// Check if we have multiple task groups
 	const hasMultipleGroups = groupedFiles.size > 1;
+
+	// Determine task ID for modal (single task vs multiple tasks)
+	const modalTaskId = useMemo(() => {
+		if (files.length === 0) return undefined;
+
+		const uniqueTaskIds = Array.from(new Set(files.map(f => f.taskId).filter(Boolean)));
+		return uniqueTaskIds.length === 1 ? uniqueTaskIds[0] : undefined;
+	}, [files]);
 
 	// Determine visible files
 	const visibleFiles = useMemo(() => {
@@ -212,12 +258,14 @@ export function FilesPanel({
 							<div className="files-task-header">
 								<span className="files-task-header-id">{taskId}</span>
 							</div>
-							{taskFiles.map((file) => (
+							{taskFiles.map((file: ChangedFile) => (
 								<FileItem
 									key={file.path}
 									file={file}
 									onClick={handleFileClick}
 									onKeyDown={handleKeyDown}
+									onDoubleClick={handleFileDoubleClick}
+									onCtrlClick={handleFileCtrlClick}
 								/>
 							))}
 						</div>
@@ -225,12 +273,14 @@ export function FilesPanel({
 				) : (
 					// Flat list
 					<>
-						{visibleFiles.map((file) => (
+						{visibleFiles.map((file: ChangedFile) => (
 							<FileItem
 								key={file.path}
 								file={file}
 								onClick={handleFileClick}
 								onKeyDown={handleKeyDown}
+								onDoubleClick={handleFileDoubleClick}
+								onCtrlClick={handleFileCtrlClick}
 							/>
 						))}
 
@@ -245,7 +295,36 @@ export function FilesPanel({
 						)}
 					</>
 				)}
+
+				{/* View Full Diff Button */}
+				{files.length > 0 && (
+					<div className="files-actions">
+						<Button
+							variant="secondary"
+							size="sm"
+							onClick={handleViewFullDiff}
+							aria-label="Open full diff view modal"
+							title="Open full diff view modal"
+						>
+							View Full Diff
+						</Button>
+					</div>
+				)}
 			</div>
+
+			{/* Diff View Modal */}
+			{modalOpen && projectId && (
+				<DiffViewModal
+					open={modalOpen}
+					taskId={modalTaskId || 'unknown'}
+					projectId={projectId}
+					selectedFile={selectedFilePath}
+					onClose={() => {
+						setModalOpen(false);
+						setSelectedFilePath(undefined);
+					}}
+				/>
+			)}
 		</div>
 	);
 }
@@ -255,16 +334,33 @@ interface FileItemProps {
 	file: ChangedFile;
 	onClick: (file: ChangedFile) => void;
 	onKeyDown: (file: ChangedFile, event: React.KeyboardEvent) => void;
+	onDoubleClick?: (file: ChangedFile) => void;
+	onCtrlClick?: (file: ChangedFile, event: React.MouseEvent) => void;
 }
 
-function FileItem({ file, onClick, onKeyDown }: FileItemProps) {
+function FileItem({ file, onClick, onKeyDown, onDoubleClick, onCtrlClick }: FileItemProps) {
 	const isBinary = file.binary ?? isBinaryFile(file.path);
 	const fileName = getFileName(file.path);
+
+	const handleClick = (e: React.MouseEvent) => {
+		if (onCtrlClick && e.ctrlKey) {
+			onCtrlClick(file, e);
+		} else {
+			onClick(file);
+		}
+	};
+
+	const handleDoubleClick = () => {
+		if (onDoubleClick) {
+			onDoubleClick(file);
+		}
+	};
 
 	return (
 		<div
 			className="file-item"
-			onClick={() => onClick(file)}
+			onClick={handleClick}
+			onDoubleClick={handleDoubleClick}
 			onKeyDown={(e) => onKeyDown(file, e)}
 			tabIndex={0}
 			role="button"

@@ -1,16 +1,17 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import * as Tabs from '@radix-ui/react-tabs';
 import * as Collapsible from '@radix-ui/react-collapsible';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import { workflowClient, configClient, mcpClient } from '@/lib/client';
 import {
 	GateType,
 	VariableSourceType,
+	PromptSource,
 } from '@/gen/orc/v1/workflow_pb';
 import type {
 	WorkflowPhase,
 	WorkflowWithDetails,
 	WorkflowVariable,
+	PhaseTemplate,
 } from '@/gen/orc/v1/workflow_pb';
 import type { Agent, Hook, Skill } from '@/gen/orc/v1/config_pb';
 import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
@@ -25,8 +26,6 @@ import { VariableModal } from '../VariableModal';
 import { ConditionEditor, LoopEditor } from '@/components/workflows';
 import './PhaseInspector.css';
 
-type InspectorTab = 'input' | 'prompt' | 'criteria' | 'settings';
-
 interface PhaseInspectorProps {
 	phase: WorkflowPhase | null;
 	workflowDetails: WorkflowWithDetails | null;
@@ -34,6 +33,65 @@ interface PhaseInspectorProps {
 	onWorkflowRefresh?: () => void;
 	onDeletePhase?: () => void;
 }
+
+// Section state management for persistence across phase selections
+interface SectionState {
+	subAgents: boolean;
+	prompt: boolean;
+	dataFlow: boolean;
+	environment: boolean;
+	advanced: boolean;
+}
+
+// Field validation state
+interface FieldError {
+	message: string;
+	type: 'validation' | 'save' | 'load';
+}
+
+interface FieldErrors {
+	[key: string]: FieldError | null;
+}
+
+// Debounced save state
+interface PendingChanges {
+	[key: string]: unknown;
+}
+
+const DEFAULT_SECTION_STATE: SectionState = {
+	subAgents: false,
+	prompt: false,
+	dataFlow: false,
+	environment: false,
+	advanced: false,
+};
+
+// Track section state across phase selections
+const sectionStateCache = new Map<number, SectionState>();
+
+// Utility to check if we're on mobile viewport
+const useMobileViewport = () => {
+	const [isMobile, setIsMobile] = useState(false);
+
+	useEffect(() => {
+		// Check if window and matchMedia are available (for SSR and test environments)
+		if (typeof window === 'undefined' || !window.matchMedia) {
+			return;
+		}
+
+		const mediaQuery = window.matchMedia('(max-width: 640px)');
+		setIsMobile(mediaQuery.matches);
+
+		const handleChange = (e: MediaQueryListEvent) => {
+			setIsMobile(e.matches);
+		};
+
+		mediaQuery.addEventListener('change', handleChange);
+		return () => mediaQuery.removeEventListener('change', handleChange);
+	}, []);
+
+	return isMobile;
+};
 
 function formatSourceType(st: VariableSourceType): string {
 	switch (st) {
@@ -61,19 +119,194 @@ export function PhaseInspector({
 	onWorkflowRefresh,
 	onDeletePhase,
 }: PhaseInspectorProps) {
-	const [activeTab, setActiveTab] = useState<InspectorTab>('prompt');
-	const [settingsError, setSettingsError] = useState<string | null>(null);
-	const [varsOpen, setVarsOpen] = useState(true);
+	const isMobile = useMobileViewport();
+
+	// Section state management
+	const [sectionState, setSectionState] = useState<SectionState>(DEFAULT_SECTION_STATE);
 	const prevPhaseIdRef = useRef<number | null>(null);
 
-	// Reset to Prompt tab when selected phase changes
+	// Field values and errors
+	const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+	const [savingFields, setSavingFields] = useState(new Set<string>());
+
+	// Auto-save debounce
+	const [_pendingChanges, setPendingChanges] = useState<PendingChanges>({});
+	const debounceTimeoutRef = useRef<number | null>(null);
+
+	// Data fetching states
+	const [agents, setAgents] = useState<Agent[]>([]);
+	const [hooks, setHooks] = useState<Hook[]>([]);
+	const [skills, setSkills] = useState<Skill[]>([]);
+	const [mcpServers, setMcpServers] = useState<MCPServerInfo[]>([]);
+	const [agentsLoading, setAgentsLoading] = useState(true);
+	const [hooksLoading, setHooksLoading] = useState(true);
+	const [skillsLoading, setSkillsLoading] = useState(true);
+	const [mcpLoading, setMcpLoading] = useState(true);
+
+	// Track scroll position for maintenance during edits
+	const inspectorRef = useRef<HTMLDivElement>(null);
+	const lastScrollTopRef = useRef(0);
+
+	// Load section state from cache when phase changes
 	useEffect(() => {
 		if (phase && phase.id !== prevPhaseIdRef.current) {
-			setActiveTab('prompt');
-			setSettingsError(null);
+			const cached = sectionStateCache.get(phase.id);
+			if (cached) {
+				setSectionState(cached);
+			} else {
+				setSectionState(DEFAULT_SECTION_STATE);
+			}
+
+			// Clear pending changes and errors for new phase
+			setPendingChanges({});
+			setFieldErrors({});
+			setSavingFields(new Set());
+
+			// Cancel any pending saves
+			if (debounceTimeoutRef.current) {
+				clearTimeout(debounceTimeoutRef.current);
+			}
 		}
 		prevPhaseIdRef.current = phase?.id ?? null;
 	}, [phase]);
+
+	// Save section state to cache when it changes
+	useEffect(() => {
+		if (phase) {
+			sectionStateCache.set(phase.id, sectionState);
+		}
+	}, [phase, sectionState]);
+
+	// Load data on mount
+	useEffect(() => {
+		const loadData = async () => {
+			try {
+				const [agentsResp, hooksResp, skillsResp, mcpResp] = await Promise.allSettled([
+					configClient.listAgents({}),
+					configClient.listHooks({}),
+					configClient.listSkills({}),
+					mcpClient.listMCPServers({}),
+				]);
+
+				if (agentsResp.status === 'fulfilled') {
+					setAgents(agentsResp.value.agents);
+				}
+				if (hooksResp.status === 'fulfilled') {
+					setHooks(hooksResp.value.hooks);
+				}
+				if (skillsResp.status === 'fulfilled') {
+					setSkills(skillsResp.value.skills);
+				}
+				if (mcpResp.status === 'fulfilled') {
+					setMcpServers(mcpResp.value.servers);
+				}
+			} catch (error) {
+				console.error('Failed to load inspector data:', error);
+			} finally {
+				setAgentsLoading(false);
+				setHooksLoading(false);
+				setSkillsLoading(false);
+				setMcpLoading(false);
+			}
+		};
+
+		loadData();
+	}, []);
+
+	// Maintain scroll position during auto-saves
+	useEffect(() => {
+		const inspector = inspectorRef.current;
+		if (inspector) {
+			lastScrollTopRef.current = inspector.scrollTop;
+		}
+	});
+
+	// Auto-save implementation with 500ms debounce
+	const autoSave = useCallback(
+		async (fieldName: string, value: unknown, immediate = false) => {
+			if (!phase || !workflowDetails?.workflow?.id) return;
+
+			// Update pending changes
+			setPendingChanges(prev => ({ ...prev, [fieldName]: value }));
+
+			// Clear existing timeout
+			if (debounceTimeoutRef.current) {
+				clearTimeout(debounceTimeoutRef.current);
+			}
+
+			const saveFunction = async () => {
+				try {
+					setSavingFields(prev => new Set(prev).add(fieldName));
+					setFieldErrors(prev => ({ ...prev, [fieldName]: null }));
+
+					// Restore scroll position before API call
+					const inspector = inspectorRef.current;
+					const scrollTop = lastScrollTopRef.current;
+
+					await workflowClient.updatePhase({
+						workflowId: workflowDetails.workflow!.id,
+						phaseId: phase.id,
+						[fieldName]: value,
+					});
+
+					// Restore scroll position after API call
+					if (inspector && inspector.scrollTop !== scrollTop) {
+						inspector.scrollTop = scrollTop;
+					}
+
+					// Clear from pending changes
+					setPendingChanges(prev => {
+						const next = { ...prev };
+						delete next[fieldName];
+						return next;
+					});
+
+					onWorkflowRefresh?.();
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : 'Save failed';
+
+					// Set error and revert field value
+					setFieldErrors(prev => ({
+						...prev,
+						[fieldName]: { message: errorMessage, type: 'save' }
+					}));
+
+					// Remove from pending changes (field will revert to original)
+					setPendingChanges(prev => {
+						const next = { ...prev };
+						delete next[fieldName];
+						return next;
+					});
+				} finally {
+					setSavingFields(prev => {
+						const next = new Set(prev);
+						next.delete(fieldName);
+						return next;
+					});
+				}
+			};
+
+			if (immediate) {
+				// Cancel debounced save and save immediately
+				if (debounceTimeoutRef.current) {
+					clearTimeout(debounceTimeoutRef.current);
+				}
+				await saveFunction();
+			} else {
+				// Debounce the save
+				debounceTimeoutRef.current = window.setTimeout(saveFunction, 500);
+			}
+		},
+		[phase, workflowDetails, onWorkflowRefresh]
+	);
+
+	// Helper to toggle section state
+	const toggleSection = useCallback((section: keyof SectionState) => {
+		setSectionState(prev => ({
+			...prev,
+			[section]: !prev[section],
+		}));
+	}, []);
 
 	if (!phase) {
 		return null;
@@ -102,164 +335,901 @@ export function PhaseInspector({
 	}
 
 	const isBuiltin = template.isBuiltin ?? false;
-	const workflowIsBuiltin = workflowDetails.workflow?.isBuiltin ?? false;
-	const workflowVariables = workflowDetails.variables ?? [];
 
 	return (
-		<div className="phase-inspector">
-			{/* Header */}
-			<div className="phase-inspector__header">
-				<div className="phase-inspector__header-row">
-					<h3 className="phase-inspector__title">
-						{template.name ?? phase.phaseTemplateId} Phase
-					</h3>
-					{isBuiltin && (
-						<span className="phase-inspector__badge phase-inspector__badge--builtin">
-							Built-in
-						</span>
-					)}
+		<div
+			ref={inspectorRef}
+			className={`phase-inspector ${isMobile ? 'phase-inspector--mobile' : ''} ${isMobile ? 'inspector--compact-spacing' : ''}`}
+			data-testid="phase-inspector"
+		>
+			{isBuiltin && readOnly && (
+				<div className="phase-inspector-readonly-notice">
+					Built-in template - clone to customize
 				</div>
-				<span className="phase-inspector__subtitle">{phase.phaseTemplateId}</span>
+			)}
+
+			{/* Always Visible Section */}
+			<div
+				className={`always-visible-section ${isMobile ? 'always-visible--mobile-stack' : ''}`}
+				data-testid="always-visible-section"
+			>
+				<AlwaysVisibleSection
+					phase={phase}
+					template={template}
+					agents={agents}
+					agentsLoading={agentsLoading}
+					readOnly={readOnly}
+					fieldErrors={fieldErrors}
+					savingFields={savingFields}
+					autoSave={autoSave}
+					isMobile={isMobile}
+				/>
 			</div>
 
-			{/* Tabs */}
-			<Tabs.Root
-				value={activeTab}
-				onValueChange={(v) => setActiveTab(v as InspectorTab)}
-				className="phase-inspector__tabs"
-			>
-				<Tabs.List className="phase-inspector__tab-list" aria-label="Phase inspector tabs">
-					<Tabs.Trigger value="input" className="phase-inspector__tab">
-						Phase Input
-					</Tabs.Trigger>
-					<Tabs.Trigger value="prompt" className="phase-inspector__tab">
-						Prompt
-					</Tabs.Trigger>
-					<Tabs.Trigger value="criteria" className="phase-inspector__tab">
-						Completion
-					</Tabs.Trigger>
-					<Tabs.Trigger value="settings" className="phase-inspector__tab">
-						Settings
-					</Tabs.Trigger>
-				</Tabs.List>
-
-				<Tabs.Content value="input" className="phase-inspector__content">
-					<PhaseInputTab
+			{/* Collapsible Sections */}
+			<div className="collapsible-sections">
+				{/* Sub-Agents Section */}
+				<CollapsibleSection
+					title="Sub-Agents"
+					isOpen={sectionState.subAgents}
+					onToggle={() => toggleSection('subAgents')}
+					testId="sub-agents"
+					isMobile={isMobile}
+				>
+					<SubAgentsSection
 						phase={phase}
-						workflowDetails={workflowDetails}
+						agents={agents}
+						agentsLoading={agentsLoading}
 						readOnly={readOnly}
-						workflowIsBuiltin={workflowIsBuiltin}
-						onWorkflowRefresh={onWorkflowRefresh}
+						fieldErrors={fieldErrors}
+						savingFields={savingFields}
+						autoSave={autoSave}
 					/>
-				</Tabs.Content>
+				</CollapsibleSection>
 
-				<Tabs.Content value="prompt" className="phase-inspector__content">
-					<PromptEditor
-						phaseTemplateId={template.id}
-						promptSource={template.promptSource}
-						promptContent={template.promptContent}
+				{/* Prompt Section */}
+				<CollapsibleSection
+					title="Prompt"
+					isOpen={sectionState.prompt}
+					onToggle={() => toggleSection('prompt')}
+					testId="prompt"
+					isMobile={isMobile}
+				>
+					<PromptSection
+						phase={phase}
+						template={template}
 						readOnly={isBuiltin}
+						fieldErrors={fieldErrors}
 					/>
-				</Tabs.Content>
+				</CollapsibleSection>
 
-				<Tabs.Content value="criteria" className="phase-inspector__content">
-					<CompletionCriteriaTab phase={phase} />
-				</Tabs.Content>
-
-				<Tabs.Content value="settings" className="phase-inspector__content">
-					<SettingsTab
+				{/* Data Flow Section */}
+				<CollapsibleSection
+					title="Data Flow"
+					isOpen={sectionState.dataFlow}
+					onToggle={() => toggleSection('dataFlow')}
+					testId="data-flow"
+					isMobile={isMobile}
+				>
+					<DataFlowSection
 						phase={phase}
+						template={template}
 						workflowDetails={workflowDetails}
 						readOnly={readOnly}
-						error={settingsError}
-						onError={setSettingsError}
-						onWorkflowRefresh={onWorkflowRefresh}
+						fieldErrors={fieldErrors}
+						autoSave={autoSave}
+					/>
+				</CollapsibleSection>
+
+				{/* Environment Section */}
+				<CollapsibleSection
+					title="Environment"
+					isOpen={sectionState.environment}
+					onToggle={() => toggleSection('environment')}
+					testId="environment"
+					isMobile={isMobile}
+				>
+					<EnvironmentSection
+						phase={phase}
+						hooks={hooks}
+						skills={skills}
+						mcpServers={mcpServers}
+						hooksLoading={hooksLoading}
+						skillsLoading={skillsLoading}
+						mcpLoading={mcpLoading}
+						readOnly={readOnly}
+						fieldErrors={fieldErrors}
+						autoSave={autoSave}
+					/>
+				</CollapsibleSection>
+
+				{/* Advanced Section (positioned last) */}
+				<CollapsibleSection
+					title="Advanced"
+					isOpen={sectionState.advanced}
+					onToggle={() => toggleSection('advanced')}
+					testId="advanced"
+					isMobile={isMobile}
+				>
+					<AdvancedSection
+						phase={phase}
+						readOnly={readOnly}
+						fieldErrors={fieldErrors}
+						autoSave={autoSave}
 						onDeletePhase={onDeletePhase}
 					/>
-				</Tabs.Content>
-			</Tabs.Root>
-
-			{/* Available Variables - Collapsible Section */}
-			<Collapsible.Root
-				open={varsOpen}
-				onOpenChange={setVarsOpen}
-				className="phase-inspector__variables"
-			>
-				<Collapsible.Trigger className="phase-inspector__variables-trigger">
-					{varsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-					<span>Available Variables</span>
-					<span className="phase-inspector__variables-count">{workflowVariables.length}</span>
-				</Collapsible.Trigger>
-				<Collapsible.Content className="phase-inspector__variables-content">
-					<AvailableVariablesList
-						variables={workflowVariables}
-						workflowDetails={workflowDetails}
-						workflowIsBuiltin={workflowIsBuiltin}
-						onWorkflowRefresh={onWorkflowRefresh}
-					/>
-				</Collapsible.Content>
-			</Collapsible.Root>
+				</CollapsibleSection>
+			</div>
 		</div>
 	);
 }
 
-// ─── Phase Input Tab ──────────────────────────────────────────────────────────
+// ─── Always Visible Section ──────────────────────────────────────────────────
 
-interface PhaseInputTabProps {
+interface AlwaysVisibleSectionProps {
 	phase: WorkflowPhase;
-	workflowDetails: WorkflowWithDetails;
+	template: PhaseTemplate;
+	agents: Agent[];
+	agentsLoading: boolean;
 	readOnly: boolean;
-	workflowIsBuiltin: boolean;
-	onWorkflowRefresh?: () => void;
+	fieldErrors: FieldErrors;
+	savingFields: Set<string>;
+	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
+	isMobile: boolean;
 }
 
-function PhaseInputTab({ phase, workflowDetails }: PhaseInputTabProps) {
-	const template = phase.template;
-	const inputVariables = template?.inputVariables ?? [];
-	const workflowVariables = workflowDetails.variables;
-	const workflowVariableNames = new Set(workflowVariables.map((v) => v.name));
+function AlwaysVisibleSection({
+	phase,
+	template,
+	agents,
+	agentsLoading,
+	readOnly,
+	fieldErrors,
+	savingFields,
+	autoSave,
+	isMobile,
+}: AlwaysVisibleSectionProps) {
+	const [phaseName, setPhaseName] = useState(template.name || '');
+	const [agentOverride, setAgentOverride] = useState(phase.agentOverride || '');
+	const [modelOverride, setModelOverride] = useState(phase.modelOverride || '');
+	const [maxIterations, setMaxIterations] = useState(
+		phase.maxIterationsOverride ?? template.maxIterations ?? 3
+	);
+
+	// Reset local state when phase changes
+	useEffect(() => {
+		setPhaseName(template.name || '');
+		setAgentOverride(phase.agentOverride || '');
+		setModelOverride(phase.modelOverride || '');
+		setMaxIterations(phase.maxIterationsOverride ?? template.maxIterations ?? 3);
+	}, [phase.id, template, phase.agentOverride, phase.modelOverride, phase.maxIterationsOverride]);
+
+	// Validation helpers
+	const validatePhaseName = (name: string): FieldError | null => {
+		if (!name.trim()) {
+			return { message: 'Name cannot be empty', type: 'validation' };
+		}
+		return null;
+	};
+
+	const validateMaxIterations = (iterations: number): FieldError | null => {
+		if (iterations < 1 || iterations > 20) {
+			return { message: 'Must be between 1 and 20', type: 'validation' };
+		}
+		return null;
+	};
+
+	// Handle field changes with validation
+	const handlePhaseNameChange = (value: string) => {
+		setPhaseName(value);
+		const error = validatePhaseName(value);
+		if (!error) {
+			// Only auto-save if validation passes
+			autoSave('templateName', value);
+		}
+	};
+
+	const handlePhaseNameBlur = () => {
+		const error = validatePhaseName(phaseName);
+		if (error) {
+			// Revert to original value
+			setPhaseName(template.name || '');
+		} else {
+			autoSave('templateName', phaseName, true); // immediate save on blur
+		}
+	};
+
+	const handleAgentChange = (value: string) => {
+		setAgentOverride(value);
+		autoSave('agentOverride', value || undefined);
+	};
+
+	const handleModelChange = (value: string) => {
+		setModelOverride(value);
+		autoSave('modelOverride', value || undefined);
+	};
+
+	const handleMaxIterationsChange = (value: number) => {
+		setMaxIterations(value);
+		const error = validateMaxIterations(value);
+		if (!error) {
+			autoSave('maxIterationsOverride', value);
+		}
+	};
+
+	const handleMaxIterationsBlur = () => {
+		const error = validateMaxIterations(maxIterations);
+		if (error) {
+			// Revert to original value
+			setMaxIterations(phase.maxIterationsOverride ?? template.maxIterations ?? 3);
+		} else {
+			autoSave('maxIterationsOverride', maxIterations, true);
+		}
+	};
+
+	const nameError = fieldErrors.templateName || validatePhaseName(phaseName);
+	const iterationsError = fieldErrors.maxIterationsOverride || validateMaxIterations(maxIterations);
 
 	return (
-		<div className="phase-inspector__input">
-			<p className="phase-inspector__input-desc">
-				Variables this phase requires to execute:
-			</p>
-			{inputVariables.length === 0 ? (
-				<div className="phase-inspector__empty">No input variables required</div>
+		<div className={`always-visible-fields ${isMobile ? 'always-visible--mobile-stack' : ''}`}>
+			{/* Phase Name */}
+			<div className="field-group">
+				<label htmlFor="phase-name" className="field-label">
+					Phase Name
+				</label>
+				<input
+					id="phase-name"
+					data-testid="phase-name"
+					type="text"
+					value={phaseName}
+					onChange={(e) => handlePhaseNameChange(e.target.value)}
+					onBlur={handlePhaseNameBlur}
+					disabled={readOnly || savingFields.has('templateName')}
+					className={`field-input ${nameError ? 'field-error' : ''} ${isMobile ? 'touch-friendly' : ''}`}
+					title={phaseName.length > 50 ? phaseName : undefined}
+				/>
+				{nameError && (
+					<span className="field-error">{nameError.message}</span>
+				)}
+				{savingFields.has('templateName') && (
+					<span className="field-saving">Saving...</span>
+				)}
+			</div>
+
+			{/* Executor */}
+			<div className="field-group">
+				<label htmlFor="phase-executor" className="field-label">
+					Executor
+				</label>
+				{agentsLoading ? (
+					<span className="field-loading">Loading agents...</span>
+				) : agents.length === 0 ? (
+					<span className="field-error">No agents available</span>
+				) : (
+					<select
+						id="phase-executor"
+						aria-label="Executor"
+						value={agentOverride}
+						onChange={(e) => handleAgentChange(e.target.value)}
+						disabled={readOnly || savingFields.has('agentOverride')}
+						className={`field-input ${isMobile ? 'touch-friendly' : ''}`}
+					>
+						<option value="">
+							{template.agentId ? `Inherit (${template.agentId})` : 'Inherit from template'}
+						</option>
+						{agents.map((agent) => (
+							<option key={agent.name} value={agent.name}>
+								{agent.name}
+							</option>
+						))}
+					</select>
+				)}
+				{savingFields.has('agentOverride') && (
+					<span className="field-saving">Saving...</span>
+				)}
+				{fieldErrors.agentOverride && (
+					<span className="field-error">{fieldErrors.agentOverride.message}</span>
+				)}
+			</div>
+
+			{/* Model */}
+			<div className="field-group">
+				<label htmlFor="phase-model" className="field-label">
+					Model
+				</label>
+				<select
+					id="phase-model"
+					aria-label="Model"
+					value={modelOverride}
+					onChange={(e) => handleModelChange(e.target.value)}
+					disabled={readOnly || savingFields.has('modelOverride')}
+					className={`field-input ${isMobile ? 'touch-friendly' : ''}`}
+				>
+					<option value="">Inherit from workflow</option>
+					<option value="claude-sonnet-4-20250514">Sonnet</option>
+					<option value="claude-opus-4-5-20251101">Opus</option>
+					<option value="claude-haiku-35-20241022">Haiku</option>
+				</select>
+				{savingFields.has('modelOverride') && (
+					<span className="field-saving">Saving...</span>
+				)}
+				{fieldErrors.modelOverride && (
+					<span className="field-error">{fieldErrors.modelOverride.message}</span>
+				)}
+			</div>
+
+			{/* Max Iterations */}
+			<div className="field-group">
+				<label htmlFor="phase-max-iterations" className="field-label">
+					Max Iterations
+				</label>
+				<input
+					id="phase-max-iterations"
+					aria-label="Max Iterations"
+					type="number"
+					min="1"
+					max="20"
+					value={maxIterations}
+					onChange={(e) => handleMaxIterationsChange(Number(e.target.value))}
+					onBlur={handleMaxIterationsBlur}
+					disabled={readOnly || savingFields.has('maxIterationsOverride')}
+					className={`field-input ${iterationsError ? 'field-error' : ''} ${isMobile ? 'touch-friendly' : ''}`}
+				/>
+				{iterationsError && (
+					<span className="field-error">{iterationsError.message}</span>
+				)}
+				{savingFields.has('maxIterationsOverride') && (
+					<span className="field-saving">Saving...</span>
+				)}
+			</div>
+		</div>
+	);
+}
+
+// ─── Collapsible Section Component ───────────────────────────────────────────
+
+interface CollapsibleSectionProps {
+	title: string;
+	isOpen: boolean;
+	onToggle: () => void;
+	testId: string;
+	isMobile: boolean;
+	children: React.ReactNode;
+}
+
+function CollapsibleSection({
+	title,
+	isOpen,
+	onToggle,
+	testId,
+	isMobile,
+	children,
+}: CollapsibleSectionProps) {
+	return (
+		<Collapsible.Root
+			open={isOpen}
+			onOpenChange={onToggle}
+			className={`collapsible-section ${isMobile ? 'section--mobile-stack' : ''}`}
+		>
+			<Collapsible.Trigger
+				className={`collapsible-header ${isMobile ? 'touch-friendly' : ''}`}
+				style={{ minHeight: isMobile ? '44px' : undefined }}
+			>
+				{isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+				<span>{title}</span>
+			</Collapsible.Trigger>
+			<Collapsible.Content
+				className="collapsible-content"
+				data-testid={`${testId}-content`}
+			>
+				{children}
+			</Collapsible.Content>
+		</Collapsible.Root>
+	);
+}
+
+// ─── Sub-Agents Section ──────────────────────────────────────────────────────
+
+interface SubAgentsSectionProps {
+	phase: WorkflowPhase;
+	agents: Agent[];
+	agentsLoading: boolean;
+	readOnly: boolean;
+	fieldErrors: FieldErrors;
+	savingFields: Set<string>;
+	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
+}
+
+function SubAgentsSection({
+	phase,
+	agents,
+	agentsLoading,
+	readOnly,
+	fieldErrors,
+	savingFields,
+	autoSave,
+}: SubAgentsSectionProps) {
+	const [subAgentsOverride, setSubAgentsOverride] = useState<string[]>(
+		phase.subAgentsOverride ?? []
+	);
+
+	useEffect(() => {
+		setSubAgentsOverride(phase.subAgentsOverride ?? []);
+	}, [phase.id, phase.subAgentsOverride]);
+
+	const handleAddAgent = (agentName: string) => {
+		const newSubAgents = [...subAgentsOverride, agentName];
+		setSubAgentsOverride(newSubAgents);
+		autoSave('subAgentsOverride', newSubAgents);
+	};
+
+	const handleRemoveAgent = (agentName: string) => {
+		const newSubAgents = subAgentsOverride.filter(name => name !== agentName);
+		setSubAgentsOverride(newSubAgents);
+		autoSave('subAgentsOverride', newSubAgents);
+	};
+
+	if (agentsLoading) {
+		return <span className="field-loading">Loading agents...</span>;
+	}
+
+	if (agents.length === 0) {
+		return <span className="field-error">No agents available</span>;
+	}
+
+	const assignedAgents = subAgentsOverride.filter(name =>
+		agents.some(agent => agent.name === name)
+	);
+	const availableAgents = agents.filter(agent =>
+		!subAgentsOverride.includes(agent.name)
+	);
+
+	return (
+		<div className="sub-agents-section">
+			{assignedAgents.length === 0 ? (
+				<p className="sub-agents-empty">None assigned</p>
 			) : (
-				<ul className="phase-inspector__input-list">
-					{inputVariables.map((varName) => {
-						const satisfied = workflowVariableNames.has(varName);
-						const varDef = workflowVariables.find((v) => v.name === varName);
-						return (
-							<li key={varName} className="phase-inspector__input-item">
-								<div className="phase-inspector__input-item-header">
-									<code className="phase-inspector__input-name">{`{{${varName}}}`}</code>
-									<span
-										className={`phase-inspector__input-status phase-inspector__input-status--${satisfied ? 'satisfied' : 'missing'}`}
-									>
-										{satisfied ? '✓ Provided' : '⚠ Missing'}
-									</span>
-								</div>
-								{varDef?.description && (
-									<p className="phase-inspector__input-hint">{varDef.description}</p>
-								)}
-							</li>
-						);
-					})}
-				</ul>
+				<div className="sub-agents-list">
+					{assignedAgents.map((agentName, _index) => (
+						<div
+							key={agentName}
+							className="sub-agent-item"
+							draggable={!readOnly}
+							data-testid={`drag-handle-${agentName}`}
+						>
+							{!readOnly && <GripVertical size={14} className="drag-handle" />}
+							<span className="agent-name">{agentName}</span>
+							{!readOnly && (
+								<button
+									type="button"
+									onClick={() => handleRemoveAgent(agentName)}
+									className="remove-button"
+									aria-label={`Remove ${agentName}`}
+								>
+									×
+								</button>
+							)}
+						</div>
+					))}
+				</div>
+			)}
+
+			{!readOnly && availableAgents.length > 0 && (
+				<div className="add-agent-section">
+					<select
+						onChange={(e) => {
+							if (e.target.value) {
+								handleAddAgent(e.target.value);
+								e.target.value = ''; // Reset selection
+							}
+						}}
+						className="add-agent-select"
+						aria-label="Add agent"
+					>
+						<option value="">Add agent...</option>
+						{availableAgents.map((agent) => (
+							<option key={agent.name} value={agent.name}>
+								{agent.name}
+							</option>
+						))}
+					</select>
+				</div>
+			)}
+
+			{fieldErrors.subAgentsOverride && (
+				<span className="field-error">{fieldErrors.subAgentsOverride.message}</span>
+			)}
+			{savingFields.has('subAgentsOverride') && (
+				<span className="field-saving">Saving...</span>
 			)}
 		</div>
 	);
 }
 
-// ─── Completion Criteria Tab ─────────────────────────────────────────────────
+// ─── Prompt Section ──────────────────────────────────────────────────────────
+
+interface PromptSectionProps {
+	phase: WorkflowPhase;
+	template: PhaseTemplate;
+	readOnly: boolean;
+	fieldErrors: FieldErrors;
+}
+
+function PromptSection({ phase: _phase, template, readOnly, fieldErrors: _fieldErrors }: PromptSectionProps) {
+	const [promptSource, setPromptSource] = useState<PromptSource>(
+		template.promptSource || PromptSource.EMBEDDED
+	);
+	const [filePath, setFilePath] = useState('');
+
+	const handleSourceChange = (source: PromptSource) => {
+		setPromptSource(source);
+	};
+
+	const validateFilePath = (path: string): FieldError | null => {
+		if (path && !path.match(/\.(md|txt)$/i)) {
+			return { message: 'Invalid file path - must end in .md or .txt', type: 'validation' };
+		}
+		return null;
+	};
+
+	const filePathError = validateFilePath(filePath);
+
+	return (
+		<div className="prompt-section">
+			{/* Source Toggle */}
+			<div className="prompt-source-toggle">
+				<button
+					type="button"
+					className={`source-button ${promptSource === PromptSource.EMBEDDED ? 'active' : ''}`}
+					onClick={() => handleSourceChange(PromptSource.EMBEDDED)}
+					aria-pressed={promptSource === PromptSource.EMBEDDED}
+				>
+					Template
+				</button>
+				<button
+					type="button"
+					className={`source-button ${promptSource === PromptSource.DB ? 'active' : ''}`}
+					onClick={() => handleSourceChange(PromptSource.DB)}
+					aria-pressed={promptSource === PromptSource.DB}
+				>
+					Custom
+				</button>
+				<button
+					type="button"
+					className={`source-button ${promptSource === PromptSource.FILE ? 'active' : ''}`}
+					onClick={() => handleSourceChange(PromptSource.FILE)}
+					aria-pressed={promptSource === PromptSource.FILE}
+				>
+					File
+				</button>
+			</div>
+
+			{/* Content based on source */}
+			{promptSource === PromptSource.EMBEDDED && (
+				<div className="prompt-template">
+					<p>Using template content: {template.promptContent?.slice(0, 100)}...</p>
+				</div>
+			)}
+
+			{promptSource === PromptSource.DB && (
+				<div className="prompt-custom" data-testid="prompt-editor">
+					<PromptEditor
+						phaseTemplateId={template.id}
+						promptSource={promptSource}
+						promptContent={template.promptContent}
+						readOnly={readOnly}
+					/>
+					{_fieldErrors.promptContent && (
+						<span className="field-error">Failed to load prompt content</span>
+					)}
+				</div>
+			)}
+
+			{promptSource === PromptSource.FILE && (
+				<div className="prompt-file">
+					<label htmlFor="prompt-file-path" className="field-label">
+						File Path
+					</label>
+					<input
+						id="prompt-file-path"
+						aria-label="File path"
+						type="text"
+						value={filePath}
+						onChange={(e) => setFilePath(e.target.value)}
+						className={`field-input ${filePathError ? 'field-error' : ''}`}
+						placeholder="path/to/prompt.md"
+					/>
+					{filePathError && (
+						<span className="field-error">{filePathError.message}</span>
+					)}
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ─── Data Flow Section ───────────────────────────────────────────────────────
+
+interface DataFlowSectionProps {
+	phase: WorkflowPhase;
+	template: PhaseTemplate;
+	workflowDetails: WorkflowWithDetails;
+	readOnly: boolean;
+	fieldErrors: FieldErrors;
+	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
+}
+
+function DataFlowSection({
+	phase: _phase,
+	template,
+	workflowDetails,
+	readOnly,
+	fieldErrors,
+	autoSave,
+}: DataFlowSectionProps) {
+	const [producesArtifact, setProducesArtifact] = useState(false);
+	const [artifactType, setArtifactType] = useState('spec');
+	const [outputVariable, setOutputVariable] = useState('');
+
+	const inputVariables = template?.inputVariables ?? [];
+	const workflowVariables = workflowDetails.variables ?? [];
+	const workflowVariableNames = new Set(workflowVariables.map((v) => v.name));
+
+	const handleProducesArtifactChange = (checked: boolean) => {
+		setProducesArtifact(checked);
+		autoSave('producesArtifact', checked);
+	};
+
+	const handleArtifactTypeChange = (type: string) => {
+		setArtifactType(type);
+		autoSave('artifactType', type);
+	};
+
+	const handleOutputVariableChange = (variable: string) => {
+		setOutputVariable(variable);
+		autoSave('outputVariable', variable);
+	};
+
+	return (
+		<div className="data-flow-section">
+			{/* Input Variables */}
+			<div className="input-variables">
+				<h4 className="section-title">Input Variables</h4>
+				{inputVariables.length === 0 ? (
+					<p className="empty-state">None defined</p>
+				) : (
+					<ul className="variable-list">
+						{inputVariables.map((varName: string) => {
+							const satisfied = workflowVariableNames.has(varName);
+							const varDef = workflowVariables.find((v) => v.name === varName);
+							return (
+								<li key={varName} className="variable-item">
+									<code className="variable-name">{`{{${varName}}}`}</code>
+									<span className={`variable-status ${satisfied ? 'satisfied' : 'missing'}`}>
+										{satisfied ? '✓ Provided' : '⚠ Missing'}
+									</span>
+									{varDef?.description && (
+										<p className="variable-description">{varDef.description}</p>
+									)}
+								</li>
+							);
+						})}
+					</ul>
+				)}
+			</div>
+
+			{/* Output Variable */}
+			<div className="output-variable">
+				<label htmlFor="output-variable" className="field-label">
+					Output Variable
+				</label>
+				<input
+					id="output-variable"
+					type="text"
+					value={outputVariable}
+					onChange={(e) => handleOutputVariableChange(e.target.value)}
+					disabled={readOnly}
+					className="field-input"
+					placeholder="Variable name to store output"
+				/>
+			</div>
+
+			{/* Artifact Production */}
+			<div className="artifact-section">
+				<label className="checkbox-label">
+					<input
+						type="checkbox"
+						checked={producesArtifact}
+						onChange={(e) => handleProducesArtifactChange(e.target.checked)}
+						disabled={readOnly}
+						aria-label="Produces artifact"
+					/>
+					<span>Produces Artifact</span>
+				</label>
+
+				{producesArtifact && (
+					<div className="artifact-type">
+						<label htmlFor="artifact-type" className="field-label">
+							Artifact Type
+						</label>
+						<select
+							id="artifact-type"
+							aria-label="Artifact type"
+							value={artifactType}
+							onChange={(e) => handleArtifactTypeChange(e.target.value)}
+							disabled={readOnly}
+							className="field-input"
+						>
+							<option value="spec">spec</option>
+							<option value="tests">tests</option>
+							<option value="docs">docs</option>
+							<option value="code">code</option>
+						</select>
+						{fieldErrors.artifactType && (
+							<span className="field-error">Failed to load artifact types</span>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+// ─── Environment Section ─────────────────────────────────────────────────────
+
+interface EnvironmentSectionProps {
+	phase: WorkflowPhase;
+	hooks: Hook[];
+	skills: Skill[];
+	mcpServers: MCPServerInfo[];
+	hooksLoading: boolean;
+	skillsLoading: boolean;
+	mcpLoading: boolean;
+	readOnly: boolean;
+	fieldErrors: FieldErrors;
+	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
+}
+
+function EnvironmentSection({
+	phase: _phase,
+	hooks,
+	skills,
+	mcpServers,
+	hooksLoading,
+	skillsLoading,
+	mcpLoading,
+	readOnly,
+	fieldErrors: _fieldErrors,
+	autoSave,
+}: EnvironmentSectionProps) {
+	const [workingDirectory, setWorkingDirectory] = useState('inherit');
+	const [envVars, setEnvVars] = useState<Record<string, string>>({});
+
+	const handleWorkingDirectoryChange = (directory: string) => {
+		setWorkingDirectory(directory);
+		autoSave('workingDirectory', directory);
+	};
+
+	const handleEnvVarsChange = (vars: Record<string, string>) => {
+		setEnvVars(vars);
+		autoSave('envVars', vars);
+	};
+
+	const isLoading = hooksLoading || skillsLoading || mcpLoading;
+	const hasNoData = hooks.length === 0 && skills.length === 0 && mcpServers.length === 0;
+
+	return (
+		<div className="environment-section">
+			{/* Working Directory */}
+			<div className="working-directory">
+				<label htmlFor="working-directory" className="field-label">
+					Working Directory
+				</label>
+				<select
+					id="working-directory"
+					value={workingDirectory}
+					onChange={(e) => handleWorkingDirectoryChange(e.target.value)}
+					disabled={readOnly}
+					className="field-input"
+				>
+					<option value="inherit">Inherit from workflow</option>
+					<option value="project-root">Project Root</option>
+					<option value="task-specific">Task-specific</option>
+				</select>
+			</div>
+
+			{/* Environment Variables */}
+			<div className="env-vars">
+				<h4 className="section-title">Environment Variables</h4>
+				<KeyValueEditor
+					entries={envVars}
+					onChange={handleEnvVarsChange}
+					disabled={readOnly}
+				/>
+			</div>
+
+			{/* MCP Servers, Skills, Hooks */}
+			{isLoading ? (
+				<span className="field-loading">Loading environment options...</span>
+			) : hasNoData ? (
+				<p className="empty-state">None configured</p>
+			) : (
+				<div className="environment-tools">
+					<h4 className="section-title">Tools & Extensions</h4>
+					<p className="section-hint">MCP servers, skills, and hooks will be shown here</p>
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ─── Advanced Section ────────────────────────────────────────────────────────
+
+interface AdvancedSectionProps {
+	phase: WorkflowPhase;
+	readOnly: boolean;
+	fieldErrors: FieldErrors;
+	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
+	onDeletePhase?: () => void;
+}
+
+function AdvancedSection({
+	phase,
+	readOnly,
+	fieldErrors: _fieldErrors,
+	autoSave,
+	onDeletePhase,
+}: AdvancedSectionProps) {
+	const [thinkingOverride, setThinkingOverride] = useState(phase.thinkingOverride ?? false);
+
+	useEffect(() => {
+		setThinkingOverride(phase.thinkingOverride ?? false);
+	}, [phase.id, phase.thinkingOverride]);
+
+	const handleThinkingChange = (checked: boolean) => {
+		setThinkingOverride(checked);
+		autoSave('thinkingOverride', checked);
+	};
+
+	return (
+		<div className="advanced-section">
+			{/* Thinking Override */}
+			<div className="thinking-override">
+				<label className="checkbox-label">
+					<input
+						type="checkbox"
+						checked={thinkingOverride}
+						onChange={(e) => handleThinkingChange(e.target.checked)}
+						disabled={readOnly}
+						aria-label="Thinking override"
+					/>
+					<span>Enable thinking override</span>
+				</label>
+			</div>
+
+			{/* Delete Phase */}
+			{!readOnly && onDeletePhase && (
+				<div className="danger-zone">
+					<button
+						type="button"
+						onClick={onDeletePhase}
+						className="delete-button"
+					>
+						Remove Phase
+					</button>
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ─── Legacy Components (keeping for backwards compatibility) ─────────────────
 
 interface CompletionCriteriaTabProps {
 	phase: WorkflowPhase;
 }
 
-function CompletionCriteriaTab({ phase }: CompletionCriteriaTabProps) {
+export function CompletionCriteriaTab({ phase }: CompletionCriteriaTabProps) {
 	const template = phase.template;
 	const gateType = phase.gateTypeOverride || template?.gateType || GateType.AUTO;
 	const maxIterations = phase.maxIterationsOverride ?? template?.maxIterations ?? 3;
@@ -315,7 +1285,7 @@ interface AvailableVariablesListProps {
 	onWorkflowRefresh?: () => void;
 }
 
-function AvailableVariablesList({
+export function AvailableVariablesList({
 	variables,
 	workflowDetails,
 	workflowIsBuiltin,
@@ -403,7 +1373,7 @@ interface SettingsTabProps {
 	onDeletePhase?: () => void;
 }
 
-function SettingsTab({
+export function SettingsTab({
 	phase,
 	workflowDetails,
 	readOnly,

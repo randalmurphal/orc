@@ -39,8 +39,9 @@ web/src/
 │   ├── board/            # Board view (TaskCard, RunningCard, Swimlane, BoardCommandPanel)
 │   ├── layout/           # Shell (AppShell, TopBar, IconNav, RightPanel, AppShellContext)
 │   ├── agents/           # Agent config (AgentsView, AgentCard, ExecutionSettings)
-│   ├── overlays/         # Modal components (NewTaskModal, ProjectSwitcher)
+│   ├── overlays/         # Modal components (NewTaskWorkflowModal, TaskDetailsModal, WorkflowPickerModal, DiffViewModal, ProjectSwitcher)
 │   ├── task-detail/      # Task detail tabs (Overview, Transcript, TestResults, etc.)
+│   │   ├── diff/         # Diff components (DiffFile, DiffHunk, DiffLine, DiffStats)
 │   ├── timeline/         # Timeline event view
 │   ├── workflow-editor/  # Visual editor (React Flow canvas, dagre layout)
 │   └── [8 more dirs]     # dashboard/, settings/, stats/, initiatives/, etc.
@@ -65,7 +66,7 @@ web/src/
 | `/settings/general/*` | SettingsLayout | Sidebar nav for Claude Code, ORC, Account sections |
 | `/settings/agents` | AgentsView | Agent configuration, execution settings |
 | `/settings/environment/*` | EnvironmentLayout | Sub-nav for hooks, skills, tools, config |
-| `/workflows` | WorkflowsPage | Workflow and phase template management |
+| `/workflows` | WorkflowsPage | Redesigned workflows management with Your Workflows/Built-in sections |
 | `/workflows/:id` | WorkflowEditorPage | Visual workflow editor (React Flow canvas) |
 | `/timeline` | TimelinePage | Event timeline with filters |
 | `/stats` | StatsPage | Dashboard statistics |
@@ -103,12 +104,19 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `TaskCard` | `board/` | Compact task card. `memo()`-wrapped with memo-friendly callbacks |
 | `RunningCard` | `board/` | Active task card with pipeline + output. `memo()`-wrapped |
 | `Swimlane` | `board/` | Initiative group in queue column. `memo()`-wrapped |
+| `AttentionDashboard` | `board/` | Three-section dashboard: running tasks, attention items, queue. Error states with visual indicators for failed tasks and phases |
 | `AppShell` | `layout/` | Main layout shell. Route-aware panel rendering via `useLocation` |
 | `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
 | `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
 | `TaskEditModal` | `task-detail/` | Edit task properties + branch/PR settings (`branchName`, `targetBranch`, `prDraft`, `prLabels`, `prReviewers`) |
+| `NewTaskWorkflowModal` | `overlays/` | Orchestrates 2-step workflow-first task creation: Step 1 (workflow picker) → Step 2 (task details) |
+| `WorkflowPickerModal` | `overlays/` | Step 1: Select workflow from grid (built-in + custom), shows phase count and description, keyboard navigation |
+| `TaskDetailsModal` | `overlays/` | Step 2: Enter task details (title/description), category/priority, advanced options, Create/Create & Run actions |
+| `DiffViewModal` | `overlays/` | Lazygit-style full-screen diff modal: file navigation, split/unified view, vim keybinds, search/filter, accessibility |
 | `WorkflowProgress` | `task-detail/` | Visual phase progression with gate diamonds, state indicators (✓/●/○/✗), and gate type colors (auto/human/ai) |
 | `TaskFooter` | `task-detail/` | Footer with session metrics (tokens/cost), action buttons (pause/resume/cancel/retry), error display with retry options |
+| `LiveOutputPanel` | `task-detail/` | Real-time transcript streaming: WebSocket events, auto-scroll, virtual scrolling for large transcripts, message styling by type |
+| `FeedbackPanel` | `task-detail/` | Agent feedback UI: create feedback (general/inline/approval/direction), timing controls (now/when-done/manual), send pending, form validation |
 | `SettingsTabs` | `settings/` | Top-level 3-tab navigation (General, Agents, Environment) with URL-driven state |
 | `SettingsLayout` | `settings/` | General tab: 240px sidebar with CLAUDE CODE/ORC/ACCOUNT groups |
 | `EnvironmentLayout` | `pages/environment/` | Environment tab: horizontal sub-nav for hooks/skills/tools/config |
@@ -137,6 +145,10 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `TagInput` | `core/` | Chip-style tag input (Enter/comma to add, backspace to remove) |
 | `KeyValueEditor` | `core/` | Row-based key-value editor for env vars. Empty keys excluded from output |
 | `SplitPane` | `core/` | Resizable split pane with left/right panels, localStorage persistence, min width constraints, keyboard/touch support |
+| `DiffFile` | `task-detail/diff/` | Individual file diff display: collapsible header, status icons, addition/deletion stats, comment threading |
+| `DiffHunk` | `task-detail/diff/` | Diff hunk rendering: context lines, line numbers, split/unified modes, syntax highlighting |
+| `DiffLine` | `task-detail/diff/` | Single diff line: type indicators (+/-/~), line numbers, content with syntax highlighting |
+| `DiffStats` | `task-detail/diff/` | Diff summary statistics: files changed, additions, deletions, binary file indicator |
 
 ### Gates as Edges Visual Model
 
@@ -216,6 +228,127 @@ See `stores/index.ts` for all exported store selector hooks (60+ hooks).
 bun run test                    # Vitest unit tests
 bunx playwright test            # E2E tests
 ```
+
+### Global Test Setup (`test-setup.ts`)
+
+**CRITICAL:** All browser API mocks are defined globally in `test-setup.ts`. DO NOT duplicate these mocks in individual test files:
+
+| Mock | Purpose |
+|------|---------|
+| `ResizeObserver` | React Flow node dimensions (fires callback with 800×600) |
+| `IntersectionObserver` | Lazy loading, React Flow viewport |
+| `Element.prototype.*` | `scrollIntoView`, `hasPointerCapture`, `setPointerCapture`, `releasePointerCapture` for Radix UI |
+| `window.confirm` | Delete confirmations |
+| `getBoundingClientRect` | Returns fixed 800×600 dimensions for jsdom |
+| `offsetWidth/offsetHeight` | Returns 800/600 for React Flow node measurement |
+| `DOMMatrixReadOnly` | Zoom extraction for React Flow viewport |
+| `localStorage` | Test-isolated storage |
+| `requestAnimationFrame` | Synchronous execution in tests |
+
+**Why this matters:** Test files that define `beforeAll()` mocks without `afterAll()` cleanup cause mocks to accumulate across test files. By test #33+, the environment becomes corrupted and tests hang. The global test-setup.ts prevents this by:
+1. Setting up mocks once
+2. Restoring mocks in `afterEach()`
+3. Intercepting `Object.defineProperty` to prevent test files from overriding protected mocks
+
+**Correct pattern for test files:**
+```typescript
+// DO: Reference that mocks exist globally
+// NOTE: Browser API mocks are set up globally in test-setup.ts - do not duplicate here
+
+// DON'T: Add beforeAll mocks without cleanup
+beforeAll(() => {
+  global.ResizeObserver = ... // BAD - corrupts environment
+});
+```
+
+### Avoiding act() Warnings
+
+act() warnings occur when React state updates happen outside the test's control flow. Common causes and fixes:
+
+| Cause | Fix |
+|-------|-----|
+| Test ends before `useEffect` async call completes | Add `await waitFor(() => { expect(mockApi).toHaveBeenCalled(); })` |
+| Promise resolved without wrapping in act() | Wrap in `await act(async () => { resolvePromise(); })` |
+| Zustand store action outside act() | Wrap store calls: `await act(async () => { store.getState().action(); })` |
+| `window.dispatchEvent()` triggering state updates | Wrap in `await act(async () => { window.dispatchEvent(new Event('resize')); })` |
+| `fireEvent.keyDown()` on elements with handlers | Wrap in `await act(async () => { fireEvent.keyDown(el, { key: 'Enter' }); })` |
+| Child components making unmocked API calls | Mock ALL client methods used by child components, not just the parent's |
+
+**Basic pattern - wait for async effects:**
+```typescript
+// BAD - causes act() warnings
+it('renders modal', async () => {
+  render(<ModalWithAsyncLoad open={true} />);
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  // Test ends, but useEffect's setState is still pending
+});
+
+// GOOD - wait for async operations
+it('renders modal', async () => {
+  render(<ModalWithAsyncLoad open={true} />);
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  await waitFor(() => {
+    expect(someApiClient.loadData).toHaveBeenCalled();
+  });
+});
+```
+
+**Zustand store actions:**
+```typescript
+// BAD - store action triggers React state update outside act()
+useWorkflowEditorStore.getState().selectNode('node-1');
+
+// GOOD - wrap in act()
+await act(async () => {
+  useWorkflowEditorStore.getState().selectNode('node-1');
+});
+```
+
+**Pending promises:**
+```typescript
+// BAD - resolving promise triggers state update outside act()
+resolveCancelPromise!();
+
+// GOOD - wrap resolution in act()
+await act(async () => {
+  resolveCancelPromise!();
+});
+```
+
+**Incomplete mocks causing cascading effects:**
+```typescript
+// BAD - only mocks what parent uses, child components call unmocked methods
+vi.mock('@/lib/client', () => ({
+  taskClient: { getTask: vi.fn().mockResolvedValue({ task }) },
+}));
+
+// GOOD - mock everything child components might call
+vi.mock('@/lib/client', () => ({
+  taskClient: {
+    getTask: vi.fn().mockResolvedValue({ task }),
+    listReviewComments: vi.fn().mockResolvedValue({ comments: [] }),
+    getDiff: vi.fn().mockResolvedValue({ files: [] }),
+  },
+  feedbackClient: {
+    listFeedback: vi.fn().mockResolvedValue({ feedback: [] }),
+  },
+}));
+```
+
+**setInterval/auto-refresh causing background updates:**
+```typescript
+// For components with intervals, mock timer functions
+let setIntervalSpy: any;
+beforeEach(() => {
+  setIntervalSpy = vi.spyOn(global, 'setInterval')
+    .mockImplementation(() => 0 as unknown as ReturnType<typeof setInterval>);
+});
+afterEach(() => {
+  setIntervalSpy.mockRestore();
+});
+```
+
+### E2E Tests
 
 **CRITICAL:** E2E tests use sandbox in `/tmp`. Always import from `./fixtures`:
 

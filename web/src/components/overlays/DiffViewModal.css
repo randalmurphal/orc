@@ -1,0 +1,541 @@
+/**
+ * DiffViewModal Styles
+ *
+ * Styles for the full-screen diff view modal component.
+ * Supports both split and unified view modes.
+ */
+
+.diff-view-modal {
+	display: flex;
+	flex-direction: column;
+	height: 80vh;
+	max-height: 800px;
+	overflow: hidden;
+	font-family: var(--font-mono, 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace);
+}
+
+/* Modal Header */
+.diff-modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 1rem;
+	border-bottom: 1px solid var(--border-color);
+	background: var(--surface-1);
+}
+
+.diff-modal-controls {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+}
+
+/* View Mode Toggle */
+.view-mode-toggle {
+	display: flex;
+	border-radius: 6px;
+	overflow: hidden;
+	border: 1px solid var(--border-color);
+}
+
+.view-mode-toggle button {
+	border-radius: 0;
+	border: none;
+	min-width: 80px;
+}
+
+.view-mode-toggle button:first-child {
+	border-top-left-radius: 6px;
+	border-bottom-left-radius: 6px;
+}
+
+.view-mode-toggle button:last-child {
+	border-top-right-radius: 6px;
+	border-bottom-right-radius: 6px;
+}
+
+.view-mode-toggle button.active {
+	background: var(--primary);
+	color: var(--primary-foreground);
+}
+
+/* Loading States */
+.diff-modal-loading,
+.diff-modal-error,
+.diff-modal-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 3rem;
+	text-align: center;
+	flex: 1;
+}
+
+.diff-modal-loading .loading-spinner {
+	width: 24px;
+	height: 24px;
+	border: 2px solid var(--border-color);
+	border-top: 2px solid var(--primary);
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+	margin-bottom: 1rem;
+}
+
+.diff-modal-error {
+	color: var(--destructive);
+}
+
+.diff-modal-error svg {
+	margin-bottom: 1rem;
+}
+
+.diff-modal-error button {
+	margin-top: 1rem;
+}
+
+.diff-modal-empty {
+	color: var(--muted-foreground);
+}
+
+.diff-modal-empty svg {
+	margin-bottom: 1rem;
+	opacity: 0.5;
+}
+
+/* Main Content Layout */
+.diff-modal-content {
+	display: flex;
+	flex: 1;
+	overflow: hidden;
+}
+
+/* File List Sidebar */
+.diff-modal-sidebar {
+	width: 300px;
+	min-width: 250px;
+	max-width: 400px;
+	border-right: 1px solid var(--border-color);
+	display: flex;
+	flex-direction: column;
+	background: var(--surface-1);
+}
+
+/* Search Bar */
+.file-search {
+	padding: 1rem;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.file-search input {
+	width: 100%;
+	padding: 0.5rem 0.75rem;
+	border: 1px solid var(--border-color);
+	border-radius: 6px;
+	background: var(--background);
+	color: var(--foreground);
+	font-size: 0.875rem;
+}
+
+.file-search input:focus {
+	outline: none;
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px var(--primary-alpha-20);
+}
+
+/* Status Filter */
+.status-filter-active {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.5rem 1rem;
+	background: var(--primary-alpha-10);
+	border-bottom: 1px solid var(--border-color);
+	font-size: 0.875rem;
+	color: var(--primary);
+}
+
+/* File List */
+.diff-modal-file-list {
+	flex: 1;
+	overflow-y: auto;
+	padding: 0.5rem 0;
+}
+
+.diff-modal-file-list:focus {
+	outline: none;
+}
+
+/* File Items */
+.file-item {
+	padding: 0.5rem 1rem;
+	cursor: pointer;
+	border-left: 3px solid transparent;
+	transition: all 0.15s ease;
+}
+
+.file-item:hover {
+	background: var(--accent);
+}
+
+.file-item:focus {
+	outline: none;
+	background: var(--accent);
+}
+
+.file-item.selected {
+	background: var(--primary-alpha-10);
+	border-left-color: var(--primary);
+}
+
+.file-item.visual-selected {
+	background: var(--secondary);
+	border-left-color: var(--secondary-foreground);
+}
+
+.file-item-content {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.875rem;
+}
+
+/* Status Badges */
+.status-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	border-radius: 3px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	flex-shrink: 0;
+}
+
+.status-badge.added {
+	background: var(--success-alpha-20);
+	color: var(--success);
+}
+
+.status-badge.modified {
+	background: var(--warning-alpha-20);
+	color: var(--warning);
+}
+
+.status-badge.deleted {
+	background: var(--destructive-alpha-20);
+	color: var(--destructive);
+}
+
+.status-badge.renamed {
+	background: var(--info-alpha-20);
+	color: var(--info);
+}
+
+/* File Path */
+.file-path {
+	flex: 1;
+	truncate: ellipsis;
+	white-space: nowrap;
+	overflow: hidden;
+	min-width: 0;
+}
+
+/* Binary Badge */
+.binary-badge {
+	background: var(--muted);
+	color: var(--muted-foreground);
+	padding: 0.125rem 0.375rem;
+	border-radius: 4px;
+	font-size: 0.75rem;
+	font-weight: 500;
+}
+
+/* File Stats */
+.file-stats {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	font-size: 0.75rem;
+}
+
+.file-stats .additions {
+	color: var(--success);
+}
+
+.file-stats .deletions {
+	color: var(--destructive);
+}
+
+/* Main Diff Content */
+.diff-modal-main {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+/* Content Header */
+.diff-content-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 1rem;
+	border-bottom: 1px solid var(--border-color);
+	background: var(--surface-1);
+}
+
+.current-file-path {
+	font-weight: 600;
+	color: var(--foreground);
+}
+
+.binary-notice {
+	color: var(--muted-foreground);
+	font-style: italic;
+}
+
+/* Diff Content Wrapper */
+.diff-content-wrapper {
+	flex: 1;
+	overflow: auto;
+	position: relative;
+}
+
+/* File Diff Loading/Error States */
+.file-diff-loading,
+.file-diff-error,
+.binary-file-message {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 3rem;
+	text-align: center;
+}
+
+.file-diff-loading .loading-spinner {
+	width: 20px;
+	height: 20px;
+	border: 2px solid var(--border-color);
+	border-top: 2px solid var(--primary);
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+	margin-bottom: 1rem;
+}
+
+.file-diff-error {
+	color: var(--destructive);
+}
+
+.file-diff-error svg {
+	margin-bottom: 0.5rem;
+}
+
+.binary-file-message {
+	color: var(--muted-foreground);
+}
+
+.binary-file-message svg {
+	margin-bottom: 1rem;
+	opacity: 0.5;
+}
+
+/* Diff Content */
+.diff-content {
+	padding: 1rem;
+}
+
+.diff-content.unified {
+	/* Unified diff styles */
+}
+
+.diff-content.split {
+	/* Split diff styles */
+}
+
+/* Word wrap mode */
+.diff-content.word-wrap {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+/* No syntax highlighting mode */
+.diff-content.no-syntax-highlight {
+	color: var(--foreground);
+}
+
+.diff-content.no-syntax-highlight .hljs {
+	background: none;
+	color: inherit;
+}
+
+/* Diff hunks for navigation */
+.diff-hunk[data-testid] {
+	scroll-margin-top: 2rem;
+}
+
+/* Keyboard Shortcuts Help */
+.keyboard-shortcuts-help {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: var(--background);
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	box-shadow: var(--shadow-lg);
+	z-index: 1000;
+	max-width: 600px;
+	max-height: 80vh;
+	overflow-y: auto;
+}
+
+.help-content {
+	padding: 2rem;
+}
+
+.help-content h3 {
+	margin: 0 0 1.5rem 0;
+	color: var(--foreground);
+	font-size: 1.25rem;
+	font-weight: 600;
+}
+
+.shortcuts-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 2rem;
+	margin-bottom: 2rem;
+}
+
+.shortcut-group h4 {
+	margin: 0 0 1rem 0;
+	color: var(--foreground);
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+.shortcut-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 0.75rem;
+	gap: 1rem;
+}
+
+.shortcut-item kbd {
+	background: var(--muted);
+	color: var(--muted-foreground);
+	padding: 0.25rem 0.5rem;
+	border-radius: 4px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	font-family: var(--font-mono);
+	border: 1px solid var(--border-color);
+	box-shadow: 0 1px 0 var(--border-color);
+	min-width: 24px;
+	text-align: center;
+}
+
+.shortcut-item span {
+	color: var(--muted-foreground);
+	font-size: 0.875rem;
+}
+
+.help-close {
+	width: 100%;
+}
+
+/* Screen Reader Only */
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* Large Modal Size Override */
+.modal-content.max-width-xl {
+	max-width: 95vw;
+	width: 95vw;
+}
+
+/* Focus Trap for Modal */
+.diff-view-modal button:focus,
+.diff-view-modal input:focus,
+.diff-view-modal [tabindex]:focus {
+	outline: 2px solid var(--primary);
+	outline-offset: 2px;
+}
+
+/* Animation */
+@keyframes spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+	.diff-modal-sidebar {
+		width: 250px;
+		min-width: 200px;
+	}
+
+	.diff-modal-header {
+		padding: 0.75rem;
+	}
+
+	.diff-content-header {
+		padding: 0.75rem;
+	}
+
+	.shortcuts-grid {
+		grid-template-columns: 1fr;
+		gap: 1.5rem;
+	}
+}
+
+@media (max-width: 640px) {
+	.diff-view-modal {
+		height: 90vh;
+	}
+
+	.diff-modal-content {
+		flex-direction: column;
+	}
+
+	.diff-modal-sidebar {
+		width: 100%;
+		max-height: 40%;
+	}
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+	.file-item.selected {
+		border-left-width: 4px;
+		font-weight: 600;
+	}
+
+	.status-badge {
+		border: 1px solid currentColor;
+	}
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+	.file-item {
+		transition: none;
+	}
+
+	.loading-spinner {
+		animation: none;
+	}
+}

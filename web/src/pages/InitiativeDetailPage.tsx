@@ -51,8 +51,8 @@ function getTaskStatusDisplay(status: TaskStatus): string {
 			return 'classifying';
 		case TaskStatus.FINALIZING:
 			return 'finalizing';
-		case TaskStatus.RESOLVED:
-			return 'resolved';
+		case TaskStatus.CLOSED:
+			return 'closed';
 		default:
 			return 'pending';
 	}

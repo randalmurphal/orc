@@ -10,7 +10,7 @@
  * - Ref forwarding
  */
 
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
@@ -22,15 +22,7 @@ import {
 } from './barChartUtils';
 import { TooltipProvider } from '../ui/Tooltip';
 
-// Mock browser APIs not available in jsdom
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
 
 // Helper to wrap with TooltipProvider
 function renderWithProvider(ui: React.ReactElement) {

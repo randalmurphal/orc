@@ -105,7 +105,7 @@ orc run TASK-XXX
 
 **If you fixed the issue manually or it's no longer relevant**:
 ```bash
-orc resolve TASK-XXX -m "Fixed manually"  # Mark failed task as resolved without re-running
+orc close TASK-XXX -m "Fixed manually"  # Mark failed task as closed without re-running
 ```
 
 ---
@@ -182,7 +182,7 @@ A task is considered orphaned when:
 | Auto-resume | `orc resume TASK-XXX` | Detects orphan, marks as interrupted, resumes |
 | Force resume | `orc resume TASK-XXX --force` | For tasks that appear running but you know are not |
 | Reset | `orc reset TASK-XXX --force` | Start completely fresh (clears all progress) |
-| Resolve | `orc resolve TASK-XXX --force` | Mark as resolved if PR was already merged |
+| Close | `orc close TASK-XXX --force` | Mark as closed if PR was already merged |
 | Check in Web UI | `orc serve` then view Dashboard | Orphaned tasks highlighted with warning |
 
 **The resume command automatically**:
@@ -206,7 +206,7 @@ orc resume TASK-XXX
 - Task shows as "running" in `orc status`
 - PR was already created and merged in GitHub
 - Executor crashed or lost connection after PR merge but before marking task complete
-- `orc resolve TASK-XXX` fails with "task is running, not failed"
+- `orc close TASK-XXX` fails with "task is running, not failed"
 
 **Diagnosis**:
 ```bash
@@ -224,16 +224,16 @@ gh pr view <PR-NUMBER> --json state,merged
 
 **Solution**:
 
-Use `orc resolve --force` to mark the task as completed:
+Use `orc close --force` to mark the task as completed:
 
 ```bash
 # Will auto-detect merged PR and report it
-orc resolve TASK-XXX --force
+orc close TASK-XXX --force
 # Output: PR merged (PR #123)
-# Output: Task TASK-XXX marked as resolved (was: running)
+# Output: Task TASK-XXX marked as closed (was: running)
 
-# With a message explaining the resolution
-orc resolve TASK-XXX --force -m "Executor crashed after PR merge"
+# With a message explaining the close
+orc close TASK-XXX --force -m "Executor crashed after PR merge"
 ```
 
 **What happens**:
@@ -241,7 +241,7 @@ orc resolve TASK-XXX --force -m "Executor crashed after PR merge"
 2. If PR is merged, reports: `PR merged (PR #123)`
 3. If PR is not merged or missing, shows a warning
 4. Task is marked as completed with metadata:
-   - `force_resolved: true`
+   - `force_closed: true`
    - `original_status: running`
    - `pr_was_merged: true` (if applicable)
 
@@ -254,7 +254,7 @@ orc resolve TASK-XXX --force -m "Executor crashed after PR merge"
 
 | Scenario | Command |
 |----------|---------|
-| PR merged, mark complete | `orc resolve TASK-XXX --force` |
+| PR merged, mark complete | `orc close TASK-XXX --force` |
 | PR not merged, continue | `orc resume TASK-XXX` |
 | Start over completely | `orc reset TASK-XXX --force` |
 
@@ -282,7 +282,7 @@ orc log TASK-XXX --phase <failing-phase>
 |--------|---------|-------------|
 | Resume | `orc resume TASK-XXX` | After fixing the underlying issue |
 | Reset | `orc reset TASK-XXX` | To start fresh from the beginning |
-| Resolve | `orc resolve TASK-XXX -m "reason"` | If fixed manually outside orc |
+| Close | `orc close TASK-XXX -m "reason"` | If fixed manually outside orc |
 
 **Resuming Failed Tasks**:
 
@@ -300,12 +300,12 @@ This preserves completed phases and continues from the last incomplete phase. Us
 - A configuration issue was fixed
 - A transient error occurred
 
-**Note**: If the same error recurs, consider using `orc reset` to start fresh or `orc resolve` to mark it as handled.
+**Note**: If the same error recurs, consider using `orc reset` to start fresh or `orc close` to mark it as handled.
 
-### Worktree State Issues During Resolve
+### Worktree State Issues During Close
 
 **Symptoms**:
-- `orc resolve` shows warnings about dirty worktree or in-progress git operations
+- `orc close` shows warnings about dirty worktree or in-progress git operations
 - Worktree has uncommitted changes from interrupted task
 - Worktree has rebase-in-progress or merge-in-progress state
 
@@ -315,7 +315,7 @@ This preserves completed phases and continues from the last incomplete phase. Us
    ⚠️  Rebase in progress - worktree is in an incomplete state
    ⚠️  3 uncommitted file(s)
 
-⚠️  Resolve task TASK-001 as completed?
+⚠️  Close task TASK-001 as completed?
 ```
 
 **Solutions**:
@@ -323,24 +323,24 @@ This preserves completed phases and continues from the last incomplete phase. Us
 | Flag | Behavior | When to Use |
 |------|----------|-------------|
 | `--cleanup` | Abort in-progress git ops, discard uncommitted changes | Worktree state is garbage from a crash |
-| `--force` | Skip checks, resolve anyway (worktree unchanged) | You want to preserve worktree state |
+| `--force` | Skip checks, close anyway (worktree unchanged) | You want to preserve worktree state |
 | (default) | Show warnings, prompt for confirmation | Review the state before deciding |
 
 **Using --cleanup**:
 ```bash
-orc resolve TASK-XXX --cleanup   # Clean worktree state, then resolve
+orc close TASK-XXX --cleanup   # Clean worktree state, then close
 ```
 
 This aborts any in-progress rebase/merge and discards uncommitted changes, leaving the worktree clean. The worktree itself is preserved (not deleted).
 
 **Using --force**:
 ```bash
-orc resolve TASK-XXX --force     # Skip checks, keep worktree as-is
+orc close TASK-XXX --force     # Skip checks, keep worktree as-is
 ```
 
-This resolves the task without touching the worktree at all. Useful if you want to preserve the worktree state for manual inspection.
+This closes the task without touching the worktree at all. Useful if you want to preserve the worktree state for manual inspection.
 
-**Worktree Metadata**: When resolving, orc records worktree state in task metadata:
+**Worktree Metadata**: When closing, orc records worktree state in task metadata:
 - `worktree_was_dirty: true` - Had uncommitted changes
 - `worktree_had_conflicts: true` - Had unresolved merge conflicts
 - `worktree_had_incomplete_operation: true` - Had rebase/merge in progress
@@ -897,7 +897,7 @@ In both cases, the PR is created successfully; only auto-merge may be skipped.
 |----------|---------|-------|
 | Retries failed (conflicts) | Resolve conflicts manually, then `orc resume TASK-XXX` | Most common |
 | Transient failure | `orc resume TASK-XXX` | Retry may succeed |
-| Give up | `orc resolve TASK-XXX --force` | If PR is no longer needed |
+| Give up | `orc close TASK-XXX --force` | If PR is no longer needed |
 
 **Manual Resolution Steps**:
 ```bash

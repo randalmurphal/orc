@@ -14,8 +14,8 @@
  * - Event stream disconnects → show reconnecting indicator
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach, beforeAll } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RunStatus } from '@/gen/orc/v1/workflow_pb';
 
@@ -38,19 +38,7 @@ import { toast } from '@/stores';
 // Import the actual component and its props type
 import { ExecutionHeader, type ExecutionHeaderProps } from './ExecutionHeader';
 
-// Mock IntersectionObserver for any React Flow internals
-beforeAll(() => {
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-});
-
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 describe('ExecutionHeader', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -360,8 +348,10 @@ describe('ExecutionHeader', () => {
 				cancellingButtons.forEach((btn) => expect(btn).toBeDisabled());
 			});
 
-			// Cleanup
-			resolveCancelPromise!();
+			// Cleanup - resolve promise in act() to avoid state update outside act()
+			await act(async () => {
+				resolveCancelPromise!();
+			});
 		});
 
 		it('should show toast error when cancel fails', async () => {

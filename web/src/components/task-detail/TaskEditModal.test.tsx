@@ -8,8 +8,8 @@
  * - SC-6: Backend UpdateTask handler processes workflow_id changes (via mock verification)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TaskEditModal } from './TaskEditModal';
 import {
@@ -64,18 +64,7 @@ const mockWorkflows = [
 import { taskClient, workflowClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 
-// Mock browser APIs for Radix
-beforeAll(() => {
-	Element.prototype.scrollIntoView = vi.fn();
-	Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
-	Element.prototype.setPointerCapture = vi.fn();
-	Element.prototype.releasePointerCapture = vi.fn();
-	global.ResizeObserver = vi.fn().mockImplementation(() => ({
-		observe: vi.fn(),
-		unobserve: vi.fn(),
-		disconnect: vi.fn(),
-	}));
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
 
 // Helper to create a task with workflow
 function createTaskWithWorkflow(workflowId?: string): Task {
@@ -123,8 +112,12 @@ describe('TaskEditModal - Workflow Selector', () => {
 				/>
 			);
 
+			// Wait for workflows to load and UI to update
 			await waitFor(() => {
 				expect(workflowClient.listWorkflows).toHaveBeenCalled();
+				// Wait for the workflow selector to show the loaded workflow (not "Loading...")
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/medium/i);
 			});
 
 			// Workflow selector should exist
@@ -144,13 +137,11 @@ describe('TaskEditModal - Workflow Selector', () => {
 				/>
 			);
 
+			// Wait for workflows to load and UI to show the selected workflow
 			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/medium/i);
 			});
-
-			// Workflow selector should show "Medium" as selected
-			const workflowTrigger = screen.getByLabelText(/workflow/i);
-			expect(workflowTrigger).toHaveTextContent(/medium/i);
 		});
 
 		it('should show "None" when task has no workflow', async () => {
@@ -165,13 +156,11 @@ describe('TaskEditModal - Workflow Selector', () => {
 				/>
 			);
 
+			// Wait for workflows to load and UI to show "None" selected
 			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/none/i);
 			});
-
-			// Should show "None" option selected
-			const workflowTrigger = screen.getByLabelText(/workflow/i);
-			expect(workflowTrigger).toHaveTextContent(/none/i);
 		});
 
 		it('should show "Unknown workflow" when task has deleted workflow', async () => {
@@ -187,13 +176,11 @@ describe('TaskEditModal - Workflow Selector', () => {
 				/>
 			);
 
+			// Wait for workflows to load and UI to show unknown/deleted workflow
 			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/unknown|deleted-workflow/i);
 			});
-
-			// Should indicate unknown/deleted workflow
-			const workflowTrigger = screen.getByLabelText(/workflow/i);
-			expect(workflowTrigger).toHaveTextContent(/unknown|deleted-workflow/i);
 		});
 
 		it('should update pre-selected workflow when task prop changes', async () => {
@@ -209,27 +196,29 @@ describe('TaskEditModal - Workflow Selector', () => {
 				/>
 			);
 
+			// Wait for workflows to load and UI to show "Small"
 			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/small/i);
 			});
 
-			// Should show "Small"
-			let workflowTrigger = screen.getByLabelText(/workflow/i);
-			expect(workflowTrigger).toHaveTextContent(/small/i);
+			// Rerender with different task (wrapped in act to ensure state updates complete)
+			await act(async () => {
+				rerender(
+					<TaskEditModal
+						open={true}
+						task={task2}
+						onClose={mockOnClose}
+						onUpdate={mockOnUpdate}
+					/>
+				);
+			});
 
-			// Rerender with different task
-			rerender(
-				<TaskEditModal
-					open={true}
-					task={task2}
-					onClose={mockOnClose}
-					onUpdate={mockOnUpdate}
-				/>
-			);
-
-			// Should now show "Large"
-			workflowTrigger = screen.getByLabelText(/workflow/i);
-			expect(workflowTrigger).toHaveTextContent(/large/i);
+			// Wait for UI to update to show "Large"
+			await waitFor(() => {
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/large/i);
+			});
 		});
 	});
 
@@ -252,8 +241,10 @@ describe('TaskEditModal - Workflow Selector', () => {
 				/>
 			);
 
+			// Wait for workflows to load and UI to update
 			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/small/i);
 			});
 
 			// Change workflow to large
@@ -295,8 +286,10 @@ describe('TaskEditModal - Workflow Selector', () => {
 				/>
 			);
 
+			// Wait for workflows to load and UI to update
 			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/medium/i);
 			});
 
 			// Just change title, not workflow
@@ -335,8 +328,10 @@ describe('TaskEditModal - Workflow Selector', () => {
 				/>
 			);
 
+			// Wait for workflows to load and UI to update
 			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/medium/i);
 			});
 
 			// Change workflow to None
@@ -378,8 +373,10 @@ describe('TaskEditModal - Workflow Selector', () => {
 				/>
 			);
 
+			// Wait for workflows to load and UI to update
 			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/small/i);
 			});
 
 			// Change workflow
@@ -472,8 +469,10 @@ describe('TaskEditModal - Workflow Selector', () => {
 				/>
 			);
 
+			// Wait for workflows to load and UI to update
 			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/medium/i);
 			});
 
 			// Initiative selector should still exist
@@ -493,8 +492,10 @@ describe('TaskEditModal - Workflow Selector', () => {
 				/>
 			);
 
+			// Wait for workflows to load and UI to update
 			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
+				const workflowTrigger = screen.getByLabelText(/workflow/i);
+				expect(workflowTrigger).toHaveTextContent(/medium/i);
 			});
 
 			// Workflow should be in the form, and accessible

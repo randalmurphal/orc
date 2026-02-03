@@ -53,7 +53,7 @@ func CanRunProto(t *orcv1.Task) bool {
 // IsDoneProto returns true if the status indicates the task has completed its work.
 func IsDoneProto(s orcv1.TaskStatus) bool {
 	return s == orcv1.TaskStatus_TASK_STATUS_COMPLETED ||
-		s == orcv1.TaskStatus_TASK_STATUS_RESOLVED
+		s == orcv1.TaskStatus_TASK_STATUS_CLOSED
 }
 
 // GetQueueProto returns the task's queue, defaulting to active if not set or unspecified.

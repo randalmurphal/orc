@@ -18,7 +18,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Mock API clients to prevent network calls during tests
@@ -266,13 +267,18 @@ describe('SettingsTabs', () => {
 		});
 
 		it('arrow keys navigate between tabs', async () => {
+			const user = userEvent.setup();
 			renderWithRouter('/settings/general');
 
 			const generalTab = screen.getByRole('tab', { name: /general/i });
-			generalTab.focus();
 
-			// Press right arrow to move to Agents
-			fireEvent.keyDown(generalTab, { key: 'ArrowRight' });
+			// Wrap focus in act since it can trigger state updates in Radix Tabs
+			await act(async () => {
+				generalTab.focus();
+			});
+
+			// Press right arrow to move to Agents - use userEvent for proper act() handling
+			await user.keyboard('{ArrowRight}');
 
 			// Agents tab should now be focused
 			await waitFor(() => {

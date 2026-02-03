@@ -13,8 +13,8 @@
  * - Read-only mode still allows selection (for inspection)
  */
 
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render, cleanup, act, waitFor } from '@testing-library/react';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
 import {
@@ -23,18 +23,7 @@ import {
 	createMockWorkflowPhase,
 } from '@/test/factories';
 
-// Mock IntersectionObserver for React Flow
-beforeAll(() => {
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 
 /** Load a workflow into the store before rendering */
 function loadTestWorkflow(isBuiltin = true) {
@@ -93,7 +82,7 @@ describe('WorkflowCanvas', () => {
 	});
 
 	describe('SC-4: onNodeClick calls selectNode for phase nodes', () => {
-		it('calls selectNode when a phase node is clicked', () => {
+		it('calls selectNode when a phase node is clicked', async () => {
 			loadTestWorkflow();
 
 			render(<WorkflowCanvas />);
@@ -108,10 +97,14 @@ describe('WorkflowCanvas', () => {
 			expect(phaseNodeEl).not.toBeNull();
 
 			// Click the node — this should trigger onNodeClick → selectNode
-			phaseNodeEl!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+			await act(async () => {
+				phaseNodeEl!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+			});
 
-			// After clicking, the store should have selectedNodeId set
-			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNode!.id);
+			// Wait for React Flow state updates to settle
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNode!.id);
+			});
 		});
 
 		it('has phase and virtual nodes (no start/end nodes per design spec)', () => {
@@ -129,7 +122,7 @@ describe('WorkflowCanvas', () => {
 	});
 
 	describe('SC-5: onPaneClick deselects', () => {
-		it('deselects node when clicking empty canvas area', () => {
+		it('deselects node when clicking empty canvas area', async () => {
 			loadTestWorkflow();
 
 			render(<WorkflowCanvas />);
@@ -137,22 +130,28 @@ describe('WorkflowCanvas', () => {
 			// First select a node
 			const nodes = useWorkflowEditorStore.getState().nodes;
 			const phaseNode = nodes.find((n) => n.type === 'phase');
-			useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNode!.id);
+			});
 			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNode!.id);
 
 			// Click the canvas pane (background) — this should trigger onPaneClick → selectNode(null)
 			const pane = document.querySelector('.react-flow__pane');
 			if (pane) {
-				pane.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+				await act(async () => {
+					pane.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+				});
 			}
 
-			// After pane click, selectedNodeId should be null
-			expect(useWorkflowEditorStore.getState().selectedNodeId).toBeNull();
+			// Wait for state updates to settle
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().selectedNodeId).toBeNull();
+			});
 		});
 	});
 
 	describe('edge cases', () => {
-		it('allows node selection in read-only (built-in) mode', () => {
+		it('allows node selection in read-only (built-in) mode', async () => {
 			loadTestWorkflow(true); // built-in → readOnly
 
 			render(<WorkflowCanvas />);
@@ -164,14 +163,18 @@ describe('WorkflowCanvas', () => {
 
 			const phaseNodeEl = document.querySelector(`[data-id="${phaseNode!.id}"]`);
 			if (phaseNodeEl) {
-				phaseNodeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+				await act(async () => {
+					phaseNodeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+				});
 			}
 
-			// Selection should work even in read-only mode
-			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNode!.id);
+			// Wait for state updates to settle
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNode!.id);
+			});
 		});
 
-		it('switching selection between nodes replaces previous', () => {
+		it('switching selection between nodes replaces previous', async () => {
 			loadTestWorkflow();
 
 			render(<WorkflowCanvas />);
@@ -181,12 +184,20 @@ describe('WorkflowCanvas', () => {
 			expect(phaseNodes.length).toBeGreaterThanOrEqual(2);
 
 			// Select first node
-			useWorkflowEditorStore.getState().selectNode(phaseNodes[0].id);
-			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNodes[0].id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNodes[0].id);
+			});
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNodes[0].id);
+			});
 
 			// Select second node — should replace
-			useWorkflowEditorStore.getState().selectNode(phaseNodes[1].id);
-			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNodes[1].id);
+			await act(async () => {
+				useWorkflowEditorStore.getState().selectNode(phaseNodes[1].id);
+			});
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNodes[1].id);
+			});
 		});
 	});
 });

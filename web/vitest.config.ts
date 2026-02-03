@@ -20,13 +20,18 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
-    // Limit parallelism for memory safety
-    pool: 'threads',
+    // Use forks pool for better isolation - threads pool can share global state
+    // which causes issues with accumulated mocks and timers across test files
+    pool: 'forks',
     poolOptions: {
-      threads: {
-        maxThreads: DEFAULT_WORKERS,
-        minThreads: 1,
+      forks: {
+        maxForks: DEFAULT_WORKERS,
+        minForks: 1,
       },
     },
+    // Prevent hanging tests
+    testTimeout: 30000,
+    hookTimeout: 10000,
+    teardownTimeout: 5000,
   },
 });

@@ -17,7 +17,7 @@ Full command reference for the orc CLI.
 | `cmd_resume.go` | `orc resume TASK-ID` | Resume paused/blocked/failed task |
 | `cmd_rewind.go` | `orc rewind TASK-ID` | Reset to before phase |
 | `cmd_reset.go` | `orc reset TASK-ID` | Reset task to initial state |
-| `cmd_resolve.go` | `orc resolve TASK-ID` | Mark failed task as resolved |
+| `cmd_close.go` | `orc close TASK-ID` | Close task without re-running |
 | `cmd_status.go` | `orc status` | Show task status |
 | `cmd_deps.go` | `orc deps [TASK-ID]` | Show task dependencies |
 | `cmd_log.go` | `orc log TASK-ID` | Show task transcripts |
@@ -103,9 +103,9 @@ Full command reference for the orc CLI.
 | `--graph` | ASCII dependency graph |
 | `--initiative, -i` | Filter by initiative |
 
-### `orc resolve TASK-ID`
+### `orc close TASK-ID`
 
-Mark a task as resolved without re-running it. Useful when an issue was fixed manually, the failure is no longer relevant, or you want to acknowledge and close a task.
+Close a task without re-running it. Useful when you don't want to pursue the task further, the failure is no longer relevant, or you want to close out a task.
 
 **Status behavior:**
 - Without `--force`: Only works on tasks with `status=failed`
@@ -118,9 +118,9 @@ Use `--force` when a task is stuck in 'running' status but its PR was already me
 | Flag | Description |
 |------|-------------|
 | `--yes, -y` | Skip confirmation prompt (does not imply `--force`) |
-| `--message, -m` | Resolution message |
+| `--message, -m` | Close message |
 | `--cleanup` | Abort git ops, discard changes |
-| `--force, -f` | Skip confirmation and allow resolving non-failed tasks |
+| `--force, -f` | Skip confirmation and allow closing non-failed tasks |
 
 ## Initiative Commands
 

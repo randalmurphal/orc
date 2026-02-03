@@ -82,7 +82,7 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `tdd_write.md` | Write failing tests before implementation (classifies solitary/sociable/integration, requires integration tests for wiring) |
 | `breakdown.md` | Break spec into checkboxed implementation tasks |
 | `implement.md` | Implementation with TDD context, must make tests pass |
-| `review.md` | Multi-agent code review (6 reviewers incl. no-op detection) + success criteria verification |
+| `review.md` | Multi-agent code review (6 reviewers incl. no-op detection) + success criteria + TDD wiring verification |
 | `docs.md` | Documentation (AI doc standards, hierarchical inheritance, doc type templates) |
 | `qa.md` | Manual QA verification session |
 | `test.md` | Test execution template |
@@ -293,6 +293,46 @@ All spec/TDD/review templates include guards against hollow implementations:
 | `tdd_write.md` | Test Quality Gates | Tests must fail before implementation, not pass with empty stubs |
 | `review.md` | Reviewer 6: No-Op Detection Specialist | Verifies actual behavioral changes, flags pass-through implementations |
 | `review.md` | No-Op Detection Checklist | Blockers for: unused functions, ignored params, dead columns, vacuous tests |
+
+## Wiring Verification (Dead Code Prevention)
+
+New code that isn't wired into production paths is dead code. The orchestrator prevents this via mandatory wiring declarations and verification:
+
+### Wiring Declaration (spec/tdd_write/tiny_spec phases)
+
+When creating new components/functions, output MUST include a `wiring` field:
+
+```json
+"wiring": {
+  "new_component_path": "@/components/feature/Panel.tsx",
+  "imported_by": "@/pages/Dashboard.tsx",
+  "integration_test_file": "Dashboard.integration.test.tsx",
+  "integration_test_verifies": "Dashboard renders Panel"
+}
+```
+
+### Integration Test Location Rule
+
+| Pattern | Status | Why |
+|---------|--------|-----|
+| `NewComponent.test.tsx` imports `./NewComponent` | ❌ WRONG | Tests component in isolation, doesn't verify wiring |
+| `ExistingPage.integration.test.tsx` imports `./ExistingPage` | ✅ RIGHT | Fails if ExistingPage doesn't render NewComponent |
+
+### Wiring Verification (implement phase)
+
+Before claiming completion, implement phase MUST:
+1. For every new file created, grep to find which production file imports it
+2. If no production file imports a new file → dead code → FAIL
+3. Output includes `wiring` verification evidence
+
+### Quality Checklist Gates
+
+| Phase | Check ID | What It Verifies |
+|-------|----------|------------------|
+| `spec.md` | `integration_points_complete` | Every new file has corresponding integration point entry |
+| `tiny_spec.md` | `wiring_declared` | If creating new files, wiring field specifies importer |
+| `tdd_write.md` | (pre-output verification) | Integration test imports existing parent, not new component |
+| `implement.md` | Wiring check (step 5) | Every new file has production importer |
 
 ## Review Conditionals
 

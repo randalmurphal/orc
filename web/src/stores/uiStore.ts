@@ -49,6 +49,21 @@ function generateToastId(): string {
 	return `toast-${Date.now()}-${++toastIdCounter}`;
 }
 
+// Track toast auto-dismiss timers so they can be cancelled
+// This prevents orphan timers in tests and when toasts are manually dismissed
+const toastTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
+ * Clear all pending toast timers. Called by test cleanup and reset().
+ * Exported for use in test-setup.ts afterEach.
+ */
+export function clearToastTimers(): void {
+	for (const timerId of toastTimers.values()) {
+		clearTimeout(timerId);
+	}
+	toastTimers.clear();
+}
+
 // Default durations by toast type
 const DEFAULT_DURATIONS: Record<ToastType, number> = {
 	success: 5000,
@@ -117,12 +132,14 @@ const initialState = {
 
 export const useUIStore = create<UIStore>()(
 	subscribeWithSelector((set, get) => {
-		// Auto-dismiss toast helper
+		// Auto-dismiss toast helper - stores timer ID for cleanup
 		const scheduleAutoDismiss = (id: string, duration: number) => {
 			if (duration > 0) {
-				setTimeout(() => {
+				const timerId = setTimeout(() => {
+					toastTimers.delete(id);
 					get().dismissToast(id);
 				}, duration);
+				toastTimers.set(id, timerId);
 			}
 		};
 
@@ -180,12 +197,23 @@ export const useUIStore = create<UIStore>()(
 			// Toast actions
 			addToast: addToastImpl,
 
-			dismissToast: (id: string) =>
+			dismissToast: (id: string) => {
+				// Cancel pending auto-dismiss timer
+				const timerId = toastTimers.get(id);
+				if (timerId) {
+					clearTimeout(timerId);
+					toastTimers.delete(id);
+				}
 				set((state: UIStore) => ({
 					toasts: state.toasts.filter((t: Toast) => t.id !== id),
-				})),
+				}));
+			},
 
-			clearToasts: () => set({ toasts: [] }),
+			clearToasts: () => {
+				// Cancel all pending auto-dismiss timers
+				clearToastTimers();
+				set({ toasts: [] });
+			},
 
 			// Decision actions
 			addPendingDecision: (decision: PendingDecision) =>
@@ -216,7 +244,11 @@ export const useUIStore = create<UIStore>()(
 					addToastImpl({ type: 'info', message, ...options }),
 			},
 
-			reset: () => set(initialState),
+			reset: () => {
+				// Cancel all pending auto-dismiss timers before reset
+				clearToastTimers();
+				set(initialState);
+			},
 		};
 	})
 );

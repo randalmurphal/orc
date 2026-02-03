@@ -100,6 +100,18 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 </specification>
 {{/if}}
 
+{{#if TDD_TESTS_CONTENT}}
+<tdd_requirements>
+## TDD Tests and Wiring Declarations
+
+The TDD phase produced the following tests and wiring requirements. Use this to verify:
+1. All tests pass (implementation makes them pass)
+2. Wiring declarations were followed (new components are imported by the declared files)
+
+{{TDD_TESTS_CONTENT}}
+</tdd_requirements>
+{{/if}}
+
 {{#if RETRY_ATTEMPT}}
 <retry_context>
 ## Re-Review Context
@@ -211,6 +223,22 @@ If success criteria are vague or untestable, this is a blocking finding — the 
 - No defined-but-never-called functions exist (dead code)
 - New interfaces have implementations wired into the system
 - If the task adds hooks/callbacks/triggers, they are registered
+
+**Verify TDD Wiring Declarations (if `<tdd_requirements>` section exists above):**
+
+If the TDD phase declared wiring requirements (in the `wiring` field), verify EACH declaration:
+1. `new_component_path` — Was the component created at this exact path?
+2. `imported_by` — Does this file actually import the new component?
+3. `integration_test_file` — Does this test import the parent file and verify the wiring?
+
+```bash
+# Example verification for wiring declaration:
+# "new_component_path": "@/components/Panel.tsx"
+# "imported_by": "@/pages/Dashboard.tsx"
+grep -n "Panel" src/pages/Dashboard.tsx  # Must find an import
+```
+
+**If the implementation created the component at a DIFFERENT path than declared, or the declared importer doesn't actually import it, this is a HIGH-SEVERITY finding.**
 
 **For bug fixes:** The fix may be correct where applied but incomplete across the codebase.
 

@@ -13,33 +13,12 @@
  * These tests will FAIL until DependencyEdge is updated.
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { ReactFlowProvider, ReactFlow } from '@xyflow/react';
 import { DependencyEdge } from './DependencyEdge';
 
-// Mock ResizeObserver for React Flow
-beforeAll(() => {
-	class MockResizeObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'ResizeObserver', {
-		value: MockResizeObserver,
-		writable: true,
-	});
-
-	class MockIntersectionObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-	Object.defineProperty(window, 'IntersectionObserver', {
-		value: MockIntersectionObserver,
-		writable: true,
-	});
-});
+// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver) provided by global test-setup.ts
 
 /** Render a dependency edge inside React Flow context */
 function renderDependencyEdge(edgeData?: Record<string, unknown>) {

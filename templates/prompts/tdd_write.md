@@ -1,5 +1,24 @@
 # TDD: Write Tests Phase
 
+<common_failure_modes>
+## CRITICAL: Most Common Failure Modes
+
+**Failure #1: Test location mismatch causes dead code**
+- You create unit tests at `components/feature/NewComponent.test.tsx`
+- Tests import `./NewComponent` (from same directory)
+- But production code imports from a DIFFERENT path
+- Implement phase creates TWO components to satisfy both → dead code
+
+**Prevention:** Always declare the `wiring` field. Integration tests MUST import from the EXISTING production file, not the new component.
+
+**Failure #2: Missing integration test for wiring**
+- You write excellent unit tests for the new component
+- But no test verifies the new component is actually used by production code
+- New component works perfectly in isolation but is never called
+
+**Prevention:** Every new component/function MUST have an integration test that renders/calls the EXISTING parent and verifies the new code is present.
+</common_failure_modes>
+
 <output_format>
 Output a JSON object with test information and **explicit coverage mapping**:
 
@@ -31,6 +50,12 @@ Output a JSON object with test information and **explicit coverage mapping**:
         "steps": ["1. Open /settings", "2. Toggle dark mode", "3. Verify readability"]
       }
     ]
+  },
+  "wiring": {
+    "new_component_path": "@/components/feature/NewComponent.tsx",
+    "imported_by": "@/pages/ExistingPage.tsx",
+    "integration_test_file": "ExistingPage.integration.test.tsx",
+    "integration_test_verifies": "ExistingPage renders NewComponent"
   }
 }
 ```
@@ -39,8 +64,11 @@ Output a JSON object with test information and **explicit coverage mapping**:
 - `tests[].covers` - Array of SC-X IDs this test covers
 - `coverage.covered` - All criteria with automated tests
 - `coverage.manual_verification` - Criteria that can't be automated (with justification)
+- `wiring` - **MANDATORY** if task creates new components/functions to be used by existing code
 
 **Validation:** All SC-X from spec must appear in either `covered` or `manual_verification`.
+
+**Wiring validation:** If your task creates new code that should be called from existing production paths, the `wiring` field is REQUIRED. Omitting it when wiring is needed will cause the implement phase to create dead code.
 
 The `content` field MUST contain:
 1. Coverage summary table showing each criterion and its test
@@ -77,6 +105,15 @@ Before outputting the final JSON, STOP and verify:
 4. **Confirm tests will fail**
    - Run `{{TEST_COMMAND}}` mentally - tests should fail or not compile
    - If tests would pass, they're testing existing behavior, not new work
+
+5. **Verify wiring declaration (CRITICAL - prevents dead code)**
+   - If this task creates ANY new component, function, or interface:
+     - You MUST specify `wiring.new_component_path` - exact path where new code will live
+     - You MUST specify `wiring.imported_by` - which EXISTING file will import it
+     - You MUST write an integration test that imports the EXISTING file and verifies the new component is rendered/called
+   - The integration test MUST be in a location that imports the EXISTING parent, NOT just the new component
+   - **WRONG**: Unit test at `NewComponent.test.tsx` imports `./NewComponent`
+   - **RIGHT**: Integration test at `ExistingPage.integration.test.tsx` imports `./ExistingPage`, renders it, verifies `NewComponent` appears
 
 **Only after completing this verification, output the StructuredOutput.**
 </pre_output_verification>
@@ -187,6 +224,31 @@ func TestNewProcessor(t *testing.T) {
 | Config option has no effect | Feature silently disabled | Test fails: behavior unchanged |
 
 **If you cannot write an integration test for new code, STOP and ask: "How will this code ever be executed?"** If there's no production path to it, you're writing dead code.
+
+### Integration Test File Location (CRITICAL)
+
+The integration test MUST be placed where it imports the EXISTING production file:
+
+| New Code Location | Integration Test Location | Test Imports |
+|-------------------|--------------------------|--------------|
+| `components/feature/Panel.tsx` | `pages/Dashboard.integration.test.tsx` | `import { Dashboard } from './Dashboard'` |
+| `internal/handler/new.go` | `internal/server/server_test.go` | Tests the real server setup |
+| `lib/utils/helper.ts` | Tests for the file that calls helper | Not the helper directly |
+
+**WRONG pattern:**
+```
+components/feature/Panel.tsx        <- New component
+components/feature/Panel.test.tsx   <- Unit test imports ./Panel
+```
+This passes but doesn't verify Panel is used!
+
+**RIGHT pattern:**
+```
+components/feature/Panel.tsx           <- New component
+pages/Dashboard.integration.test.tsx   <- Integration test imports ./Dashboard
+                                          Dashboard should render Panel
+```
+This FAILS if Dashboard doesn't import Panel.
 </integration_test_mandate>
 
 <context>

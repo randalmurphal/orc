@@ -89,13 +89,15 @@ export function GateInspector({
 	const [isLoading, setIsLoading] = useState(false);
 	const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
 	const [localGateType, setLocalGateType] = useState<GateType | null>(null);
+	const [localMaxRetries, setLocalMaxRetries] = useState<number | null>(null);
 	const [localConfig, setLocalConfig] = useState<Partial<GateConfigData>>({});
 
 	// Extract edge data safely
 	const edgeData = edge?.data as GateEdgeData | undefined;
 	const gateType = localGateType ?? edgeData?.gateType ?? GateType.AUTO;
 	const gateStatus = edgeData?.gateStatus;
-	const maxRetries = edgeData?.maxRetries ?? 3;
+	// Use local state if set (including 0 for "cleared" state), otherwise fall back to edge data or default
+	const maxRetries = localMaxRetries !== null ? localMaxRetries : (edgeData?.maxRetries ?? 3);
 	const failureAction = edgeData?.failureAction ?? 'retry';
 	const phaseId = edgeData?.phaseId;
 
@@ -159,8 +161,22 @@ export function GateInspector({
 	}, [saveConfiguration]);
 
 	const handleMaxRetriesChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-		const newMaxRetries = parseInt(event.target.value) || 3;
-		await saveConfiguration({ maxRetries: newMaxRetries });
+		const rawValue = event.target.value;
+		const parsedValue = parseInt(rawValue);
+		// Allow empty input during editing (user clearing the field)
+		// Store the parsed value if valid, otherwise treat empty as "clearing in progress"
+		const newMaxRetries = isNaN(parsedValue) ? 0 : parsedValue;
+		// Update local state immediately for UI responsiveness
+		setLocalMaxRetries(newMaxRetries);
+		// Only save if we have a valid non-zero value
+		if (newMaxRetries > 0) {
+			try {
+				await saveConfiguration({ maxRetries: newMaxRetries });
+			} catch (_error) {
+				// Revert local state on API failure
+				setLocalMaxRetries(null);
+			}
+		}
 	}, [saveConfiguration]);
 
 	const handleFailureActionChange = useCallback(async (event: React.ChangeEvent<HTMLSelectElement>) => {

@@ -87,6 +87,10 @@ Executes phases: setup worktree -> load plan -> execute phases -> create PR/merg
 
 Resumes paused/blocked/failed/orphaned tasks from last incomplete phase.
 
+### `orc close TASK-ID`
+
+Close task without re-running. For failed tasks by default; use `--force` for any status. Flags: `--message`, `--cleanup`, `--force`
+
 ### `orc status`
 
 Priority display: Orphaned -> Attention -> Running -> Blocked -> Ready -> Paused -> Recent
@@ -119,7 +123,7 @@ Import Jira Cloud issues as orc tasks. Epics → initiatives (default, disable w
 
 ### `orc initiative plan`
 
-Creates multiple tasks from a YAML manifest file. Auto-assigns `workflow_id` based on task weight via `workflow.WeightToWorkflowID()`. Supports `--create-initiative` to create a new initiative and link all tasks. Tasks are created in topological order (respecting `blocked_by`).
+Creates multiple tasks from a YAML manifest file. Auto-assigns `workflow_id` based on task weight via workflow defaults system (`internal/workflow/defaults.go`). Supports `--create-initiative` to create a new initiative and link all tasks. Tasks are created in topological order (respecting `blocked_by`).
 
 ### `orc migrate plans`
 

@@ -595,8 +595,8 @@ func (s *dashboardServer) GetOutcomes(
 			outcomes.Completed++
 		case orcv1.TaskStatus_TASK_STATUS_FAILED:
 			outcomes.Failed++
-		case orcv1.TaskStatus_TASK_STATUS_RESOLVED:
-			outcomes.Resolved++
+		case orcv1.TaskStatus_TASK_STATUS_CLOSED:
+			outcomes.Closed++
 		case orcv1.TaskStatus_TASK_STATUS_RUNNING, orcv1.TaskStatus_TASK_STATUS_PAUSED, orcv1.TaskStatus_TASK_STATUS_BLOCKED, orcv1.TaskStatus_TASK_STATUS_PLANNED, orcv1.TaskStatus_TASK_STATUS_CREATED, orcv1.TaskStatus_TASK_STATUS_CLASSIFYING:
 			outcomes.InProgress++
 		}
