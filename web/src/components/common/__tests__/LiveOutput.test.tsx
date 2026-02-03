@@ -1,7 +1,7 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LiveOutput } from '../LiveOutput';
+import { useAutoScroll } from '../../../hooks/useAutoScroll';
 
 // Mock the auto-scroll hook
 vi.mock('../../../hooks/useAutoScroll', () => ({
@@ -11,6 +11,8 @@ vi.mock('../../../hooks/useAutoScroll', () => ({
     scrollToBottom: vi.fn(),
   }),
 }));
+
+const mockUseAutoScroll = vi.mocked(useAutoScroll);
 
 describe('LiveOutput Real-Time Transcript Streaming', () => {
   beforeEach(() => {
@@ -55,12 +57,14 @@ describe('LiveOutput Real-Time Transcript Streaming', () => {
 
   it('SC-4.2: auto-scrolls to bottom when new lines arrive', async () => {
     const mockScrollToBottom = vi.fn();
-    const { useAutoScroll } = require('../../../hooks/useAutoScroll');
 
-    useAutoScroll.mockReturnValue({
+    mockUseAutoScroll.mockReturnValue({
       scrollRef: { current: document.createElement('div') },
       isAtBottom: true,
       scrollToBottom: mockScrollToBottom,
+      enableAutoScroll: vi.fn(),
+      disableAutoScroll: vi.fn(),
+      isAutoScrollEnabled: true,
     });
 
     let outputLines = ['Line 1', 'Line 2'];
@@ -143,15 +147,14 @@ describe('LiveOutput Real-Time Transcript Streaming', () => {
   });
 
   it('SC-4.5: allows manual scrolling and disables auto-scroll when not at bottom', () => {
-    const mockUseAutoScroll = vi.fn();
     mockUseAutoScroll.mockReturnValue({
       scrollRef: { current: document.createElement('div') },
       isAtBottom: false, // User scrolled up
       scrollToBottom: vi.fn(),
+      enableAutoScroll: vi.fn(),
+      disableAutoScroll: vi.fn(),
+      isAutoScrollEnabled: false,
     });
-
-    const { useAutoScroll } = require('../../../hooks/useAutoScroll');
-    useAutoScroll.mockImplementation(mockUseAutoScroll);
 
     const outputLines = Array.from({ length: 20 }, (_, i) => `Line ${i + 1}`);
 

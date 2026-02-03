@@ -12,6 +12,7 @@ export interface LiveOutputProps {
   filterByLevel?: boolean;
   minLevel?: string;
   selectable?: boolean;
+  onOpenFile?: (filePath: string, line?: number) => void;
 }
 
 interface OutputLine {
@@ -29,6 +30,15 @@ function formatTime(): string {
   return `${hours}:${minutes}:${seconds}`;
 }
 
+// Parse file reference from line (e.g., "src/main.go:42: error message")
+function parseFileReference(content: string): { filePath: string; line?: number } | null {
+  const match = content.match(/^([^\s:]+):(\d+):/);
+  if (match) {
+    return { filePath: match[1], line: parseInt(match[2], 10) };
+  }
+  return null;
+}
+
 export function LiveOutput({
   taskId,
   outputLines,
@@ -39,11 +49,14 @@ export function LiveOutput({
   allowCopy = false,
   filterByLevel = false,
   minLevel = 'info',
-  selectable = false
+  selectable = false,
+  onOpenFile
 }: LiveOutputProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchIndex, setSearchIndex] = useState(0);
   const [selectedLines, setSelectedLines] = useState<number[]>([]);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [internalMinLevel, setInternalMinLevel] = useState(minLevel);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { scrollRef, isAtBottom, scrollToBottom } = useAutoScroll({
@@ -56,13 +69,27 @@ export function LiveOutput({
 
     // Determine line type based on content
     let level: OutputLine['level'] = 'default';
-    if (line.includes('✓') || line.toLowerCase().includes('success')) {
+
+    // First, check for [LEVEL] prefix format (e.g., "[DEBUG]", "[INFO]", "[WARN]", "[ERROR]")
+    const levelMatch = line.match(/^\[(DEBUG|INFO|WARN|WARNING|ERROR)\]/i);
+    if (levelMatch) {
+      const parsedLevel = levelMatch[1].toUpperCase();
+      if (parsedLevel === 'DEBUG') {
+        level = 'info'; // Map debug to info for display
+      } else if (parsedLevel === 'INFO') {
+        level = 'info';
+      } else if (parsedLevel === 'WARN' || parsedLevel === 'WARNING') {
+        level = 'warning';
+      } else if (parsedLevel === 'ERROR') {
+        level = 'error';
+      }
+    } else if (line.includes('✓') || line.toLowerCase().includes('success')) {
       level = 'success';
-    } else if (line.includes('→') || line.toLowerCase().includes('info')) {
+    } else if (line.includes('→')) {
       level = 'info';
-    } else if (line.includes('✗') || line.toLowerCase().includes('error')) {
+    } else if (line.includes('✗')) {
       level = 'error';
-    } else if (line.includes('⚠') || line.toLowerCase().includes('warning')) {
+    } else if (line.includes('⚠')) {
       level = 'warning';
     }
 
@@ -85,21 +112,37 @@ export function LiveOutput({
     return 0;
   }, [parsedLines.length, maxLines]);
 
+  // Parse level from original line content (for filtering)
+  const getLineFilterLevel = (content: string): string => {
+    const levelMatch = content.match(/^\[(DEBUG|INFO|WARN|WARNING|ERROR)\]/i);
+    if (levelMatch) {
+      const level = levelMatch[1].toUpperCase();
+      if (level === 'WARN' || level === 'WARNING') return 'warn';
+      return level.toLowerCase();
+    }
+    return 'default'; // Lines without [LEVEL] prefix
+  };
+
   const filteredLines = useMemo(() => {
     const levelOrder: Record<string, number> = {
       'debug': 0,
       'info': 1,
+      'warn': 2,
       'warning': 2,
-      'error': 3
+      'error': 3,
+      'default': 1 // Plain text treated as info level
     };
 
     let lines = parsedLines;
 
-    // Apply level filtering
-    if (filterByLevel && minLevel) {
-      const minLevelValue = levelOrder[minLevel.toLowerCase()] || 0;
+    // Apply level filtering based on [LEVEL] prefix in original content
+    if (filterByLevel && internalMinLevel) {
+      const minLevelValue = levelOrder[internalMinLevel.toLowerCase()] || 0;
       lines = lines.filter(line => {
-        const lineLevelValue = levelOrder[line.level] || 1;
+        const lineLevel = getLineFilterLevel(line.content);
+        // "default" lines (no prefix) pass through all filters
+        if (lineLevel === 'default') return true;
+        const lineLevelValue = levelOrder[lineLevel] || 1;
         return lineLevelValue >= minLevelValue;
       });
     }
@@ -117,7 +160,7 @@ export function LiveOutput({
     }
 
     return lines;
-  }, [parsedLines, filterByLevel, minLevel, searchable, searchTerm, maxLines]);
+  }, [parsedLines, filterByLevel, internalMinLevel, searchable, searchTerm, maxLines]);
 
   const searchMatches = useMemo(() => {
     if (!searchTerm) return [];
@@ -147,6 +190,14 @@ export function LiveOutput({
       : filteredLines.map(line => line.content).join('\n');
 
     navigator.clipboard.writeText(content);
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2000);
+  };
+
+  const handleCopyLine = (lineContent: string) => {
+    navigator.clipboard.writeText(lineContent);
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2000);
   };
 
   const handleLineSelect = (index: number) => {
@@ -181,16 +232,20 @@ export function LiveOutput({
   if (outputLines.length === 0) {
     return (
       <div data-testid="live-output" data-task-id={taskId} className="flex items-center justify-center h-32 text-gray-500 bg-gray-50 rounded">
-        <span data-testid="empty-output-message">No output available</span>
+        <span data-testid="empty-output-message">No output yet...</span>
       </div>
     );
   }
+
+  // Count total lines and matching lines for filter indicator
+  const totalLinesCount = parsedLines.length;
+  const filteredLinesCount = filteredLines.length;
 
   return (
     <div data-testid="live-output" data-task-id={taskId} className="space-y-2">
       {/* Controls */}
       {(searchable || allowCopy || filterByLevel) && (
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm flex-wrap">
           {searchable && (
             <div className="flex items-center gap-1 flex-1">
               <input
@@ -201,52 +256,71 @@ export function LiveOutput({
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="px-2 py-1 border border-gray-300 rounded text-sm flex-1"
               />
-              {searchMatches.length > 0 && (
-                <div className="flex items-center gap-1">
-                  <span data-testid="search-count" className="text-xs text-gray-600">
-                    {searchIndex + 1} of {searchMatches.length}
+              {searchTerm && (
+                <>
+                  <span data-testid="search-results" className="text-xs text-gray-600">
+                    {searchMatches.length} of {parsedLines.length} lines match
                   </span>
-                  <button
-                    onClick={handleSearchPrev}
-                    data-testid="search-prev-btn"
-                    className="px-1 py-0.5 text-xs border rounded hover:bg-gray-50"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    onClick={handleSearchNext}
-                    data-testid="search-next-btn"
-                    className="px-1 py-0.5 text-xs border rounded hover:bg-gray-50"
-                  >
-                    ↓
-                  </button>
-                </div>
+                  {searchMatches.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <span data-testid="search-count" className="text-xs text-gray-600">
+                        {searchIndex + 1} of {searchMatches.length}
+                      </span>
+                      <button
+                        onClick={handleSearchPrev}
+                        data-testid="search-prev-btn"
+                        className="px-1 py-0.5 text-xs border rounded hover:bg-gray-50"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        onClick={handleSearchNext}
+                        data-testid="search-next-btn"
+                        className="px-1 py-0.5 text-xs border rounded hover:bg-gray-50"
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
 
           {filterByLevel && (
-            <select
-              data-testid="level-filter"
-              value={minLevel}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-2 py-1 border border-gray-300 rounded text-sm"
-            >
-              <option value="debug">Debug+</option>
-              <option value="info">Info+</option>
-              <option value="warning">Warning+</option>
-              <option value="error">Error only</option>
-            </select>
+            <>
+              <select
+                data-testid="level-filter"
+                value={internalMinLevel}
+                onChange={(e) => setInternalMinLevel(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded text-sm"
+              >
+                <option value="debug">Debug+</option>
+                <option value="info">Info+</option>
+                <option value="warn">Warning+</option>
+                <option value="error">Error only</option>
+              </select>
+              <span data-testid="filter-indicator" className="text-xs text-gray-600">
+                Showing {internalMinLevel.toUpperCase()}+ ({filteredLinesCount} of {totalLinesCount} lines)
+              </span>
+            </>
           )}
 
           {allowCopy && (
-            <button
-              onClick={handleCopyToClipboard}
-              data-testid="copy-output-btn"
-              className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-            >
-              Copy {selectedLines.length > 0 ? 'Selected' : 'All'}
-            </button>
+            <>
+              <button
+                onClick={handleCopyToClipboard}
+                data-testid="copy-output-btn"
+                className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+              >
+                Copy {selectedLines.length > 0 ? 'Selected' : 'All'}
+              </button>
+              {copySuccess && (
+                <span data-testid="copy-success-msg" className="text-xs text-green-600">
+                  Output copied to clipboard
+                </span>
+              )}
+            </>
           )}
         </div>
       )}
@@ -264,9 +338,13 @@ export function LiveOutput({
       {/* Output container */}
       <div
         ref={(el) => {
-          // Assign to both refs
-          (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-          (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+          // Assign to both refs using type assertion
+          if (scrollRef && 'current' in scrollRef) {
+            (scrollRef as { current: HTMLDivElement | null }).current = el;
+          }
+          if (containerRef && 'current' in containerRef) {
+            (containerRef as { current: HTMLDivElement | null }).current = el;
+          }
         }}
         data-testid="output-container"
         className="bg-gray-900 text-gray-100 p-3 rounded font-mono text-sm overflow-y-auto max-h-64"
@@ -276,13 +354,14 @@ export function LiveOutput({
           const isSelected = selectedLines.includes(index);
           const isSearchMatch = searchTerm && line.content.toLowerCase().includes(searchTerm.toLowerCase());
           const isCurrentSearchMatch = searchMatches[searchIndex] === index;
+          const fileRef = selectable ? parseFileReference(line.content) : null;
 
           return (
             <div
               key={`${taskId}-line-${index}`}
               data-testid={isSearchMatch ? 'highlighted-line' : 'output-line'}
               className={`flex items-start gap-2 py-0.5 hover:bg-gray-800 cursor-pointer ${getLineColor(line.level)} ${
-                isSelected ? 'bg-blue-50 border-l-4 border-blue-400' : ''
+                isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : ''
               } ${
                 isCurrentSearchMatch ? 'bg-yellow-900' : ''
               }`}
@@ -293,7 +372,7 @@ export function LiveOutput({
                   {line.timestamp}
                 </span>
               )}
-              <span className="break-all">
+              <span className="break-all flex-1">
                 {isSearchMatch && searchTerm ? (
                   <span
                     dangerouslySetInnerHTML={{
@@ -307,6 +386,33 @@ export function LiveOutput({
                   line.content.length > 2000 ? line.content.substring(0, 2000) + '...' : line.content
                 )}
               </span>
+              {/* Contextual actions for selected lines with file references */}
+              {isSelected && selectable && (
+                <div data-testid="line-actions" className="flex items-center gap-1 shrink-0">
+                  {fileRef && (
+                    <button
+                      data-testid="open-file-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenFile?.(fileRef.filePath, fileRef.line);
+                      }}
+                      className="px-1 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Open {fileRef.filePath}:{fileRef.line}
+                    </button>
+                  )}
+                  <button
+                    data-testid="copy-line-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopyLine(line.content);
+                    }}
+                    className="px-1 py-0.5 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+                  >
+                    Copy line
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
