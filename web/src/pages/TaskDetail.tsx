@@ -5,7 +5,7 @@ import { WorkflowProgress } from '@/components/task-detail/WorkflowProgress';
 import { TaskFooter } from '@/components/task-detail/TaskFooter';
 import { SplitPane } from '@/components/core/SplitPane';
 import { TranscriptTab } from '@/components/task-detail/TranscriptTab';
-import { ChangesTab } from '@/components/task-detail/ChangesTab';
+import { ChangesTabEnhanced } from '@/components/task-detail/ChangesTabEnhanced';
 import { FeedbackPanel } from '@/components/task-detail/FeedbackPanel';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
@@ -213,7 +213,7 @@ export function TaskDetail() {
 						<div className="task-detail-panel">
 							<h2 className="task-detail-panel__title">Changes</h2>
 							<div className="task-detail-panel__content">
-								<ChangesTab taskId={task.id} />
+								<ChangesTabEnhanced taskId={task.id} />
 							</div>
 						</div>
 					}

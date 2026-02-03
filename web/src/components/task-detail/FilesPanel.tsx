@@ -11,6 +11,7 @@ import {
 } from '@/gen/orc/v1/task_pb';
 import type { DiffResult, FileDiff } from '@/gen/orc/v1/common_pb';
 import { toast } from '@/stores/uiStore';
+import './FilesPanel.css';
 
 export interface FilesPanelProps {
   taskId: string;

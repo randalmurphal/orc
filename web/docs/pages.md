@@ -153,7 +153,7 @@ Task detail page at `/tasks/:id` with tabbed interface.
 | Tab | Component | Content |
 |-----|-----------|---------|
 | Timeline | `TimelineTab` | Phase execution timeline with tokens |
-| Changes | `ChangesTab` | Git diff viewer with inline comments |
+| Changes | `ChangesTabEnhanced` | Enhanced file list with list/tree views, status filtering, diff viewer with classic fallback |
 | Transcript | `TranscriptTab` | Full transcript history |
 | Tests | `TestResultsTab` | Test results and screenshots |
 | Attachments | `AttachmentsTab` | Uploaded files |
