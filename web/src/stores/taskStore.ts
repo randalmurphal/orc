@@ -5,6 +5,7 @@ import { type Task, TaskStatus, type ExecutionState } from '@/gen/orc/v1/task_pb
 import { ActivityState } from '@/gen/orc/v1/events_pb';
 import { type StatusCounts } from '@/gen/orc/v1/dashboard_pb';
 import { timestampToDate } from '@/lib/time';
+import type { SessionMetrics, PhaseProgress } from '@/components/common/RealTimeMetrics';
 
 // Active statuses for filtering (running/blocked/paused for getActiveTasks)
 const ACTIVE_STATUSES: TaskStatus[] = [TaskStatus.RUNNING, TaskStatus.BLOCKED, TaskStatus.PAUSED];
@@ -24,6 +25,9 @@ interface TaskStore {
 	tasks: Task[];
 	taskStates: Map<string, ExecutionState>;
 	taskActivities: Map<string, TaskActivity>;
+	taskOutputLines: Map<string, string[]>;
+	taskSessionMetrics: Map<string, SessionMetrics>;
+	taskPhaseProgress: Map<string, PhaseProgress>;
 	loading: boolean;
 	error: string | null;
 
@@ -46,6 +50,13 @@ interface TaskStore {
 	updateTaskActivity: (taskId: string, phase: string, activity: ActivityState) => void;
 	clearTaskActivity: (taskId: string) => void;
 	getTaskActivity: (taskId: string) => TaskActivity | undefined;
+	updateTaskOutput: (taskId: string, output: string) => void;
+	updateTaskOutputLines: (taskId: string, lines: string[]) => void;
+	getTaskOutputLines: (taskId: string) => string[] | undefined;
+	updateSessionMetrics: (taskId: string, metrics: SessionMetrics) => void;
+	getSessionMetrics: (taskId: string) => SessionMetrics | undefined;
+	updatePhaseProgress: (taskId: string, progress: PhaseProgress) => void;
+	getPhaseProgress: (taskId: string) => PhaseProgress | undefined;
 	setLoading: (loading: boolean) => void;
 	setError: (error: string | null) => void;
 	reset: () => void;
@@ -55,6 +66,9 @@ const initialState = {
 	tasks: [] as Task[],
 	taskStates: new Map<string, ExecutionState>(),
 	taskActivities: new Map<string, TaskActivity>(),
+	taskOutputLines: new Map<string, string[]>(),
+	taskSessionMetrics: new Map<string, SessionMetrics>(),
+	taskPhaseProgress: new Map<string, PhaseProgress>(),
 	loading: false,
 	error: null as string | null,
 };
@@ -183,6 +197,41 @@ export const useTaskStore = create<TaskStore>()(
 			}),
 
 		getTaskActivity: (taskId) => get().taskActivities.get(taskId),
+
+		updateTaskOutput: (taskId, output) =>
+			set((state) => {
+				const newOutputLines = new Map(state.taskOutputLines);
+				const existingLines = newOutputLines.get(taskId) || [];
+				newOutputLines.set(taskId, [...existingLines, output]);
+				return { taskOutputLines: newOutputLines };
+			}),
+
+		updateTaskOutputLines: (taskId, lines) =>
+			set((state) => {
+				const newOutputLines = new Map(state.taskOutputLines);
+				newOutputLines.set(taskId, lines);
+				return { taskOutputLines: newOutputLines };
+			}),
+
+		getTaskOutputLines: (taskId) => get().taskOutputLines.get(taskId),
+
+		updateSessionMetrics: (taskId, metrics) =>
+			set((state) => {
+				const newMetrics = new Map(state.taskSessionMetrics);
+				newMetrics.set(taskId, metrics);
+				return { taskSessionMetrics: newMetrics };
+			}),
+
+		getSessionMetrics: (taskId) => get().taskSessionMetrics.get(taskId),
+
+		updatePhaseProgress: (taskId, progress) =>
+			set((state) => {
+				const newProgress = new Map(state.taskPhaseProgress);
+				newProgress.set(taskId, progress);
+				return { taskPhaseProgress: newProgress };
+			}),
+
+		getPhaseProgress: (taskId) => get().taskPhaseProgress.get(taskId),
 
 		setLoading: (loading) => set({ loading }),
 

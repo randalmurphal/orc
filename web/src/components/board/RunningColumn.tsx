@@ -21,8 +21,6 @@ export interface RunningColumnProps {
 	tasks: Task[];
 	/** Task states keyed by task ID (from WebSocket updates) */
 	taskStates?: Record<string, ExecutionState>;
-	/** Output lines per task (from WebSocket transcript events) */
-	taskOutputs?: Record<string, string[]>;
 	/** Callback when a task card is clicked */
 	onTaskClick?: (task: Task) => void;
 	/** Map of task ID to pending decision count */
@@ -35,7 +33,6 @@ export interface RunningColumnProps {
 export function RunningColumn({
 	tasks,
 	taskStates = {},
-	taskOutputs = {},
 	onTaskClick: _onTaskClick,
 	taskDecisionCounts,
 }: RunningColumnProps) {
@@ -157,10 +154,9 @@ export function RunningColumn({
 						>
 							<RunningCard
 								task={task}
-								state={getTaskState(task)}
-								expanded={expandedTaskId === task.id}
+								executionState={getTaskState(task) || undefined}
+								isExpanded={expandedTaskId === task.id}
 								onToggleExpand={() => handleToggleExpand(task.id)}
-								outputLines={taskOutputs[task.id]}
 								pendingDecisionCount={taskDecisionCounts?.get(task.id) ?? 0}
 							/>
 						</div>
