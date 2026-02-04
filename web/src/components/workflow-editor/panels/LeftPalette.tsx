@@ -8,9 +8,9 @@ import './LeftPalette.css';
 interface LeftPaletteProps {
 	workflow: Workflow;
 	onWorkflowUpdate: (workflow: Workflow) => void;
-	onAgentClick?: (agent: Agent) => void;
-	onAgentAssign?: (agent: Agent) => void;
-	selectedNodeId?: string | null;
+	onAgentClick: (agent: Agent) => void;
+	onAgentAssign: (agent: Agent) => void;
+	selectedNodeId: string | null;
 }
 
 export function LeftPalette({
@@ -36,8 +36,8 @@ export function LeftPalette({
 			<div className="left-palette-section">
 				<AgentsPalette
 					readOnly={readOnly}
-					onAgentClick={onAgentClick || (() => {})}
-					onAgentAssign={onAgentAssign || (() => {})}
+					onAgentClick={onAgentClick}
+					onAgentAssign={onAgentAssign}
 					selectedNodeId={selectedNodeId}
 				/>
 			</div>

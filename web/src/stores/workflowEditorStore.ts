@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { Node, Edge } from '@xyflow/react';
 import type { WorkflowWithDetails, WorkflowRunWithDetails } from '@/gen/orc/v1/workflow_pb';
+import type { Agent } from '@/gen/orc/v1/config_pb';
 import { layoutWorkflow } from '@/components/workflow-editor/utils/layoutWorkflow';
 import type { PhaseNodeData, PhaseStatus } from '@/components/workflow-editor/nodes';
 
@@ -18,6 +19,7 @@ interface WorkflowEditorStore {
 	readOnly: boolean;
 	selectedNodeId: string | null;
 	selectedEdgeId: string | null;
+	selectedAgent: Agent | null;
 	workflowDetails: WorkflowWithDetails | null;
 
 	// Execution tracking state (TASK-639)
@@ -28,6 +30,7 @@ interface WorkflowEditorStore {
 	setReadOnly: (readOnly: boolean) => void;
 	selectNode: (nodeId: string | null) => void;
 	selectEdge: (edgeId: string | null) => void;
+	selectAgent: (agent: Agent | null) => void;
 	setNodes: (nodes: Node[]) => void;
 	setEdges: (edges: Edge[]) => void;
 	reset: () => void;
@@ -45,6 +48,7 @@ const initialState = {
 	readOnly: false,
 	selectedNodeId: null as string | null,
 	selectedEdgeId: null as string | null,
+	selectedAgent: null as Agent | null,
 	workflowDetails: null as WorkflowWithDetails | null,
 	activeRun: null as WorkflowRunWithDetails | null,
 };
@@ -76,10 +80,13 @@ export const useWorkflowEditorStore = create<WorkflowEditorStore>()(
 		setReadOnly: (readOnly: boolean) => set({ readOnly }),
 
 		selectNode: (nodeId: string | null) =>
-			set({ selectedNodeId: nodeId, selectedEdgeId: null }), // Clear edge when selecting node
+			set({ selectedNodeId: nodeId, selectedEdgeId: null, selectedAgent: null }), // Clear edge and agent when selecting node
 
 		selectEdge: (edgeId: string | null) =>
-			set({ selectedEdgeId: edgeId, selectedNodeId: null }), // Clear node when selecting edge
+			set({ selectedEdgeId: edgeId, selectedNodeId: null, selectedAgent: null }), // Clear node and agent when selecting edge
+
+		selectAgent: (agent: Agent | null) =>
+			set({ selectedAgent: agent, selectedNodeId: null, selectedEdgeId: null }), // Clear node and edge when selecting agent
 
 		setNodes: (nodes: Node[]) => set({ nodes }),
 
@@ -195,6 +202,8 @@ export const useEditorSelectedNodeId = (): string | null =>
 	useWorkflowEditorStore((state: WorkflowEditorStore) => state.selectedNodeId);
 export const useEditorSelectedEdgeId = (): string | null =>
 	useWorkflowEditorStore((state: WorkflowEditorStore) => state.selectedEdgeId);
+export const useEditorSelectedAgent = (): Agent | null =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.selectedAgent);
 export const useEditorWorkflowDetails = (): WorkflowWithDetails | null =>
 	useWorkflowEditorStore((state: WorkflowEditorStore) => state.workflowDetails);
 export const useEditorActiveRun = (): WorkflowRunWithDetails | null =>

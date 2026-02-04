@@ -5,11 +5,13 @@ import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { RunStatus, type WorkflowRunWithDetails, type Workflow } from '@/gen/orc/v1/workflow_pb';
 import { PhaseStatus } from '@/gen/orc/v1/task_pb';
+import type { Agent } from '@/gen/orc/v1/config_pb';
 import type { PhaseNodeData, PhaseStatus as UIPhaseStatus } from './nodes';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { LeftPalette } from './panels/LeftPalette';
 import { PhaseInspector } from './panels/PhaseInspector';
 import { GateInspector } from './panels/GateInspector';
+import { AgentInspector } from './panels/AgentInspector';
 import { ExecutionHeader } from './ExecutionHeader';
 import type { GateEdgeData } from './utils/layoutWorkflow';
 import { DeletePhaseDialog } from './DeletePhaseDialog';
@@ -54,7 +56,9 @@ export function WorkflowEditorPage() {
 	const workflowDetails = useWorkflowEditorStore((s) => s.workflowDetails);
 	const selectedNodeId = useWorkflowEditorStore((s) => s.selectedNodeId);
 	const selectedEdgeId = useWorkflowEditorStore((s) => s.selectedEdgeId);
+	const selectedAgent = useWorkflowEditorStore((s) => s.selectedAgent);
 	const selectNode = useWorkflowEditorStore((s) => s.selectNode);
+	const selectAgent = useWorkflowEditorStore((s) => s.selectAgent);
 	const nodes = useWorkflowEditorStore((s) => s.nodes);
 	const edges = useWorkflowEditorStore((s) => s.edges);
 	const loadFromWorkflow = useWorkflowEditorStore((s) => s.loadFromWorkflow);
@@ -296,6 +300,55 @@ export function WorkflowEditorPage() {
 		setShowDeleteConfirm(false);
 	}, []);
 
+	// Handler for clicking an agent when no phase is selected (show details)
+	const handleAgentClick = useCallback((agent: Agent) => {
+		selectAgent(agent);
+	}, [selectAgent]);
+
+	// Handler for clicking an agent when a phase is selected (assign to phase)
+	const handleAgentAssign = useCallback(async (agent: Agent) => {
+		if (!selectedNodeId || !workflowDetails?.workflow?.id) {
+			toast.error('No phase selected');
+			return;
+		}
+
+		const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+		if (!selectedNode) return;
+
+		const phaseId = (selectedNode.data as PhaseNodeData).phaseId;
+		const phase = workflowDetails.phases.find((p) => p.id === phaseId);
+		if (!phase) return;
+
+		// Check if agent is already assigned
+		const currentSubAgents = phase.subAgentsOverride ?? [];
+		if (currentSubAgents.includes(agent.name)) {
+			toast.info(`${agent.name} is already assigned to this phase`);
+			return;
+		}
+
+		// Add agent to subAgentsOverride
+		const newSubAgents = [...currentSubAgents, agent.name];
+
+		try {
+			await workflowClient.updatePhase({
+				workflowId: workflowDetails.workflow.id,
+				phaseId,
+				subAgentsOverride: newSubAgents,
+				subAgentsOverrideSet: true,
+			});
+			toast.success(`Assigned ${agent.name} to phase`);
+			refreshWorkflow();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to assign agent';
+			toast.error(message);
+		}
+	}, [selectedNodeId, workflowDetails, nodes, refreshWorkflow]);
+
+	// Handler to close agent inspector
+	const handleAgentInspectorClose = useCallback(() => {
+		selectAgent(null);
+	}, [selectAgent]);
+
 	if (loading) {
 		return (
 			<div className="workflow-editor-page">
@@ -330,7 +383,8 @@ export function WorkflowEditorPage() {
 	// Determine which inspector should be open
 	const nodeInspectorOpen = selectedNodeId !== null;
 	const edgeInspectorOpen = selectedEdgeId !== null;
-	const inspectorOpen = nodeInspectorOpen || edgeInspectorOpen;
+	const agentInspectorOpen = selectedAgent !== null;
+	const inspectorOpen = nodeInspectorOpen || edgeInspectorOpen || agentInspectorOpen;
 
 	// Find selected phase for the inspector panel
 	const selectedNode = selectedNodeId
@@ -423,6 +477,9 @@ export function WorkflowEditorPage() {
 									workflow: updatedWorkflow,
 								});
 							}}
+							onAgentClick={handleAgentClick}
+							onAgentAssign={handleAgentAssign}
+							selectedNodeId={selectedNodeId}
 						/>
 					)}
 				</aside>
@@ -446,6 +503,14 @@ export function WorkflowEditorPage() {
 							edge={selectedEdge as import('@xyflow/react').Edge<GateEdgeData> | null}
 							workflowDetails={workflowDetails}
 							readOnly={isBuiltin}
+						/>
+					</aside>
+				)}
+				{agentInspectorOpen && (
+					<aside className="workflow-editor-inspector">
+						<AgentInspector
+							agent={selectedAgent}
+							onClose={handleAgentInspectorClose}
 						/>
 					</aside>
 				)}

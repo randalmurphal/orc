@@ -97,6 +97,7 @@ export function AgentsPalette({
 		<div
 			className="agents-palette"
 			data-testid="agents-palette"
+			data-readonly={String(readOnly)}
 			aria-busy={isLoading}
 		>
 			{/* Collapsible Header */}
