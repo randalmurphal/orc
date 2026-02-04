@@ -24,7 +24,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useNavigate } from 'react-router';
+import { MemoryRouter } from 'react-router-dom';
 import { WorkflowsPage } from './WorkflowsPage';
 import {
 	createMockWorkflow,
@@ -32,6 +32,8 @@ import {
 	createMockListWorkflowsResponse,
 	createMockPhaseTemplate,
 	createMockListPhaseTemplatesResponse,
+	createMockAddPhaseResponse,
+	createMockWorkflowPhase,
 } from '@/test/factories';
 
 // Mock the workflow store
@@ -51,6 +53,7 @@ vi.mock('@/stores/workflowStore', () => ({
 		addWorkflow: vi.fn(),
 		removeWorkflow: vi.fn(),
 		updateWorkflow: vi.fn(),
+		setWorkflows: vi.fn(),
 		refreshWorkflows: vi.fn(),
 		refreshPhaseTemplates: vi.fn(),
 	})),
@@ -98,10 +101,10 @@ vi.mock('@/lib/client', async (importOriginal) => {
 	};
 });
 
-// Mock useNavigate
+// Mock useNavigate - must mock 'react-router-dom' since that's what WorkflowsPage imports
 const mockNavigate = vi.fn();
-vi.mock('react-router', async () => {
-	const actual = await vi.importActual('react-router');
+vi.mock('react-router-dom', async () => {
+	const actual = await vi.importActual('react-router-dom');
 	return {
 		...actual,
 		useNavigate: () => mockNavigate,
@@ -137,6 +140,11 @@ describe('WorkflowsPage - Wizard Integration', () => {
 				createMockPhaseTemplate({ id: 'review', name: 'Review' }),
 				createMockPhaseTemplate({ id: 'docs', name: 'Documentation' }),
 			])
+		);
+
+		// Default mock for addPhase (returns success - just needs to resolve)
+		vi.mocked(workflowClient.addPhase).mockResolvedValue(
+			createMockAddPhaseResponse(createMockWorkflowPhase())
 		);
 	});
 
@@ -234,10 +242,15 @@ describe('WorkflowsPage - Wizard Integration', () => {
 				);
 			});
 
+			// addPhase should be called for each selected phase
+			await waitFor(() => {
+				expect(workflowClient.addPhase).toHaveBeenCalled();
+			});
+
 			// Should navigate to workflow editor
 			await waitFor(() => {
 				expect(mockNavigate).toHaveBeenCalledWith(
-					expect.stringContaining('/workflows/my-new-workflow/edit')
+					'/workflows/my-new-workflow'
 				);
 			});
 		});

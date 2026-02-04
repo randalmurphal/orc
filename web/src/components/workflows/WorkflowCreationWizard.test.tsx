@@ -24,13 +24,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WorkflowCreationWizard } from './WorkflowCreationWizard';
-import { createMockWorkflow, createMockCreateWorkflowResponse, createMockPhaseTemplate, createMockListPhaseTemplatesResponse } from '@/test/factories';
+import { createMockWorkflow, createMockCreateWorkflowResponse, createMockPhaseTemplate, createMockListPhaseTemplatesResponse, createMockAddPhaseResponse, createMockWorkflowPhase } from '@/test/factories';
 
 // Mock the client module
 vi.mock('@/lib/client', () => ({
 	workflowClient: {
 		createWorkflow: vi.fn(),
 		listPhaseTemplates: vi.fn(),
+		addPhase: vi.fn(),
+		getWorkflow: vi.fn(),
 	},
 }));
 
@@ -61,6 +63,10 @@ describe('WorkflowCreationWizard', () => {
 				createMockPhaseTemplate({ id: 'security_scan', name: 'Security Scan' }),
 				createMockPhaseTemplate({ id: 'test', name: 'Test' }),
 			])
+		);
+		// Default mock for addPhase (returns success with a phase)
+		vi.mocked(workflowClient.addPhase).mockResolvedValue(
+			createMockAddPhaseResponse(createMockWorkflowPhase({ phaseTemplateId: 'test' }))
 		);
 	});
 
@@ -823,7 +829,6 @@ describe('WorkflowCreationWizard', () => {
 		});
 
 		it('shows visual progress indicator', async () => {
-			const user = userEvent.setup();
 			render(
 				<WorkflowCreationWizard
 					open={true}

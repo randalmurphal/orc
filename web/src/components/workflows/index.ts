@@ -16,3 +16,4 @@ export { EditPhaseTemplateModal, type EditPhaseTemplateModalProps } from './Edit
 export { CreatePhaseTemplateModal, type CreatePhaseTemplateModalProps } from './CreatePhaseTemplateModal';
 export { ConditionEditor, type ConditionEditorProps } from './ConditionEditor';
 export { LoopEditor, type LoopEditorProps } from './LoopEditor';
+export { WorkflowCreationWizard, type WorkflowCreationWizardProps } from './WorkflowCreationWizard';
