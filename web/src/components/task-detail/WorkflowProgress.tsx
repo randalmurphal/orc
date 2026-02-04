@@ -17,6 +17,7 @@ interface WorkflowProgressProps {
 	plan: TaskPlan | null;
 	workflowPhases?: WorkflowPhase[];
 	phaseTemplates?: PhaseTemplate[];
+	onPhaseClick?: (phaseName: string) => void;
 }
 
 /**
@@ -122,6 +123,7 @@ export function WorkflowProgress({
 	plan,
 	workflowPhases,
 	phaseTemplates,
+	onPhaseClick,
 }: WorkflowProgressProps) {
 	// Fallback when plan is not available
 	if (!plan || plan.phases.length === 0) {
@@ -170,8 +172,17 @@ export function WorkflowProgress({
 
 						{/* Phase node */}
 						<div
-							className={`workflow-progress__phase workflow-progress__phase--${phaseState}`}
+							className={`workflow-progress__phase workflow-progress__phase--${phaseState}${onPhaseClick ? ' workflow-progress__phase--clickable' : ''}`}
 							title={`${phase.name}: ${phaseState}`}
+							onClick={() => onPhaseClick?.(phase.name)}
+							onKeyDown={(e) => {
+								if (onPhaseClick && (e.key === 'Enter' || e.key === ' ')) {
+									e.preventDefault();
+									onPhaseClick(phase.name);
+								}
+							}}
+							tabIndex={onPhaseClick ? 0 : undefined}
+							role={onPhaseClick ? 'button' : undefined}
 						>
 							<span className="workflow-progress__phase-indicator">
 								{phaseState === 'completed' && '✓'}
