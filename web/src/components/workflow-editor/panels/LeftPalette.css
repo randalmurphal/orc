@@ -28,7 +28,13 @@
 	border-bottom: 1px solid var(--border);
 }
 
-/* Second section (phase templates) - takes remaining space, scrollable */
+/* Second section (agents) - collapsible, fixed height */
+.left-palette-section:nth-child(2) {
+	flex-shrink: 0;
+	border-bottom: 1px solid var(--border);
+}
+
+/* Third section (phase templates) - takes remaining space, scrollable */
 .left-palette-section:last-child {
 	flex: 1;
 	overflow: hidden;

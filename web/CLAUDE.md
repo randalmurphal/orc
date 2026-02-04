@@ -135,7 +135,8 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `ExecutionHeader` | `workflow-editor/` | Run status badge, metrics (duration/tokens/cost), cancel button |
 | `PhaseInspector` | `workflow-editor/panels/` | Right panel: Phase Input/Prompt/Completion/Settings tabs, condition editor, claude_config |
 | `PromptEditor` | `workflow-editor/panels/` | Prompt viewer with variable highlighting, editable textarea for custom |
-| `LeftPalette` | `workflow-editor/panels/` | Left panel container: WorkflowSettingsPanel (fixed height) + PhaseTemplatePalette (flex-grow). Pointer events managed for React Flow compatibility |
+| `LeftPalette` | `workflow-editor/panels/` | Left panel container: WorkflowSettingsPanel → AgentsPalette → PhaseTemplatePalette. Pointer events managed for React Flow compatibility |
+| `AgentsPalette` | `workflow-editor/panels/` | Collapsible agent browser: built-in/custom groups, click to view details or assign to selected phase, keyboard accessible |
 | `WorkflowSettingsPanel` | `workflow-editor/panels/` | Workflow-level settings: name, description, default model/thinking/max iterations, completion action/target branch. Read-only with "Built-in" badge for builtin workflows |
 | `PhaseTemplatePalette` | `workflow-editor/panels/` | Draggable phase templates for adding to canvas (section within LeftPalette) |
 | `VariableModal` | `workflow-editor/` | Create/edit workflow variables with source-specific forms |
