@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { TimelineTab } from './TimelineTab';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Task, TaskPlan, ExecutionState } from '@/gen/orc/v1/task_pb';
-import { TaskStatus, TaskWeight, TaskCategory, TaskPriority, TaskQueue, PhaseStatus } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, TaskCategory, TaskPriority, TaskQueue, PhaseStatus } from '@/gen/orc/v1/task_pb';
 import { createMockTask, createMockTaskPlan, createMockPhase, createTimestamp } from '@/test/factories';
 
 // Mock the stores
@@ -24,7 +24,6 @@ describe('TimelineTab', () => {
 			title: 'Test Task',
 			description: 'Test description',
 			status: TaskStatus.CREATED,
-			weight: TaskWeight.SMALL,
 			branch: 'orc/TASK-001',
 			priority: TaskPriority.NORMAL,
 			category: TaskCategory.FEATURE,
@@ -38,7 +37,6 @@ describe('TimelineTab', () => {
 	const createPlan = (overrides: Partial<Omit<TaskPlan, '$typeName' | '$unknown'>> = {}): TaskPlan => {
 		return createMockTaskPlan({
 			version: 1,
-			weight: TaskWeight.SMALL,
 			description: 'Test plan',
 			phases: [
 				createMockPhase({

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { TaskHeader } from './TaskHeader';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Task } from '@/gen/orc/v1/task_pb';
-import { TaskStatus, TaskWeight, TaskCategory, TaskPriority, TaskQueue, PhaseStatus } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, TaskCategory, TaskPriority, TaskQueue, PhaseStatus } from '@/gen/orc/v1/task_pb';
 import { createMockTask, createTimestamp } from '@/test/factories';
 
 // Mock the navigate function
@@ -54,7 +54,6 @@ describe('TaskHeader', () => {
 			title: overrides.title ?? 'Test Task',
 			description: overrides.description ?? 'Test description',
 			status: overrides.status ?? TaskStatus.CREATED,
-			weight: overrides.weight ?? TaskWeight.SMALL,
 			branch: overrides.branch ?? 'orc/TASK-001',
 			priority: overrides.priority ?? TaskPriority.NORMAL,
 			category: overrides.category ?? TaskCategory.FEATURE,
@@ -180,14 +179,13 @@ describe('TaskHeader', () => {
 	});
 
 	describe('Badge Order', () => {
-		it('renders badges in correct order: ID, status, weight, category, priority, initiative', () => {
+		it('renders badges in correct order: ID, status, category, priority, initiative', () => {
 			const { container } = renderTaskHeader({
 				task: createTask({
 					initiativeId: 'INIT-001',
 					priority: TaskPriority.HIGH,
 					category: TaskCategory.BUG,
-					weight: TaskWeight.MEDIUM,
-				}),
+									}),
 			});
 
 			const identity = container.querySelector('.task-identity');
@@ -196,13 +194,12 @@ describe('TaskHeader', () => {
 			const children = Array.from(identity!.children);
 			const classes = children.map((c) => c.className);
 
-			// Verify order of badges (StatusIndicator is rendered between task-id and weight)
+			// Verify order of badges (StatusIndicator is rendered after task-id)
 			expect(classes[0]).toContain('task-id');
 			// StatusIndicator is a more complex component
-			expect(classes[2]).toContain('weight-badge');
-			expect(classes[3]).toContain('category-badge');
-			expect(classes[4]).toContain('priority-badge');
-			expect(classes[5]).toContain('initiative-badge');
+			expect(classes[2]).toContain('category-badge');
+			expect(classes[3]).toContain('priority-badge');
+			expect(classes[4]).toContain('initiative-badge');
 		});
 	});
 });
@@ -213,8 +210,7 @@ describe('Running Status Badge (TASK-312)', () => {
 	// Running state is determined by being the current phase with PENDING status
 	const createPlan = (phases: string[], currentPhase?: string) => ({
 		version: 1,
-		weight: TaskWeight.SMALL,
-		description: 'Test plan',
+				description: 'Test plan',
 		phases: phases.map((name, idx) => ({
 			id: `phase-${idx}`,
 			name,
@@ -230,8 +226,7 @@ describe('Running Status Badge (TASK-312)', () => {
 				title: 'Test Task',
 				description: 'Test description',
 				status: TaskStatus.CREATED,
-				weight: TaskWeight.SMALL,
-				branch: 'orc/TASK-001',
+								branch: 'orc/TASK-001',
 				priority: TaskPriority.NORMAL,
 				category: TaskCategory.FEATURE,
 				queue: TaskQueue.ACTIVE,
@@ -257,8 +252,7 @@ describe('Running Status Badge (TASK-312)', () => {
 					id: 'TASK-001',
 					title: 'Test Task',
 					status: TaskStatus.RUNNING,
-					weight: TaskWeight.SMALL,
-					branch: 'orc/TASK-001',
+										branch: 'orc/TASK-001',
 					currentPhase: 'implement',
 					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
@@ -275,8 +269,7 @@ describe('Running Status Badge (TASK-312)', () => {
 					id: 'TASK-001',
 					title: 'Test Task',
 					status: TaskStatus.RUNNING,
-					weight: TaskWeight.SMALL,
-					branch: 'orc/TASK-001',
+										branch: 'orc/TASK-001',
 					currentPhase: 'review',
 					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
@@ -292,8 +285,7 @@ describe('Running Status Badge (TASK-312)', () => {
 					id: 'TASK-001',
 					title: 'Test Task',
 					status: TaskStatus.COMPLETED,
-					weight: TaskWeight.SMALL,
-					branch: 'orc/TASK-001',
+										branch: 'orc/TASK-001',
 					currentPhase: 'implement',
 					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
@@ -309,8 +301,7 @@ describe('Running Status Badge (TASK-312)', () => {
 					id: 'TASK-001',
 					title: 'Test Task',
 					status: TaskStatus.RUNNING,
-					weight: TaskWeight.SMALL,
-					branch: 'orc/TASK-001',
+										branch: 'orc/TASK-001',
 					currentPhase: 'implement',
 					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
@@ -331,8 +322,7 @@ describe('Running Status Badge (TASK-312)', () => {
 					id: 'TASK-001',
 					title: 'Test Task',
 					status: TaskStatus.RUNNING,
-					weight: TaskWeight.SMALL,
-					branch: 'orc/TASK-001',
+										branch: 'orc/TASK-001',
 					currentPhase: 'implement',
 					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
@@ -350,8 +340,7 @@ describe('Running Status Badge (TASK-312)', () => {
 					id: 'TASK-001',
 					title: 'Test Task',
 					status: TaskStatus.RUNNING,
-					weight: TaskWeight.MEDIUM,
-					branch: 'orc/TASK-001',
+										branch: 'orc/TASK-001',
 					currentPhase: 'implement',
 					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
@@ -368,8 +357,7 @@ describe('Running Status Badge (TASK-312)', () => {
 					id: 'TASK-001',
 					title: 'Test Task',
 					status: TaskStatus.RUNNING,
-					weight: TaskWeight.SMALL,
-					branch: 'orc/TASK-001',
+										branch: 'orc/TASK-001',
 					currentPhase: 'implement',
 					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
@@ -386,8 +374,7 @@ describe('Running Status Badge (TASK-312)', () => {
 					id: 'TASK-001',
 					title: 'Test Task',
 					status: TaskStatus.COMPLETED,
-					weight: TaskWeight.SMALL,
-					branch: 'orc/TASK-001',
+										branch: 'orc/TASK-001',
 					currentPhase: 'implement',
 					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),

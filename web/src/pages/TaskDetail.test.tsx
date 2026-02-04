@@ -12,7 +12,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { TaskDetail } from './TaskDetail';
 import { useTaskStore, useProjectStore } from '@/stores';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import { type Task, TaskStatus, TaskWeight } from '@/gen/orc/v1/task_pb';
+import { type Task, TaskStatus } from '@/gen/orc/v1/task_pb';
 import { createMockTask } from '@/test/factories';
 
 // Mock the Connect RPC client
@@ -63,7 +63,6 @@ function createTask(overrides: Partial<Task> = {}): Task {
 	return createMockTask({
 		id: 'TASK-001',
 		title: 'Test Task',
-		weight: TaskWeight.MEDIUM,
 		status: TaskStatus.RUNNING,
 		branch: 'orc/TASK-001',
 		...overrides,

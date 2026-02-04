@@ -124,7 +124,6 @@ func TestAutofixComment_StartsExecution(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Test task",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &workflowID,
 		Branch:     "orc/TASK-001",
@@ -208,7 +207,6 @@ func TestAutofixComment_FetchesComment(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Test task",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &workflowID,
 		Branch:     "orc/TASK-001",
@@ -298,7 +296,6 @@ func TestAutofixComment_ReturnsImmediately(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Quick response test",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &workflowID,
 		Branch:     "orc/TASK-001",
@@ -393,7 +390,6 @@ func TestAutofixComment_PublishesCompletionEvent(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Event test",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &workflowID,
 		Branch:     "orc/TASK-001",
@@ -464,7 +460,6 @@ func TestAutofixComment_TaskAlreadyRunning(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Running task",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_RUNNING, // Already running
 		WorkflowId: &workflowID,
 		Branch:     "orc/TASK-001",
@@ -537,7 +532,6 @@ func TestAutofixComment_NoGitHubAuth(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Auth test",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &workflowID,
 		Branch:     "orc/TASK-001",
@@ -871,7 +865,6 @@ func TestAutofixComment_ExecutorFails(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Executor fail test",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &workflowID,
 		Branch:     "orc/TASK-001",

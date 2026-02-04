@@ -7,7 +7,7 @@ import { useTaskStore, useProjectStore } from '@/stores';
 import type { Initiative } from '@/gen/orc/v1/initiative_pb';
 import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import type { Task } from '@/gen/orc/v1/task_pb';
-import { TaskStatus, TaskWeight, ExecutionStateSchema } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, ExecutionStateSchema } from '@/gen/orc/v1/task_pb';
 import { TokenUsageSchema, CostTrackingSchema } from '@/gen/orc/v1/common_pb';
 import { create } from '@bufbuild/protobuf';
 import { createMockInitiative, createMockTask, createMockTaskRef } from '@/test/factories';
@@ -67,7 +67,6 @@ describe('InitiativesView', () => {
 			id: 'TASK-001',
 			title: 'Task 1',
 			status: TaskStatus.COMPLETED,
-			weight: TaskWeight.SMALL,
 			branch: 'orc/TASK-001',
 			initiativeId: 'INIT-001',
 		}),
@@ -75,7 +74,6 @@ describe('InitiativesView', () => {
 			id: 'TASK-002',
 			title: 'Task 2',
 			status: TaskStatus.RUNNING,
-			weight: TaskWeight.MEDIUM,
 			branch: 'orc/TASK-002',
 			initiativeId: 'INIT-001',
 		}),
@@ -83,7 +81,6 @@ describe('InitiativesView', () => {
 			id: 'TASK-003',
 			title: 'Task 3',
 			status: TaskStatus.COMPLETED,
-			weight: TaskWeight.SMALL,
 			branch: 'orc/TASK-003',
 			initiativeId: 'INIT-002',
 		}),
@@ -91,7 +88,6 @@ describe('InitiativesView', () => {
 			id: 'TASK-004',
 			title: 'Task 4',
 			status: TaskStatus.COMPLETED,
-			weight: TaskWeight.MEDIUM,
 			branch: 'orc/TASK-004',
 			initiativeId: 'INIT-002',
 		}),
@@ -99,7 +95,6 @@ describe('InitiativesView', () => {
 			id: 'TASK-005',
 			title: 'Task 5',
 			status: TaskStatus.CREATED,
-			weight: TaskWeight.LARGE,
 			branch: 'orc/TASK-005',
 			initiativeId: 'INIT-002',
 		}),

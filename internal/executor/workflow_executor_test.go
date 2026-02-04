@@ -851,7 +851,6 @@ func TestRetryFlowPreservesPhaseOutputVars(t *testing.T) {
 	setupThreePhaseWorkflow(t, backend, "retry-phase-output-wf", "spec", "implement", "review")
 
 	tsk := task.NewProtoTask("TASK-RETRY-PHASE-001", "Test phase output survives retry")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "retry-phase-output-wf"
 	tsk.WorkflowId = &wfID
@@ -975,7 +974,6 @@ func TestRetryFlowPreservesGateOutputVars(t *testing.T) {
 	setupThreePhaseWorkflow(t, backend, "retry-gate-output-wf", "spec", "implement", "review")
 
 	tsk := task.NewProtoTask("TASK-RETRY-GATE-001", "Test gate output survives retry")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "retry-gate-output-wf"
 	tsk.WorkflowId = &wfID

@@ -452,7 +452,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	}
 
 	// Sync with target branch before execution starts
-	if t != nil && we.orcConfig.ShouldSyncOnStart() && we.orcConfig.ShouldSyncForWeight(t.Weight.String()) {
+	if t != nil && we.orcConfig.ShouldSyncOnStart() && we.orcConfig.ShouldSyncForWeight(task.GetWorkflowIDProto(t)) {
 		if err := we.syncOnTaskStart(execCtx, t); err != nil {
 			we.logger.Error("sync-on-start failed", "task", t.Id, "error", err)
 

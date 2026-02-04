@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NewTaskModal } from './NewTaskModal';
-import { TaskStatus, TaskWeight } from '@/gen/orc/v1/task_pb';
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import { useTaskStore } from '@/stores/taskStore';
 import {
 	createMockTask,
@@ -85,7 +85,6 @@ describe('NewTaskModal - Real-time Board Updates', () => {
 				id: 'TASK-NEW-001',
 				title: 'My New Task',
 				status: TaskStatus.CREATED,
-				weight: TaskWeight.MEDIUM,
 			});
 
 			vi.mocked(taskClient.createTask).mockResolvedValue(

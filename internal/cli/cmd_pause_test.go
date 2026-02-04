@@ -108,8 +108,7 @@ func TestPauseCommand_NotRunning(t *testing.T) {
 			// Create task with specific status
 			tk := task.NewProtoTask("TASK-001", "Test task")
 			tk.Status = tt.status
-			tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-			if err := backend.SaveTask(tk); err != nil {
+					if err := backend.SaveTask(tk); err != nil {
 				t.Fatalf("failed to save task: %v", err)
 			}
 
@@ -140,7 +139,6 @@ func TestPauseCommand_DirectUpdate(t *testing.T) {
 	// Create running task with no executor info (simulates dead executor)
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	// ExecutorPid defaults to 0, which means dead/orphaned
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
@@ -177,7 +175,6 @@ func TestPauseCommand_RunningWithDeadPID(t *testing.T) {
 
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	// Use a very high PID that shouldn't exist
 	tk.ExecutorPid = 99999999
 	if err := backend.SaveTask(tk); err != nil {

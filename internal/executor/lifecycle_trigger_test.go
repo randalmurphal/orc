@@ -21,7 +21,6 @@ func TestLifecycleTrigger_TaskCompleted(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tsk := task.NewProtoTask("TASK-001", "Test task completed trigger")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -68,7 +67,6 @@ func TestLifecycleTrigger_TaskFailed(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tsk := task.NewProtoTask("TASK-001", "Test task failed trigger")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -113,7 +111,6 @@ func TestLifecycleTrigger_GateBlocks(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tsk := task.NewProtoTask("TASK-001", "Test gate blocks completion")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -171,7 +168,6 @@ func TestLifecycleTrigger_FailedTriggerOnFail(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tsk := task.NewProtoTask("TASK-001", "Test double failure")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -284,7 +280,6 @@ func TestWorkflowWithTriggers_Integration(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tsk := task.NewProtoTask("TASK-001", "Integration test task")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)

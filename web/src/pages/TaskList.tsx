@@ -36,7 +36,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { taskClient } from '@/lib/client';
 import type { Task } from '@/gen/orc/v1/task_pb';
-import { TaskStatus, TaskWeight, DependencyStatus } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, DependencyStatus } from '@/gen/orc/v1/task_pb';
 import { timestampToDate } from '@/lib/time';
 import './TaskList.css';
 
@@ -61,18 +61,6 @@ const STATUS_ORDER = [
 	TaskStatus.COMPLETED,
 	TaskStatus.FAILED,
 ];
-
-// Available weights
-const WEIGHTS: TaskWeight[] = [TaskWeight.TRIVIAL, TaskWeight.SMALL, TaskWeight.MEDIUM, TaskWeight.LARGE];
-
-// Weight display labels
-const WEIGHT_LABELS: Record<TaskWeight, string> = {
-	[TaskWeight.UNSPECIFIED]: 'Unspecified',
-	[TaskWeight.TRIVIAL]: 'trivial',
-	[TaskWeight.SMALL]: 'small',
-	[TaskWeight.MEDIUM]: 'medium',
-	[TaskWeight.LARGE]: 'large',
-};
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -110,7 +98,6 @@ export function TaskList() {
 
 	// Local filter state
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-	const [weightFilter, setWeightFilter] = useState<string>('all');
 	const [sortBy, setSortBy] = useState<SortBy>('recent');
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -166,21 +153,6 @@ export function TaskList() {
 			}
 		}
 
-		// Weight filter
-		if (weightFilter !== 'all') {
-			// Map string filter to TaskWeight enum
-			const weightMap: Record<string, TaskWeight> = {
-				trivial: TaskWeight.TRIVIAL,
-				small: TaskWeight.SMALL,
-				medium: TaskWeight.MEDIUM,
-				large: TaskWeight.LARGE,
-			};
-			const targetWeight = weightMap[weightFilter];
-			if (targetWeight !== undefined) {
-				result = result.filter((t) => t.weight === targetWeight);
-			}
-		}
-
 		// Search filter (debounced)
 		if (debouncedSearchQuery.trim()) {
 			const query = debouncedSearchQuery.toLowerCase();
@@ -214,7 +186,6 @@ export function TaskList() {
 		initiativeFilteredTasks,
 		statusFilter,
 		currentDependencyStatus,
-		weightFilter,
 		debouncedSearchQuery,
 		sortBy,
 	]);
@@ -369,7 +340,6 @@ export function TaskList() {
 	const clearFilters = useCallback(() => {
 		setSearchQuery('');
 		setStatusFilter('all');
-		setWeightFilter('all');
 	}, []);
 
 	// Handle initiative change
@@ -483,21 +453,6 @@ export function TaskList() {
 
 					{/* Dependency Filter */}
 					<DependencyDropdown tasks={initiativeFilteredTasks} />
-
-					{/* Weight Filter */}
-					<select
-						className="filter-select"
-						value={weightFilter}
-						onChange={(e) => setWeightFilter(e.target.value)}
-						aria-label="Filter by weight"
-					>
-						<option value="all">All weights</option>
-						{WEIGHTS.map((w) => (
-							<option key={w} value={WEIGHT_LABELS[w]}>
-								{WEIGHT_LABELS[w]}
-							</option>
-						))}
-					</select>
 
 					{/* Sort */}
 					<select

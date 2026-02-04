@@ -8,7 +8,6 @@ import { toast } from '@/stores/uiStore';
 import { useInitiatives, useCurrentProjectId } from '@/stores';
 import {
 	type Task,
-	TaskWeight,
 	TaskPriority,
 	TaskCategory,
 	TaskQueue,
@@ -17,12 +16,6 @@ import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 import './TaskEditModal.css';
 
-const WEIGHTS: TaskWeight[] = [
-	TaskWeight.TRIVIAL,
-	TaskWeight.SMALL,
-	TaskWeight.MEDIUM,
-	TaskWeight.LARGE,
-];
 const PRIORITIES: TaskPriority[] = [
 	TaskPriority.CRITICAL,
 	TaskPriority.HIGH,
@@ -40,13 +33,6 @@ const CATEGORIES: TaskCategory[] = [
 const QUEUES: TaskQueue[] = [TaskQueue.ACTIVE, TaskQueue.BACKLOG];
 
 // Labels for enum values
-const WEIGHT_LABELS: Record<TaskWeight, string> = {
-	[TaskWeight.UNSPECIFIED]: 'unspecified',
-	[TaskWeight.TRIVIAL]: 'trivial',
-	[TaskWeight.SMALL]: 'small',
-	[TaskWeight.MEDIUM]: 'medium',
-	[TaskWeight.LARGE]: 'large',
-};
 const PRIORITY_LABELS: Record<TaskPriority, string> = {
 	[TaskPriority.UNSPECIFIED]: 'unspecified',
 	[TaskPriority.CRITICAL]: 'critical',
@@ -92,7 +78,6 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 	const projectId = useCurrentProjectId();
 	const [title, setTitle] = useState(task.title);
 	const [description, setDescription] = useState(task.description ?? '');
-	const [weight, setWeight] = useState<TaskWeight>(task.weight);
 	const [priority, setPriority] = useState<TaskPriority>(task.priority || TaskPriority.NORMAL);
 	const [category, setCategory] = useState<TaskCategory>(task.category || TaskCategory.FEATURE);
 	const [queue, setQueue] = useState<TaskQueue>(task.queue || TaskQueue.ACTIVE);
@@ -143,7 +128,6 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 		if (open) {
 			setTitle(task.title);
 			setDescription(task.description ?? '');
-			setWeight(task.weight);
 			setPriority(task.priority || TaskPriority.NORMAL);
 			setCategory(task.category || TaskCategory.FEATURE);
 			setQueue(task.queue || TaskQueue.ACTIVE);
@@ -234,7 +218,6 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 				taskId: task.id,
 				title: title.trim(),
 				description: description.trim() || undefined,
-				weight,
 				priority,
 				category,
 				queue,
@@ -260,7 +243,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 		} finally {
 			setSaving(false);
 		}
-	}, [projectId, task.id, title, description, weight, priority, category, queue, initiativeId, workflowId, targetBranch, branchName, prDraft, prDraftChanged, prLabels, prReviewers, onUpdate, onClose]);
+	}, [projectId, task.id, title, description, priority, category, queue, initiativeId, workflowId, targetBranch, branchName, prDraft, prDraftChanged, prLabels, prReviewers, onUpdate, onClose]);
 
 	return (
 		<Modal open={open} title="Edit Task" onClose={onClose}>
@@ -290,23 +273,8 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 					/>
 				</div>
 
-				{/* Weight & Priority Row */}
+				{/* Priority & Category Row */}
 				<div className="form-row">
-					<div className="form-group">
-						<label htmlFor="task-weight">Weight</label>
-						<select
-							id="task-weight"
-							value={String(weight)}
-							onChange={(e) => setWeight(Number(e.target.value) as TaskWeight)}
-						>
-							{WEIGHTS.map((w) => (
-								<option key={w} value={String(w)}>
-									{WEIGHT_LABELS[w]}
-								</option>
-							))}
-						</select>
-					</div>
-
 					<div className="form-group">
 						<label htmlFor="task-priority">Priority</label>
 						<select
@@ -321,10 +289,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 							))}
 						</select>
 					</div>
-				</div>
 
-				{/* Category & Queue Row */}
-				<div className="form-row">
 					<div className="form-group">
 						<label htmlFor="task-category">Category</label>
 						<select
@@ -339,21 +304,22 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 							))}
 						</select>
 					</div>
+				</div>
 
-					<div className="form-group">
-						<label htmlFor="task-queue">Queue</label>
-						<select
-							id="task-queue"
-							value={String(queue)}
-							onChange={(e) => setQueue(Number(e.target.value) as TaskQueue)}
-						>
-							{QUEUES.map((q) => (
-								<option key={q} value={String(q)}>
-									{QUEUE_LABELS[q]}
-								</option>
-							))}
-						</select>
-					</div>
+				{/* Queue Row */}
+				<div className="form-group">
+					<label htmlFor="task-queue">Queue</label>
+					<select
+						id="task-queue"
+						value={String(queue)}
+						onChange={(e) => setQueue(Number(e.target.value) as TaskQueue)}
+					>
+						{QUEUES.map((q) => (
+							<option key={q} value={String(q)}>
+								{QUEUE_LABELS[q]}
+							</option>
+						))}
+					</select>
 				</div>
 
 				{/* Workflow */}

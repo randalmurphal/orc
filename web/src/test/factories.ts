@@ -22,7 +22,6 @@ import {
 	type TaskComment,
 	type ListCommentsResponse,
 	TaskStatus,
-	TaskWeight,
 	TaskCategory,
 	TaskPriority,
 	TaskQueue,
@@ -123,7 +122,6 @@ export function createMockTask(overrides: Partial<Omit<Task, '$typeName' | '$unk
 	const base = create(TaskSchema, {
 		id: 'TASK-001',
 		title: 'Test task',
-		weight: TaskWeight.SMALL,
 		status: TaskStatus.CREATED,
 		branch: 'orc/TASK-001',
 		priority: TaskPriority.NORMAL,
@@ -295,16 +293,6 @@ export function getStatusLabel(status: TaskStatus): string {
 		case TaskStatus.FAILED: return 'failed';
 		case TaskStatus.CLOSED: return 'closed';
 		default: return 'created';
-	}
-}
-
-export function getWeightLabel(weight: TaskWeight): string {
-	switch (weight) {
-		case TaskWeight.TRIVIAL: return 'trivial';
-		case TaskWeight.SMALL: return 'small';
-		case TaskWeight.MEDIUM: return 'medium';
-		case TaskWeight.LARGE: return 'large';
-		default: return 'medium';
 	}
 }
 

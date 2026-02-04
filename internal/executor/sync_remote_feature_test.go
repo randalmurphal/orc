@@ -70,7 +70,6 @@ func setupSyncRemoteFeatureTest(t *testing.T, taskID string) *syncRemoteFeatureT
 
 	// Create task
 	tsk := task.NewProtoTask(taskID, "Sync remote feature test")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 
 	// Config with sync-on-start enabled
 	cfg := config.Default()

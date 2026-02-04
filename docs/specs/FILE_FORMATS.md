@@ -173,7 +173,7 @@ description: |
   Implement OAuth2 authentication with Google and GitHub.
   Should integrate with existing user model.
 
-weight: medium
+workflow_id: medium               # Workflow: trivial | small | medium | large (or custom)
 status: running                   # Task execution status (see Task Status Values below)
 current_phase: implement          # Phase currently being executed (updated by executor)
 branch: orc/TASK-001
@@ -601,7 +601,7 @@ finalize:
 ```yaml
 # .orc/tasks/TASK-001/plan.yaml
 task_id: TASK-001
-weight: medium
+workflow_id: medium
 generated_at: 2026-01-10T10:32:00Z
 
 phases:
@@ -1087,7 +1087,7 @@ tasks:
     title: "Add OAuth2 config"    # Required
     description: |                # Optional
       Add configuration structure for OAuth2 providers.
-    weight: small                 # Optional: trivial/small/medium/large/greenfield
+    workflow: small               # Optional: trivial/small/medium/large (or custom)
     category: feature             # Optional: feature/bug/refactor/chore/docs/test
     priority: normal              # Optional: critical/high/normal/low
     depends_on: []                # Optional: local IDs of prerequisite tasks
@@ -1100,7 +1100,7 @@ tasks:
 
   - id: 2
     title: "Implement Google OAuth2"
-    weight: medium
+    workflow: medium
     depends_on: [1]               # Depends on task with local ID 1
     spec: |
       # Specification: Google OAuth2
@@ -1108,12 +1108,12 @@ tasks:
 
   - id: 3
     title: "Implement GitHub OAuth2"
-    weight: medium
+    workflow: medium
     depends_on: [1]
 
   - id: 4
     title: "Add auth middleware"
-    weight: small
+    workflow: small
     depends_on: [2, 3]            # Can depend on multiple tasks
     # No spec = will run spec phase during execution
 ```
@@ -1170,7 +1170,7 @@ create_initiative:
 tasks:
   - id: 1
     title: "Add OAuth config"
-    weight: small
+    workflow: small
     spec: |
       # Specification: Add OAuth config
       ## Success Criteria

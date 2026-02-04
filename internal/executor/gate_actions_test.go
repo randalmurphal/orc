@@ -488,7 +488,6 @@ func TestGateAction_OnRejectedFail_FailsTask(t *testing.T) {
 	setupSinglePhaseWorkflow(t, backend, "fail-test-wf", "implement")
 
 	tsk := task.NewProtoTask("TASK-FAIL-001", "Test on_rejected: fail")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "fail-test-wf"
 	tsk.WorkflowId = &wfID
@@ -568,7 +567,6 @@ func TestGateAction_OnRejectedRetry_RetriesFromPhase(t *testing.T) {
 	setupTwoPhaseWorkflow(t, backend, "retry-test-wf", "implement", "review")
 
 	tsk := task.NewProtoTask("TASK-RETRY-001", "Test on_rejected: retry")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "retry-test-wf"
 	tsk.WorkflowId = &wfID
@@ -658,7 +656,6 @@ func TestGateAction_OnRejectedRetry_MaxRetriesFallsToFail(t *testing.T) {
 	setupTwoPhaseWorkflow(t, backend, "maxretry-wf", "implement", "review")
 
 	tsk := task.NewProtoTask("TASK-MAXRETRY-001", "Test retry max exceeded")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "maxretry-wf"
 	tsk.WorkflowId = &wfID
@@ -743,7 +740,6 @@ func TestGateAction_OnRejectedSkipPhase_SkipsCurrent(t *testing.T) {
 	setupTwoPhaseWorkflow(t, backend, "skip-rejected-wf", "implement", "review")
 
 	tsk := task.NewProtoTask("TASK-SKIP-R-001", "Test on_rejected: skip_phase")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "skip-rejected-wf"
 	tsk.WorkflowId = &wfID
@@ -832,7 +828,6 @@ func TestGateAction_OnApprovedSkipPhase_SkipsNextPhase(t *testing.T) {
 	setupThreePhaseWorkflow(t, backend, "skip-next-wf", "implement", "review", "docs")
 
 	tsk := task.NewProtoTask("TASK-SKIPNEXT-001", "Test on_approved: skip_phase")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "skip-next-wf"
 	tsk.WorkflowId = &wfID
@@ -915,7 +910,6 @@ func TestGateAction_OnApprovedContinue_BackwardCompat(t *testing.T) {
 	setupTwoPhaseWorkflow(t, backend, "compat-wf", "implement", "review")
 
 	tsk := task.NewProtoTask("TASK-COMPAT-001", "Test backward compat")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "compat-wf"
 	tsk.WorkflowId = &wfID
@@ -986,7 +980,6 @@ func TestGateAction_OnRejectedRunScript_ThenFail(t *testing.T) {
 	setupSinglePhaseWorkflow(t, backend, "run-script-rej-wf", "implement")
 
 	tsk := task.NewProtoTask("TASK-RSREJ-001", "Test on_rejected: run_script")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "run-script-rej-wf"
 	tsk.WorkflowId = &wfID
@@ -1074,7 +1067,6 @@ func TestGateAction_OnApprovedRunScript_ThenContinue(t *testing.T) {
 	setupTwoPhaseWorkflow(t, backend, "run-script-app-wf", "implement", "review")
 
 	tsk := task.NewProtoTask("TASK-RSAPP-001", "Test on_approved: run_script")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "run-script-app-wf"
 	tsk.WorkflowId = &wfID
@@ -1144,7 +1136,6 @@ func TestGateAction_SkipPhaseOnLastPhase_WarnsAndContinues(t *testing.T) {
 	setupSinglePhaseWorkflow(t, backend, "last-phase-wf", "implement")
 
 	tsk := task.NewProtoTask("TASK-LAST-001", "Test skip on last phase")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "last-phase-wf"
 	tsk.WorkflowId = &wfID
@@ -1314,7 +1305,6 @@ func TestGateAction_RetryNoRetryFrom_FailsWithError(t *testing.T) {
 	setupSinglePhaseWorkflow(t, backend, "no-retry-from-wf", "implement")
 
 	tsk := task.NewProtoTask("TASK-NORF-001", "Test retry with no retry_from")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "no-retry-from-wf"
 	tsk.WorkflowId = &wfID
@@ -1379,7 +1369,6 @@ func TestGateAction_RunScriptEmptyPath_WarnsAndAppliesSecondary(t *testing.T) {
 	setupSinglePhaseWorkflow(t, backend, "empty-script-wf", "implement")
 
 	tsk := task.NewProtoTask("TASK-EMPTYS-001", "Test run_script with empty path")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "empty-script-wf"
 	tsk.WorkflowId = &wfID

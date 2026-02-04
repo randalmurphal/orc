@@ -47,13 +47,11 @@ func TestGetTopInitiatives_ReturnsInitiativeTitle(t *testing.T) {
 	// Create tasks linked to this initiative
 	initID := "INIT-001"
 	task1 := task.NewProtoTask("TASK-001", "Login endpoint")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	task1.InitiativeId = &initID
 	task1.CompletedAt = timestamppb.Now()
 
 	task2 := task.NewProtoTask("TASK-002", "Logout endpoint")
-	task2.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task2.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	task2.InitiativeId = &initID
 
@@ -124,8 +122,7 @@ func TestGetTopInitiatives_MultipleInitiativesSortedByTaskCount(t *testing.T) {
 	// 10 tasks for INIT-A
 	for i := 0; i < 10; i++ {
 		tk := task.NewProtoTask("TASK-A-"+string(rune('0'+i)), "Task A")
-		tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+			tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		tk.InitiativeId = &initAID
 		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task: %v", err)
@@ -135,8 +132,7 @@ func TestGetTopInitiatives_MultipleInitiativesSortedByTaskCount(t *testing.T) {
 	// 5 tasks for INIT-B
 	for i := 0; i < 5; i++ {
 		tk := task.NewProtoTask("TASK-B-"+string(rune('0'+i)), "Task B")
-		tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+			tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		tk.InitiativeId = &initBID
 		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task: %v", err)
@@ -146,8 +142,7 @@ func TestGetTopInitiatives_MultipleInitiativesSortedByTaskCount(t *testing.T) {
 	// 2 tasks for INIT-C
 	for i := 0; i < 2; i++ {
 		tk := task.NewProtoTask("TASK-C-"+string(rune('0'+i)), "Task C")
-		tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+			tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		tk.InitiativeId = &initCID
 		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task: %v", err)
@@ -212,8 +207,7 @@ func TestGetTopInitiatives_LimitRespected(t *testing.T) {
 		// Create one task per initiative
 		initID := id
 		tk := task.NewProtoTask("TASK-"+id, "Task")
-		tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+			tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		tk.InitiativeId = &initID
 		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task: %v", err)
@@ -257,7 +251,6 @@ func TestGetTopInitiatives_EmptyTitle_FallbackToID(t *testing.T) {
 	// Create a task linked to this initiative
 	initID := "INIT-001"
 	tk := task.NewProtoTask("TASK-001", "Task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	tk.InitiativeId = &initID
 
@@ -298,7 +291,6 @@ func TestGetTopInitiatives_InitiativeNotInStorage(t *testing.T) {
 	// Create a task linked to an initiative that doesn't exist
 	initID := "INIT-NONEXISTENT"
 	tk := task.NewProtoTask("TASK-001", "Task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	tk.InitiativeId = &initID
 
@@ -336,7 +328,6 @@ func TestGetTopInitiatives_NoInitiatives(t *testing.T) {
 
 	// No tasks with initiatives
 	tk := task.NewProtoTask("TASK-001", "Task without initiative")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	// No InitiativeId set
 
@@ -377,21 +368,18 @@ func TestGetMetrics_ReturnsAvgTaskDurationSeconds(t *testing.T) {
 	// Create completed tasks with known durations
 	// Task 1: 60 seconds
 	task1 := task.NewProtoTask("TASK-001", "Task 1")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	task1.StartedAt = timestamppb.New(now.Add(-2 * time.Hour))
 	task1.CompletedAt = timestamppb.New(now.Add(-2*time.Hour + 60*time.Second))
 
 	// Task 2: 120 seconds
 	task2 := task.NewProtoTask("TASK-002", "Task 2")
-	task2.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	task2.StartedAt = timestamppb.New(now.Add(-1 * time.Hour))
 	task2.CompletedAt = timestamppb.New(now.Add(-1*time.Hour + 120*time.Second))
 
 	// Task 3: 180 seconds
 	task3 := task.NewProtoTask("TASK-003", "Task 3")
-	task3.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task3.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	task3.StartedAt = timestamppb.New(now.Add(-30 * time.Minute))
 	task3.CompletedAt = timestamppb.New(now.Add(-30*time.Minute + 180*time.Second))
@@ -428,7 +416,6 @@ func TestGetMetrics_NoCompletedTasks_ReturnsZero(t *testing.T) {
 
 	// Create a running task (not completed)
 	tk := task.NewProtoTask("TASK-001", "Running task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	tk.StartedAt = timestamppb.Now()
 	// No CompletedAt
@@ -460,7 +447,6 @@ func TestGetMetrics_TasksWithoutTimestamps_ReturnsZero(t *testing.T) {
 
 	// Create completed task without StartedAt
 	tk := task.NewProtoTask("TASK-001", "Task without timestamps")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	tk.CompletedAt = timestamppb.Now()
 	// No StartedAt
@@ -495,14 +481,12 @@ func TestGetMetrics_RespectsPeriodFilter(t *testing.T) {
 
 	// Task completed yesterday (within "week" period): 100 seconds
 	task1 := task.NewProtoTask("TASK-001", "Recent task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	task1.StartedAt = timestamppb.New(now.Add(-24 * time.Hour))
 	task1.CompletedAt = timestamppb.New(now.Add(-24*time.Hour + 100*time.Second))
 
 	// Task completed 2 weeks ago (outside "week" period): 500 seconds
 	task2 := task.NewProtoTask("TASK-002", "Old task")
-	task2.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	task2.StartedAt = timestamppb.New(now.Add(-14 * 24 * time.Hour))
 	task2.CompletedAt = timestamppb.New(now.Add(-14*24*time.Hour + 500*time.Second))

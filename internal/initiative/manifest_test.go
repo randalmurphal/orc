@@ -185,18 +185,6 @@ func TestValidateManifest(t *testing.T) {
 			errSubstr: "duplicate local ID",
 		},
 		{
-			name: "invalid weight",
-			manifest: &Manifest{
-				Version:    1,
-				Initiative: "INIT-001",
-				Tasks: []ManifestTask{
-					{ID: 1, Title: "Task 1", Weight: "invalid"},
-				},
-			},
-			wantErrs:  1,
-			errSubstr: "invalid weight",
-		},
-		{
 			name: "invalid category",
 			manifest: &Manifest{
 				Version:    1,
@@ -479,14 +467,6 @@ func TestTopologicalSort(t *testing.T) {
 
 func TestFormatHelpers(t *testing.T) {
 	// Just ensure they don't panic and return non-empty strings
-	weights := formatWeights()
-	if weights == "" {
-		t.Error("formatWeights() returned empty string")
-	}
-	if !strings.Contains(weights, "medium") {
-		t.Error("formatWeights() should contain 'medium'")
-	}
-
 	cats := formatCategories()
 	if cats == "" {
 		t.Error("formatCategories() returned empty string")

@@ -879,7 +879,6 @@ func setupReviewLoopWorkflow(t *testing.T, backend *storage.DatabaseBackend, loo
 func setupTaskForReviewLoop(t *testing.T, backend *storage.DatabaseBackend, taskID string) *orcv1.Task {
 	t.Helper()
 	tsk := task.NewProtoTask(taskID, "Review loop test task")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "review-loop-wf"

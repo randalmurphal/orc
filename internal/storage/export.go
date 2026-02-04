@@ -218,7 +218,6 @@ func generateContextSummary(t *orcv1.Task) (string, error) {
 	buf.WriteString("| Field | Value |\n")
 	buf.WriteString("|-------|-------|\n")
 	buf.WriteString(fmt.Sprintf("| Title | %s |\n", t.Title))
-	buf.WriteString(fmt.Sprintf("| Weight | %s |\n", task.WeightFromProto(t.Weight)))
 	buf.WriteString(fmt.Sprintf("| Status | %s |\n", task.StatusFromProto(t.Status)))
 	buf.WriteString(fmt.Sprintf("| Branch | %s |\n", t.Branch))
 	if t.CreatedAt != nil {

@@ -13,7 +13,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NewTaskModal } from './NewTaskModal';
-import { TaskWeight } from '@/gen/orc/v1/task_pb';
 import {
 	createMockWorkflow,
 	createMockListWorkflowsResponse,
@@ -175,130 +174,6 @@ describe('NewTaskModal - Workflow Selector', () => {
 			await waitFor(() => {
 				expect(screen.getByText(/no workflows available/i)).toBeInTheDocument();
 			});
-		});
-	});
-
-	describe('SC-3: Default workflow selection matches weight', () => {
-		it('should auto-select "medium" workflow when weight is medium (default)', async () => {
-			render(
-				<NewTaskModal
-					open={true}
-					onClose={mockOnClose}
-					onCreate={mockOnCreate}
-				/>
-			);
-
-			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
-			});
-
-			// Default weight is medium, so workflow should default to "medium"
-			const workflowTrigger = screen.getByLabelText(/workflow/i);
-			expect(workflowTrigger).toHaveTextContent(/medium/i);
-		});
-
-		it('should auto-select "small" workflow when weight changed to small', async () => {
-			const user = userEvent.setup();
-
-			render(
-				<NewTaskModal
-					open={true}
-					onClose={mockOnClose}
-					onCreate={mockOnCreate}
-				/>
-			);
-
-			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
-			});
-
-			// Change weight to small
-			const weightSelect = screen.getByLabelText(/weight/i);
-			await user.selectOptions(weightSelect, String(TaskWeight.SMALL));
-
-			// Workflow should auto-update to small
-			const workflowTrigger = screen.getByLabelText(/workflow/i);
-			expect(workflowTrigger).toHaveTextContent(/small/i);
-		});
-
-		it('should auto-select "large" workflow when weight changed to large', async () => {
-			const user = userEvent.setup();
-
-			render(
-				<NewTaskModal
-					open={true}
-					onClose={mockOnClose}
-					onCreate={mockOnCreate}
-				/>
-			);
-
-			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
-			});
-
-			// Change weight to large
-			const weightSelect = screen.getByLabelText(/weight/i);
-			await user.selectOptions(weightSelect, String(TaskWeight.LARGE));
-
-			// Workflow should auto-update to large
-			const workflowTrigger = screen.getByLabelText(/workflow/i);
-			expect(workflowTrigger).toHaveTextContent(/large/i);
-		});
-
-		it('should not have default workflow when weight is trivial', async () => {
-			const user = userEvent.setup();
-
-			render(
-				<NewTaskModal
-					open={true}
-					onClose={mockOnClose}
-					onCreate={mockOnCreate}
-				/>
-			);
-
-			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
-			});
-
-			// Change weight to trivial
-			const weightSelect = screen.getByLabelText(/weight/i);
-			await user.selectOptions(weightSelect, String(TaskWeight.TRIVIAL));
-
-			// Workflow should show none/placeholder for trivial tasks
-			const workflowTrigger = screen.getByLabelText(/workflow/i);
-			// Trivial tasks don't need a workflow - should show "None" or be empty
-			expect(workflowTrigger).toHaveTextContent(/none|trivial/i);
-		});
-
-		it('should preserve manual workflow selection when weight changes', async () => {
-			const user = userEvent.setup();
-
-			render(
-				<NewTaskModal
-					open={true}
-					onClose={mockOnClose}
-					onCreate={mockOnCreate}
-				/>
-			);
-
-			await waitFor(() => {
-				expect(workflowClient.listWorkflows).toHaveBeenCalled();
-			});
-
-			// Manually select custom workflow
-			const workflowSelect = screen.getByLabelText(/workflow/i);
-			await user.click(workflowSelect);
-
-			const customOption = await screen.findByRole('option', { name: /custom workflow/i });
-			await user.click(customOption);
-
-			// Now change weight - workflow should NOT auto-change because manual selection
-			const weightSelect = screen.getByLabelText(/weight/i);
-			await user.selectOptions(weightSelect, String(TaskWeight.SMALL));
-
-			// Custom workflow should still be selected
-			const workflowTrigger = screen.getByLabelText(/workflow/i);
-			expect(workflowTrigger).toHaveTextContent(/custom workflow/i);
 		});
 	});
 

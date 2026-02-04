@@ -21,8 +21,7 @@ func TestTryClaimTaskExecution_SuccessfulClaim(t *testing.T) {
 
 	// Create a failed task (resumable)
 	tk := task.NewProtoTask("TASK-001", "Test Task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	currentPhase := "implement"
 	tk.CurrentPhase = &currentPhase
 	tk.Execution = task.InitProtoExecutionState()
@@ -63,8 +62,7 @@ func TestTryClaimTaskExecution_ConcurrentAttempts(t *testing.T) {
 
 	// Create a paused task
 	tk := task.NewProtoTask("TASK-001", "Test Task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 	currentPhase := "implement"
 	tk.CurrentPhase = &currentPhase
 	tk.Execution = task.InitProtoExecutionState()
@@ -133,8 +131,7 @@ func TestTryClaimTaskExecution_AlreadyClaimed(t *testing.T) {
 
 	// Create a blocked task
 	tk := task.NewProtoTask("TASK-001", "Test Task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 	currentPhase := "implement"
 	tk.CurrentPhase = &currentPhase
 	tk.Execution = task.InitProtoExecutionState()
@@ -175,8 +172,7 @@ func TestTryClaimTaskExecution_StalePID(t *testing.T) {
 
 	// Create a running task with a dead PID
 	tk := task.NewProtoTask("TASK-001", "Test Task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	currentPhase := "implement"
 	tk.CurrentPhase = &currentPhase
 	tk.ExecutorPid = 999999 // Dead PID - very high number unlikely to exist
@@ -214,8 +210,7 @@ func TestTryClaimTaskExecution_NonResumableStatus(t *testing.T) {
 
 	// Create a completed task
 	tk := task.NewProtoTask("TASK-001", "Test Task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	tk.Execution = task.InitProtoExecutionState()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -246,8 +241,7 @@ func TestTryClaimTaskExecution_PausedTask(t *testing.T) {
 
 	// Create a paused task
 	tk := task.NewProtoTask("TASK-001", "Test Task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 	currentPhase := "implement"
 	tk.CurrentPhase = &currentPhase
 	tk.Execution = task.InitProtoExecutionState()
@@ -305,8 +299,7 @@ func TestTryClaimTaskExecution_HeartbeatUpdated(t *testing.T) {
 
 	// Create a failed task
 	tk := task.NewProtoTask("TASK-001", "Test Task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	tk.Execution = task.InitProtoExecutionState()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)

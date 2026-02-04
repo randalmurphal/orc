@@ -49,10 +49,8 @@ func TestLinkTasks_UpdatesBothTaskAndJunctionTable(t *testing.T) {
 
 	// Create tasks to link
 	task1 := task.NewProtoTask("TASK-001", "First Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	task2 := task.NewProtoTask("TASK-002", "Second Task")
-	task2.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	task2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 
 	if err := backend.SaveTask(task1); err != nil {
@@ -140,7 +138,6 @@ func TestUnlinkTask_RemovesFromBothTaskAndJunctionTable(t *testing.T) {
 	// Create task with initiative_id already set
 	initID := "INIT-001"
 	task1 := task.NewProtoTask("TASK-001", "First Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	task1.InitiativeId = &initID
 	if err := backend.SaveTask(task1); err != nil {
@@ -202,7 +199,6 @@ func TestLinkTasks_TaskAlreadyLinkedToSameInitiative(t *testing.T) {
 	// Create task with initiative_id already set
 	initID := "INIT-001"
 	task1 := task.NewProtoTask("TASK-001", "First Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	task1.InitiativeId = &initID
 	if err := backend.SaveTask(task1); err != nil {
@@ -257,7 +253,6 @@ func TestLinkTasks_TaskLinkedToDifferentInitiative(t *testing.T) {
 	// Create task linked to first initiative
 	initID := "INIT-001"
 	task1 := task.NewProtoTask("TASK-001", "Task to Move")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	task1.InitiativeId = &initID
 	if err := backend.SaveTask(task1); err != nil {
@@ -352,7 +347,6 @@ func TestLinkTasks_NonExistentTask(t *testing.T) {
 
 	// Create only one task
 	task1 := task.NewProtoTask("TASK-001", "Existing Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -389,7 +383,6 @@ func TestLinkTasks_NonExistentInitiative(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	task1 := task.NewProtoTask("TASK-001", "Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -435,7 +428,6 @@ func TestUnlinkTask_TaskNotLinkedToInitiative(t *testing.T) {
 
 	// Create task without initiative_id
 	task1 := task.NewProtoTask("TASK-001", "Unlinked Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -486,7 +478,6 @@ func TestUnlinkTask_TaskLinkedToDifferentInitiative(t *testing.T) {
 	// Create task linked to first initiative
 	initID := "INIT-001"
 	task1 := task.NewProtoTask("TASK-001", "Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	task1.InitiativeId = &initID
 	if err := backend.SaveTask(task1); err != nil {
@@ -568,13 +559,10 @@ func TestLinkTasks_ProgressCalculation(t *testing.T) {
 
 	// Create 3 tasks: 2 completed, 1 running
 	task1 := task.NewProtoTask("TASK-001", "Completed Task 1")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	task2 := task.NewProtoTask("TASK-002", "Completed Task 2")
-	task2.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	task2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	task3 := task.NewProtoTask("TASK-003", "Running Task")
-	task3.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
 	task3.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 
 	for _, tk := range []*orcv1.Task{task1, task2, task3} {
@@ -646,10 +634,8 @@ func TestListInitiativeTasks_ReturnsLinkedTasks(t *testing.T) {
 
 	// Create and save tasks
 	task1 := task.NewProtoTask("TASK-001", "First Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	task2 := task.NewProtoTask("TASK-002", "Second Task")
-	task2.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	task2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 
 	if err := backend.SaveTask(task1); err != nil {

@@ -25,7 +25,7 @@ import {
 	InitiativeCreatedEventSchema,
 	type Event,
 } from '@/gen/orc/v1/events_pb';
-import { TaskStatus, TaskWeight } from '@/gen/orc/v1/task_pb';
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import { createMockTask } from '@/test/factories';
 
 // Helper to create a timestamp
@@ -38,7 +38,7 @@ function createTimestamp(): ReturnType<typeof create<typeof TimestampSchema>> {
 }
 
 // Helper to create a taskCreated event
-function createTaskCreatedEvent(taskId: string, title: string, weight: TaskWeight = TaskWeight.MEDIUM, initiativeId?: string): Event {
+function createTaskCreatedEvent(taskId: string, title: string, initiativeId?: string): Event {
 	return create(EventSchema, {
 		id: `evt-${Date.now()}`,
 		timestamp: createTimestamp(),
@@ -48,7 +48,6 @@ function createTaskCreatedEvent(taskId: string, title: string, weight: TaskWeigh
 			value: create(TaskCreatedEventSchema, {
 				taskId,
 				title,
-				weight,
 				initiativeId,
 			}),
 		},
@@ -106,7 +105,7 @@ describe('handleEvent - taskCreated', () => {
 			expect(useTaskStore.getState().tasks).toHaveLength(0);
 
 			// Act: Handle a taskCreated event
-			const event = createTaskCreatedEvent('TASK-001', 'New Task Title', TaskWeight.MEDIUM);
+			const event = createTaskCreatedEvent('TASK-001', 'New Task Title');
 			handleEvent(event);
 
 			// Assert: Task should be in the store
@@ -114,7 +113,6 @@ describe('handleEvent - taskCreated', () => {
 			expect(tasks).toHaveLength(1);
 			expect(tasks[0].id).toBe('TASK-001');
 			expect(tasks[0].title).toBe('New Task Title');
-			expect(tasks[0].weight).toBe(TaskWeight.MEDIUM);
 		});
 
 		it('should add task with correct initial status (CREATED or PLANNED)', () => {
@@ -133,7 +131,7 @@ describe('handleEvent - taskCreated', () => {
 
 		it('should include initiative_id when provided in the event', () => {
 			// Arrange
-			const event = createTaskCreatedEvent('TASK-003', 'Initiative Task', TaskWeight.SMALL, 'INIT-001');
+			const event = createTaskCreatedEvent('TASK-003', 'Initiative Task', 'INIT-001');
 
 			// Act
 			handleEvent(event);
@@ -256,27 +254,6 @@ describe('handleEvent - taskCreated', () => {
 			expect(tasks.map(t => t.id).sort()).toEqual(['TASK-A', 'TASK-B', 'TASK-C']);
 		});
 
-		it('should handle taskCreated event with TRIVIAL weight', () => {
-			// Arrange & Act
-			const event = createTaskCreatedEvent('TASK-TRIVIAL', 'Trivial Task', TaskWeight.TRIVIAL);
-			handleEvent(event);
-
-			// Assert
-			const task = useTaskStore.getState().getTask('TASK-TRIVIAL');
-			expect(task).toBeDefined();
-			expect(task!.weight).toBe(TaskWeight.TRIVIAL);
-		});
-
-		it('should handle taskCreated event with LARGE weight', () => {
-			// Arrange & Act
-			const event = createTaskCreatedEvent('TASK-LARGE', 'Large Task', TaskWeight.LARGE);
-			handleEvent(event);
-
-			// Assert
-			const task = useTaskStore.getState().getTask('TASK-LARGE');
-			expect(task).toBeDefined();
-			expect(task!.weight).toBe(TaskWeight.LARGE);
-		});
 	});
 });
 

@@ -50,7 +50,7 @@ enum TimelineEventType {
 message TaskCreatedEvent {
   string task_id = 1;
   string title = 2;
-  TaskWeight weight = 3;
+  // Field 3 removed: weight — workflow-first model (TASK-748)
   optional string initiative_id = 4;
 }
 

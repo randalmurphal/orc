@@ -154,9 +154,6 @@ func TestMapIssueToTask(t *testing.T) {
 	if task.GetDescription() != "The login page crashes on submit" {
 		t.Errorf("Description = %q, want %q", task.GetDescription(), "The login page crashes on submit")
 	}
-	if task.Weight != orcv1.TaskWeight_TASK_WEIGHT_MEDIUM {
-		t.Errorf("Weight = %v, want MEDIUM", task.Weight)
-	}
 	if task.Status != orcv1.TaskStatus_TASK_STATUS_CREATED {
 		t.Errorf("Status = %v, want CREATED", task.Status)
 	}

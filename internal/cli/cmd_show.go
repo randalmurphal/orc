@@ -85,11 +85,12 @@ Examples:
 			if workflowID != "" {
 				p, err = createShowPlanForWorkflow(id, workflowID, backend)
 				if err != nil {
-					// Fall back to weight-based display if workflow not found
-					p = createShowPlanForWeightProto(id, t.Weight)
+					// Fall back to workflow ID-based display if workflow not found
+					p = createShowPlanForWorkflowID(id, workflowID)
 				}
 			} else {
-				p = createShowPlanForWeightProto(id, t.Weight)
+				// No workflow ID - use default plan
+				p = createShowPlanForWorkflowID(id, task.GetWorkflowIDProto(t))
 			}
 
 			// Merge phase states from task's execution state into the plan
@@ -156,7 +157,6 @@ Examples:
 			fmt.Printf("\n%s - %s\n", t.Id, t.Title)
 			fmt.Printf("────────────────────────────────────────────\n")
 			fmt.Printf("Status:    %s\n", task.StatusFromProto(t.Status))
-			fmt.Printf("Weight:    %s\n", task.WeightFromProto(t.Weight))
 			fmt.Printf("Branch:    %s\n", t.Branch)
 			if t.CreatedAt != nil {
 				fmt.Printf("Created:   %s\n", t.CreatedAt.AsTime().Format(time.RFC3339))
@@ -526,24 +526,24 @@ func createShowPlanForWorkflow(taskID, workflowID string, backend storage.Backen
 	}, nil
 }
 
-// createShowPlanForWeightProto creates an execution plan based on task weight (proto version).
+// createShowPlanForWorkflowID creates an execution plan based on workflow ID.
 // Plans are created dynamically for display, not stored.
-func createShowPlanForWeightProto(taskID string, weight orcv1.TaskWeight) *executor.Plan {
+func createShowPlanForWorkflowID(taskID string, workflowID string) *executor.Plan {
 	var phases []executor.PhaseDisplay
 
-	switch weight {
-	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
+	switch workflowID {
+	case "implement-trivial":
 		phases = []executor.PhaseDisplay{
 			{ID: "tiny_spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
+	case "implement-small":
 		phases = []executor.PhaseDisplay{
 			{ID: "tiny_spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
+	case "implement-medium":
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "tdd_write", Name: "TDD Tests", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
@@ -551,7 +551,7 @@ func createShowPlanForWeightProto(taskID string, weight orcv1.TaskWeight) *execu
 			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "docs", Name: "Documentation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
+	case "implement-large":
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "tdd_write", Name: "TDD Tests", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
@@ -561,6 +561,7 @@ func createShowPlanForWeightProto(taskID string, weight orcv1.TaskWeight) *execu
 			{ID: "docs", Name: "Documentation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	default:
+		// Default to medium-like workflow
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},

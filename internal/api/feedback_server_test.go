@@ -53,7 +53,6 @@ func TestAddFeedback_CreatesWithRequiredFields(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskReq := connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task for feedback",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	})
 	taskResp, err := taskServer.CreateTask(context.Background(), taskReq)
 	if err != nil {
@@ -115,7 +114,6 @@ func TestAddFeedback_ValidatesType_Inline(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -150,7 +148,6 @@ func TestAddFeedback_ValidatesType_Approval(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -183,7 +180,6 @@ func TestAddFeedback_ValidatesType_Direction(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -216,7 +212,6 @@ func TestAddFeedback_RejectsInvalidType(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -257,7 +252,6 @@ func TestAddFeedback_InlineRequiresFile(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -296,7 +290,6 @@ func TestAddFeedback_InlineRequiresLine(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -335,7 +328,6 @@ func TestAddFeedback_InlineWithFileAndLine_Succeeds(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -378,7 +370,6 @@ func TestAddFeedback_ValidatesTiming_Now(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -411,7 +402,6 @@ func TestAddFeedback_ValidatesTiming_WhenDone(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -444,7 +434,6 @@ func TestAddFeedback_ValidatesTiming_Manual(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -477,7 +466,6 @@ func TestAddFeedback_RejectsUnspecifiedTiming(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -518,7 +506,6 @@ func TestListFeedback_ReturnsPendingFeedback(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -566,7 +553,6 @@ func TestListFeedback_ReturnsEmptyForNoFeedback(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -597,7 +583,6 @@ func TestListFeedback_ExcludesReceivedFeedback(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -653,7 +638,6 @@ func TestSendFeedback_MarksAsReceived(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -706,7 +690,6 @@ func TestSendFeedback_SetsSentAt(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -745,7 +728,6 @@ func TestSendFeedback_NoOpWhenEmpty(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -780,7 +762,6 @@ func TestAddFeedback_PersistsToDatabase(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -842,7 +823,6 @@ func TestAddFeedback_NowTiming_PausesTask(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -890,7 +870,6 @@ func TestAddFeedback_NowTiming_DoesNotPauseNonRunningTask(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -928,7 +907,6 @@ func TestAddFeedback_RejectsEmptyText(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -1046,7 +1024,6 @@ func TestDeleteFeedback_RemovesFeedback(t *testing.T) {
 	taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 	taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:  "Test task",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}))
 	taskID := taskResp.Msg.Task.Id
 
@@ -1175,8 +1152,7 @@ func TestAddFeedback_AllTypesAndTimings(t *testing.T) {
 			taskServer := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 			taskResp, _ := taskServer.CreateTask(context.Background(), connect.NewRequest(&orcv1.CreateTaskRequest{
 				Title:  "Test task",
-				Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
-			}))
+					}))
 			taskID := taskResp.Msg.Task.Id
 
 			req := connect.NewRequest(&orcv1.AddFeedbackRequest{

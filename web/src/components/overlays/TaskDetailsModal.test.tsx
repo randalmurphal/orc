@@ -26,7 +26,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TaskDetailsModal } from './TaskDetailsModal';
 import * as taskClient from '@/lib/client';
 import * as stores from '@/stores';
-import { TaskWeight, TaskCategory, TaskPriority, TaskQueue } from '@/gen/orc/v1/task_pb';
+import { TaskCategory, TaskPriority, TaskQueue } from '@/gen/orc/v1/task_pb';
 import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 
 // Mock the client
@@ -321,7 +321,6 @@ describe('TaskDetailsModal (Step 2: Details)', () => {
 					projectId: 'test-project-id',
 					title: 'Valid Task Title',
 					workflowId: 'implement-small',
-					weight: TaskWeight.SMALL, // Should derive from workflow
 					category: TaskCategory.FEATURE,
 					priority: TaskPriority.NORMAL,
 					queue: TaskQueue.ACTIVE,
@@ -466,7 +465,6 @@ describe('TaskDetailsModal (Step 2: Details)', () => {
 					title: 'Complete Task Title',
 					description: 'Detailed description',
 					workflowId: 'implement-small',
-					weight: TaskWeight.SMALL,
 					category: TaskCategory.BUG,
 					priority: TaskPriority.HIGH,
 					queue: TaskQueue.BACKLOG,
@@ -682,33 +680,5 @@ describe('TaskDetailsModal (Step 2: Details)', () => {
 			expect(queueSelect.value).toBe(String(TaskQueue.ACTIVE));
 		});
 
-		it('derives weight from selected workflow', async () => {
-			const user = userEvent.setup();
-			const mockCreateResponse = { task: { id: 'TASK-001', title: 'Test Task' } };
-			(taskClient.taskClient.createTask as any).mockResolvedValue(mockCreateResponse);
-
-			// Test with large workflow
-			const largeWorkflow = {
-				...sampleWorkflow,
-				id: 'implement-large',
-				name: 'Implement (Large)'
-			};
-
-			render(<TaskDetailsModal {...defaultProps} selectedWorkflow={largeWorkflow} />);
-
-			const titleInput = screen.getByLabelText(/title/i);
-			const createButton = screen.getByRole('button', { name: /^create$/i });
-
-			await user.type(titleInput, 'Test Task');
-			await user.click(createButton);
-
-			await waitFor(() => {
-				expect(taskClient.taskClient.createTask).toHaveBeenCalledWith(
-					expect.objectContaining({
-						weight: TaskWeight.LARGE
-					})
-				);
-			});
-		});
 	});
 });

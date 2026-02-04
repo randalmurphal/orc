@@ -105,7 +105,7 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 		opts.TaskTitle = t.Title
 		opts.TaskDesc = task.GetDescriptionProto(t)
 		opts.TaskCategory = t.Category.String()
-		opts.TaskWeight = t.Weight.String()
+		opts.TaskWeight = task.GetWorkflowIDProto(t) // Use workflow ID for gate context
 	}
 
 	decision, err := we.gateEvaluator.EvaluateWithOptions(ctx, g, output, opts)
@@ -196,11 +196,9 @@ func (we *WorkflowExecutor) resolveGateType(tmpl *db.PhaseTemplate, phase *db.Wo
 			gate.WithPhaseGates(phaseGates),
 		)
 
-		taskWeight := ""
-		if t.Weight != 0 {
-			taskWeight = t.Weight.String()
-		}
-		resolved := resolver.Resolve(tmpl.ID, taskWeight)
+		// Use workflow ID for gate resolution (replaces weight-based resolution)
+		taskWorkflowID := task.GetWorkflowIDProto(t)
+		resolved := resolver.Resolve(tmpl.ID, taskWorkflowID)
 
 		// When the resolver used its default (no explicit override found),
 		// fall back to the template's gate type for backward compatibility.
@@ -281,7 +279,7 @@ func (we *WorkflowExecutor) triggerAutomationEvent(ctx context.Context, eventTyp
 	event := &automation.Event{
 		Type:     eventType,
 		TaskID:   t.Id,
-		Weight:   t.Weight.String(),
+		Weight:   task.GetWorkflowIDProto(t), // Use workflow ID
 		Category: t.Category.String(),
 		Phase:    phase,
 	}

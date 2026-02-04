@@ -9,20 +9,11 @@ import { toast } from '@/stores/uiStore';
 import { useCurrentProjectId } from '@/stores';
 import {
 	type Task,
-	TaskWeight,
 	TaskCategory,
 	CreateTaskRequestSchema,
 } from '@/gen/orc/v1/task_pb';
 import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 import '../task-detail/TaskEditModal.css';
-
-// Weight options with enum values and display labels
-const WEIGHT_OPTIONS = [
-	{ value: TaskWeight.TRIVIAL, label: 'trivial' },
-	{ value: TaskWeight.SMALL, label: 'small' },
-	{ value: TaskWeight.MEDIUM, label: 'medium' },
-	{ value: TaskWeight.LARGE, label: 'large' },
-] as const;
 
 // Category options with enum values and display labels
 const CATEGORY_OPTIONS = [
@@ -33,15 +24,6 @@ const CATEGORY_OPTIONS = [
 	{ value: TaskCategory.DOCS, label: 'docs' },
 	{ value: TaskCategory.TEST, label: 'test' },
 ] as const;
-
-// Map weight enum values to workflow IDs
-const WEIGHT_TO_WORKFLOW: Record<TaskWeight, string | undefined> = {
-	[TaskWeight.UNSPECIFIED]: undefined,
-	[TaskWeight.TRIVIAL]: 'trivial',
-	[TaskWeight.SMALL]: 'small',
-	[TaskWeight.MEDIUM]: 'medium',
-	[TaskWeight.LARGE]: 'large',
-};
 
 // Internal value for "no workflow" since Radix Select requires string values
 const NO_WORKFLOW_VALUE = '__none__';
@@ -56,10 +38,8 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 	const currentProjectId = useCurrentProjectId();
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
-	const [weight, setWeight] = useState<TaskWeight>(TaskWeight.MEDIUM);
 	const [category, setCategory] = useState<TaskCategory>(TaskCategory.FEATURE);
 	const [workflowId, setWorkflowId] = useState<string | undefined>('medium');
-	const [manualWorkflowSelection, setManualWorkflowSelection] = useState(false);
 	const [saving, setSaving] = useState(false);
 
 	// Workflow loading state
@@ -95,38 +75,21 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 		if (open) {
 			setTitle('');
 			setDescription('');
-			setWeight(TaskWeight.MEDIUM);
 			setCategory(TaskCategory.FEATURE);
 			setWorkflowId('medium');
-			setManualWorkflowSelection(false);
 		}
 	}, [open]);
-
-	// Auto-select workflow when weight changes (unless manually selected)
-	useEffect(() => {
-		if (!manualWorkflowSelection) {
-			const newWorkflowId = WEIGHT_TO_WORKFLOW[weight];
-			setWorkflowId(newWorkflowId);
-		}
-	}, [weight, manualWorkflowSelection]);
 
 	// Convert internal Select value (string) to external workflow ID
 	const selectWorkflowValue = workflowId ?? NO_WORKFLOW_VALUE;
 
 	// Handle workflow selection change
 	const handleWorkflowChange = useCallback((value: string) => {
-		setManualWorkflowSelection(true);
 		if (value === NO_WORKFLOW_VALUE) {
 			setWorkflowId(undefined);
 		} else {
 			setWorkflowId(value);
 		}
-	}, []);
-
-	// Handle weight change
-	const handleWeightChange = useCallback((newWeight: TaskWeight) => {
-		setWeight(newWeight);
-		// Don't reset manualWorkflowSelection here - that's preserved
 	}, []);
 
 	// Sort workflows: builtin first, then by name
@@ -156,7 +119,6 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 					projectId: currentProjectId,
 					title: title.trim(),
 					description: description.trim() || undefined,
-					weight,
 					category,
 					workflowId: workflowId || undefined,
 				})
@@ -171,7 +133,7 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 		} finally {
 			setSaving(false);
 		}
-	}, [currentProjectId, title, description, weight, category, workflowId, onCreate, onClose]);
+	}, [currentProjectId, title, description, category, workflowId, onCreate, onClose]);
 
 	// Handle Enter key to submit
 	const handleKeyDown = useCallback(
@@ -213,39 +175,21 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 					/>
 				</div>
 
-				{/* Weight & Category Row */}
-				<div className="form-row">
-					<div className="form-group">
-						<label htmlFor="new-task-weight">Weight</label>
-						<select
-							id="new-task-weight"
-							value={weight}
-							onChange={(e) => handleWeightChange(Number(e.target.value) as TaskWeight)}
-						>
-							{WEIGHT_OPTIONS.map((w) => (
-								<option key={w.value} value={w.value}>
-									{w.label}
-								</option>
-							))}
-						</select>
-						<span className="form-hint">Determines execution phases</span>
-					</div>
-
-					<div className="form-group">
-						<label htmlFor="new-task-category">Category</label>
-						<select
-							id="new-task-category"
-							value={category}
-							onChange={(e) => setCategory(Number(e.target.value) as TaskCategory)}
-						>
-							{CATEGORY_OPTIONS.map((c) => (
-								<option key={c.value} value={c.value}>
-									{c.label}
-								</option>
-							))}
-						</select>
-						<span className="form-hint">Affects how Claude approaches work</span>
-					</div>
+				{/* Category */}
+				<div className="form-group">
+					<label htmlFor="new-task-category">Category</label>
+					<select
+						id="new-task-category"
+						value={category}
+						onChange={(e) => setCategory(Number(e.target.value) as TaskCategory)}
+					>
+						{CATEGORY_OPTIONS.map((c) => (
+							<option key={c.value} value={c.value}>
+								{c.label}
+							</option>
+						))}
+					</select>
+					<span className="form-hint">Affects how Claude approaches work</span>
 				</div>
 
 				{/* Workflow */}

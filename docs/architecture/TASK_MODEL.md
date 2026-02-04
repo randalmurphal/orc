@@ -1,6 +1,6 @@
 # Task Model
 
-**Purpose**: Define task structure, weight classification, and lifecycle states.
+**Purpose**: Define task structure, workflow selection, and lifecycle states.
 
 ---
 
@@ -15,8 +15,8 @@ description: |
   Implement OAuth2 authentication with Google and GitHub providers.
   Should integrate with existing user model.
 
-weight: medium           # trivial | small | medium | large | greenfield
-status: running          # created | classifying | planned | running | paused | blocked | completed | failed
+workflow_id: medium      # trivial | small | medium | large (or custom workflow)
+status: running          # created | planned | running | paused | blocked | completed | failed
 current_phase: implement # Phase currently being executed (updated by executor)
 branch: orc/TASK-001
 
@@ -174,45 +174,45 @@ Dependencies are informational by default - they don't prevent task execution bu
 
 ---
 
-## Weight Classification
+## Workflow Selection
 
-| Weight | Scope | Duration | Phases |
-|--------|-------|----------|--------|
-| **trivial** | 1 file, <10 lines | Minutes | implement |
-| **small** | 1 component, <100 lines | <1 hour | implement → test |
-| **medium** | Multiple files | Hours | spec → implement → review → test |
-| **large** | Cross-cutting | Days | research → spec → design → implement → review → test |
-| **greenfield** | New system | Weeks | research → spec → design → scaffold → implement → test → docs |
+Tasks use workflows to determine which phases run. Users select workflows directly when creating tasks.
 
-### Classification Criteria
+| Workflow | Scope | Phases |
+|----------|-------|--------|
+| **trivial** | 1 file, <10 lines | implement |
+| **small** | 1 component, isolated | tiny_spec → implement → review |
+| **medium** | Multiple files, clear scope | spec → tdd_write → implement → review → docs |
+| **large** | Cross-cutting, complex | spec → tdd_write → breakdown → implement → review → docs |
 
-| Dimension | Trivial | Small | Medium | Large | Greenfield |
-|-----------|---------|-------|--------|-------|------------|
-| Files | 1-2 | 1-5 | 3-10 | 10+ | New structure |
-| Uncertainty | None | Low | Medium | High | Very high |
-| Risk | None | Low | Medium | High | High |
-| Dependencies | None | Internal | Some external | Many | Unknown |
+### Selection Criteria
+
+| Dimension | Trivial | Small | Medium | Large |
+|-----------|---------|-------|--------|-------|
+| Files | 1-2 | 1-5 | 3-10 | 10+ |
+| Uncertainty | None | Low | Medium | High |
+| Risk | None | Low | Medium | High |
+| Spec Required | No | Yes (tiny) | Yes | Yes |
 
 ---
 
 ## Status Lifecycle
 
 ```
-created ──► classifying ──► planned ──► running ◄─┐
-                                          │       │
-                                          ▼       │
-                                       paused ────┘
-                                          │
-                              ┌───────────┼───────────┐
-                              ▼           ▼           ▼
-                          completed    failed      blocked
+created ──► planned ──► running ◄─┐
+                           │       │
+                           ▼       │
+                        paused ────┘
+                           │
+               ┌───────────┼───────────┐
+               ▼           ▼           ▼
+           completed    failed      blocked
 ```
 
 | Status | Description | Transitions To |
 |--------|-------------|----------------|
-| `created` | Task defined, not started | classifying |
-| `classifying` | AI determining weight | planned |
-| `planned` | Plan generated, ready to run | running |
+| `created` | Task defined, not started | planned |
+| `planned` | Workflow assigned, ready to run | running |
 | `running` | Actively executing phases | paused, completed, failed, blocked |
 | `paused` | Manually paused | running |
 | `blocked` | Waiting for human gate | running |
@@ -287,23 +287,23 @@ The `requires_ui_testing` flag is auto-set when the task title or description co
 
 ### Testing Requirements
 
-The `testing_requirements` object is auto-configured based on task weight and project type:
+The `testing_requirements` object is auto-configured based on workflow and project type:
 
 | Requirement | Condition |
 |-------------|-----------|
-| `unit` | Always `true` for non-trivial tasks (weight > trivial) |
+| `unit` | Always `true` for non-trivial workflows (workflow != trivial) |
 | `e2e` | `true` if project has frontend AND task requires UI testing |
 | `visual` | `true` if task mentions visual/design/style/css/theme/layout/responsive |
 
 ### Example Output
 
 ```bash
-$ orc new "Add dark mode toggle button"
+$ orc new "Add dark mode toggle button" --workflow medium
 
 Task created: TASK-042
-   Title:  Add dark mode toggle button
-   Weight: medium
-   Phases: 3
+   Title:    Add dark mode toggle button
+   Workflow: medium
+   Phases:   5
    UI Testing: required (detected from task description)
    Testing: unit, e2e, visual
 ```

@@ -1166,7 +1166,6 @@ func setupNoDepsWorkflow(t *testing.T, backend *storage.DatabaseBackend, workflo
 func setupTaskForParallel(t *testing.T, backend *storage.DatabaseBackend, taskID, workflowID string) *orcv1.Task {
 	t.Helper()
 	tsk := task.NewProtoTask(taskID, "Parallel test task")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	tsk.WorkflowId = &workflowID

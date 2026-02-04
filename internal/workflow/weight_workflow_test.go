@@ -1,132 +1,155 @@
 // Package workflow provides workflow-related utilities.
 //
-// TDD Tests for TASK-590: Weight to workflow_id auto-assignment
+// TDD Tests for weight to workflow_id mapping via string-based API.
 //
-// These tests verify the WeightToWorkflowID function returns the correct
-// workflow ID for each task weight.
+// These tests verify the WeightToWorkflowIDString function returns the correct
+// workflow ID for each task weight string.
 //
 // Success Criteria Coverage:
-// - SC-1: weight=small → workflow_id="implement-small"
-// - SC-2: weight=medium → workflow_id="implement-medium"
+// - SC-1: weight="small" → workflow_id="implement-small"
+// - SC-2: weight="medium" → workflow_id="implement-medium"
 //
 // Edge Cases:
-// - Unspecified weight returns empty string
+// - Empty weight returns empty string
 // - Trivial weight returns "implement-trivial"
 // - Large weight returns "implement-large"
 // - Unknown/invalid weight returns empty string
+// - Enum-style weight strings (TASK_WEIGHT_*) also work
 package workflow
 
 import (
 	"testing"
 
-	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 )
 
-// TestWeightToWorkflowID_Small verifies SC-1:
-// TaskWeight_TASK_WEIGHT_SMALL maps to "implement-small"
-func TestWeightToWorkflowID_Small(t *testing.T) {
+// TestWeightToWorkflowIDString_Small verifies SC-1:
+// weight="small" maps to "implement-small"
+func TestWeightToWorkflowIDString_Small(t *testing.T) {
 	t.Parallel()
 
-	wfID := WeightToWorkflowID(orcv1.TaskWeight_TASK_WEIGHT_SMALL)
+	wfID := WeightToWorkflowIDString("small")
 
 	if wfID != "implement-small" {
-		t.Errorf("WeightToWorkflowID(SMALL) = %q, want %q", wfID, "implement-small")
+		t.Errorf("WeightToWorkflowIDString(\"small\") = %q, want %q", wfID, "implement-small")
 	}
 }
 
-// TestWeightToWorkflowID_Medium verifies SC-2:
-// TaskWeight_TASK_WEIGHT_MEDIUM maps to "implement-medium"
-func TestWeightToWorkflowID_Medium(t *testing.T) {
+// TestWeightToWorkflowIDString_Medium verifies SC-2:
+// weight="medium" maps to "implement-medium"
+func TestWeightToWorkflowIDString_Medium(t *testing.T) {
 	t.Parallel()
 
-	wfID := WeightToWorkflowID(orcv1.TaskWeight_TASK_WEIGHT_MEDIUM)
+	wfID := WeightToWorkflowIDString("medium")
 
 	if wfID != "implement-medium" {
-		t.Errorf("WeightToWorkflowID(MEDIUM) = %q, want %q", wfID, "implement-medium")
+		t.Errorf("WeightToWorkflowIDString(\"medium\") = %q, want %q", wfID, "implement-medium")
 	}
 }
 
-// TestWeightToWorkflowID_Trivial verifies trivial weight mapping
-func TestWeightToWorkflowID_Trivial(t *testing.T) {
+// TestWeightToWorkflowIDString_Trivial verifies trivial weight mapping
+func TestWeightToWorkflowIDString_Trivial(t *testing.T) {
 	t.Parallel()
 
-	wfID := WeightToWorkflowID(orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL)
+	wfID := WeightToWorkflowIDString("trivial")
 
 	if wfID != "implement-trivial" {
-		t.Errorf("WeightToWorkflowID(TRIVIAL) = %q, want %q", wfID, "implement-trivial")
+		t.Errorf("WeightToWorkflowIDString(\"trivial\") = %q, want %q", wfID, "implement-trivial")
 	}
 }
 
-// TestWeightToWorkflowID_Large verifies large weight mapping
-func TestWeightToWorkflowID_Large(t *testing.T) {
+// TestWeightToWorkflowIDString_Large verifies large weight mapping
+func TestWeightToWorkflowIDString_Large(t *testing.T) {
 	t.Parallel()
 
-	wfID := WeightToWorkflowID(orcv1.TaskWeight_TASK_WEIGHT_LARGE)
+	wfID := WeightToWorkflowIDString("large")
 
 	if wfID != "implement-large" {
-		t.Errorf("WeightToWorkflowID(LARGE) = %q, want %q", wfID, "implement-large")
+		t.Errorf("WeightToWorkflowIDString(\"large\") = %q, want %q", wfID, "implement-large")
 	}
 }
 
-// TestWeightToWorkflowID_Unspecified verifies edge case:
-// Unspecified weight returns empty string (no auto-assignment)
-func TestWeightToWorkflowID_Unspecified(t *testing.T) {
+// TestWeightToWorkflowIDString_Empty verifies edge case:
+// Empty weight returns empty string (no auto-assignment)
+func TestWeightToWorkflowIDString_Empty(t *testing.T) {
 	t.Parallel()
 
-	wfID := WeightToWorkflowID(orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED)
+	wfID := WeightToWorkflowIDString("")
 
 	if wfID != "" {
-		t.Errorf("WeightToWorkflowID(UNSPECIFIED) = %q, want empty string", wfID)
+		t.Errorf("WeightToWorkflowIDString(\"\") = %q, want empty string", wfID)
 	}
 }
 
-// TestWeightToWorkflowID_InvalidValue verifies edge case:
+// TestWeightToWorkflowIDString_InvalidValue verifies edge case:
 // Invalid/unknown weight values return empty string
-func TestWeightToWorkflowID_InvalidValue(t *testing.T) {
+func TestWeightToWorkflowIDString_InvalidValue(t *testing.T) {
 	t.Parallel()
 
-	// Test with an invalid enum value (outside defined range)
-	invalidWeight := orcv1.TaskWeight(999)
-	wfID := WeightToWorkflowID(invalidWeight)
+	wfID := WeightToWorkflowIDString("invalid")
 
 	if wfID != "" {
-		t.Errorf("WeightToWorkflowID(invalid) = %q, want empty string", wfID)
+		t.Errorf("WeightToWorkflowIDString(\"invalid\") = %q, want empty string", wfID)
 	}
 }
 
-// TestWeightToWorkflowID_AllWeights is a table-driven test covering all weight mappings
-func TestWeightToWorkflowID_AllWeights(t *testing.T) {
+// TestWeightToWorkflowIDString_EnumStyleStrings verifies enum-style strings work
+func TestWeightToWorkflowIDString_EnumStyleStrings(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		weight string
+		want   string
+	}{
+		{"TASK_WEIGHT_TRIVIAL", "implement-trivial"},
+		{"TASK_WEIGHT_SMALL", "implement-small"},
+		{"TASK_WEIGHT_MEDIUM", "implement-medium"},
+		{"TASK_WEIGHT_LARGE", "implement-large"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.weight, func(t *testing.T) {
+			t.Parallel()
+			got := WeightToWorkflowIDString(tt.weight)
+			if got != tt.want {
+				t.Errorf("WeightToWorkflowIDString(%q) = %q, want %q", tt.weight, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestWeightToWorkflowIDString_AllWeights is a table-driven test covering all weight mappings
+func TestWeightToWorkflowIDString_AllWeights(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name   string
-		weight orcv1.TaskWeight
+		weight string
 		want   string
 	}{
 		{
-			name:   "unspecified returns empty",
-			weight: orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED,
+			name:   "empty returns empty",
+			weight: "",
 			want:   "",
 		},
 		{
 			name:   "trivial maps to implement-trivial",
-			weight: orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL,
+			weight: "trivial",
 			want:   "implement-trivial",
 		},
 		{
 			name:   "small maps to implement-small",
-			weight: orcv1.TaskWeight_TASK_WEIGHT_SMALL,
+			weight: "small",
 			want:   "implement-small",
 		},
 		{
 			name:   "medium maps to implement-medium",
-			weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
+			weight: "medium",
 			want:   "implement-medium",
 		},
 		{
 			name:   "large maps to implement-large",
-			weight: orcv1.TaskWeight_TASK_WEIGHT_LARGE,
+			weight: "large",
 			want:   "implement-large",
 		},
 	}
@@ -135,9 +158,9 @@ func TestWeightToWorkflowID_AllWeights(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := WeightToWorkflowID(tt.weight)
+			got := WeightToWorkflowIDString(tt.weight)
 			if got != tt.want {
-				t.Errorf("WeightToWorkflowID(%v) = %q, want %q", tt.weight, got, tt.want)
+				t.Errorf("WeightToWorkflowIDString(%q) = %q, want %q", tt.weight, got, tt.want)
 			}
 		})
 	}
@@ -160,31 +183,31 @@ func TestResolveWorkflowID_Fallback(t *testing.T) {
 	tests := []struct {
 		name       string
 		workflowID string
-		weight     orcv1.TaskWeight
+		weight     string
 		want       string
 	}{
 		{
 			name:       "existing workflow preserved",
 			workflowID: "my-workflow",
-			weight:     orcv1.TaskWeight_TASK_WEIGHT_SMALL,
+			weight:     "small",
 			want:       "my-workflow",
 		},
 		{
 			name:       "empty falls back to config",
 			workflowID: "",
-			weight:     orcv1.TaskWeight_TASK_WEIGHT_SMALL,
+			weight:     "small",
 			want:       "custom-small",
 		},
 		{
 			name:       "empty with medium falls back to default",
 			workflowID: "",
-			weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
+			weight:     "medium",
 			want:       "implement-medium",
 		},
 		{
-			name:       "empty with unspecified weight returns empty",
+			name:       "empty with empty weight returns empty",
 			workflowID: "",
-			weight:     orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED,
+			weight:     "",
 			want:       "",
 		},
 	}
@@ -192,9 +215,9 @@ func TestResolveWorkflowID_Fallback(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := ResolveWorkflowID(tt.workflowID, tt.weight, cfg)
+			got := ResolveWorkflowIDFromString(tt.workflowID, tt.weight, cfg)
 			if got != tt.want {
-				t.Errorf("ResolveWorkflowID(%q, %v, cfg) = %q, want %q", tt.workflowID, tt.weight, got, tt.want)
+				t.Errorf("ResolveWorkflowIDFromString(%q, %q, cfg) = %q, want %q", tt.workflowID, tt.weight, got, tt.want)
 			}
 		})
 	}

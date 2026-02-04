@@ -207,8 +207,11 @@ func resolveTaskField(name string, t *orcv1.Task) string {
 	}
 
 	switch name {
-	case "weight":
-		return weightToShort(t.Weight)
+	case "workflow":
+		if t.WorkflowId != nil {
+			return *t.WorkflowId
+		}
+		return ""
 	case "category":
 		return categoryToShort(t.Category)
 	case "priority":
@@ -252,11 +255,8 @@ func resolvePhaseOutputField(nameAndField string, ctx *ConditionContext) string 
 }
 
 // normalizeValue normalizes a comparison value. If it looks like a proto enum
-// (e.g., "TASK_WEIGHT_MEDIUM"), convert to the short lowercase form.
+// (e.g., "TASK_CATEGORY_FEATURE"), convert to the short lowercase form.
 func normalizeValue(value string) string {
-	if strings.HasPrefix(value, "TASK_WEIGHT_") {
-		return weightToShort(orcv1.TaskWeight(orcv1.TaskWeight_value[value]))
-	}
 	if strings.HasPrefix(value, "TASK_CATEGORY_") {
 		return categoryToShort(orcv1.TaskCategory(orcv1.TaskCategory_value[value]))
 	}
@@ -264,21 +264,6 @@ func normalizeValue(value string) string {
 		return priorityToShort(orcv1.TaskPriority(orcv1.TaskPriority_value[value]))
 	}
 	return value
-}
-
-func weightToShort(w orcv1.TaskWeight) string {
-	switch w {
-	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
-		return "trivial"
-	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
-		return "small"
-	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
-		return "medium"
-	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
-		return "large"
-	default:
-		return ""
-	}
 }
 
 func categoryToShort(c orcv1.TaskCategory) string {

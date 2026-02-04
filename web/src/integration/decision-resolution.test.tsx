@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { BoardCommandPanel } from '@/components/board/BoardCommandPanel';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Task } from '@/gen/orc/v1/task_pb';
-import { TaskStatus, TaskWeight, TaskCategory, TaskPriority } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, TaskCategory, TaskPriority } from '@/gen/orc/v1/task_pb';
 import type { PendingDecision } from '@/gen/orc/v1/decision_pb';
 import { createMockTask, createTimestamp, createMockDecision } from '@/test/factories';
 
@@ -111,7 +111,6 @@ function createTask(overrides: Partial<Omit<Task, '$typeName' | '$unknown'>> = {
 		id: 'TASK-001',
 		title: 'Test Task',
 		description: 'A test task description',
-		weight: TaskWeight.MEDIUM,
 		status: TaskStatus.RUNNING,
 		category: TaskCategory.FEATURE,
 		priority: TaskPriority.NORMAL,
