@@ -36,6 +36,10 @@ export interface PhaseNodeData {
 	costUsd?: number;
 	/** Category for visual color coding */
 	category?: PhaseCategory;
+	/** Variables consumed by this phase */
+	inputVariables?: string[];
+	/** Variable name produced by this phase */
+	outputVarName?: string;
 }
 
 /**

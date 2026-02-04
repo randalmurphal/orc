@@ -1,32 +1,37 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ReactFlowProvider } from '@xyflow/react';
 import { PhaseNode } from './PhaseNode';
 import type { PhaseNodeData } from './index';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 
 // React Flow Handle components require ReactFlowProvider context
+// TooltipProvider required for variable tooltips
 function renderPhaseNode(
 	data: PhaseNodeData,
 	opts: { selected?: boolean } = {}
 ) {
 	return render(
-		<ReactFlowProvider>
-			<PhaseNode
-				id="phase-1"
-				type="phase"
-				data={data}
-				selected={opts.selected ?? false}
-				isConnectable={true}
-				positionAbsoluteX={0}
-				positionAbsoluteY={0}
-				zIndex={0}
-				draggable={true}
-				dragging={false}
-				selectable={true}
-				deletable={true}
-			/>
-		</ReactFlowProvider>
+		<TooltipProvider delayDuration={0}>
+			<ReactFlowProvider>
+				<PhaseNode
+					id="phase-1"
+					type="phase"
+					data={data}
+					selected={opts.selected ?? false}
+					isConnectable={true}
+					positionAbsoluteX={0}
+					positionAbsoluteY={0}
+					zIndex={0}
+					draggable={true}
+					dragging={false}
+					selectable={true}
+					deletable={true}
+				/>
+			</ReactFlowProvider>
+		</TooltipProvider>
 	);
 }
 
@@ -321,6 +326,133 @@ describe('PhaseNode', () => {
 			);
 			expect(skipBadge).not.toBeNull();
 			expect(skipBadge!.textContent).toBe('Skip');
+		});
+	});
+
+	// TASK-730: Variable tooltip tests
+	describe('variable tooltip on hover', () => {
+		it('shows tooltip with inputs and output when hovering phase node', async () => {
+			const user = userEvent.setup();
+			renderPhaseNode(
+				createDefaultData({
+					inputVariables: ['SPEC_CONTENT', 'BREAKDOWN'],
+					outputVarName: 'IMPLEMENTATION',
+				})
+			);
+
+			const node = document.querySelector('.phase-node')!;
+			await user.hover(node);
+
+			await waitFor(() => {
+				expect(screen.getByRole('tooltip')).toBeInTheDocument();
+			});
+
+			// Query within visible tooltip content (direct child, not the hidden a11y copy)
+			const visibleTooltip = document.querySelector(
+				'.tooltip-content > .phase-node__tooltip'
+			) as HTMLElement;
+			const tooltip = within(visibleTooltip);
+
+			// Tooltip should show both inputs and output
+			expect(tooltip.getByText(/Inputs:/)).toBeInTheDocument();
+			expect(tooltip.getByText(/SPEC_CONTENT/)).toBeInTheDocument();
+			expect(tooltip.getByText(/BREAKDOWN/)).toBeInTheDocument();
+			expect(tooltip.getByText(/Output:/)).toBeInTheDocument();
+			expect(tooltip.getByText(/IMPLEMENTATION/)).toBeInTheDocument();
+		});
+
+		it('shows only inputs section when outputVarName is not set', async () => {
+			const user = userEvent.setup();
+			renderPhaseNode(
+				createDefaultData({
+					inputVariables: ['TASK_DESCRIPTION', 'INITIATIVE_VISION'],
+					outputVarName: undefined,
+				})
+			);
+
+			const node = document.querySelector('.phase-node')!;
+			await user.hover(node);
+
+			await waitFor(() => {
+				expect(screen.getByRole('tooltip')).toBeInTheDocument();
+			});
+
+			// Query within visible tooltip content (direct child, not hidden a11y copy)
+			const visibleTooltip = document.querySelector(
+				'.tooltip-content > .phase-node__tooltip'
+			) as HTMLElement;
+			const tooltip = within(visibleTooltip);
+
+			// Should show inputs but not output
+			expect(tooltip.getByText(/Inputs:/)).toBeInTheDocument();
+			expect(tooltip.getByText(/TASK_DESCRIPTION/)).toBeInTheDocument();
+			expect(tooltip.queryByText(/Output:/)).not.toBeInTheDocument();
+		});
+
+		it('shows only output section when inputVariables is empty', async () => {
+			const user = userEvent.setup();
+			renderPhaseNode(
+				createDefaultData({
+					inputVariables: [],
+					outputVarName: 'SPEC_CONTENT',
+				})
+			);
+
+			const node = document.querySelector('.phase-node')!;
+			await user.hover(node);
+
+			await waitFor(() => {
+				expect(screen.getByRole('tooltip')).toBeInTheDocument();
+			});
+
+			// Query within visible tooltip content (direct child, not hidden a11y copy)
+			const visibleTooltip = document.querySelector(
+				'.tooltip-content > .phase-node__tooltip'
+			) as HTMLElement;
+			const tooltip = within(visibleTooltip);
+
+			// Should show output but not inputs
+			expect(tooltip.queryByText(/Inputs:/)).not.toBeInTheDocument();
+			expect(tooltip.getByText(/Output:/)).toBeInTheDocument();
+			expect(tooltip.getByText(/SPEC_CONTENT/)).toBeInTheDocument();
+		});
+
+		it('does not show tooltip when no variables are set', async () => {
+			const user = userEvent.setup();
+			renderPhaseNode(
+				createDefaultData({
+					inputVariables: [],
+					outputVarName: undefined,
+				})
+			);
+
+			const node = document.querySelector('.phase-node')!;
+			await user.hover(node);
+
+			// Give tooltip time to appear (it shouldn't)
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// No tooltip should appear when there's no variable content
+			expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+		});
+
+		it('does not show tooltip when inputVariables is undefined', async () => {
+			const user = userEvent.setup();
+			renderPhaseNode(
+				createDefaultData({
+					// inputVariables not set (undefined)
+					outputVarName: undefined,
+				})
+			);
+
+			const node = document.querySelector('.phase-node')!;
+			await user.hover(node);
+
+			// Give tooltip time to appear (it shouldn't)
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// No tooltip should appear
+			expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 		});
 	});
 });
