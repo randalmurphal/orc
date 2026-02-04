@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"sync"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
@@ -26,9 +25,6 @@ type AutoTaskCreator struct {
 
 	// dbAdapter provides direct database access for efficient queries
 	dbAdapter *ProjectDBAdapter
-
-	// mu protects concurrent task ID generation
-	mu sync.Mutex
 }
 
 // AutoTaskCreatorOption configures an AutoTaskCreator.
@@ -137,21 +133,15 @@ func (c *AutoTaskCreator) StartAutomationTask(ctx context.Context, taskID string
 	return c.onTaskStart(ctx, taskID)
 }
 
-// nextAutoTaskID generates the next AUTO-XXX task ID.
-// The mutex prevents race conditions when multiple automation tasks are created concurrently.
+// nextAutoTaskID generates the next AUTO-XXX task ID using atomic sequences.
+// Uses database-level locking via sequences table to prevent race conditions
+// across parallel processes (the old mutex+MAX pattern was only process-local).
 func (c *AutoTaskCreator) nextAutoTaskID(ctx context.Context) (string, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if c.dbAdapter == nil {
 		return "", fmt.Errorf("database adapter required for AUTO task ID generation")
 	}
 
-	maxNum, err := c.dbAdapter.GetMaxAutoTaskNumber(ctx)
-	if err != nil {
-		return "", fmt.Errorf("get max auto task number: %w", err)
-	}
-	return fmt.Sprintf("AUTO-%03d", maxNum+1), nil
+	return c.dbAdapter.NextAutoTaskID(ctx)
 }
 
 // Ensure AutoTaskCreator implements TaskCreator.

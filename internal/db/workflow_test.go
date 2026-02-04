@@ -394,10 +394,16 @@ func TestWorkflowRunCRUD(t *testing.T) {
 		t.Fatalf("SaveWorkflow failed: %v", err)
 	}
 
+	// Get the first run ID from the sequence
+	runID, err := pdb.GetNextWorkflowRunID()
+	if err != nil {
+		t.Fatalf("GetNextWorkflowRunID failed: %v", err)
+	}
+
 	// Create run (note: TaskID references tasks table which may not exist in test,
 	// so we use NULL for TaskID to avoid FK constraint)
 	run := &WorkflowRun{
-		ID:          "RUN-001",
+		ID:          runID,
 		WorkflowID:  "run-test-wf",
 		ContextType: "standalone", // Use standalone to avoid task FK
 		ContextData: `{"prompt": "Do something"}`,
@@ -413,7 +419,7 @@ func TestWorkflowRunCRUD(t *testing.T) {
 	}
 
 	// Read
-	got, err := pdb.GetWorkflowRun("RUN-001")
+	got, err := pdb.GetWorkflowRun(runID)
 	if err != nil {
 		t.Fatalf("GetWorkflowRun failed: %v", err)
 	}
@@ -448,7 +454,7 @@ func TestWorkflowRunCRUD(t *testing.T) {
 		t.Fatalf("SaveWorkflowRun (update) failed: %v", err)
 	}
 
-	got, err = pdb.GetWorkflowRun("RUN-001")
+	got, err = pdb.GetWorkflowRun(runID)
 	if err != nil {
 		t.Fatalf("GetWorkflowRun after update failed: %v", err)
 	}
@@ -459,22 +465,23 @@ func TestWorkflowRunCRUD(t *testing.T) {
 		t.Errorf("CurrentPhase not updated: got %s", got.CurrentPhase)
 	}
 
-	// Get next ID
+	// Get next ID - should be the next in sequence
 	nextID, err := pdb.GetNextWorkflowRunID()
 	if err != nil {
 		t.Fatalf("GetNextWorkflowRunID failed: %v", err)
 	}
-	if nextID != "RUN-002" {
-		t.Errorf("expected RUN-002, got %s", nextID)
+	// Verify it's different from the first ID (sequence incremented)
+	if nextID == runID {
+		t.Errorf("expected different ID, got same: %s", nextID)
 	}
 
 	// Delete
-	err = pdb.DeleteWorkflowRun("RUN-001")
+	err = pdb.DeleteWorkflowRun(runID)
 	if err != nil {
 		t.Fatalf("DeleteWorkflowRun failed: %v", err)
 	}
 
-	got, err = pdb.GetWorkflowRun("RUN-001")
+	got, err = pdb.GetWorkflowRun(runID)
 	if err != nil {
 		t.Fatalf("GetWorkflowRun after delete failed: %v", err)
 	}

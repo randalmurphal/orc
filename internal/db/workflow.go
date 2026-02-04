@@ -883,19 +883,13 @@ func (p *ProjectDB) DeleteWorkflowRun(id string) error {
 }
 
 // GetNextWorkflowRunID generates the next run ID (RUN-001, RUN-002, etc.).
+// Uses atomic sequence to prevent race conditions when parallel tasks execute.
 func (p *ProjectDB) GetNextWorkflowRunID() (string, error) {
-	var maxID string
-	err := p.QueryRow("SELECT COALESCE(MAX(id), 'RUN-000') FROM workflow_runs").Scan(&maxID)
+	num, err := p.NextSequence(context.Background(), SeqWorkflowRun)
 	if err != nil {
-		return "", fmt.Errorf("get max run id: %w", err)
+		return "", fmt.Errorf("get next workflow run sequence: %w", err)
 	}
-
-	// Parse the number from RUN-XXX
-	var num int
-	if _, err := fmt.Sscanf(maxID, "RUN-%d", &num); err != nil {
-		num = 0
-	}
-	return fmt.Sprintf("RUN-%03d", num+1), nil
+	return fmt.Sprintf("RUN-%03d", num), nil
 }
 
 // --------- WorkflowRunPhase CRUD ---------
