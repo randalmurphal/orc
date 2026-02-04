@@ -23,7 +23,7 @@ import {
 	createMockWorkflow,
 } from '@/test/factories';
 import type { WorkflowPhase, WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
-import type { Hook as _Hook, Skill } from '@/gen/orc/v1/config_pb';
+import type { Skill } from '@/gen/orc/v1/config_pb';
 import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
 import { AgentSchema, type Agent } from '@/gen/orc/v1/config_pb';
 
