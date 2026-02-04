@@ -122,6 +122,15 @@ export function TaskDetail() {
 		setTask(updatedTask);
 	}, []);
 
+	// Handle phase click from WorkflowProgress - scroll to transcript section
+	const handlePhaseClick = useCallback((phaseName: string) => {
+		// Find the transcript section with matching data-phase attribute
+		const element = document.querySelector(`[data-phase="${CSS.escape(phaseName)}"]`);
+		if (element) {
+			element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}
+	}, []);
+
 	// Build metrics from task state
 	const metrics = useMemo(() => {
 		if (!taskState) return null;
@@ -195,7 +204,7 @@ export function TaskDetail() {
 				</div>
 
 				{/* Workflow Progress */}
-				<WorkflowProgress task={task} plan={plan} />
+				<WorkflowProgress task={task} plan={plan} onPhaseClick={handlePhaseClick} />
 			</header>
 
 			{/* Main content: Split pane */}

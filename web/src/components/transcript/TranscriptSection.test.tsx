@@ -447,3 +447,42 @@ describe('TranscriptSection', () => {
 		});
 	});
 });
+
+/**
+ * TASK-740: data-phase attribute for scroll targeting
+ *
+ * When WorkflowProgress phase is clicked, we need to scroll to the
+ * corresponding transcript section. The data-phase attribute enables
+ * CSS selector targeting: document.querySelector(`[data-phase="${phaseName}"]`)
+ */
+describe('data-phase attribute (TASK-740)', () => {
+	it('phase sections have data-phase attribute with title as value', () => {
+		render(
+			<TranscriptSection type="phase" title="implement" testId="section">
+				Content
+			</TranscriptSection>
+		);
+		const section = screen.getByTestId('section');
+		expect(section).toHaveAttribute('data-phase', 'implement');
+	});
+
+	it('non-phase sections do not have data-phase attribute', () => {
+		render(
+			<TranscriptSection type="response" title="Assistant" testId="section">
+				Content
+			</TranscriptSection>
+		);
+		const section = screen.getByTestId('section');
+		expect(section).not.toHaveAttribute('data-phase');
+	});
+
+	it('data-phase enables querySelector targeting', () => {
+		const { container } = render(
+			<TranscriptSection type="phase" title="spec" testId="section">
+				Content
+			</TranscriptSection>
+		);
+		const section = container.querySelector('[data-phase="spec"]');
+		expect(section).toBeInTheDocument();
+	});
+});
