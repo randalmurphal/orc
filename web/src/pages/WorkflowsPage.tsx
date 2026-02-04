@@ -14,16 +14,17 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
 	WorkflowsView,
 	WorkflowDetailPanel,
 	CloneWorkflowModal,
-	CreateWorkflowModal,
 	EditWorkflowModal,
 	PhaseTemplateDetailPanel,
 	ClonePhaseTemplateModal,
 	EditPhaseTemplateModal,
 	CreatePhaseTemplateModal,
+	WorkflowCreationWizard,
 } from '@/components/workflows';
 import { WorkflowSettingsModal } from '@/components/workflow/WorkflowSettingsModal';
 import { useWorkflowStore } from '@/stores/workflowStore';
@@ -37,6 +38,8 @@ import './WorkflowsPage.css';
  */
 export function WorkflowsPage() {
 	useDocumentTitle('Workflows');
+	const navigate = useNavigate();
+
 	// Selected workflow for detail panel
 	const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
 	const [detailPanelOpen, setDetailPanelOpen] = useState(false);
@@ -175,17 +178,23 @@ export function WorkflowsPage() {
 		[addWorkflow]
 	);
 
-	// Handle workflow created
+	// Handle workflow created - navigate to editor
 	const handleWorkflowCreated = useCallback(
 		(workflow: Workflow) => {
 			addWorkflow(workflow);
-			// Close create modal and open detail panel for new workflow
 			setCreateModalOpen(false);
-			setSelectedWorkflow(workflow);
-			setDetailPanelOpen(true);
+			// Navigate to the workflow editor
+			navigate(`/workflows/${workflow.id}`);
 		},
-		[addWorkflow]
+		[addWorkflow, navigate]
 	);
+
+	// Handle skip to editor - close wizard and navigate to create a blank workflow
+	const handleSkipToEditor = useCallback(() => {
+		setCreateModalOpen(false);
+		// For skip to editor, we just close the wizard
+		// The user can use the quick create in the editor or come back to wizard
+	}, []);
 
 	// Handle workflow deleted
 	const handleWorkflowDeleted = useCallback(
@@ -347,11 +356,12 @@ export function WorkflowsPage() {
 				onCloned={handleWorkflowCloned}
 			/>
 
-			{/* Create Modal */}
-			<CreateWorkflowModal
+			{/* Create Wizard */}
+			<WorkflowCreationWizard
 				open={createModalOpen}
 				onClose={handleCreateModalClose}
 				onCreated={handleWorkflowCreated}
+				onSkipToEditor={handleSkipToEditor}
 			/>
 
 			{/* Edit Modal */}
