@@ -12,7 +12,7 @@
  * - Feedback text truncated in indicator popover at 200 chars
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FeedbackIndicator } from './FeedbackIndicator';
