@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import { LeftPalette } from './LeftPalette';
 import type { Workflow } from '@/gen/orc/v1/workflow_pb';
@@ -159,7 +159,9 @@ describe('LeftPalette', () => {
 		it('sets readOnly=true for builtin workflows', () => {
 			render(<LeftPalette workflow={mockBuiltinWorkflow} onWorkflowUpdate={vi.fn()} />);
 
-			expect(screen.getByText(/readOnly: true/)).toBeInTheDocument();
+			// Both AgentsPalette and PhaseTemplatePalette show readOnly: true
+			const readOnlyElements = screen.getAllByText(/readOnly: true/);
+			expect(readOnlyElements.length).toBeGreaterThanOrEqual(1);
 		});
 
 		it('maintains proper section order - settings first, agents second, templates third', () => {

@@ -190,7 +190,7 @@ describe('AgentsPalette', () => {
 			});
 			const customAgent = createMockAgent({
 				id: 'custom-1',
-				name: 'My Custom Agent',
+				name: 'My Personal Agent',
 				isBuiltin: false,
 			});
 			vi.mocked(configClient.listAgents).mockResolvedValue({
