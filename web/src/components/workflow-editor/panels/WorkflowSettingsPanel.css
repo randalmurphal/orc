@@ -58,6 +58,12 @@
 	border: 1px solid color-mix(in srgb, var(--error, #dc2626) 20%, transparent);
 }
 
+.field-error {
+	font-size: var(--text-xs);
+	color: var(--error, #dc2626);
+	margin-top: var(--space-1);
+}
+
 .settings-form {
 	display: flex;
 	flex-direction: column;

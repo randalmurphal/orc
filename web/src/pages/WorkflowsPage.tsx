@@ -25,6 +25,7 @@ import {
 	EditPhaseTemplateModal,
 	CreatePhaseTemplateModal,
 } from '@/components/workflows';
+import { WorkflowSettingsModal } from '@/components/workflow/WorkflowSettingsModal';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useDocumentTitle } from '@/hooks';
 import type { Workflow, PhaseTemplate, DefinitionSource } from '@/gen/orc/v1/workflow_pb';
@@ -61,6 +62,10 @@ export function WorkflowsPage() {
 	const [editTemplateSource, setEditTemplateSource] = useState<DefinitionSource | undefined>(undefined);
 	const [editTemplateModalOpen, setEditTemplateModalOpen] = useState(false);
 	const [createTemplateModalOpen, setCreateTemplateModalOpen] = useState(false);
+
+	// Workflow settings modal state
+	const [settingsWorkflow, setSettingsWorkflow] = useState<Workflow | null>(null);
+	const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
 	// Store for refreshing data
 	const { addWorkflow, removeWorkflow, updateWorkflow, refreshPhaseTemplates } = useWorkflowStore();
@@ -113,6 +118,15 @@ export function WorkflowsPage() {
 		setCreateTemplateModalOpen(true);
 	}, []);
 
+	// Handle orc:workflow-settings event
+	const handleWorkflowSettings = useCallback((event: CustomEvent<{ workflow: Workflow | null }>) => {
+		const workflow = event.detail.workflow;
+		if (workflow) {
+			setSettingsWorkflow(workflow);
+			setSettingsModalOpen(true);
+		}
+	}, []);
+
 	// Register event listeners
 	useEffect(() => {
 		const selectHandler = handleSelectWorkflow as EventListener;
@@ -123,6 +137,7 @@ export function WorkflowsPage() {
 		const cloneTemplateHandler = handleClonePhaseTemplate as EventListener;
 		const editTemplateHandler = handleEditPhaseTemplate as EventListener;
 		const createTemplateHandler = handleCreatePhaseTemplate;
+		const settingsHandler = handleWorkflowSettings as EventListener;
 
 		window.addEventListener('orc:select-workflow', selectHandler);
 		window.addEventListener('orc:clone-workflow', cloneHandler);
@@ -132,6 +147,7 @@ export function WorkflowsPage() {
 		window.addEventListener('orc:clone-phase-template', cloneTemplateHandler);
 		window.addEventListener('orc:edit-phase-template', editTemplateHandler);
 		window.addEventListener('orc:create-phase-template', createTemplateHandler);
+		window.addEventListener('orc:workflow-settings', settingsHandler);
 
 		return () => {
 			window.removeEventListener('orc:select-workflow', selectHandler);
@@ -142,8 +158,9 @@ export function WorkflowsPage() {
 			window.removeEventListener('orc:clone-phase-template', cloneTemplateHandler);
 			window.removeEventListener('orc:edit-phase-template', editTemplateHandler);
 			window.removeEventListener('orc:create-phase-template', createTemplateHandler);
+			window.removeEventListener('orc:workflow-settings', settingsHandler);
 		};
-	}, [handleSelectWorkflow, handleCloneWorkflow, handleAddWorkflow, handleEditWorkflow, handleSelectPhaseTemplate, handleClonePhaseTemplate, handleEditPhaseTemplate, handleCreatePhaseTemplate]);
+	}, [handleSelectWorkflow, handleCloneWorkflow, handleAddWorkflow, handleEditWorkflow, handleSelectPhaseTemplate, handleClonePhaseTemplate, handleEditPhaseTemplate, handleCreatePhaseTemplate, handleWorkflowSettings]);
 
 	// Handle workflow cloned
 	const handleWorkflowCloned = useCallback(
@@ -292,6 +309,21 @@ export function WorkflowsPage() {
 		[refreshPhaseTemplates]
 	);
 
+	// Handle settings modal close
+	const handleSettingsModalClose = useCallback(() => {
+		setSettingsModalOpen(false);
+		setSettingsWorkflow(null);
+	}, []);
+
+	// Handle workflow update from settings modal
+	const handleSettingsWorkflowUpdated = useCallback(
+		(workflow: Workflow) => {
+			updateWorkflow(workflow.id, workflow);
+			setSettingsWorkflow(workflow);
+		},
+		[updateWorkflow]
+	);
+
 	return (
 		<div className="workflows-page">
 			<div className="workflows-page-content">
@@ -367,6 +399,14 @@ export function WorkflowsPage() {
 				open={createTemplateModalOpen}
 				onClose={handleCreateTemplateModalClose}
 				onCreated={handleTemplateCreated}
+			/>
+
+			{/* Workflow Settings Modal */}
+			<WorkflowSettingsModal
+				open={settingsModalOpen}
+				workflow={settingsWorkflow}
+				onClose={handleSettingsModalClose}
+				onWorkflowUpdate={handleSettingsWorkflowUpdated}
 			/>
 		</div>
 	);
