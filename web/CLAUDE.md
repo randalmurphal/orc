@@ -45,7 +45,8 @@ web/src/
 │   ├── timeline/         # Timeline event view
 │   ├── workflow-editor/  # Visual editor (React Flow canvas, dagre layout)
 │   ├── workflow/         # Workflow modals (WorkflowSettingsModal)
-│   └── [7 more dirs]     # dashboard/, settings/, stats/, initiatives/, etc.
+│   ├── workflows/        # Workflow management (WorkflowsView, WorkflowCreationWizard, PhaseListEditor)
+│   └── [6 more dirs]     # dashboard/, settings/, stats/, initiatives/, etc.
 ├── stores/               # Zustand stores (10 stores — see State Management)
 ├── hooks/                # Custom hooks (useShortcuts, useEvents, useDocumentTitle, etc.)
 ├── pages/                # Route pages
@@ -144,6 +145,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `PhaseTemplatePalette` | `workflow-editor/panels/` | Draggable phase templates for adding to canvas (section within LeftPalette) |
 | `VariableModal` | `workflow-editor/` | Create/edit workflow variables with source-specific forms |
 | `VariableReferencePanel` | `workflow-editor/` | Shows available `{{VAR}}` patterns grouped by category |
+| `WorkflowCreationWizard` | `workflows/` | Guided 3-step wizard: Intent (Build/Review/Test/Document/Custom) → Name & Details → Phase Selection with intent-based recommendations. Includes Skip to Editor for experienced users |
 | `PhaseListEditor` | `workflows/` | Phase list with add/edit/remove/reorder. Edit dialog shows inherited vs override claude_config sections |
 | `EditPhaseTemplateModal` | `workflows/` | Phase template editor: data flow (input/output vars, prompt source), 7 claude_config sections, JSON override |
 | `CreatePhaseTemplateModal` | `workflows/` | Create phase template from scratch: auto-ID slugification, prompt editor with `{{VAR}}` highlighting, input variable chips with suggestions, 7 claude_config sections |
