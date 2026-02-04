@@ -119,6 +119,7 @@ export function CloneWorkflowModal({
 			title="Clone Workflow"
 			size="md"
 			ariaLabel="Clone workflow dialog"
+			data-testid="clone-workflow-modal"
 		>
 			<form onSubmit={handleSubmit} className="clone-workflow-form">
 				{/* Source workflow reference */}

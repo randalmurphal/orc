@@ -7,7 +7,7 @@ import { RunStatus, type WorkflowRunWithDetails, type Workflow } from '@/gen/orc
 import { PhaseStatus } from '@/gen/orc/v1/task_pb';
 import type { PhaseNodeData, PhaseStatus as UIPhaseStatus } from './nodes';
 import { WorkflowCanvas } from './WorkflowCanvas';
-import { PhaseTemplatePalette } from './panels/PhaseTemplatePalette';
+import { LeftPalette } from './panels/LeftPalette';
 import { PhaseInspector } from './panels/PhaseInspector';
 import { GateInspector } from './panels/GateInspector';
 import { ExecutionHeader } from './ExecutionHeader';
@@ -211,7 +211,7 @@ export function WorkflowEditorPage() {
 
 	// Load phase templates if not already in store (direct navigation to editor)
 	useEffect(() => {
-		if (phaseTemplates.length === 0) {
+		if (!phaseTemplates || phaseTemplates.length === 0) {
 			workflowClient.listPhaseTemplates({ includeBuiltin: true }).then((res) => {
 				const sources: Record<string, import('@/gen/orc/v1/workflow_pb').DefinitionSource> = {};
 				for (const [key, value] of Object.entries(res.sources)) {
@@ -222,7 +222,7 @@ export function WorkflowEditorPage() {
 				console.warn('Failed to load phase templates:', err);
 			});
 		}
-	}, [phaseTemplates.length, setPhaseTemplates]);
+	}, [phaseTemplates?.length, setPhaseTemplates]);
 
 	// Fetch active run after workflow loads
 	useEffect(() => {
@@ -411,11 +411,22 @@ export function WorkflowEditorPage() {
 					onCancel={handleCancel}
 				/>
 			)}
-			<div className={bodyClasses.join(' ')}>
+			<div className={bodyClasses.join(' ')} data-testid="workflow-editor-body">
 				<aside className="workflow-editor-palette">
-					<PhaseTemplatePalette readOnly={isBuiltin} workflowId={id || ''} />
+					{workflow && (
+						<LeftPalette
+							workflow={workflow}
+							onWorkflowUpdate={(updatedWorkflow) => {
+								// Update the editor store with the new workflow
+								loadFromWorkflow({
+									...workflowDetails!,
+									workflow: updatedWorkflow,
+								});
+							}}
+						/>
+					)}
 				</aside>
-				<div className="workflow-editor-canvas">
+				<div className="workflow-editor-canvas" data-testid="workflow-editor-canvas">
 					<WorkflowCanvas onWorkflowRefresh={refreshWorkflow} />
 				</div>
 				{nodeInspectorOpen && (
