@@ -40,6 +40,10 @@ function TranscriptMessage({ line, compact }: TranscriptMessageProps) {
 	const formatTimestamp = (timestamp: string) => {
 		try {
 			const date = new Date(timestamp);
+			// Check if date is invalid (NaN)
+			if (isNaN(date.getTime())) {
+				return timestamp;
+			}
 			return date.toLocaleTimeString(undefined, {
 				hour: '2-digit',
 				minute: '2-digit',

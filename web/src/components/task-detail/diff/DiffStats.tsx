@@ -7,7 +7,7 @@ interface DiffStatsProps {
 
 export function DiffStats({ stats }: DiffStatsProps) {
 	return (
-		<div className="diff-stats">
+		<div className="diff-stats" data-testid="diff-stats">
 			<span className="stat files">{stats.filesChanged} file{stats.filesChanged !== 1 ? 's' : ''}</span>
 			<span className="stat additions">+{stats.additions}</span>
 			<span className="stat deletions">-{stats.deletions}</span>

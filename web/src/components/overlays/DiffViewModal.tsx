@@ -299,7 +299,8 @@ export function DiffViewModal({
 			}
 
 			// Prevent event bubbling for handled keys
-			const handledKeys = ['j', 'k', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'g', 'G', 'Enter', ' ', 'o', 'v', 'Tab', 't', 'w', 's', '/', 'f', 'Escape', 'q'];
+			// Note: Escape is handled by Modal component via Radix Dialog
+			const handledKeys = ['j', 'k', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'g', 'G', 'Enter', ' ', 'o', 'v', 'Tab', 't', 'w', 's', '/', 'f', 'q'];
 			if (handledKeys.includes(e.key) || (e.key >= '1' && e.key <= '9')) {
 				e.preventDefault();
 				e.stopPropagation();
@@ -356,8 +357,8 @@ export function DiffViewModal({
 					setStatusFilter(statuses[nextIndex]);
 					break;
 				}
-				case 'Escape':
 				case 'q':
+					// Escape is handled by Modal component via Radix Dialog
 					onClose();
 					break;
 				case '?':
@@ -450,6 +451,8 @@ export function DiffViewModal({
 								className={viewMode === 'split' ? 'active' : ''}
 								onClick={() => setViewMode('split')}
 								aria-label="Split view mode"
+								aria-pressed={viewMode === 'split'}
+								data-testid="view-mode-split"
 							>
 								Split
 							</Button>
@@ -459,6 +462,8 @@ export function DiffViewModal({
 								className={viewMode === 'unified' ? 'active' : ''}
 								onClick={() => setViewMode('unified')}
 								aria-label="Unified view mode"
+								aria-pressed={viewMode === 'unified'}
+								data-testid="view-mode-unified"
 							>
 								Unified
 							</Button>
@@ -479,7 +484,7 @@ export function DiffViewModal({
 
 				{/* Loading State */}
 				{loadingState === 'loading' && (
-					<div className="diff-modal-loading" data-testid="diff-modal-loading">
+					<div className="diff-modal-loading" data-testid="diff-loading">
 						<div className="loading-spinner" />
 						<span>Loading diff...</span>
 					</div>
@@ -487,7 +492,7 @@ export function DiffViewModal({
 
 				{/* Error State */}
 				{loadingState === 'error' && (
-					<div className="diff-modal-error" data-testid="diff-modal-error">
+					<div className="diff-modal-error" data-testid="diff-error">
 						<Icon name="alert-circle" size={20} />
 						<span>{getErrorMessage(error)}</span>
 						<Button
@@ -495,6 +500,7 @@ export function DiffViewModal({
 							size="sm"
 							onClick={retryLoadDiff}
 							data-testid="retry-load-diff"
+							aria-label="Retry"
 						>
 							<Icon name="refresh" size={14} />
 							Retry
@@ -504,9 +510,9 @@ export function DiffViewModal({
 
 				{/* Empty State */}
 				{loadingState === 'success' && (!diffResult?.files || diffResult.files.length === 0) && (
-					<div className="diff-modal-empty" data-testid="diff-modal-empty">
+					<div className="diff-modal-empty" data-testid="diff-empty">
 						<Icon name="file" size={32} />
-						<span>No files changed</span>
+						<span>No changes</span>
 					</div>
 				)}
 
@@ -524,7 +530,7 @@ export function DiffViewModal({
 										placeholder="Search files..."
 										value={searchQuery}
 										onChange={(e) => setSearchQuery(e.target.value)}
-										data-testid="file-search-input"
+										data-testid="search-input"
 										aria-label="Search files"
 									/>
 								</div>
@@ -561,6 +567,7 @@ export function DiffViewModal({
 										id={`file-item-${file.path}`}
 										data-testid={`file-item-${file.path}`}
 										className={`file-item ${index === selectedFileIndex ? 'selected' : ''}`}
+										data-selected={index === selectedFileIndex}
 										role="option"
 										aria-selected={index === selectedFileIndex}
 										tabIndex={-1}
@@ -613,9 +620,15 @@ export function DiffViewModal({
 							{/* Content Header */}
 							{currentFile && (
 								<div className="diff-content-header" data-testid="diff-content-header">
-									<span className="current-file-path">{currentFile.path}</span>
+									<span
+										className="current-file-path"
+										data-testid="current-file-path"
+										title={currentFile.path}
+									>
+										{currentFile.path.split('/').pop()}
+									</span>
 									{currentFile.binary && (
-										<span className="binary-notice">Binary file</span>
+										<span className="binary-notice" data-testid="binary-notice">Binary</span>
 									)}
 								</div>
 							)}
@@ -661,6 +674,7 @@ export function DiffViewModal({
 											onWontFixComment={() => {}}
 											onDeleteComment={() => {}}
 											onCloseThread={() => {}}
+											hideHeader={true}
 										/>
 									</div>
 								)}

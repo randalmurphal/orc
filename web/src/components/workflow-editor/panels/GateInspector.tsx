@@ -90,6 +90,7 @@ export function GateInspector({
 	const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
 	const [localGateType, setLocalGateType] = useState<GateType | null>(null);
 	const [localMaxRetries, setLocalMaxRetries] = useState<number | null>(null);
+	const [localFailureAction, setLocalFailureAction] = useState<GateConfigData['failureAction'] | null>(null);
 	const [localConfig, setLocalConfig] = useState<Partial<GateConfigData>>({});
 
 	// Extract edge data safely
@@ -98,7 +99,7 @@ export function GateInspector({
 	const gateStatus = edgeData?.gateStatus;
 	// Use local state if set (including 0 for "cleared" state), otherwise fall back to edge data or default
 	const maxRetries = localMaxRetries !== null ? localMaxRetries : (edgeData?.maxRetries ?? 3);
-	const failureAction = edgeData?.failureAction ?? 'retry';
+	const failureAction = localFailureAction ?? edgeData?.failureAction ?? 'retry';
 	const phaseId = edgeData?.phaseId;
 
 	// Configuration data with local state overrides - memoized for performance
@@ -131,17 +132,20 @@ export function GateInspector({
 				id: phaseId.toString(),
 				gateType: updates.gateType ?? gateType,
 				maxIterations: updates.maxRetries ?? maxRetries,
-				// Additional fields would be added here based on the actual API structure
+				...(updates.autoCriteria !== undefined && { autoCriteria: updates.autoCriteria }),
+				...(updates.humanConfig !== undefined && { humanConfig: updates.humanConfig }),
+				...(updates.aiConfig !== undefined && { aiConfig: updates.aiConfig }),
+				...(updates.failureAction !== undefined && { failureAction: updates.failureAction }),
+				...(updates.advancedConfig !== undefined && { advancedConfig: updates.advancedConfig }),
+				...(updates.retryFromPhaseId !== undefined && { retryFromPhaseId: updates.retryFromPhaseId }),
 			});
 		} catch (_error) {
 			// Only log in development/non-test environments
 			if (process.env.NODE_ENV !== 'test') {
 				console.error('Failed to save gate configuration:', _error);
 			}
-			// Don't re-throw in tests to avoid uncaught errors
-			if (process.env.NODE_ENV !== 'test') {
-				throw _error;
-			}
+			// Re-throw to allow caller to handle (e.g., revert state)
+			throw _error;
 		} finally {
 			setIsLoading(false);
 		}
@@ -181,7 +185,14 @@ export function GateInspector({
 
 	const handleFailureActionChange = useCallback(async (event: React.ChangeEvent<HTMLSelectElement>) => {
 		const newFailureAction = event.target.value as GateConfigData['failureAction'];
-		await saveConfiguration({ failureAction: newFailureAction });
+		// Update local state immediately for UI responsiveness
+		setLocalFailureAction(newFailureAction);
+		try {
+			await saveConfiguration({ failureAction: newFailureAction });
+		} catch (_error) {
+			// Revert local state on API failure
+			setLocalFailureAction(null);
+		}
 	}, [saveConfiguration]);
 
 	const handleRetryFromChange = useCallback(async (event: React.ChangeEvent<HTMLSelectElement>) => {
