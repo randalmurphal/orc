@@ -27,6 +27,9 @@ export default defineConfig({
       forks: {
         maxForks: DEFAULT_WORKERS,
         minForks: 1,
+        // Give each worker 4GB heap to prevent OOM crashes
+        // Default V8 heap is ~1.7GB which can exhaust during large test suites
+        execArgv: ['--max-old-space-size=4096'],
       },
     },
     // Prevent hanging tests
