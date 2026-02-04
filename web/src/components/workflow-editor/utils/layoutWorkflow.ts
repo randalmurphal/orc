@@ -96,8 +96,11 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 			agentId: phase.agentOverride || template?.agentId,
 			thinkingEnabled:
 				phase.thinkingOverride ?? template?.thinkingEnabled,
-			// New: category for color coding
+			// Category for color coding
 			category: getPhaseCategory(phase.phaseTemplateId),
+			// Variable data for tooltip display (TASK-730)
+			inputVariables: template?.inputVariables,
+			outputVarName: template?.outputVarName,
 		};
 		nodes.push({
 			id: `phase-${phase.id}`,
