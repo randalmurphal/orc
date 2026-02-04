@@ -38,6 +38,7 @@ Two database types with distinct responsibilities:
 | `schema/project_048.sql` | **Mirrors global_005** for project DB |
 | `schema/project_052.sql` | **VIEW-based agent filtering** (orc:disable_fk migration) |
 | `schema/project_053.sql` | **Feedback table**: real-time user feedback to agents (type, timing, file/line for inline comments) |
+| `schema/project_055.sql` | **Sequences table**: atomic ID generation for workflow runs, tasks, initiatives, auto-tasks |
 
 ### FK-Disabling Migrations
 
@@ -87,6 +88,7 @@ The migration runner will:
 | `skills.go` | Skill CRUD (GlobalDB): Save/Get/List/Delete, upsert pattern, built-in protection, JSON supporting_files |
 | `constitution.go` | Constitution CRUD, validation checks |
 | `dashboard.go` | Dashboard SQL aggregates (status counts, cost by date, initiative stats) |
+| `sequence.go` | Atomic ID generation: `NextSequence()`, `GetSequence()`, `SetSequence()` |
 
 ## Key Types
 
@@ -99,6 +101,7 @@ The migration runner will:
 | `TxOps` | `project.go` | Transaction context (stores context for cancellation) |
 | `driver.Driver` | `driver/` | SQLite/PostgreSQL backend interface |
 | `LoopConfig` | `workflow.go:114` | Phase loop config: `LoopToPhase`, `Condition` (JSON), `EffectiveMaxLoops()` |
+| `SeqWorkflowRun`, `SeqTask`, `SeqInitiative`, `SeqAutoTask` | `sequence.go:12-17` | Sequence name constants for atomic ID generation |
 
 ## Usage
 
@@ -129,6 +132,26 @@ err := pdb.RunInTx(ctx, func(tx *db.TxOps) error {
 ```
 
 `TxOps` propagates the context for cancellation/timeout support.
+
+## Atomic Sequence Generation
+
+Prevents race conditions in ID generation across parallel processes. `sequence.go`
+
+| Function | Purpose |
+|----------|---------|
+| `NextSequence(ctx, name)` | Atomically increment and return next value (cross-process safe) |
+| `GetSequence(name)` | Read current value without incrementing |
+| `SetSequence(name, value)` | Set sequence to specific value (catch-up after import) |
+
+**ID generation functions** (use sequences internally):
+
+| Function | Location | Generates |
+|----------|----------|-----------|
+| `GetNextWorkflowRunID()` | `workflow.go:395` | `RUN-XXX` |
+| `GetNextTaskID()` | `task.go:24` | `TASK-XXX` |
+| `GetNextInitiativeID()` | `initiative.go:43` | `INIT-XXX` |
+
+**Why sequences**: The old `MAX(id)+1` pattern had TOCTOU race conditions when parallel Claude processes called ID generation simultaneously. Database-level UPDATE locks provide true atomicity.
 
 ## Batch Loading
 

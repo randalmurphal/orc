@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -480,31 +481,13 @@ type TaskFull struct {
 }
 
 // GetNextTaskID generates the next task ID.
+// Uses atomic sequence to prevent race conditions when parallel tasks are created.
 func (p *ProjectDB) GetNextTaskID() (string, error) {
-	var maxID sql.NullString
-	err := p.QueryRow(`
-		SELECT id FROM tasks
-		WHERE id LIKE 'TASK-%'
-		ORDER BY CAST(SUBSTR(id, 6) AS INTEGER) DESC
-		LIMIT 1
-	`).Scan(&maxID)
-
-	if err != nil && err != sql.ErrNoRows {
-		return "", fmt.Errorf("get max task id: %w", err)
-	}
-
-	if !maxID.Valid || maxID.String == "" {
-		return "TASK-001", nil
-	}
-
-	// Extract number and increment
-	var num int
-	_, err = fmt.Sscanf(maxID.String, "TASK-%d", &num)
+	num, err := p.NextSequence(context.Background(), SeqTask)
 	if err != nil {
-		return "TASK-001", nil
+		return "", fmt.Errorf("get next task sequence: %w", err)
 	}
-
-	return fmt.Sprintf("TASK-%03d", num+1), nil
+	return fmt.Sprintf("TASK-%03d", num), nil
 }
 
 // UpdateTaskHeartbeat updates the last_heartbeat timestamp for a task.

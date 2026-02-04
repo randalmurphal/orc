@@ -652,8 +652,21 @@ func (a *ProjectDBAdapter) DeleteExpiredNotifications(ctx context.Context) (int6
 	return result.RowsAffected()
 }
 
+// NextAutoTaskID generates the next AUTO-XXX task ID atomically.
+// Uses the sequences table to prevent race conditions when multiple
+// automation processes run in parallel.
+func (a *ProjectDBAdapter) NextAutoTaskID(ctx context.Context) (string, error) {
+	num, err := a.pdb.NextSequence(ctx, db.SeqAutoTask)
+	if err != nil {
+		return "", fmt.Errorf("get next auto task sequence: %w", err)
+	}
+	return fmt.Sprintf("AUTO-%03d", num), nil
+}
+
 // GetMaxAutoTaskNumber returns the highest AUTO-XXX task number.
-// This is more efficient than loading all tasks when generating new automation task IDs.
+// Deprecated: Use NextAutoTaskID instead to avoid race conditions.
+// This method is kept for backward compatibility but should not be used
+// for ID generation in concurrent environments.
 func (a *ProjectDBAdapter) GetMaxAutoTaskNumber(ctx context.Context) (int, error) {
 	// Use CAST and SUBSTR to extract the numeric portion of AUTO-XXX IDs
 	// Tasks with ID format "AUTO-NNN" will have their number extracted

@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 
 	"github.com/randalmurphal/orc/internal/db/driver"
 )
@@ -66,21 +67,30 @@ func Open(path string) (*DB, error) {
 	return OpenWithDialect(path, driver.DialectSQLite)
 }
 
+// inMemoryCounter ensures unique in-memory database names for test isolation.
+var inMemoryCounter int64
+
 // OpenInMemory opens an in-memory SQLite database.
 // This is much faster than file-based databases and ideal for testing.
-// Each call creates a new isolated database.
+// Each call creates a new isolated database with shared-cache mode enabled,
+// allowing concurrent goroutines to access the same in-memory database instance.
 func OpenInMemory() (*DB, error) {
 	drv, err := driver.New(driver.DialectSQLite)
 	if err != nil {
 		return nil, err
 	}
 
-	// Use :memory: for in-memory database
-	if err := drv.Open(":memory:"); err != nil {
+	// Use a unique name with shared cache mode for concurrent access.
+	// Without shared cache, each connection gets its own empty database.
+	// The unique ID ensures test isolation - different tests get different DBs.
+	id := atomic.AddInt64(&inMemoryCounter, 1)
+	dsn := fmt.Sprintf("file:memdb_%d?mode=memory&cache=shared", id)
+
+	if err := drv.Open(dsn); err != nil {
 		return nil, err
 	}
 
-	return &DB{driver: drv, path: ":memory:"}, nil
+	return &DB{driver: drv, path: dsn}, nil
 }
 
 // OpenWithDialect opens a database with a specific dialect.

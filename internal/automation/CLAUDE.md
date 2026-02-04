@@ -97,7 +97,8 @@ trigger := &automation.Trigger{
 | `types.go` | Core types and enums |
 | `service.go` | Trigger service with event handling and cooldowns |
 | `evaluators.go` | Trigger evaluators (count, initiative, event, threshold, schedule) |
-| `db.go` | Database operations via ProjectDBAdapter |
+| `db.go` | Database operations via ProjectDBAdapter, `NextAutoTaskID()` for atomic ID generation |
+| `task_creator.go` | `AutoTaskCreator` - creates `AUTO-XXX` tasks from templates |
 
 ## Service Architecture
 
