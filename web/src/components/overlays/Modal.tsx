@@ -26,6 +26,8 @@ interface ModalProps {
 	ariaLabel?: string;
 	showClose?: boolean;
 	children: ReactNode;
+	/** Test ID for the modal content element */
+	'data-testid'?: string;
 }
 
 const sizeClasses: Record<ModalSize, string> = {
@@ -43,6 +45,7 @@ export function Modal({
 	ariaLabel = 'Dialog',
 	showClose = true,
 	children,
+	'data-testid': dataTestId,
 }: ModalProps) {
 	return (
 		<Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -51,6 +54,7 @@ export function Modal({
 				<Dialog.Content
 					className={`modal-content ${sizeClasses[size]}`}
 					aria-describedby={undefined}
+					data-testid={dataTestId}
 					onPointerDownOutside={(e) => {
 						e.preventDefault();
 						onClose();

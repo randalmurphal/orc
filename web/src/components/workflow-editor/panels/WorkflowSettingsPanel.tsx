@@ -12,7 +12,7 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const handleUpdate = async (updates: Partial<Workflow>) => {
+	const handleUpdate = async (updates: Record<string, unknown>) => {
 		if (workflow.isBuiltin) return;
 
 		setIsLoading(true);
@@ -22,7 +22,7 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 			const response = await workflowClient.updateWorkflow({
 				id: workflow.id,
 				...updates,
-			});
+			} as Parameters<typeof workflowClient.updateWorkflow>[0]);
 
 			if (response.workflow) {
 				onWorkflowUpdate(response.workflow);
@@ -41,7 +41,7 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 	};
 
 	return (
-		<div className="workflow-settings-panel">
+		<div className="workflow-settings-panel" data-testid="workflow-settings-panel">
 			<div className="workflow-settings-section">
 				<div className="workflow-settings-header">
 					<h3>Workflow Settings</h3>

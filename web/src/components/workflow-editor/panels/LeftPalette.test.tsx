@@ -21,7 +21,7 @@ vi.mock('./PhaseTemplatePalette', () => ({
 	),
 }));
 
-const mockWorkflow: Workflow = {
+const mockWorkflow = {
 	id: 'test-workflow',
 	name: 'Test Workflow',
 	description: 'A test workflow',
@@ -33,9 +33,9 @@ const mockWorkflow: Workflow = {
 	basedOn: '',
 	createdAt: undefined,
 	updatedAt: undefined,
-};
+} as unknown as Workflow;
 
-const mockBuiltinWorkflow: Workflow = {
+const mockBuiltinWorkflow = {
 	...mockWorkflow,
 	id: 'builtin-workflow',
 	name: 'Built-in Workflow',

@@ -7,7 +7,7 @@ import { RunStatus, type WorkflowRunWithDetails, type Workflow } from '@/gen/orc
 import { PhaseStatus } from '@/gen/orc/v1/task_pb';
 import type { PhaseNodeData, PhaseStatus as UIPhaseStatus } from './nodes';
 import { WorkflowCanvas } from './WorkflowCanvas';
-import { PhaseTemplatePalette } from './panels/PhaseTemplatePalette';
+import { LeftPalette } from './panels/LeftPalette';
 import { PhaseInspector } from './panels/PhaseInspector';
 import { GateInspector } from './panels/GateInspector';
 import { ExecutionHeader } from './ExecutionHeader';
@@ -411,11 +411,22 @@ export function WorkflowEditorPage() {
 					onCancel={handleCancel}
 				/>
 			)}
-			<div className={bodyClasses.join(' ')}>
+			<div className={bodyClasses.join(' ')} data-testid="workflow-editor-body">
 				<aside className="workflow-editor-palette">
-					<PhaseTemplatePalette readOnly={isBuiltin} workflowId={id || ''} />
+					{workflow && (
+						<LeftPalette
+							workflow={workflow}
+							onWorkflowUpdate={(updatedWorkflow) => {
+								// Update the editor store with the new workflow
+								loadFromWorkflow({
+									...workflowDetails!,
+									workflow: updatedWorkflow,
+								});
+							}}
+						/>
+					)}
 				</aside>
-				<div className="workflow-editor-canvas">
+				<div className="workflow-editor-canvas" data-testid="workflow-editor-canvas">
 					<WorkflowCanvas onWorkflowRefresh={refreshWorkflow} />
 				</div>
 				{nodeInspectorOpen && (

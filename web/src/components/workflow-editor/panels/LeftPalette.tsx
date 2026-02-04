@@ -12,7 +12,7 @@ export function LeftPalette({ workflow, onWorkflowUpdate }: LeftPaletteProps) {
 	const readOnly = workflow.isBuiltin;
 
 	return (
-		<div className="left-palette">
+		<div className="left-palette" data-testid="left-palette">
 			{/* Workflow Settings Section - First */}
 			<div className="left-palette-section">
 				<WorkflowSettingsPanel
