@@ -257,10 +257,6 @@ func boolPtr(b bool) *bool {
 	return &b
 }
 
-func int32Ptr(i int32) *int32 {
-	return &i
-}
-
 // setupTestGlobalDB creates a test global database
 func setupTestGlobalDB(t *testing.T) *db.GlobalDB {
 	return storage.NewTestGlobalDB(t)

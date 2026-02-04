@@ -278,7 +278,8 @@ export function TranscriptViewer({
 					streamingSection = {
 						type: 'phase',
 						title: streamingPhase,
-						id: -1,
+						// Use a unique ID that won't conflict with streaming children (which use -1, -2, etc.)
+						id: Number.MIN_SAFE_INTEGER,
 						timestamp: streaming[0]?.timestamp || new Date().toISOString(),
 						children: [],
 					};

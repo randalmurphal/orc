@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { FilesPanel } from './FilesPanel';
 import { ChangesTab } from './ChangesTab';
+import { DiffViewModal } from '@/components/overlays/DiffViewModal';
 import { useCurrentProjectId } from '@/stores';
 
 export interface ChangesTabEnhancedProps {
@@ -21,6 +22,7 @@ export function ChangesTabEnhanced({ taskId }: ChangesTabEnhancedProps) {
   const [isTablet, setIsTablet] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Window size detection for responsive design
   useEffect(() => {
@@ -61,10 +63,26 @@ export function ChangesTabEnhanced({ taskId }: ChangesTabEnhancedProps) {
     handleEnhancedViewError(new Error('Test error'));
   }, [handleEnhancedViewError]);
 
+  // Modal handler
+  const handleExpandDiff = useCallback(() => {
+    setModalOpen(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setModalOpen(false);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey) {
+        // Ctrl+Shift+F - Open full diff modal
+        if (event.shiftKey && event.key === 'F') {
+          event.preventDefault();
+          handleExpandDiff();
+          return;
+        }
+
         switch (event.key) {
           case 'f': {
             event.preventDefault();
@@ -86,7 +104,7 @@ export function ChangesTabEnhanced({ taskId }: ChangesTabEnhancedProps) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [viewMode, handleViewModeChange]);
+  }, [viewMode, handleViewModeChange, handleExpandDiff]);
 
   // Responsive layout classes
   const layoutClasses = useMemo(() => {
@@ -281,6 +299,16 @@ export function ChangesTabEnhanced({ taskId }: ChangesTabEnhancedProps) {
           )}
         </div>
       </div>
+
+      {/* Full Diff Modal */}
+      {modalOpen && projectId && (
+        <DiffViewModal
+          open={modalOpen}
+          taskId={taskId}
+          projectId={projectId}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }

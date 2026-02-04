@@ -73,3 +73,31 @@
 	text-align: center;
 	padding: var(--space-4);
 }
+
+/* Mobile responsive - stack panels vertically */
+@media (max-width: 600px) {
+	.split-pane {
+		flex-direction: column;
+	}
+
+	.split-pane__left,
+	.split-pane__right {
+		flex-basis: auto !important;
+		flex-shrink: 1;
+		min-height: 200px;
+	}
+
+	.split-pane__left {
+		max-height: 40%;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.split-pane__right {
+		flex-grow: 1;
+		min-height: 0;
+	}
+
+	.split-pane__divider {
+		display: none;
+	}
+}
