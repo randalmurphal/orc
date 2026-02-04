@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { LeftPalette } from './LeftPalette';
 import type { Workflow } from '@/gen/orc/v1/workflow_pb';
@@ -17,6 +17,17 @@ vi.mock('./PhaseTemplatePalette', () => ({
 	PhaseTemplatePalette: ({ readOnly, workflowId }: any) => (
 		<div data-testid="phase-template-palette">
 			Phase Templates (readOnly: {String(readOnly)}, workflowId: {workflowId})
+		</div>
+	),
+}));
+
+// Mock AgentsPalette to verify wiring (SC-1: Agents section appears in left palette)
+vi.mock('./AgentsPalette', () => ({
+	AgentsPalette: ({ readOnly, onAgentClick, onAgentAssign }: any) => (
+		<div data-testid="agents-palette" data-readonly={String(readOnly)}>
+			Agents Palette (readOnly: {String(readOnly)})
+			<button onClick={() => onAgentClick?.({ id: 'test' })}>Click Agent</button>
+			<button onClick={() => onAgentAssign?.({ id: 'test' })}>Assign Agent</button>
 		</div>
 	),
 }));
@@ -43,12 +54,92 @@ const mockBuiltinWorkflow = {
 };
 
 describe('LeftPalette', () => {
+	// ─────────────────────────────────────────────────────────────────────────────
+	// TASK-725: Integration tests for AgentsPalette wiring
+	// These tests verify that AgentsPalette is properly integrated into LeftPalette
+	// and will FAIL if the wiring is missing (dead code prevention)
+	// ─────────────────────────────────────────────────────────────────────────────
+
+	// SC-1: Agents section appears in left palette below Workflow Settings
+	describe('AgentsPalette Integration (SC-1)', () => {
+		it('renders AgentsPalette section', () => {
+			render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
+
+			// This test FAILS if AgentsPalette is not imported and rendered by LeftPalette
+			expect(screen.getByTestId('agents-palette')).toBeInTheDocument();
+		});
+
+		it('passes readOnly=false to AgentsPalette for custom workflows', () => {
+			render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
+
+			const agentsPalette = screen.getByTestId('agents-palette');
+			expect(agentsPalette).toHaveAttribute('data-readonly', 'false');
+		});
+
+		it('passes readOnly=true to AgentsPalette for builtin workflows', () => {
+			render(<LeftPalette workflow={mockBuiltinWorkflow} onWorkflowUpdate={vi.fn()} />);
+
+			const agentsPalette = screen.getByTestId('agents-palette');
+			expect(agentsPalette).toHaveAttribute('data-readonly', 'true');
+		});
+
+		it('renders AgentsPalette between WorkflowSettings and PhaseTemplates', () => {
+			const { container } = render(
+				<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />
+			);
+
+			const sections = container.querySelectorAll('.left-palette-section');
+			// Should now have 3 sections: settings, agents, templates
+			expect(sections).toHaveLength(3);
+
+			// Verify order: settings first, agents second, templates third
+			expect(sections[0]).toContainElement(screen.getByTestId('workflow-settings-panel'));
+			expect(sections[1]).toContainElement(screen.getByTestId('agents-palette'));
+			expect(sections[2]).toContainElement(screen.getByTestId('phase-template-palette'));
+		});
+
+		it('provides onAgentClick callback to AgentsPalette', () => {
+			const onAgentClick = vi.fn();
+			render(
+				<LeftPalette
+					workflow={mockWorkflow}
+					onWorkflowUpdate={vi.fn()}
+					onAgentClick={onAgentClick}
+				/>
+			);
+
+			// Click the mock agent click button
+			const clickButton = screen.getByText('Click Agent');
+			clickButton.click();
+
+			expect(onAgentClick).toHaveBeenCalledWith({ id: 'test' });
+		});
+
+		it('provides onAgentAssign callback to AgentsPalette', () => {
+			const onAgentAssign = vi.fn();
+			render(
+				<LeftPalette
+					workflow={mockWorkflow}
+					onWorkflowUpdate={vi.fn()}
+					onAgentAssign={onAgentAssign}
+				/>
+			);
+
+			// Click the mock agent assign button
+			const assignButton = screen.getByText('Assign Agent');
+			assignButton.click();
+
+			expect(onAgentAssign).toHaveBeenCalledWith({ id: 'test' });
+		});
+	});
+
 	// Integration test - SC-6: Integration with existing editor
 	describe('Integration with Editor Components', () => {
-		it('renders both workflow settings and phase template palette', () => {
+		it('renders all three palette sections (settings, agents, templates)', () => {
 			render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
 
 			expect(screen.getByTestId('workflow-settings-panel')).toBeInTheDocument();
+			expect(screen.getByTestId('agents-palette')).toBeInTheDocument();
 			expect(screen.getByTestId('phase-template-palette')).toBeInTheDocument();
 		});
 
@@ -71,23 +162,25 @@ describe('LeftPalette', () => {
 			expect(screen.getByText(/readOnly: true/)).toBeInTheDocument();
 		});
 
-		it('maintains proper section order - settings first, templates second', () => {
+		it('maintains proper section order - settings first, agents second, templates third', () => {
 			const { container } = render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
 
 			const sections = container.querySelectorAll('.left-palette-section');
-			expect(sections).toHaveLength(2);
+			expect(sections).toHaveLength(3);
 
 			// Workflow settings should come first
 			expect(sections[0]).toContainElement(screen.getByTestId('workflow-settings-panel'));
-			// Phase templates should come second
-			expect(sections[1]).toContainElement(screen.getByTestId('phase-template-palette'));
+			// Agents should come second
+			expect(sections[1]).toContainElement(screen.getByTestId('agents-palette'));
+			// Phase templates should come third
+			expect(sections[2]).toContainElement(screen.getByTestId('phase-template-palette'));
 		});
 
 		it('applies consistent styling for palette sections', () => {
 			const { container } = render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
 
 			expect(container.querySelector('.left-palette')).toBeInTheDocument();
-			expect(container.querySelectorAll('.left-palette-section')).toHaveLength(2);
+			expect(container.querySelectorAll('.left-palette-section')).toHaveLength(3);
 		});
 
 		it('handles workflow update callback from settings panel', () => {
