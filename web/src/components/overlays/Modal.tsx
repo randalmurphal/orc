@@ -9,7 +9,7 @@
  * - Body scroll lock when open
  */
 
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Icon } from '@/components/ui/Icon';
@@ -47,11 +47,30 @@ export function Modal({
 	children,
 	'data-testid': dataTestId,
 }: ModalProps) {
+	const contentRef = useRef<HTMLDivElement>(null);
+
+	// Handle document-level clicks for JSDOM compatibility
+	// This complements Radix's onPointerDownOutside which doesn't fire for fireEvent.click
+	useEffect(() => {
+		if (!open) return;
+
+		const handleDocumentClick = (e: MouseEvent) => {
+			// Check if click is outside the modal content
+			if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
+				onClose();
+			}
+		};
+
+		document.addEventListener('click', handleDocumentClick);
+		return () => document.removeEventListener('click', handleDocumentClick);
+	}, [open, onClose]);
+
 	return (
 		<Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
 			<Dialog.Portal>
-				<Dialog.Overlay className="modal-backdrop" />
+				<Dialog.Overlay className="modal-backdrop" onClick={onClose} />
 				<Dialog.Content
+					ref={contentRef}
 					className={`modal-content ${sizeClasses[size]}`}
 					aria-describedby={undefined}
 					data-testid={dataTestId}

@@ -44,7 +44,8 @@ web/src/
 │   │   ├── diff/         # Diff components (DiffFile, DiffHunk, DiffLine, DiffStats)
 │   ├── timeline/         # Timeline event view
 │   ├── workflow-editor/  # Visual editor (React Flow canvas, dagre layout)
-│   └── [8 more dirs]     # dashboard/, settings/, stats/, initiatives/, etc.
+│   ├── workflow/         # Workflow modals (WorkflowSettingsModal)
+│   └── [7 more dirs]     # dashboard/, settings/, stats/, initiatives/, etc.
 ├── stores/               # Zustand stores (10 stores — see State Management)
 ├── hooks/                # Custom hooks (useShortcuts, useEvents, useDocumentTitle, etc.)
 ├── pages/                # Route pages
@@ -139,6 +140,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `LeftPalette` | `workflow-editor/panels/` | Left panel container: WorkflowSettingsPanel → AgentsPalette → PhaseTemplatePalette. Pointer events managed for React Flow compatibility |
 | `AgentsPalette` | `workflow-editor/panels/` | Collapsible agent browser: built-in/custom groups, click to view details or assign to selected phase, keyboard accessible |
 | `WorkflowSettingsPanel` | `workflow-editor/panels/` | Workflow-level settings: name, description, default model/thinking/max iterations, completion action/target branch. Read-only with "Built-in" badge for builtin workflows |
+| `WorkflowSettingsModal` | `workflow/` | Modal wrapper for workflow settings (Identity, Defaults, Completion sections). Used from WorkflowsPage via `orc:workflow-settings` event. Auto-saves on blur, validation, read-only for built-ins |
 | `PhaseTemplatePalette` | `workflow-editor/panels/` | Draggable phase templates for adding to canvas (section within LeftPalette) |
 | `VariableModal` | `workflow-editor/` | Create/edit workflow variables with source-specific forms |
 | `VariableReferencePanel` | `workflow-editor/` | Shows available `{{VAR}}` patterns grouped by category |

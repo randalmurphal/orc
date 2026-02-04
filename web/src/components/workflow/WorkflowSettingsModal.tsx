@@ -1,40 +1,69 @@
+/**
+ * WorkflowSettingsModal - Modal for editing workflow settings
+ *
+ * Displays the same form as WorkflowSettingsPanel but in a modal overlay.
+ * Used when editing workflow settings from places other than the workflow editor.
+ *
+ * Features:
+ * - Three sections: Identity, Defaults, Completion
+ * - Auto-saves on field blur
+ * - Validation for required fields
+ * - Read-only mode for built-in workflows
+ */
+
 import { useState, useEffect } from 'react';
 import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 import { workflowClient } from '@/lib/client';
-import './WorkflowSettingsPanel.css';
+import { Modal } from '@/components/overlays/Modal';
+import './WorkflowSettingsModal.css';
 
-interface WorkflowSettingsPanelProps {
-	workflow: Workflow;
+interface WorkflowSettingsModalProps {
+	open: boolean;
+	workflow: Workflow | null;
+	onClose: () => void;
 	onWorkflowUpdate: (workflow: Workflow) => void;
 }
 
-export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSettingsPanelProps) {
+export function WorkflowSettingsModal({
+	open,
+	workflow,
+	onClose,
+	onWorkflowUpdate,
+}: WorkflowSettingsModalProps) {
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [validationError, setValidationError] = useState<string | null>(null);
 
 	// Local form state for controlled inputs
 	const [formData, setFormData] = useState({
-		name: workflow.name || '',
-		description: workflow.description || '',
-		defaultModel: workflow.defaultModel || '',
-		defaultThinking: workflow.defaultThinking || false,
-		completionAction: workflow.completionAction || '',
-		targetBranch: workflow.targetBranch || '',
+		name: '',
+		description: '',
+		defaultModel: '',
+		defaultThinking: false,
+		completionAction: '',
+		targetBranch: '',
 	});
 
 	// Sync form data when workflow changes
 	useEffect(() => {
-		setFormData({
-			name: workflow.name || '',
-			description: workflow.description || '',
-			defaultModel: workflow.defaultModel || '',
-			defaultThinking: workflow.defaultThinking || false,
-			completionAction: workflow.completionAction || '',
-			targetBranch: workflow.targetBranch || '',
-		});
-		setValidationError(null);
+		if (workflow) {
+			setFormData({
+				name: workflow.name || '',
+				description: workflow.description || '',
+				defaultModel: workflow.defaultModel || '',
+				defaultThinking: workflow.defaultThinking || false,
+				completionAction: workflow.completionAction || '',
+				targetBranch: workflow.targetBranch || '',
+			});
+			setError(null);
+			setValidationError(null);
+		}
 	}, [workflow]);
+
+	// Don't render if not open or no workflow
+	if (!open || !workflow) {
+		return null;
+	}
 
 	const handleUpdate = async (updates: Record<string, unknown>) => {
 		if (workflow.isBuiltin) return;
@@ -60,12 +89,8 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 		}
 	};
 
-	const handleFieldInputChange = (field: string, value: string | boolean) => {
+	const handleFieldChange = (field: string, value: string | boolean) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
-		// Clear validation error on any input change
-		if (validationError) {
-			setValidationError(null);
-		}
 	};
 
 	const handleFieldBlur = (field: string, value: string | boolean) => {
@@ -74,11 +99,7 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 			setValidationError('Name is required');
 			return;
 		}
-		handleUpdate({ [field]: value });
-	};
-
-	const handleSelectChange = (field: string, value: string) => {
-		setFormData((prev) => ({ ...prev, [field]: value }));
+		setValidationError(null);
 		handleUpdate({ [field]: value });
 	};
 
@@ -87,57 +108,52 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 		handleUpdate({ [field]: checked });
 	};
 
+	const handleSelectChange = (field: string, value: string) => {
+		setFormData((prev) => ({ ...prev, [field]: value }));
+		handleUpdate({ [field]: value });
+	};
+
 	const isDisabled = workflow.isBuiltin || isLoading;
 	const showTargetBranch = formData.completionAction !== 'none';
 
 	return (
-		<div className="workflow-settings-panel" data-testid="workflow-settings-panel">
-			<div className="workflow-settings-section">
-				<div className="workflow-settings-header">
-					<h3>Workflow Settings</h3>
-					{workflow.isBuiltin && (
-						<span className="builtin-badge">Built-in</span>
-					)}
-				</div>
-
+		<Modal open={open} onClose={onClose} title="Workflow Settings" size="md">
+			<div className="workflow-settings-modal">
 				{workflow.isBuiltin && (
-					<div className="readonly-message">
-						Clone to customize
-					</div>
+					<div className="clone-message">Clone to customize</div>
 				)}
 
-				{error && (
-					<div className="error-message">
-						{error}
-					</div>
+				{error && <div className="error-message">{error}</div>}
+
+				{validationError && (
+					<div className="validation-error">{validationError}</div>
 				)}
 
 				<div className="settings-form">
 					{/* Identity Section */}
 					<div className="form-section">
-						<h4>Identity</h4>
+						<h3>Identity</h3>
 
 						<div className="form-field">
-							<label htmlFor="workflow-name">Name</label>
+							<label htmlFor="modal-workflow-name">Name</label>
 							<input
-								id="workflow-name"
+								id="modal-workflow-name"
 								type="text"
 								value={formData.name}
-								onChange={(e) => handleFieldInputChange('name', e.target.value)}
+								onChange={(e) => handleFieldChange('name', e.target.value)}
 								onBlur={(e) => handleFieldBlur('name', e.target.value)}
 								disabled={isDisabled}
 							/>
-							{validationError && (
-								<span className="field-error">{validationError}</span>
-							)}
 						</div>
 
 						<div className="form-field">
-							<label htmlFor="workflow-description">Description</label>
+							<label htmlFor="modal-workflow-description">Description</label>
 							<textarea
-								id="workflow-description"
+								id="modal-workflow-description"
 								value={formData.description}
-								onChange={(e) => handleFieldInputChange('description', e.target.value)}
+								onChange={(e) =>
+									handleFieldChange('description', e.target.value)
+								}
 								onBlur={(e) => handleFieldBlur('description', e.target.value)}
 								disabled={isDisabled}
 								rows={3}
@@ -147,14 +163,16 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 
 					{/* Defaults Section */}
 					<div className="form-section">
-						<h4>Defaults</h4>
+						<h3>Defaults</h3>
 
 						<div className="form-field">
-							<label htmlFor="default-model">Default Model</label>
+							<label htmlFor="modal-default-model">Default Model</label>
 							<select
-								id="default-model"
+								id="modal-default-model"
 								value={formData.defaultModel}
-								onChange={(e) => handleSelectChange('defaultModel', e.target.value)}
+								onChange={(e) =>
+									handleSelectChange('defaultModel', e.target.value)
+								}
 								disabled={isDisabled}
 							>
 								<option value="">Select a model...</option>
@@ -167,27 +185,33 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 						<div className="form-field">
 							<div className="checkbox-field">
 								<input
-									id="default-thinking"
+									id="modal-default-thinking"
 									type="checkbox"
 									checked={formData.defaultThinking}
-									onChange={(e) => handleCheckboxChange('defaultThinking', e.target.checked)}
+									onChange={(e) =>
+										handleCheckboxChange('defaultThinking', e.target.checked)
+									}
 									disabled={isDisabled}
 								/>
-								<label htmlFor="default-thinking">Enable Thinking by Default</label>
+								<label htmlFor="modal-default-thinking">
+									Enable Thinking by Default
+								</label>
 							</div>
 						</div>
 					</div>
 
 					{/* Completion Section */}
 					<div className="form-section">
-						<h4>Completion</h4>
+						<h3>Completion</h3>
 
 						<div className="form-field">
-							<label htmlFor="completion-action">On Complete</label>
+							<label htmlFor="modal-completion-action">On Complete</label>
 							<select
-								id="completion-action"
+								id="modal-completion-action"
 								value={formData.completionAction}
-								onChange={(e) => handleSelectChange('completionAction', e.target.value)}
+								onChange={(e) =>
+									handleSelectChange('completionAction', e.target.value)
+								}
 								disabled={isDisabled}
 							>
 								<option value="">Inherit from config</option>
@@ -199,13 +223,17 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 
 						{showTargetBranch && (
 							<div className="form-field">
-								<label htmlFor="target-branch">Target Branch</label>
+								<label htmlFor="modal-target-branch">Target Branch</label>
 								<input
-									id="target-branch"
+									id="modal-target-branch"
 									type="text"
 									value={formData.targetBranch}
-									onChange={(e) => handleFieldInputChange('targetBranch', e.target.value)}
-									onBlur={(e) => handleFieldBlur('targetBranch', e.target.value)}
+									onChange={(e) =>
+										handleFieldChange('targetBranch', e.target.value)
+									}
+									onBlur={(e) =>
+										handleFieldBlur('targetBranch', e.target.value)
+									}
 									disabled={isDisabled}
 									placeholder="main"
 								/>
@@ -214,6 +242,6 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 					</div>
 				</div>
 			</div>
-		</div>
+		</Modal>
 	);
 }

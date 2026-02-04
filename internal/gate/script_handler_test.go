@@ -299,7 +299,7 @@ func setupOrcScriptDir(t *testing.T, projectDir string) {
 }
 
 // writeScript writes a script file with executable permissions and returns
-// its absolute path.
+// its absolute path. It syncs the file to avoid "text file busy" errors.
 func writeScript(t *testing.T, projectDir, relPath, content string) string {
 	t.Helper()
 	absPath := filepath.Join(projectDir, relPath)
@@ -307,8 +307,22 @@ func writeScript(t *testing.T, projectDir, relPath, content string) string {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("create dir %s: %v", dir, err)
 	}
-	if err := os.WriteFile(absPath, []byte(content), 0o755); err != nil {
+	f, err := os.OpenFile(absPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o755)
+	if err != nil {
+		t.Fatalf("create script %s: %v", absPath, err)
+	}
+	if _, err := f.WriteString(content); err != nil {
+		_ = f.Close()
 		t.Fatalf("write script %s: %v", absPath, err)
 	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		t.Fatalf("sync script %s: %v", absPath, err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("close script %s: %v", absPath, err)
+	}
+	// Small delay to ensure the file is fully flushed to disk
+	time.Sleep(10 * time.Millisecond)
 	return absPath
 }
