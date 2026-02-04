@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Edge } from '@xyflow/react';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
@@ -102,7 +102,7 @@ describe('TASK-774: GateInspector Component', () => {
 			// Check all options are present
 			expect(screen.getByRole('option', { name: /auto/i })).toBeInTheDocument();
 			expect(screen.getByRole('option', { name: /human/i })).toBeInTheDocument();
-			expect(screen.getByRole('option', { name: /ai/i })).toBeInTheDocument();
+			expect(screen.getByRole('option', { name: /^ai$/i })).toBeInTheDocument();
 			expect(screen.getByRole('option', { name: /skip/i })).toBeInTheDocument();
 		});
 

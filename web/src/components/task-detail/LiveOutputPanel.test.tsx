@@ -21,10 +21,10 @@ import type { TranscriptLine } from '@/hooks/useEvents';
 
 // Mock the useTaskSubscription hook
 const mockTranscript: TranscriptLine[] = [];
-const mockUseTaskSubscription = vi.fn(() => ({ transcript: mockTranscript }));
+const mockUseTaskSubscription = vi.fn((_taskId?: string) => ({ transcript: mockTranscript }));
 
 vi.mock('@/hooks/useEvents', () => ({
-	useTaskSubscription: (...args: unknown[]) => mockUseTaskSubscription(...args),
+	useTaskSubscription: (taskId: string) => mockUseTaskSubscription(taskId),
 }));
 
 // Import after mocks are set up
@@ -314,7 +314,8 @@ describe('TASK-774: LiveOutputPanel Component', () => {
 			render(<LiveOutputPanel {...defaultProps} isStreaming={true} />);
 
 			expect(screen.getByLabelText(/streaming indicator/i)).toBeInTheDocument();
-			expect(screen.getByText(/streaming/i)).toBeInTheDocument();
+			// Check for the header "Streaming" text (exact match to avoid matching "Live streaming..." in footer)
+			expect(screen.getByText(/^Streaming$/)).toBeInTheDocument();
 		});
 
 		it('displays streaming status in footer when streaming with messages', async () => {

@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { create } from '@bufbuild/protobuf';
 import {
@@ -26,7 +26,7 @@ import {
 	createMockWorkflowWithDetails,
 	createMockWorkflow,
 } from '@/test/factories';
-import type { WorkflowPhase, WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
+import type { WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
 import { AgentSchema, type Agent } from '@/gen/orc/v1/config_pb';
 
 // Mock clients used by PhaseInspector
@@ -507,6 +507,7 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 		});
 
 		it('disables inputs when readOnly is true', async () => {
+			vi.useRealTimers(); // Need real timers for async agent loading
 			const phase = createMockWorkflowPhase({
 				template: createMockPhaseTemplate({ name: 'implement', isBuiltin: true }),
 			});
@@ -770,6 +771,7 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 		});
 
 		it('handles no available agents gracefully', async () => {
+			vi.useRealTimers(); // Need real timers for async agent loading
 			mockListAgents.mockResolvedValue({ agents: [] });
 
 			const phase = createMockWorkflowPhase({

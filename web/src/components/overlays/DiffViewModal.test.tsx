@@ -18,8 +18,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { create } from '@bufbuild/protobuf';
-import { DiffResultSchema, FileDiffSchema, DiffStatsSchema } from '@/gen/orc/v1/common_pb';
-import type { DiffResult, FileDiff, DiffStats } from '@/gen/orc/v1/common_pb';
+import { DiffResultSchema, FileDiffSchema, DiffStatsSchema, DiffHunkSchema } from '@/gen/orc/v1/common_pb';
+import type { DiffResult, FileDiff, DiffStats, DiffHunk } from '@/gen/orc/v1/common_pb';
 
 // Mock the task client
 const mockGetDiff = vi.fn();
@@ -35,19 +35,31 @@ vi.mock('@/lib/client', () => ({
 // Import after mocks are set up
 import { DiffViewModal } from './DiffViewModal';
 
+/** Create a mock DiffHunk */
+function createMockDiffHunk(overrides: Partial<DiffHunk> = {}): DiffHunk {
+	const base = create(DiffHunkSchema, {
+		oldStart: 1,
+		oldLines: 5,
+		newStart: 1,
+		newLines: 8,
+		lines: [],
+	});
+	return Object.assign(base, overrides);
+}
+
 /** Create a mock DiffStats */
 function createMockDiffStats(overrides: Partial<DiffStats> = {}): DiffStats {
-	return create(DiffStatsSchema, {
+	const base = create(DiffStatsSchema, {
 		filesChanged: 3,
 		additions: 100,
 		deletions: 50,
-		...overrides,
 	});
+	return Object.assign(base, overrides);
 }
 
 /** Create a mock FileDiff */
 function createMockFileDiff(overrides: Partial<FileDiff> = {}): FileDiff {
-	return create(FileDiffSchema, {
+	const base = create(FileDiffSchema, {
 		path: 'src/components/Button.tsx',
 		status: 'modified',
 		additions: 20,
@@ -55,21 +67,21 @@ function createMockFileDiff(overrides: Partial<FileDiff> = {}): FileDiff {
 		binary: false,
 		syntax: 'typescript',
 		hunks: [],
-		...overrides,
 	});
+	return Object.assign(base, overrides);
 }
 
 /** Create a mock DiffResult */
 function createMockDiffResult(overrides: Partial<DiffResult> = {}): DiffResult {
-	return create(DiffResultSchema, {
+	const base = create(DiffResultSchema, {
 		stats: createMockDiffStats(),
 		files: [
 			createMockFileDiff({ path: 'src/components/Button.tsx', status: 'modified' }),
 			createMockFileDiff({ path: 'src/utils/helpers.ts', status: 'added', additions: 50, deletions: 0 }),
 			createMockFileDiff({ path: 'tests/old.test.ts', status: 'deleted', additions: 0, deletions: 30 }),
 		],
-		...overrides,
 	});
+	return Object.assign(base, overrides);
 }
 
 describe('TASK-774: DiffViewModal Component', () => {
@@ -85,7 +97,7 @@ describe('TASK-774: DiffViewModal Component', () => {
 		mockGetDiff.mockResolvedValue({ diff: createMockDiffResult() });
 		mockGetFileDiff.mockResolvedValue({
 			file: createMockFileDiff({
-				hunks: [{ oldStart: 1, oldLines: 5, newStart: 1, newLines: 8, lines: [] }],
+				hunks: [createMockDiffHunk()],
 			}),
 		});
 	});
@@ -336,7 +348,7 @@ describe('TASK-774: DiffViewModal Component', () => {
 							() =>
 								resolve({
 									file: createMockFileDiff({
-										hunks: [{ oldStart: 1, oldLines: 5, newStart: 1, newLines: 8, lines: [] }],
+										hunks: [createMockDiffHunk()],
 									}),
 								}),
 							100

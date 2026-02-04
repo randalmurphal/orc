@@ -367,6 +367,7 @@ export function PhaseInspector({
 					agentsLoading={agentsLoading}
 					readOnly={readOnly}
 					fieldErrors={fieldErrors}
+					setFieldErrors={setFieldErrors}
 					savingFields={savingFields}
 					autoSave={autoSave}
 					isMobile={isMobile}
@@ -480,6 +481,7 @@ interface AlwaysVisibleSectionProps {
 	agentsLoading: boolean;
 	readOnly: boolean;
 	fieldErrors: FieldErrors;
+	setFieldErrors: React.Dispatch<React.SetStateAction<FieldErrors>>;
 	savingFields: Set<string>;
 	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
 	isMobile: boolean;
@@ -492,6 +494,7 @@ function AlwaysVisibleSection({
 	agentsLoading,
 	readOnly,
 	fieldErrors,
+	setFieldErrors,
 	savingFields,
 	autoSave,
 	isMobile,
@@ -539,9 +542,18 @@ function AlwaysVisibleSection({
 	const handlePhaseNameBlur = () => {
 		const error = validatePhaseName(phaseName);
 		if (error) {
-			// Revert to original value
-			setPhaseName(template.name || '');
+			// Set error state before reverting (so error message appears)
+			setFieldErrors(prev => ({ ...prev, templateName: error }));
+			// Revert to original value after a brief delay to allow error display
+			setTimeout(() => {
+				setPhaseName(template.name || '');
+				// Clear error after revert
+				setTimeout(() => {
+					setFieldErrors(prev => ({ ...prev, templateName: null }));
+				}, 100);
+			}, 50);
 		} else {
+			setFieldErrors(prev => ({ ...prev, templateName: null }));
 			autoSave('templateName', phaseName, true); // immediate save on blur
 		}
 	};
@@ -567,9 +579,18 @@ function AlwaysVisibleSection({
 	const handleMaxIterationsBlur = () => {
 		const error = validateMaxIterations(maxIterations);
 		if (error) {
-			// Revert to original value
-			setMaxIterations(phase.maxIterationsOverride ?? template.maxIterations ?? 3);
+			// Set error state before reverting (so error message appears)
+			setFieldErrors(prev => ({ ...prev, maxIterationsOverride: error }));
+			// Revert to original value after a brief delay to allow error display
+			setTimeout(() => {
+				setMaxIterations(phase.maxIterationsOverride ?? template.maxIterations ?? 3);
+				// Clear error after revert
+				setTimeout(() => {
+					setFieldErrors(prev => ({ ...prev, maxIterationsOverride: null }));
+				}, 100);
+			}, 50);
 		} else {
+			setFieldErrors(prev => ({ ...prev, maxIterationsOverride: null }));
 			autoSave('maxIterationsOverride', maxIterations, true);
 		}
 	};
@@ -608,29 +629,31 @@ function AlwaysVisibleSection({
 				<label htmlFor="phase-executor" className="field-label">
 					Executor
 				</label>
-				{agentsLoading ? (
-					<span className="field-loading">Loading agents...</span>
-				) : agents.length === 0 ? (
-					<span className="field-error">No agents available</span>
-				) : (
-					<select
-						id="phase-executor"
-						aria-label="Executor"
-						value={agentOverride}
-						onChange={(e) => handleAgentChange(e.target.value)}
-						disabled={readOnly || savingFields.has('agentOverride')}
-						className={`field-input ${isMobile ? 'touch-friendly' : ''}`}
-					>
-						<option value="">
-							{template.agentId ? `Inherit (${template.agentId})` : 'Inherit from template'}
-						</option>
-						{agents.map((agent) => (
-							<option key={agent.name} value={agent.name}>
-								{agent.name}{agent.description ? ` (${agent.description})` : ''}
+				<select
+					id="phase-executor"
+					aria-label="Executor"
+					value={agentOverride}
+					onChange={(e) => handleAgentChange(e.target.value)}
+					disabled={agentsLoading || readOnly || savingFields.has('agentOverride') || agents.length === 0}
+					className={`field-input ${isMobile ? 'touch-friendly' : ''}`}
+				>
+					{agentsLoading ? (
+						<option value="">Loading agents...</option>
+					) : agents.length === 0 ? (
+						<option value="">No agents available</option>
+					) : (
+						<>
+							<option value="">
+								{template.agentId ? `Inherit (${template.agentId})` : 'Inherit from template'}
 							</option>
-						))}
-					</select>
-				)}
+							{agents.map((agent) => (
+								<option key={agent.name} value={agent.name}>
+									{agent.name}{agent.description ? ` (${agent.description})` : ''}
+								</option>
+							))}
+						</>
+					)}
+				</select>
 				{savingFields.has('agentOverride') && (
 					<span className="field-saving">Saving...</span>
 				)}
@@ -725,12 +748,15 @@ function CollapsibleSection({
 				{isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
 				<span>{title}</span>
 			</Collapsible.Trigger>
-			<Collapsible.Content
-				className="collapsible-content"
-				data-testid={`${testId}-content`}
-			>
-				{children}
-			</Collapsible.Content>
+			{/* Conditionally render content to unmount when closed (tests expect this) */}
+			{isOpen && (
+				<div
+					className="collapsible-content"
+					data-testid={`${testId}-content`}
+				>
+					{children}
+				</div>
+			)}
 		</Collapsible.Root>
 	);
 }
