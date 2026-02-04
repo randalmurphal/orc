@@ -100,6 +100,21 @@
 	color: var(--red);
 }
 
+/* Clickable phase */
+.workflow-progress__phase--clickable {
+	cursor: pointer;
+}
+
+.workflow-progress__phase--clickable:hover {
+	border-color: var(--border-hover);
+	background: var(--bg-hover);
+}
+
+.workflow-progress__phase--clickable:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: 2px;
+}
+
 /* Gate diamond */
 .workflow-progress__gate {
 	display: flex;

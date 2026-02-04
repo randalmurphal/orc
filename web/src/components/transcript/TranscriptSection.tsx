@@ -184,6 +184,7 @@ export function TranscriptSection({
 			data-testid={testId}
 			data-type={type}
 			data-expanded={isExpanded}
+			data-phase={type === 'phase' ? title : undefined}
 		>
 			<button
 				type="button"

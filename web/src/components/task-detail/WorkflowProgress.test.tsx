@@ -10,8 +10,8 @@
  * - SC-3: Gate symbols show correct status colors
  */
 
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { WorkflowProgress } from './WorkflowProgress';
 import { TaskStatus, PhaseStatus } from '@/gen/orc/v1/task_pb';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
@@ -422,6 +422,194 @@ describe('WorkflowProgress', () => {
 			// All phases should show as completed
 			const completedPhases = container.querySelectorAll('.workflow-progress__phase--completed');
 			expect(completedPhases.length).toBe(2);
+		});
+	});
+});
+
+/**
+ * TASK-740: Phase click interaction tests
+ *
+ * These tests verify the click-to-navigate functionality for workflow phases.
+ * Clicking a phase should call onPhaseClick callback with the phase name.
+ */
+describe('Phase Click Interaction (TASK-740)', () => {
+	describe('SC-1: WorkflowProgress calls onPhaseClick when phase is clicked', () => {
+		it('calls onPhaseClick with phase name when phase node is clicked', () => {
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+					createMockPhase({ id: 'phase-2', name: 'implement', status: PhaseStatus.PENDING }),
+					createMockPhase({ id: 'phase-3', name: 'review', status: PhaseStatus.PENDING }),
+				],
+			});
+			const task = createMockTask({
+				status: TaskStatus.RUNNING,
+				currentPhase: 'implement',
+			});
+			const onPhaseClick = vi.fn();
+
+			render(<WorkflowProgress task={task} plan={plan} onPhaseClick={onPhaseClick} />);
+
+			// Click on the 'spec' phase
+			const specPhase = screen.getByText('spec').closest('.workflow-progress__phase');
+			expect(specPhase).toBeInTheDocument();
+			fireEvent.click(specPhase!);
+
+			expect(onPhaseClick).toHaveBeenCalledTimes(1);
+			expect(onPhaseClick).toHaveBeenCalledWith('spec');
+		});
+
+		it('calls onPhaseClick with correct phase name for each phase', () => {
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+					createMockPhase({ id: 'phase-2', name: 'implement', status: PhaseStatus.PENDING }),
+				],
+			});
+			const task = createMockTask({
+				status: TaskStatus.RUNNING,
+				currentPhase: 'implement',
+			});
+			const onPhaseClick = vi.fn();
+
+			render(<WorkflowProgress task={task} plan={plan} onPhaseClick={onPhaseClick} />);
+
+			// Click on 'implement' phase
+			const implPhase = screen.getByText('implement').closest('.workflow-progress__phase');
+			fireEvent.click(implPhase!);
+
+			expect(onPhaseClick).toHaveBeenCalledWith('implement');
+		});
+
+		it('does not throw when onPhaseClick is not provided', () => {
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+				],
+			});
+			const task = createMockTask({
+				status: TaskStatus.RUNNING,
+				currentPhase: 'spec',
+			});
+
+			render(<WorkflowProgress task={task} plan={plan} />);
+
+			// Click should not throw
+			const specPhase = screen.getByText('spec').closest('.workflow-progress__phase');
+			expect(() => fireEvent.click(specPhase!)).not.toThrow();
+		});
+	});
+
+	describe('SC-2: Phase nodes display cursor:pointer when clickable', () => {
+		it('adds clickable class when onPhaseClick is provided', () => {
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+				],
+			});
+			const task = createMockTask({
+				status: TaskStatus.COMPLETED,
+			});
+			const onPhaseClick = vi.fn();
+
+			const { container } = render(
+				<WorkflowProgress task={task} plan={plan} onPhaseClick={onPhaseClick} />
+			);
+
+			// Phase should have clickable class
+			const phase = container.querySelector('.workflow-progress__phase--clickable');
+			expect(phase).toBeInTheDocument();
+		});
+
+		it('does not add clickable class when onPhaseClick is not provided', () => {
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+				],
+			});
+			const task = createMockTask({
+				status: TaskStatus.COMPLETED,
+			});
+
+			const { container } = render(<WorkflowProgress task={task} plan={plan} />);
+
+			// Phase should NOT have clickable class
+			const phase = container.querySelector('.workflow-progress__phase--clickable');
+			expect(phase).not.toBeInTheDocument();
+		});
+	});
+
+	describe('SC-3: Keyboard accessibility', () => {
+		it('triggers onPhaseClick when Enter key is pressed on phase', () => {
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+				],
+			});
+			const task = createMockTask({
+				status: TaskStatus.COMPLETED,
+			});
+			const onPhaseClick = vi.fn();
+
+			render(<WorkflowProgress task={task} plan={plan} onPhaseClick={onPhaseClick} />);
+
+			const specPhase = screen.getByText('spec').closest('.workflow-progress__phase');
+			fireEvent.keyDown(specPhase!, { key: 'Enter' });
+
+			expect(onPhaseClick).toHaveBeenCalledWith('spec');
+		});
+
+		it('triggers onPhaseClick when Space key is pressed on phase', () => {
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+				],
+			});
+			const task = createMockTask({
+				status: TaskStatus.COMPLETED,
+			});
+			const onPhaseClick = vi.fn();
+
+			render(<WorkflowProgress task={task} plan={plan} onPhaseClick={onPhaseClick} />);
+
+			const specPhase = screen.getByText('spec').closest('.workflow-progress__phase');
+			fireEvent.keyDown(specPhase!, { key: ' ' });
+
+			expect(onPhaseClick).toHaveBeenCalledWith('spec');
+		});
+
+		it('phase has tabIndex when clickable', () => {
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+				],
+			});
+			const task = createMockTask({
+				status: TaskStatus.COMPLETED,
+			});
+			const onPhaseClick = vi.fn();
+
+			render(<WorkflowProgress task={task} plan={plan} onPhaseClick={onPhaseClick} />);
+
+			const specPhase = screen.getByText('spec').closest('.workflow-progress__phase');
+			expect(specPhase).toHaveAttribute('tabIndex', '0');
+		});
+
+		it('phase has role="button" when clickable', () => {
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+				],
+			});
+			const task = createMockTask({
+				status: TaskStatus.COMPLETED,
+			});
+			const onPhaseClick = vi.fn();
+
+			render(<WorkflowProgress task={task} plan={plan} onPhaseClick={onPhaseClick} />);
+
+			const specPhase = screen.getByText('spec').closest('.workflow-progress__phase');
+			expect(specPhase).toHaveAttribute('role', 'button');
 		});
 	});
 });
