@@ -1,0 +1,302 @@
+/* WorkflowCreationWizard styles */
+
+.wizard-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+}
+
+/* Step indicator */
+.wizard-step-indicator {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+}
+
+.wizard-step {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.wizard-step-number {
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	background: var(--bg-tertiary);
+	color: var(--text-muted);
+	border: 2px solid var(--border);
+	transition: all 0.15s ease;
+}
+
+.wizard-step.active .wizard-step-number {
+	background: var(--primary);
+	color: var(--text-on-primary);
+	border-color: var(--primary);
+}
+
+.wizard-step.completed .wizard-step-number {
+	background: var(--status-success);
+	color: white;
+	border-color: var(--status-success);
+}
+
+.wizard-step-connector {
+	width: 24px;
+	height: 2px;
+	background: var(--border);
+}
+
+.wizard-step.completed + .wizard-step-connector,
+.wizard-step.active + .wizard-step-connector {
+	background: var(--primary);
+}
+
+/* Step header */
+.wizard-step-header {
+	text-align: center;
+}
+
+.wizard-step-title {
+	font-size: var(--text-lg);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0 0 var(--space-1);
+}
+
+.wizard-step-label {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+}
+
+/* Intent selection */
+.wizard-intent-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+	gap: var(--space-3);
+}
+
+.wizard-intent-button {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-4) var(--space-3);
+	background: var(--bg-surface);
+	border: 2px solid var(--border);
+	border-radius: var(--radius-lg);
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.wizard-intent-button:hover {
+	background: var(--bg-tertiary);
+	border-color: var(--border-light);
+}
+
+.wizard-intent-button.selected {
+	background: var(--primary-subtle);
+	border-color: var(--primary);
+}
+
+.wizard-intent-button .intent-icon {
+	font-size: 24px;
+}
+
+.wizard-intent-button .intent-label {
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+}
+
+/* Form (Step 2) */
+.wizard-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+/* Phase selection (Step 3) */
+.wizard-phases {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+.wizard-phases-recommended {
+	margin-bottom: var(--space-2);
+}
+
+.wizard-phases-recommended-label {
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	color: var(--text-secondary);
+	margin-bottom: var(--space-2);
+}
+
+.wizard-phase-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.wizard-phase-item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-2) var(--space-3);
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.wizard-phase-item:hover {
+	background: var(--bg-tertiary);
+}
+
+.wizard-phase-item.recommended {
+	border-color: var(--primary);
+	background: var(--primary-subtle);
+}
+
+.wizard-phase-checkbox {
+	flex-shrink: 0;
+}
+
+.wizard-phase-checkbox input[type="checkbox"] {
+	width: 18px;
+	height: 18px;
+	accent-color: var(--primary);
+	cursor: pointer;
+}
+
+.wizard-phase-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.wizard-phase-name {
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+}
+
+.wizard-phase-description {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+}
+
+/* Actions */
+.wizard-actions {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding-top: var(--space-4);
+	border-top: 1px solid var(--border);
+}
+
+.wizard-actions-left {
+	display: flex;
+	gap: var(--space-2);
+}
+
+.wizard-actions-right {
+	display: flex;
+	gap: var(--space-2);
+}
+
+/* Error message */
+.wizard-error {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	background: var(--status-error-subtle);
+	border: 1px solid var(--status-error);
+	border-radius: var(--radius-md);
+	color: var(--status-error);
+	font-size: var(--text-sm);
+}
+
+/* Reuse form styles from CreateWorkflowModal */
+.wizard-form .form-group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.wizard-form .form-label {
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+}
+
+.wizard-form .form-required {
+	color: var(--status-error);
+}
+
+.wizard-form .form-input,
+.wizard-form .form-textarea,
+.wizard-form .form-select {
+	padding: var(--space-2) var(--space-3);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	font-family: inherit;
+	transition: border-color 0.15s ease;
+}
+
+.wizard-form .form-input:focus,
+.wizard-form .form-textarea:focus,
+.wizard-form .form-select:focus {
+	outline: none;
+	border-color: var(--primary);
+}
+
+.wizard-form .form-input::placeholder,
+.wizard-form .form-textarea::placeholder {
+	color: var(--text-muted);
+}
+
+.wizard-form .form-help {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+}
+
+/* Optional section */
+.wizard-optional-section {
+	margin-top: var(--space-2);
+}
+
+.wizard-optional-trigger {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	cursor: pointer;
+	background: none;
+	border: none;
+	padding: 0;
+}
+
+.wizard-optional-trigger:hover {
+	color: var(--text-secondary);
+}
+
+.wizard-optional-content {
+	margin-top: var(--space-3);
+	padding: var(--space-3);
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-md);
+}
