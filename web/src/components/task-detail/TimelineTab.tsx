@@ -4,7 +4,7 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { getInitiativeBadgeTitle } from '@/stores';
 import type { Task, TaskPlan, ExecutionState } from '@/gen/orc/v1/task_pb';
-import { PhaseStatus, TaskCategory, TaskPriority, TaskWeight, TaskStatus, TaskQueue } from '@/gen/orc/v1/task_pb';
+import { PhaseStatus, TaskCategory, TaskPriority, TaskStatus, TaskQueue } from '@/gen/orc/v1/task_pb';
 import type { TokenUsage } from '@/gen/orc/v1/common_pb';
 import { timestampToDate } from '@/lib/time';
 import './TimelineTab.css';
@@ -27,15 +27,6 @@ const PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: string }> = 
 	[TaskPriority.NORMAL]: { label: 'Normal', color: 'var(--text-muted)' },
 	[TaskPriority.LOW]: { label: 'Low', color: 'var(--text-muted)' },
 	[TaskPriority.UNSPECIFIED]: { label: 'Normal', color: 'var(--text-muted)' },
-};
-
-// Weight labels for display
-const WEIGHT_LABELS: Record<TaskWeight, string> = {
-	[TaskWeight.TRIVIAL]: 'trivial',
-	[TaskWeight.SMALL]: 'small',
-	[TaskWeight.MEDIUM]: 'medium',
-	[TaskWeight.LARGE]: 'large',
-	[TaskWeight.UNSPECIFIED]: '',
 };
 
 interface TimelineTabProps {
@@ -347,7 +338,6 @@ function TaskInfoList({ task, taskState }: TaskInfoListProps) {
 
 	const statusLabel = STATUS_LABELS[task.status];
 	const queueLabel = QUEUE_LABELS[task.queue || TaskQueue.ACTIVE];
-	const weightLabel = WEIGHT_LABELS[task.weight];
 	const priorityKey = getPriorityKey(priority);
 
 	return (
@@ -356,10 +346,6 @@ function TaskInfoList({ task, taskState }: TaskInfoListProps) {
 			<div className="info-item">
 				<dt>Status</dt>
 				<dd className={`status-${statusLabel}`}>{statusLabel}</dd>
-			</div>
-			<div className="info-item">
-				<dt>Weight</dt>
-				<dd className="weight-value">{weightLabel}</dd>
 			</div>
 			<div className="info-item">
 				<dt>Queue</dt>

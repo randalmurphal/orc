@@ -15,7 +15,6 @@ import { TaskEditModal } from './TaskEditModal';
 import {
 	type Task,
 	TaskStatus,
-	TaskWeight,
 	TaskCategory,
 	TaskPriority,
 	TaskQueue,
@@ -72,7 +71,6 @@ function createTaskWithWorkflow(workflowId?: string): Task {
 		id: 'TASK-001',
 		title: 'Test Task',
 		description: 'A test task',
-		weight: TaskWeight.MEDIUM,
 		status: TaskStatus.CREATED,
 		category: TaskCategory.FEATURE,
 		priority: TaskPriority.NORMAL,
