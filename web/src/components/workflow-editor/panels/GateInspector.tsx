@@ -4,6 +4,7 @@ import { GateType } from '@/gen/orc/v1/workflow_pb';
 import type { WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
 import type { GateEdgeData } from '../utils/layoutWorkflow';
 import { workflowClient } from '@/lib/client';
+import { toast } from '@/stores/uiStore';
 import './GateInspector.css';
 
 // Enhanced gate configuration data structure
@@ -157,9 +158,11 @@ export function GateInspector({
 		setLocalGateType(newGateType);
 		try {
 			await saveConfiguration({ gateType: newGateType });
-		} catch (_error) {
+		} catch (error) {
 			// Revert local state on API failure
 			setLocalGateType(null);
+			const message = error instanceof Error ? error.message : 'Failed to save gate type';
+			toast.error(message);
 		}
 	}, [saveConfiguration]);
 
@@ -175,9 +178,11 @@ export function GateInspector({
 		if (newMaxRetries > 0) {
 			try {
 				await saveConfiguration({ maxRetries: newMaxRetries });
-			} catch (_error) {
+			} catch (error) {
 				// Revert local state on API failure
 				setLocalMaxRetries(null);
+				const message = error instanceof Error ? error.message : 'Failed to save max retries';
+				toast.error(message);
 			}
 		}
 	}, [saveConfiguration]);
@@ -188,43 +193,70 @@ export function GateInspector({
 		setLocalFailureAction(newFailureAction);
 		try {
 			await saveConfiguration({ failureAction: newFailureAction });
-		} catch (_error) {
+		} catch (error) {
 			// Revert local state on API failure
 			setLocalFailureAction(null);
+			const message = error instanceof Error ? error.message : 'Failed to save failure action';
+			toast.error(message);
 		}
 	}, [saveConfiguration]);
 
 	const handleRetryFromChange = useCallback(async (event: React.ChangeEvent<HTMLSelectElement>) => {
 		const newRetryFromPhaseId = parseInt(event.target.value) || undefined;
-		await saveConfiguration({ retryFromPhaseId: newRetryFromPhaseId });
+		try {
+			await saveConfiguration({ retryFromPhaseId: newRetryFromPhaseId });
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to save retry phase';
+			toast.error(message);
+		}
 	}, [saveConfiguration]);
 
 	// Auto criteria handlers
-	const handleAutoCriteriaChange = useCallback((key: keyof NonNullable<GateConfigData['autoCriteria']>, value: boolean | string) => {
+	const handleAutoCriteriaChange = useCallback(async (key: keyof NonNullable<GateConfigData['autoCriteria']>, value: boolean | string) => {
 		const newAutoCriteria = { ...autoCriteria, [key]: value };
 		setLocalConfig(prev => ({ ...prev, autoCriteria: newAutoCriteria }));
-		saveConfiguration({ autoCriteria: newAutoCriteria });
+		try {
+			await saveConfiguration({ autoCriteria: newAutoCriteria });
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to save auto criteria';
+			toast.error(message);
+		}
 	}, [saveConfiguration, autoCriteria]);
 
 	// Human config handlers
-	const handleHumanConfigChange = useCallback((key: keyof NonNullable<GateConfigData['humanConfig']>, value: string) => {
+	const handleHumanConfigChange = useCallback(async (key: keyof NonNullable<GateConfigData['humanConfig']>, value: string) => {
 		const newHumanConfig = { ...humanConfig, [key]: value };
 		setLocalConfig(prev => ({ ...prev, humanConfig: newHumanConfig }));
-		saveConfiguration({ humanConfig: newHumanConfig });
+		try {
+			await saveConfiguration({ humanConfig: newHumanConfig });
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to save human config';
+			toast.error(message);
+		}
 	}, [saveConfiguration, humanConfig]);
 
 	// AI config handlers
-	const handleAIConfigChange = useCallback((key: keyof NonNullable<GateConfigData['aiConfig']>, value: string | string[]) => {
+	const handleAIConfigChange = useCallback(async (key: keyof NonNullable<GateConfigData['aiConfig']>, value: string | string[]) => {
 		const newAIConfig = { ...aiConfig, [key]: value };
 		setLocalConfig(prev => ({ ...prev, aiConfig: newAIConfig }));
-		saveConfiguration({ aiConfig: newAIConfig });
+		try {
+			await saveConfiguration({ aiConfig: newAIConfig });
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to save AI config';
+			toast.error(message);
+		}
 	}, [saveConfiguration, aiConfig]);
 
 	// Advanced config handlers
-	const handleAdvancedConfigChange = useCallback((key: keyof NonNullable<GateConfigData['advancedConfig']>, value: string) => {
+	const handleAdvancedConfigChange = useCallback(async (key: keyof NonNullable<GateConfigData['advancedConfig']>, value: string) => {
 		const newAdvancedConfig = { ...advancedConfig, [key]: value };
 		setLocalConfig(prev => ({ ...prev, advancedConfig: newAdvancedConfig }));
-		saveConfiguration({ advancedConfig: newAdvancedConfig });
+		try {
+			await saveConfiguration({ advancedConfig: newAdvancedConfig });
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to save advanced config';
+			toast.error(message);
+		}
 	}, [saveConfiguration, advancedConfig]);
 
 	// Return nothing if no edge is selected (after all hooks)
