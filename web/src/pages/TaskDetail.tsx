@@ -125,7 +125,7 @@ export function TaskDetail() {
 	// Handle phase click from WorkflowProgress - scroll to transcript section
 	const handlePhaseClick = useCallback((phaseName: string) => {
 		// Find the transcript section with matching data-phase attribute
-		const element = document.querySelector(`[data-phase="${phaseName}"]`);
+		const element = document.querySelector(`[data-phase="${CSS.escape(phaseName)}"]`);
 		if (element) {
 			element.scrollIntoView({ behavior: 'smooth', block: 'start' });
 		}
