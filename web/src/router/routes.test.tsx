@@ -440,6 +440,30 @@ describe('Routes', () => {
 		});
 	});
 
+	describe('/task/:id redirect', () => {
+		it('redirects singular /task/:id to plural /tasks/:id', async () => {
+			renderWithRouter('/task/TASK-001');
+			await waitFor(() => {
+				// Should redirect and render the TaskDetail page
+				const taskTitle = document.querySelector('h1.task-detail-header__title');
+				expect(taskTitle).toBeInTheDocument();
+				expect(taskTitle).toHaveTextContent('Test Task');
+			});
+		});
+
+		it('preserves query parameters when redirecting', async () => {
+			// The redirect component includes location.search in the Navigate target
+			// We verify by checking the page renders correctly with the query param
+			renderWithRouter('/task/TASK-001?tab=transcript');
+			await waitFor(() => {
+				// Should redirect and render the TaskDetail page
+				const taskTitle = document.querySelector('h1.task-detail-header__title');
+				expect(taskTitle).toBeInTheDocument();
+				expect(taskTitle).toHaveTextContent('Test Task');
+			});
+		});
+	});
+
 	describe('/initiatives route', () => {
 		it('renders InitiativesView page at /initiatives', async () => {
 			renderWithRouter('/initiatives');

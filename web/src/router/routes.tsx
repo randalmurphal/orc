@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useState, useCallback, lazy, Suspense } from 'react';
-import { RouteObject, Navigate, Outlet } from 'react-router-dom';
+import { RouteObject, Navigate, Outlet, useParams, useLocation } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PageLoader } from '@/components/ui/PageLoader';
@@ -78,6 +78,16 @@ const Preferences = lazy(() => import('@/pages/Preferences').then(m => ({ defaul
  */
 function LazyRoute({ children }: { children: React.ReactNode }) {
 	return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+}
+
+/**
+ * Redirect from singular /task/:id to plural /tasks/:id
+ * Preserves query parameters (e.g., ?tab=transcript)
+ */
+function TaskRedirect() {
+	const { id } = useParams<{ id: string }>();
+	const location = useLocation();
+	return <Navigate to={`/tasks/${id}${location.search}`} replace />;
 }
 
 /**
@@ -442,6 +452,11 @@ export const routes: RouteObject[] = [
 						<TaskDetail />
 					</LazyRoute>
 				),
+			},
+			// Redirect singular /task/:id to plural /tasks/:id
+			{
+				path: 'task/:id',
+				element: <TaskRedirect />,
 			},
 			// Legacy routes with redirects
 			{
