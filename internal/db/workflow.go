@@ -1021,13 +1021,6 @@ func sqlNullBool(b *bool) sql.NullBool {
 	return sql.NullBool{Bool: *b, Valid: true}
 }
 
-func sqlNullInt(i *int) sql.NullInt64 {
-	if i == nil {
-		return sql.NullInt64{}
-	}
-	return sql.NullInt64{Int64: int64(*i), Valid: true}
-}
-
 func sqlNullFloat64(f *float64) sql.NullFloat64 {
 	if f == nil {
 		return sql.NullFloat64{}
@@ -1047,14 +1040,6 @@ func nullBoolToPtr(nb sql.NullBool) *bool {
 		return nil
 	}
 	return &nb.Bool
-}
-
-func nullIntToPtr(ni sql.NullInt64) *int {
-	if !ni.Valid {
-		return nil
-	}
-	i := int(ni.Int64)
-	return &i
 }
 
 // sqlNullString converts a string to sql.NullString, treating empty strings as NULL.
