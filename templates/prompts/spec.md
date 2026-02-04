@@ -180,6 +180,7 @@ Self-evaluate before completing. **Implement phase blocked until all pass.**
 | initiative_aligned | All initiative vision requirements captured in SC |
 | complexity_within_weight | Scope fits weight classification (see Complexity Thresholds below) |
 | integration_points_complete | Every new file in "New Files" table has corresponding row in "Integration Points" table with explicit import target |
+| ui_behavior_has_integration_sc | Every SC involving UI interaction (click, input, toggle) has a companion SC verifying the parent component passes the handler |
 
 ## Complexity Assessment
 
@@ -234,6 +235,26 @@ If you see these patterns, the task is likely under-weighted:
 - All new functions are called from at least one production code path
 - All new interfaces have registered implementations
 - Integration tests verify the wiring exists (tests that **FAIL if wiring is missing**, not just unit tests of the new code)
+
+**UI Behavior Integration (CRITICAL)** - When an SC describes user interaction:
+
+If your success criterion says "clicking X does Y" or "user can interact with X", you MUST also specify:
+1. **Which component handles the event** (the one with the onClick/onChange handler)
+2. **Which parent passes the handler** (the component that provides the callback prop)
+3. **An explicit integration SC** verifying the parent-to-child wiring
+
+| ❌ BAD SC | Why It Fails | ✅ GOOD SC Pair |
+|-----------|--------------|-----------------|
+| "Clicking agent shows details" | Doesn't specify who handles click or who provides handler | SC-1: "AgentsPalette calls onAgentClick when agent clicked"<br>SC-2: "WorkflowEditorPage passes onAgentClick to LeftPalette→AgentsPalette" |
+| "User can toggle dark mode" | Doesn't specify integration point | SC-1: "ThemeToggle calls onToggle when clicked"<br>SC-2: "SettingsPage renders ThemeToggle with onToggle wired to theme store" |
+
+**Why this matters:** Without explicit integration SCs:
+- TDD phase writes tests for the child component only
+- Implement phase makes handler props optional with empty fallbacks `(() => {})`
+- Component renders but does nothing when clicked
+- Review phase accepts "tests pass" without verifying actual behavior
+
+**The implement phase WILL find loopholes** if you don't specify the full integration chain.
 
 **Behavioral Parity for Alternate Paths** - If your task adds a new execution path that mirrors an existing one (parallel vs sequential, async vs sync, cached vs uncached):
 

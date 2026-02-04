@@ -249,6 +249,41 @@ pages/Dashboard.integration.test.tsx   <- Integration test imports ./Dashboard
                                           Dashboard should render Panel
 ```
 This FAILS if Dashboard doesn't import Panel.
+
+### UI Behavior SCs REQUIRE Parent-Level Integration Tests
+
+**CRITICAL:** If the spec's success criteria describe UI behavior like "clicking X does Y":
+
+1. There is ALWAYS a parent component that must pass the handler
+2. Unit tests that mock the handler DO NOT verify the wiring exists
+3. You MUST write an integration test at the PARENT level
+
+**Example - SC says "Clicking agent shows details in inspector":**
+
+| Test Type | What It Tests | Catches Wiring Bug? |
+|-----------|---------------|---------------------|
+| Unit test: `AgentsPalette.test.tsx` | onAgentClick is called when clicked | ❌ No - uses mock handler |
+| Integration test: `WorkflowEditorPage.test.tsx` | Clicking agent in rendered page shows inspector | ✅ Yes - fails if handler not passed |
+
+**The pattern for UI behavior integration tests:**
+
+```tsx
+// INTEGRATION TEST - tests the full wiring
+it('clicking agent shows details in inspector', async () => {
+  render(<WorkflowEditorPage />);
+
+  // Find and click an agent in AgentsPalette (rendered by WorkflowEditorPage)
+  const agent = screen.getByText('code-reviewer');
+  fireEvent.click(agent);
+
+  // Verify the inspector shows agent details
+  expect(screen.getByTestId('inspector')).toHaveTextContent('code-reviewer');
+});
+```
+
+This test FAILS if WorkflowEditorPage doesn't pass `onAgentClick` to its children. That's the point.
+
+**If the spec has UI behavior SCs but you only write unit tests for the child component, you have NOT satisfied the integration requirement.**
 </integration_test_mandate>
 
 <context>

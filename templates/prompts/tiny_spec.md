@@ -33,7 +33,8 @@ Output a JSON object with the spec, test information, **explicit coverage mappin
     {"id": "max_3_clarifications", "check": "No blocking questions remain", "passed": true},
     {"id": "initiative_aligned", "check": "All initiative vision requirements captured", "passed": true},
     {"id": "complexity_within_weight", "check": "Scope fits small weight (≤3 files, ≤2 modules)", "passed": true},
-    {"id": "wiring_declared", "check": "If creating new files: wiring field specifies which existing file imports them", "passed": true}
+    {"id": "wiring_declared", "check": "If creating new files: wiring field specifies which existing file imports them", "passed": true},
+    {"id": "ui_behavior_has_integration_sc", "check": "Every SC involving UI interaction has companion SC for parent→child handler wiring", "passed": true}
   ],
   "complexity_assessment": {
     "files_to_modify": 2,
@@ -106,6 +107,14 @@ Before completing, verify the task fits the small weight classification:
 - Adding new proto fields or database columns
 - Changes spanning both frontend and backend
 - New code that needs wiring to multiple existing code paths
+
+**UI Behavior Integration** - If SC describes clicking/interacting with UI:
+
+| ❌ BAD | ✅ GOOD |
+|--------|---------|
+| "Clicking X does Y" | SC-1: "ChildComponent calls onX when clicked"<br>SC-2: "ParentPage passes onX handler to ChildComponent" |
+
+Without explicit integration SCs, implement phase will make handler props optional with empty fallbacks — component renders but does nothing.
 </critical_constraints>
 
 <pre_output_verification>
