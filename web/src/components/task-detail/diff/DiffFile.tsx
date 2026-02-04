@@ -21,6 +21,8 @@ interface DiffFileProps {
 	onWontFixComment: (id: string) => void;
 	onDeleteComment: (id: string) => void;
 	onCloseThread: () => void;
+	/** When true, hides the file header (useful when rendered in modal with its own header) */
+	hideHeader?: boolean;
 }
 
 export function DiffFile({
@@ -36,6 +38,7 @@ export function DiffFile({
 	onWontFixComment,
 	onDeleteComment,
 	onCloseThread,
+	hideHeader = false,
 }: DiffFileProps) {
 	// Filter comments for this file
 	const fileComments = useMemo(
@@ -73,30 +76,32 @@ export function DiffFile({
 
 	return (
 		<div className={`diff-file ${getStatusClass()}`}>
-			{/* File Header */}
-			<Button variant="ghost" className="file-header" onClick={onToggle}>
-				<Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} />
-				<Icon name={getStatusIcon()} size={14} className={`status-icon ${getStatusClass()}`} />
-				<span className="file-path">
-					{file.status === 'renamed' && file.oldPath ? (
-						<>
-							<span className="old-path">{file.oldPath}</span>
-							<Icon name="arrow-left" size={12} className="rename-arrow" />
-						</>
-					) : null}
-					{file.path}
-				</span>
-				{file.binary && <span className="binary-badge">Binary</span>}
-				<div className="file-stats">
-					{file.additions > 0 && <span className="additions">+{file.additions}</span>}
-					{file.deletions > 0 && <span className="deletions">-{file.deletions}</span>}
-				</div>
-				{fileComments.filter((c) => c.status === CommentStatus.OPEN).length > 0 && (
-					<span className="comment-count">
-						{fileComments.filter((c) => c.status === CommentStatus.OPEN).length}
+			{/* File Header - optionally hidden when parent provides header */}
+			{!hideHeader && (
+				<Button variant="ghost" className="file-header" onClick={onToggle}>
+					<Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} />
+					<Icon name={getStatusIcon()} size={14} className={`status-icon ${getStatusClass()}`} />
+					<span className="file-path">
+						{file.status === 'renamed' && file.oldPath ? (
+							<>
+								<span className="old-path">{file.oldPath}</span>
+								<Icon name="arrow-left" size={12} className="rename-arrow" />
+							</>
+						) : null}
+						{file.path}
 					</span>
-				)}
-			</Button>
+					{file.binary && <span className="binary-badge">Binary</span>}
+					<div className="file-stats">
+						{file.additions > 0 && <span className="additions">+{file.additions}</span>}
+						{file.deletions > 0 && <span className="deletions">-{file.deletions}</span>}
+					</div>
+					{fileComments.filter((c) => c.status === CommentStatus.OPEN).length > 0 && (
+						<span className="comment-count">
+							{fileComments.filter((c) => c.status === CommentStatus.OPEN).length}
+						</span>
+					)}
+				</Button>
+			)}
 
 			{/* File Content */}
 			{expanded && (

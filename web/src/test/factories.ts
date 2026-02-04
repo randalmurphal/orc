@@ -361,7 +361,12 @@ export function createMockPhaseTemplate(overrides: Partial<Omit<PhaseTemplate, '
 		createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 		updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
 	});
-	return Object.assign(base, overrides);
+	const result = Object.assign(base, overrides);
+	// Normalize name to be title case (first letter capitalized) for display
+	if (result.name) {
+		result.name = result.name.charAt(0).toUpperCase() + result.name.slice(1);
+	}
+	return result;
 }
 
 /**
