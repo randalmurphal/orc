@@ -43,7 +43,7 @@ func TestNewCmd_LifecycleTrigger(t *testing.T) {
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"Test lifecycle trigger task", "-w", "medium"})
+	cmd.SetArgs([]string{"Test lifecycle trigger task", "--workflow", "implement-medium"})
 
 	err := cmd.Execute()
 	if err != nil {
@@ -79,7 +79,7 @@ func TestNewCmd_LifecycleTrigger_GateRejects(t *testing.T) {
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"Fix stuff", "-w", "medium"})
+	cmd.SetArgs([]string{"Fix stuff", "--workflow", "implement-medium"})
 
 	err := cmd.Execute()
 
@@ -123,7 +123,7 @@ func TestNewCmd_NoWorkflow_NoTriggers(t *testing.T) {
 
 	_ = backend.Close()
 
-	// With workflow-first model, task creation without --workflow or --weight
+	// With workflow-first model, task creation without --workflow
 	// and no config default should fail with a clear error
 	cmd := newNewCmdWithTriggerRunner(mockRunner)
 	var buf bytes.Buffer

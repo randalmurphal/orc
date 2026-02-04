@@ -178,7 +178,7 @@ export function handleEvent(event: Event): void {
 	switch (event.payload.case) {
 		case 'taskCreated': {
 			// TaskCreatedEvent has partial info - add minimal task to store
-			const { taskId, title, weight, initiativeId } = event.payload.value;
+			const { taskId, title, initiativeId } = event.payload.value;
 			// Check if task already exists to avoid duplicates
 			const existingTask = taskStore.getTask(taskId);
 			if (!existingTask) {
@@ -186,7 +186,6 @@ export function handleEvent(event: Event): void {
 				const task = create(TaskSchema, {
 					id: taskId,
 					title,
-					weight,
 					initiativeId,
 					status: TaskStatus.CREATED,
 					queue: TaskQueue.ACTIVE,

@@ -100,9 +100,9 @@ Example:
 					}
 				}
 
-				// Weight filter
+				// Workflow filter (accepts workflow ID or legacy weight name)
 				if weightFilter != "" {
-					if !matchWeightProto(t.Weight, weightFilter) {
+					if !matchWorkflowID(task.GetWorkflowIDProto(t), weightFilter) {
 						continue
 					}
 				}
@@ -146,7 +146,7 @@ Example:
 					phase = "-"
 				}
 				title := truncate(t.Title, 40)
-				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", t.Id, status, weightStringProto(t.Weight), phase, title)
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", t.Id, status, workflowIDString(task.GetWorkflowIDProto(t)), phase, title)
 			}
 
 			_ = w.Flush()

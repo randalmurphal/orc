@@ -27,92 +27,6 @@ func createEditTestBackend(t *testing.T) (storage.Backend, string) {
 	return backend, tmpDir
 }
 
-func TestRegeneratePlanForWeight(t *testing.T) {
-	backend, _ := createEditTestBackend(t)
-
-	// Create and save a task with initial execution progress
-	tk := task.NewProtoTask("TASK-001", "Test task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-	task.SetCurrentPhaseProto(tk, "implement")
-	task.EnsureExecutionProto(tk)
-	tk.Execution.CurrentIteration = 2
-	tk.Execution.Phases["implement"] = &orcv1.PhaseState{
-		Status: orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
-	}
-	if err := backend.SaveTask(tk); err != nil {
-		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Regenerate plan for weight change (resets execution state)
-	if err := regeneratePlanForWeightProto(backend, tk); err != nil {
-		t.Fatalf("regeneratePlanForWeightProto() error = %v", err)
-	}
-
-	// Verify execution state was reset
-	reloadedTask, err := backend.LoadTask("TASK-001")
-	if err != nil {
-		t.Fatalf("failed to reload task: %v", err)
-	}
-
-	currentPhase := ""
-	if reloadedTask.CurrentPhase != nil {
-		currentPhase = *reloadedTask.CurrentPhase
-	}
-	if currentPhase != "" {
-		t.Errorf("task current phase = %q, want empty", currentPhase)
-	}
-
-	if len(reloadedTask.Execution.Phases) != 0 {
-		t.Errorf("execution phases = %d, want 0", len(reloadedTask.Execution.Phases))
-	}
-
-	if reloadedTask.Execution.CurrentIteration != 0 {
-		t.Errorf("current iteration = %d, want 0", reloadedTask.Execution.CurrentIteration)
-	}
-
-	// Verify task status was set to planned
-	if reloadedTask.Status != orcv1.TaskStatus_TASK_STATUS_PLANNED {
-		t.Errorf("task status = %s, want %s", reloadedTask.Status, orcv1.TaskStatus_TASK_STATUS_PLANNED)
-	}
-}
-
-func TestRegeneratePlanForWeight_NoExistingExecutionState(t *testing.T) {
-	backend, _ := createEditTestBackend(t)
-
-	// Create and save a task without execution state
-	tk := task.NewProtoTask("TASK-001", "Test task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-	// Execution state is uninitialized (zero value)
-	if err := backend.SaveTask(tk); err != nil {
-		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Regenerate plan - should initialize execution state
-	if err := regeneratePlanForWeightProto(backend, tk); err != nil {
-		t.Fatalf("regeneratePlanForWeightProto() error = %v", err)
-	}
-
-	// Verify task was updated with reset execution state
-	reloadedTask, err := backend.LoadTask("TASK-001")
-	if err != nil {
-		t.Fatalf("failed to reload task: %v", err)
-	}
-
-	if reloadedTask.Id != "TASK-001" {
-		t.Errorf("task ID = %q, want %q", reloadedTask.Id, "TASK-001")
-	}
-
-	// Execution state should be reset to defaults
-	currentPhase := ""
-	if reloadedTask.CurrentPhase != nil {
-		currentPhase = *reloadedTask.CurrentPhase
-	}
-	if currentPhase != "" {
-		t.Errorf("current phase = %q, want empty", currentPhase)
-	}
-}
-
 func TestEditCommand_NoFlags(t *testing.T) {
 	cmd := newEditCmd()
 
@@ -128,16 +42,10 @@ func TestEditCommand_NoFlags(t *testing.T) {
 	if cmd.Flag("description") == nil {
 		t.Error("missing --description flag")
 	}
-	if cmd.Flag("weight") == nil {
-		t.Error("missing --weight flag")
-	}
 
 	// Verify shorthand flags
 	if cmd.Flag("description").Shorthand != "d" {
 		t.Errorf("description shorthand = %q, want 'd'", cmd.Flag("description").Shorthand)
-	}
-	if cmd.Flag("weight").Shorthand != "w" {
-		t.Errorf("weight shorthand = %q, want 'w'", cmd.Flag("weight").Shorthand)
 	}
 	if cmd.Flag("title").Shorthand != "t" {
 		t.Errorf("title shorthand = %q, want 't'", cmd.Flag("title").Shorthand)
@@ -362,66 +270,3 @@ func restoreWorkDir(t *testing.T, dir string) {
 	}
 }
 
-func TestRegeneratePlanForWeight_UpdatesWeightBasedWorkflow(t *testing.T) {
-	backend, _ := createEditTestBackend(t)
-
-	// Create a task with weight=small and workflow_id="implement-small" (weight-based)
-	tk := task.NewProtoTask("TASK-002", "Test weight-based workflow update")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	task.SetWorkflowIDProto(tk, "implement-small")
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-	if err := backend.SaveTask(tk); err != nil {
-		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Change weight to medium
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-
-	// Regenerate plan
-	if err := regeneratePlanForWeightProto(backend, tk); err != nil {
-		t.Fatalf("regeneratePlanForWeightProto() error = %v", err)
-	}
-
-	// Reload and verify workflow_id was updated to match new weight
-	reloaded, err := backend.LoadTask("TASK-002")
-	if err != nil {
-		t.Fatalf("failed to reload task: %v", err)
-	}
-
-	gotWorkflow := task.GetWorkflowIDProto(reloaded)
-	if gotWorkflow != "implement-medium" {
-		t.Errorf("workflow_id = %q, want %q", gotWorkflow, "implement-medium")
-	}
-}
-
-func TestRegeneratePlanForWeight_PreservesExplicitWorkflow(t *testing.T) {
-	backend, _ := createEditTestBackend(t)
-
-	// Create a task with weight=small but explicit workflow_id="qa-e2e" (non-weight-based)
-	tk := task.NewProtoTask("TASK-003", "Test explicit workflow preservation")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	task.SetWorkflowIDProto(tk, "qa-e2e")
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-	if err := backend.SaveTask(tk); err != nil {
-		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Change weight to medium
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-
-	// Regenerate plan
-	if err := regeneratePlanForWeightProto(backend, tk); err != nil {
-		t.Fatalf("regeneratePlanForWeightProto() error = %v", err)
-	}
-
-	// Reload and verify workflow_id was preserved (not overwritten)
-	reloaded, err := backend.LoadTask("TASK-003")
-	if err != nil {
-		t.Fatalf("failed to reload task: %v", err)
-	}
-
-	gotWorkflow := task.GetWorkflowIDProto(reloaded)
-	if gotWorkflow != "qa-e2e" {
-		t.Errorf("workflow_id = %q, want %q (explicit workflow should be preserved)", gotWorkflow, "qa-e2e")
-	}
-}

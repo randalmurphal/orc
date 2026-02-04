@@ -88,7 +88,7 @@ Run `orc new --help` for detailed guidance on creating tasks that execute well.
 
 **Task creation is workflow-first** (not weight-based). Users select workflows directly, which determine phase sequences. Web UI offers 2-step modal process.
 
-**Built-in workflows** (legacy weight mapping still supported for CLI):
+**Built-in workflows:**
 
 | Workflow | Phases | Spec? | When to Use |
 |----------|--------|-------|-------------|
@@ -252,7 +252,7 @@ Task data stored in per-project SQLite (`~/.orc/projects/<id>/orc.db`). Use `orc
 
 | Command | Purpose | Key Flags |
 |---------|---------|-----------|
-| `orc new "title"` | Create task with full control | `--workflow/-w workflow`, `-d description`, `-i initiative`, `--branch`, `--target-branch`, `--pr-draft` (legacy weight still supported) |
+| `orc new "title"` | Create task with full control | `--workflow/-w workflow`, `-d description`, `-i initiative`, `--branch`, `--target-branch`, `--pr-draft` |
 | `orc run TASK-ID` | Execute task phases | `--profile`, `--auto-skip`, `--stream`, `--skip-gates` |
 | `orc status` | Dashboard: what needs attention | `--watch`, `--all` |
 

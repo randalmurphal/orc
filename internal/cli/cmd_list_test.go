@@ -286,7 +286,6 @@ func TestListCommand_CombinedFilters(t *testing.T) {
 	t1 := task.NewProtoTask("TASK-001", "Running task in initiative")
 	task.SetInitiativeProto(t1, "INIT-001")
 	t1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	t1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
@@ -294,14 +293,12 @@ func TestListCommand_CombinedFilters(t *testing.T) {
 	t2 := task.NewProtoTask("TASK-002", "Completed task in initiative")
 	task.SetInitiativeProto(t2, "INIT-001")
 	t2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
-	t2.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
 
 	t3 := task.NewProtoTask("TASK-003", "Running task without initiative")
 	t3.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	t3.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	if err := backend.SaveTask(t3); err != nil {
 		t.Fatalf("save task 3: %v", err)
 	}

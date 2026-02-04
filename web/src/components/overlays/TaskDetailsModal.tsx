@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { taskClient } from '@/lib/client';
 import { useCurrentProjectId, useInitiatives, toast } from '@/stores';
-import { TaskWeight, TaskCategory, TaskPriority, TaskQueue, type Task as ProtobufTask } from '@/gen/orc/v1/task_pb';
+import { TaskCategory, TaskPriority, TaskQueue, type Task as ProtobufTask } from '@/gen/orc/v1/task_pb';
 
 export type Task = ProtobufTask;
 
@@ -30,17 +30,6 @@ export interface TaskDetailsModalProps {
 	onClose: () => void;
 	onBack: () => void;
 	onTaskCreated: (task: Task, wasRun: boolean) => void;
-}
-
-// Helper function to derive weight from workflow ID
-function deriveWeightFromWorkflow(workflowId: string): TaskWeight {
-	const lowerWorkflowId = workflowId.toLowerCase();
-	if (lowerWorkflowId.includes('trivial')) return TaskWeight.TRIVIAL;
-	if (lowerWorkflowId.includes('small')) return TaskWeight.SMALL;
-	if (lowerWorkflowId.includes('medium')) return TaskWeight.MEDIUM;
-	if (lowerWorkflowId.includes('large')) return TaskWeight.LARGE;
-	// Default fallback
-	return TaskWeight.SMALL;
 }
 
 export function TaskDetailsModal({
@@ -92,8 +81,7 @@ export function TaskDetailsModal({
 				title: title.trim(),
 				description: description.trim(),
 				workflowId: selectedWorkflow.id,
-				weight: deriveWeightFromWorkflow(selectedWorkflow.id),
-				category,
+								category,
 				priority,
 				queue,
 				initiativeId: initiativeId || undefined,
@@ -134,7 +122,6 @@ export function TaskDetailsModal({
 				title: title.trim(),
 				description: description.trim(),
 				workflowId: selectedWorkflow.id,
-				weight: deriveWeightFromWorkflow(selectedWorkflow.id),
 				category,
 				priority,
 				queue,

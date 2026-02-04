@@ -8,8 +8,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 )
 
 // Note: time is still used by SpecMetadata
@@ -56,16 +54,16 @@ type SpecValidation struct {
 	Issues []string
 }
 
-// ValidateSpec validates a spec against requirements based on task weight.
-// Trivial tasks skip validation entirely.
-func ValidateSpec(content string, weight orcv1.TaskWeight) *SpecValidation {
+// ValidateSpec validates a spec against requirements based on workflow ID.
+// Trivial workflows (implement-trivial) skip validation entirely.
+func ValidateSpec(content string, workflowID string) *SpecValidation {
 	result := &SpecValidation{
 		Valid:  true,
 		Issues: []string{},
 	}
 
-	// Trivial tasks skip validation entirely
-	if weight == orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL {
+	// Trivial workflows skip validation entirely
+	if workflowID == "implement-trivial" {
 		result.HasIntent = true
 		result.HasSuccessCriteria = true
 		result.HasTesting = true

@@ -214,7 +214,6 @@ func TestFinalizeExecutor_Execute_DisabledPhase(t *testing.T) {
 	exec := NewFinalizeExecutor(nil, WithFinalizeOrcConfig(orcCfg))
 
 	tsk := task.NewProtoTask("TASK-001", "Test task")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
 	task.EnsureExecutionProto(tsk)
 	phase := &PhaseDisplay{ID: "finalize"}
 
@@ -232,7 +231,6 @@ func TestFinalizeExecutor_Execute_NoGitService(t *testing.T) {
 	exec := NewFinalizeExecutor(nil) // No git service
 
 	tsk := task.NewProtoTask("TASK-001", "Test task")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
 	task.EnsureExecutionProto(tsk)
 	phase := &PhaseDisplay{ID: "finalize"}
 
@@ -1231,7 +1229,6 @@ func TestFinalizeExecutor_Execute_BranchUpToDate(t *testing.T) {
 	exec := NewFinalizeExecutor(nil, WithFinalizeOrcConfig(orcCfg))
 
 	tsk := task.NewProtoTask("TASK-001", "Test")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
 	task.EnsureExecutionProto(tsk)
 	phase := &PhaseDisplay{ID: "finalize"}
 

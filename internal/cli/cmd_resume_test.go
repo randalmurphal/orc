@@ -228,7 +228,6 @@ func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED // Will fail with "cannot be resumed"
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task.SetCurrentPhaseProto(tk, "implement")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)

@@ -114,20 +114,13 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-// weightStringProto returns a string representation of the weight enum
-func weightStringProto(w orcv1.TaskWeight) string {
-	switch w {
-	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
-		return "trivial"
-	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
-		return "small"
-	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
-		return "medium"
-	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
-		return "large"
-	default:
+// workflowIDString returns a short display string for a workflow ID.
+// Returns "unknown" if workflow ID is empty.
+func workflowIDString(workflowID string) string {
+	if workflowID == "" {
 		return "unknown"
 	}
+	return workflowID
 }
 
 // matchStatusProto returns true if the proto status matches the filter string
@@ -162,17 +155,22 @@ func matchStatusProto(status orcv1.TaskStatus, filter string) bool {
 	}
 }
 
-// matchWeightProto returns true if the proto weight matches the filter string
-func matchWeightProto(weight orcv1.TaskWeight, filter string) bool {
+// matchWorkflowID returns true if the workflow ID matches the filter string.
+// Supports both full workflow IDs and legacy weight names.
+func matchWorkflowID(workflowID string, filter string) bool {
+	if workflowID == filter {
+		return true
+	}
+	// Support legacy weight names as filter shortcuts
 	switch filter {
 	case "trivial":
-		return weight == orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL
+		return workflowID == "implement-trivial"
 	case "small":
-		return weight == orcv1.TaskWeight_TASK_WEIGHT_SMALL
+		return workflowID == "implement-small"
 	case "medium":
-		return weight == orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+		return workflowID == "implement-medium"
 	case "large":
-		return weight == orcv1.TaskWeight_TASK_WEIGHT_LARGE
+		return workflowID == "implement-large"
 	default:
 		return false
 	}

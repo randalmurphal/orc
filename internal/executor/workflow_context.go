@@ -64,7 +64,7 @@ func (we *WorkflowExecutor) buildResolutionContext(
 		rctx.TaskTitle = t.Title
 		rctx.TaskDescription = task.GetDescriptionProto(t)
 		rctx.TaskCategory = t.Category.String()
-		rctx.TaskWeight = t.Weight.String()
+		rctx.TaskWeight = task.GetWorkflowIDProto(t) // Use workflow ID for WEIGHT variable
 		rctx.TaskBranch = t.Branch
 		rctx.RequiresUITesting = t.RequiresUiTesting
 
@@ -259,8 +259,8 @@ func formatRecentCompletedTasksForPrompt(tasks []*orcv1.Task, limit int) string 
 		if t.Category != orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED {
 			fmt.Fprintf(&sb, " [%s]", task.CategoryFromProto(t.Category))
 		}
-		if t.Weight != orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
-			fmt.Fprintf(&sb, " (%s)", task.WeightFromProto(t.Weight))
+		if workflowID := task.GetWorkflowIDProto(t); workflowID != "" {
+			fmt.Fprintf(&sb, " (%s)", workflowID)
 		}
 		sb.WriteString("\n")
 	}

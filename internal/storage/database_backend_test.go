@@ -57,16 +57,14 @@ func TestSaveTask_Transaction(t *testing.T) {
 
 	// Create a task with dependencies
 	task1 := task.NewProtoTask("TASK-001", "Dependency Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+		task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
 
 	// Create another task that depends on task1
 	task2 := task.NewProtoTask("TASK-002", "Test Task")
-	task2.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-	task2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+		task2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	task2.BlockedBy = []string{"TASK-001"}
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2: %v", err)
@@ -107,8 +105,7 @@ func TestSaveTask_QualityMetrics(t *testing.T) {
 
 	// Create a task with quality metrics
 	testTask := task.NewProtoTask("TASK-001", "Test Task with Quality")
-	testTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-	testTask.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+		testTask.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 
 	// Add quality metrics using proto helpers
 	task.RecordPhaseRetryProto(testTask, "implement")
@@ -165,8 +162,7 @@ func TestSaveTask_QualityMetrics_Empty(t *testing.T) {
 
 	// Create a task without quality metrics
 	testTask := task.NewProtoTask("TASK-001", "Test Task without Quality")
-	testTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	testTask.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		testTask.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -192,8 +188,7 @@ func TestSaveInitiative_Transaction(t *testing.T) {
 
 	// First create a task to link
 	task1 := task.NewProtoTask("TASK-001", "First Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+		task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -280,16 +275,14 @@ func TestTransactionRollback_SaveTask(t *testing.T) {
 
 	// Create a valid task first
 	task1 := task.NewProtoTask("TASK-001", "First Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+		task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
 
 	// Create a task with valid dependencies
 	task2 := task.NewProtoTask("TASK-002", "Second Task")
-	task2.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	task2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+		task2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	task2.BlockedBy = []string{"TASK-001"}
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2: %v", err)
@@ -314,8 +307,7 @@ func TestTransactionAtomicity_SaveInitiative(t *testing.T) {
 	// Create tasks first
 	for i := 1; i <= 3; i++ {
 		tk := task.NewProtoTask(taskID(i), taskTitle(i))
-		tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-		tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+				tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task%d: %v", i, err)
 		}
@@ -374,8 +366,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 	// Create initial task
 	task1 := task.NewProtoTask("TASK-001", "Concurrent Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+		task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -385,8 +376,7 @@ func TestConcurrentAccess(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func(iteration int) {
 			tk := task.NewProtoTask("TASK-001", taskTitle(iteration))
-			tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-			tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+						tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 			done <- backend.SaveTask(tk)
 		}(i)
 	}
@@ -438,8 +428,7 @@ func TestSaveTaskCtx_ContextCancellation(t *testing.T) {
 
 	// Try to save with canceled context
 	task1 := task.NewProtoTask("TASK-001", "Test Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+		task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	err := backend.SaveTaskCtx(ctx, task1)
 
 	// Should return context canceled error
@@ -504,8 +493,7 @@ func TestSaveTaskCtx_ValidContext(t *testing.T) {
 
 	// Save with valid context
 	task1 := task.NewProtoTask("TASK-001", "Test Task")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+		task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	err := backend.SaveTaskCtx(ctx, task1)
 	if err != nil {
 		t.Fatalf("save with valid context should succeed: %v", err)
@@ -536,8 +524,7 @@ func TestSaveTask_PreservesExecutorFields(t *testing.T) {
 
 	// Step 1: Create task
 	task1 := task.NewProtoTask("TASK-001", "Original Title")
-	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	task1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+		task1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	currentPhase := "implement"
 	task1.CurrentPhase = &currentPhase
 	task1.Execution = task.InitProtoExecutionState()
@@ -1164,8 +1151,7 @@ func TestReviewFindings_SaveAndLoad(t *testing.T) {
 
 	// Create a task first (foreign key constraint)
 	testTask := task.NewProtoTask("TASK-001", "Test Task for Review")
-	testTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-	testTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+		testTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -1242,8 +1228,7 @@ func TestReviewFindings_LoadAll(t *testing.T) {
 
 	// Create a task
 	testTask := task.NewProtoTask("TASK-002", "Test Task")
-	testTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
-	testTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+		testTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("save task: %v", err)
 	}

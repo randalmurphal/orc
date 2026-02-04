@@ -22,7 +22,7 @@ import { TaskHeader } from '@/components/task-detail/TaskHeader';
 import { CommentsTab } from '@/components/task-detail/CommentsTab';
 import { NewTaskModal } from '@/components/overlays/NewTaskModal';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import { TaskStatus, TaskWeight, TaskCategory, TaskPriority, TaskQueue } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, TaskCategory, TaskPriority, TaskQueue } from '@/gen/orc/v1/task_pb';
 import { createMockTask, createTimestamp, createMockWorkflow, createMockListWorkflowsResponse, createMockCreateTaskResponse, createMockTaskComment, createMockListCommentsResponse } from '@/test/factories';
 
 // Mock router
@@ -103,7 +103,6 @@ describe('TASK-554: Button Standardization', () => {
 				title: 'Test Task',
 				description: 'Test description',
 				status: TaskStatus.CREATED,
-				weight: TaskWeight.SMALL,
 				branch: 'orc/TASK-001',
 				priority: TaskPriority.NORMAL,
 				category: TaskCategory.FEATURE,
@@ -460,8 +459,7 @@ describe('TASK-554: Button Standardization', () => {
 								id: 'TASK-001',
 								title: 'Test',
 								status: TaskStatus.CREATED,
-								weight: TaskWeight.SMALL,
-								createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+																createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 								updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
 							})}
 							onTaskUpdate={vi.fn()}
@@ -524,8 +522,7 @@ describe('TASK-554: Button Standardization', () => {
 								id: 'TASK-001',
 								title: 'Test',
 								status: TaskStatus.CREATED,
-								weight: TaskWeight.SMALL,
-								createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+																createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 								updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
 							})}
 							onTaskUpdate={vi.fn()}
@@ -628,8 +625,7 @@ describe('Button Variant Consistency', () => {
 							id: 'TASK-001',
 							title: 'Test',
 							status: TaskStatus.CREATED,
-							weight: TaskWeight.SMALL,
-							createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+														createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 							updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
 						})}
 						onTaskUpdate={vi.fn()}
@@ -695,8 +691,7 @@ describe('Button Accessibility', () => {
 							id: 'TASK-001',
 							title: 'Test',
 							status: TaskStatus.CREATED,
-							weight: TaskWeight.SMALL,
-							createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+														createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 							updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
 						})}
 						onTaskUpdate={vi.fn()}
@@ -743,8 +738,7 @@ describe('Button Accessibility', () => {
 							id: 'TASK-001',
 							title: 'Test',
 							status: TaskStatus.CREATED,
-							weight: TaskWeight.SMALL,
-							createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+														createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 							updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
 						})}
 						onTaskUpdate={vi.fn()}

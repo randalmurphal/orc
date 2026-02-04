@@ -16,6 +16,7 @@ import (
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // Config holds orchestrator configuration.
@@ -277,8 +278,9 @@ func (o *Orchestrator) spawnTask(taskID string) error {
 		return fmt.Errorf("load task: %w", err)
 	}
 
-	// Create plan dynamically from task weight
-	pln := createPlanForWeight(taskID, t.Weight)
+	// Create plan dynamically from task workflow ID
+	workflowID := task.GetWorkflowIDProto(t)
+	pln := createPlanForWorkflow(taskID, workflowID)
 
 	// Spawn worker (task's Execution field contains execution state)
 	_, err = o.workerPool.SpawnWorker(o.ctx, t, pln)
@@ -353,24 +355,24 @@ func (o *Orchestrator) Wait() {
 	}
 }
 
-// createPlanForWeight creates an execution plan based on task weight.
+// createPlanForWorkflow creates an execution plan based on workflow ID.
 // Plans are created dynamically for execution, not stored.
-func createPlanForWeight(taskID string, weight orcv1.TaskWeight) *executor.Plan {
+func createPlanForWorkflow(taskID string, workflowID string) *executor.Plan {
 	var phases []executor.PhaseDisplay
 
-	switch weight {
-	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
+	switch workflowID {
+	case "implement-trivial":
 		phases = []executor.PhaseDisplay{
 			{ID: "tiny_spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
+	case "implement-small":
 		phases = []executor.PhaseDisplay{
 			{ID: "tiny_spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
+	case "implement-medium":
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "tdd_write", Name: "TDD Tests", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
@@ -378,7 +380,7 @@ func createPlanForWeight(taskID string, weight orcv1.TaskWeight) *executor.Plan 
 			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "docs", Name: "Documentation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
+	case "implement-large":
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "tdd_write", Name: "TDD Tests", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
@@ -388,6 +390,7 @@ func createPlanForWeight(taskID string, weight orcv1.TaskWeight) *executor.Plan 
 			{ID: "docs", Name: "Documentation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	default:
+		// Default to medium-like workflow
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},

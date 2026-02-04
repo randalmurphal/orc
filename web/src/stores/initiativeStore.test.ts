@@ -7,7 +7,7 @@ import {
 } from './initiativeStore';
 import { resetUrlMocks, setMockSearch } from '../test-setup';
 import { type Initiative, InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
-import { type Task, TaskStatus, TaskWeight } from '@/gen/orc/v1/task_pb';
+import { type Task, TaskStatus } from '@/gen/orc/v1/task_pb';
 
 // Factory for creating test initiatives
 function createInitiative(overrides: Partial<Initiative> = {}): Initiative {
@@ -27,7 +27,6 @@ function createTask(overrides: Partial<Task> = {}): Task {
 		$typeName: 'orc.v1.Task',
 		id: `TASK-${Math.random().toString(36).slice(2, 7)}`,
 		title: 'Test Task',
-		weight: TaskWeight.MEDIUM,
 		status: TaskStatus.PLANNED,
 		branch: 'main',
 		...overrides,

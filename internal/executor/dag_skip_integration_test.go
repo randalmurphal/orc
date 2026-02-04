@@ -71,13 +71,13 @@ func TestDAG_SkippedPhaseDependentsStillRun(t *testing.T) {
 	}
 
 	// Phase B: depends on A, has condition that evaluates to false
-	// Condition: task.weight == "trivial" (but task weight will be medium → skip)
+	// Condition: task.category == "bug" (but task category will be feature → skip)
 	phaseB := &db.WorkflowPhase{
 		WorkflowID:      "skip-dag-wf",
 		PhaseTemplateID: "B",
 		Sequence:        2,
 		DependsOn:       `["A"]`,
-		Condition:       `{"field": "task.weight", "op": "eq", "value": "trivial"}`,
+		Condition:       `{"field": "task.category", "op": "eq", "value": "bug"}`,
 	}
 	if err := pdb.SaveWorkflowPhase(phaseB); err != nil {
 		t.Fatalf("save phase B: %v", err)
@@ -94,10 +94,9 @@ func TestDAG_SkippedPhaseDependentsStillRun(t *testing.T) {
 		t.Fatalf("save phase C: %v", err)
 	}
 
-	// Create task with weight=medium (so B's condition evaluates to false)
+	// Create task with category=feature (so B's condition evaluates to false)
 	tsk := task.NewProtoTask("TASK-SKIPDAG-001", "Test skip in DAG")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM // NOT trivial → B's condition is false
-	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
+	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE // NOT bug → B's condition is false
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "skip-dag-wf"
 	tsk.WorkflowId = &wfID
@@ -212,9 +211,9 @@ func TestDAG_MultipleSkippedPhasesInParallel(t *testing.T) {
 		condition string
 	}{
 		{"A", 1, "[]", ""},
-		{"B", 2, `["A"]`, `{"field": "task.weight", "op": "eq", "value": "trivial"}`}, // Will skip
-		{"C", 3, `["A"]`, ""},                                                          // Will run
-		{"D", 4, `["B", "C"]`, ""},                                                     // Should run despite B being skipped
+		{"B", 2, `["A"]`, `{"field": "task.category", "op": "eq", "value": "bug"}`}, // Will skip
+		{"C", 3, `["A"]`, ""},                                                        // Will run
+		{"D", 4, `["B", "C"]`, ""},                                                   // Should run despite B being skipped
 	}
 
 	for _, p := range phases {
@@ -230,9 +229,8 @@ func TestDAG_MultipleSkippedPhasesInParallel(t *testing.T) {
 		}
 	}
 
-	// Create task with weight=medium
+	// Create task with category=feature
 	tsk := task.NewProtoTask("TASK-PARSKIP-001", "Test parallel skip")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "parallel-skip-wf"
@@ -327,8 +325,8 @@ func TestDAG_AllPredecessorsSkipped(t *testing.T) {
 		deps      string
 		condition string
 	}{
-		{"A", 1, "[]", `{"field": "task.weight", "op": "eq", "value": "trivial"}`},
-		{"B", 2, "[]", `{"field": "task.weight", "op": "eq", "value": "trivial"}`},
+		{"A", 1, "[]", `{"field": "task.category", "op": "eq", "value": "bug"}`},
+		{"B", 2, "[]", `{"field": "task.category", "op": "eq", "value": "bug"}`},
 		{"C", 3, `["A", "B"]`, ""},
 	}
 
@@ -345,9 +343,8 @@ func TestDAG_AllPredecessorsSkipped(t *testing.T) {
 		}
 	}
 
-	// Create task with weight=medium (so A and B conditions are false)
+	// Create task with category=feature (so A and B conditions are false)
 	tsk := task.NewProtoTask("TASK-ALLSKIP-001", "Test all predecessors skip")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "all-skip-wf"

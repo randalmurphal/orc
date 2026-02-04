@@ -21,8 +21,7 @@ func TestBeforePhaseTrigger_GateMode(t *testing.T) {
 
 	// Create a task and workflow with a before-phase trigger on implement
 	tsk := task.NewProtoTask("TASK-001", "Test before-phase gate")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -81,8 +80,7 @@ func TestBeforePhaseTrigger_ReactionMode(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tsk := task.NewProtoTask("TASK-001", "Test reaction trigger")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -130,8 +128,7 @@ func TestBeforePhaseTrigger_OutputVariable(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tsk := task.NewProtoTask("TASK-001", "Test output variable")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}

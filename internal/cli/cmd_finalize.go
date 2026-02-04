@@ -128,8 +128,8 @@ Example:
 				return fmt.Errorf("init git: %w", err)
 			}
 
-			// Build executor config (use task weight for appropriate settings)
-			execCfg := executor.DefaultConfigForWeight(t.Weight)
+			// Build executor config (use workflow ID for appropriate settings)
+			execCfg := executor.DefaultConfigForWorkflow(task.GetWorkflowIDProto(t))
 
 			// Create finalize phase
 			finalizePhase := &executor.PhaseDisplay{

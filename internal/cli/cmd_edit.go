@@ -12,7 +12,6 @@ import (
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // newEditCmd creates the edit command for modifying task properties.
@@ -25,7 +24,6 @@ func newEditCmd() *cobra.Command {
 Modifiable properties:
   --title         Update the task title
   --description   Update the task description (or -d)
-  --weight        Change task weight (triggers plan regeneration)
   --workflow      Change task workflow (e.g., qa-e2e, implement)
   --priority      Change task priority (critical, high, normal, low)
   --status        Change task status (for administrative corrections)
@@ -84,7 +82,6 @@ Example:
 			taskID := args[0]
 			newTitle, _ := cmd.Flags().GetString("title")
 			newDescription, _ := cmd.Flags().GetString("description")
-			newWeight, _ := cmd.Flags().GetString("weight")
 			newWorkflow, _ := cmd.Flags().GetString("workflow")
 			workflowChanged := cmd.Flags().Changed("workflow")
 			newPriority, _ := cmd.Flags().GetString("priority")
@@ -144,8 +141,6 @@ Example:
 
 			// Track what changed
 			var changes []string
-			weightChanged := false
-			oldWeight := t.Weight
 
 			// Update title if provided
 			if newTitle != "" {
@@ -164,19 +159,6 @@ Example:
 				if currentDesc != newDescription {
 					t.Description = &newDescription
 					changes = append(changes, "description")
-				}
-			}
-
-			// Update weight if provided
-			if newWeight != "" {
-				w, valid := task.ParseWeightProto(newWeight)
-				if !valid {
-					return fmt.Errorf("invalid weight %q - valid options: trivial, small, medium, large", newWeight)
-				}
-				if t.Weight != w {
-					t.Weight = w
-					changes = append(changes, "weight")
-					weightChanged = true
 				}
 			}
 
@@ -495,13 +477,6 @@ Example:
 				return fmt.Errorf("save task: %w", err)
 			}
 
-			// Handle weight change - regenerate plan and reset state
-			if weightChanged {
-				if err := regeneratePlanForWeightProto(backend, t); err != nil {
-					return fmt.Errorf("regenerate plan: %w", err)
-				}
-			}
-
 			// Handle initiative change - sync bidirectionally
 			currentInit := task.GetInitiativeIDProto(t)
 			if initiativeChanged && oldInitiative != currentInit {
@@ -540,8 +515,6 @@ Example:
 							desc = desc[:57] + "..."
 						}
 						fmt.Printf("   Description: %s\n", desc)
-					case "weight":
-						fmt.Printf("   Weight: %s -> %s (plan regenerated)\n", task.WeightFromProto(oldWeight), task.WeightFromProto(t.Weight))
 					case "workflow":
 						currentWorkflow := ""
 						if t.WorkflowId != nil {
@@ -655,7 +628,6 @@ Example:
 
 	cmd.Flags().StringP("title", "t", "", "new task title")
 	cmd.Flags().StringP("description", "d", "", "new task description")
-	cmd.Flags().StringP("weight", "w", "", "new task weight (trivial, small, medium, large, greenfield)")
 	cmd.Flags().String("workflow", "", "new task workflow (e.g., qa-e2e, implement)")
 	cmd.Flags().StringP("priority", "p", "", "new task priority (critical, high, normal, low)")
 	cmd.Flags().StringP("status", "s", "", "new task status (created, classifying, planned, paused, blocked, completed, failed)")
@@ -677,36 +649,4 @@ Example:
 	cmd.Flags().StringSlice("remove-related", nil, "remove task(s) from related_to list")
 
 	return cmd
-}
-
-// regeneratePlanForWeightProto resets the execution state when task weight changes.
-// Plans are created dynamically at execution time from task weight,
-// so we only need to reset the state for re-execution.
-func regeneratePlanForWeightProto(backend storage.Backend, t *orcv1.Task) error {
-	// Reset execution state for fresh execution
-	// Note: task.Status is the source of truth (updated below)
-	t.CurrentPhase = nil
-	task.EnsureExecutionProto(t)
-	t.Execution.CurrentIteration = 0
-	t.Execution.Error = nil
-	task.ClearRetryState(t) // Clear retry state from metadata
-	t.Execution.Phases = make(map[string]*orcv1.PhaseState)
-
-	// Update workflow_id if it's weight-based (or empty), preserve explicit workflows
-	currentWorkflow := task.GetWorkflowIDProto(t)
-	if currentWorkflow == "" || workflow.IsWeightBasedWorkflow(currentWorkflow) {
-		var weightsCfg config.WeightsConfig
-		if cfg, err := config.Load(); err == nil {
-			weightsCfg = cfg.Weights
-		}
-		task.SetWorkflowIDProto(t, workflow.ResolveWorkflowID("", t.Weight, weightsCfg))
-	}
-
-	// Update task status to planned
-	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-	if err := backend.SaveTask(t); err != nil {
-		return fmt.Errorf("save task: %w", err)
-	}
-
-	return nil
 }

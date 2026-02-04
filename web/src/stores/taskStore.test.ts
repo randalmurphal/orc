@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useTaskStore } from './taskStore';
-import { type Task, TaskStatus, TaskWeight, type ExecutionState } from '@/gen/orc/v1/task_pb';
+import { type Task, TaskStatus, type ExecutionState } from '@/gen/orc/v1/task_pb';
 
 // Factory for creating test tasks
 function createTask(overrides: Partial<Task> = {}): Task {
@@ -8,7 +8,6 @@ function createTask(overrides: Partial<Task> = {}): Task {
 		$typeName: 'orc.v1.Task',
 		id: `TASK-${Math.random().toString(36).slice(2, 7)}`,
 		title: 'Test Task',
-		weight: TaskWeight.MEDIUM,
 		status: TaskStatus.PLANNED,
 		branch: 'main',
 		...overrides,

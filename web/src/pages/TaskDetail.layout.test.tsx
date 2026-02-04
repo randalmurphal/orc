@@ -20,7 +20,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { TaskDetail } from './TaskDetail';
 import { useTaskStore, useProjectStore } from '@/stores';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import { TaskStatus, TaskWeight, PhaseStatus } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, PhaseStatus } from '@/gen/orc/v1/task_pb';
 import { createMockTask, createMockTaskPlan, createMockPhase, createTimestamp } from '@/test/factories';
 
 // Mock the Connect RPC client
@@ -116,7 +116,6 @@ describe('TaskDetail Layout (TASK-736)', () => {
 				id: 'TASK-001',
 				title: 'Fix authentication bug',
 				status: TaskStatus.RUNNING,
-				weight: TaskWeight.MEDIUM,
 				branch: 'orc/TASK-001',
 				workflowId: 'implement-medium',
 				currentPhase: 'implement',

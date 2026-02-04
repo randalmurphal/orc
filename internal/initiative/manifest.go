@@ -178,16 +178,6 @@ func ValidateManifest(m *Manifest) []error {
 			})
 		}
 
-		// Validate weight if specified
-		if t.Weight != "" {
-			if _, valid := task.ParseWeightProto(t.Weight); !valid {
-				errs = append(errs, &ValidationError{
-					Field:   taskPrefix + ".weight",
-					Message: fmt.Sprintf("invalid weight %q (valid: %s)", t.Weight, formatWeights()),
-				})
-			}
-		}
-
 		// Validate category if specified
 		if t.Category != "" {
 			if _, valid := task.ParseCategoryProto(t.Category); !valid {
@@ -362,15 +352,6 @@ func TopologicalSort(tasks []ManifestTask) ([]int, error) {
 }
 
 // Helper functions for formatting valid values
-
-func formatWeights() string {
-	weights := task.ValidWeightsProto()
-	strs := make([]string, len(weights))
-	for i, w := range weights {
-		strs[i] = task.WeightFromProto(w)
-	}
-	return strings.Join(strs, ", ")
-}
 
 func formatCategories() string {
 	cats := task.ValidCategoriesProto()

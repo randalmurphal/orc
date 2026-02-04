@@ -61,38 +61,6 @@ func StatusFromProto(s orcv1.TaskStatus) string {
 	}
 }
 
-// WeightToProto converts a string weight to proto TaskWeight.
-func WeightToProto(w string) orcv1.TaskWeight {
-	switch w {
-	case "trivial":
-		return orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL
-	case "small":
-		return orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	case "medium":
-		return orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-	case "large":
-		return orcv1.TaskWeight_TASK_WEIGHT_LARGE
-	default:
-		return orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED
-	}
-}
-
-// WeightFromProto converts a proto TaskWeight to string.
-func WeightFromProto(w orcv1.TaskWeight) string {
-	switch w {
-	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
-		return "trivial"
-	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
-		return "small"
-	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
-		return "medium"
-	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
-		return "large"
-	default:
-		return "medium" // Default to medium
-	}
-}
-
 // QueueToProto converts a string queue to proto TaskQueue.
 func QueueToProto(q string) orcv1.TaskQueue {
 	switch q {
@@ -283,16 +251,6 @@ func PRStatusFromProto(s orcv1.PRStatus) string {
 	}
 }
 
-// ValidWeightsProto returns all valid weight proto values.
-func ValidWeightsProto() []orcv1.TaskWeight {
-	return []orcv1.TaskWeight{
-		orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL,
-		orcv1.TaskWeight_TASK_WEIGHT_SMALL,
-		orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
-		orcv1.TaskWeight_TASK_WEIGHT_LARGE,
-	}
-}
-
 // ValidPrioritiesProto returns all valid priority proto values.
 func ValidPrioritiesProto() []orcv1.TaskPriority {
 	return []orcv1.TaskPriority{
@@ -348,16 +306,6 @@ func ParsePriorityProto(s string) (orcv1.TaskPriority, bool) {
 	default:
 		return orcv1.TaskPriority_TASK_PRIORITY_UNSPECIFIED, false
 	}
-}
-
-// ParseWeightProto parses a weight string and returns the proto enum with validity.
-func ParseWeightProto(s string) (orcv1.TaskWeight, bool) {
-	weight := WeightToProto(s)
-	// WeightToProto returns UNSPECIFIED for unknown strings
-	if weight == orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
-		return weight, false
-	}
-	return weight, true
 }
 
 // ParseCategoryProto parses a category string and returns the proto enum with validity.

@@ -37,7 +37,6 @@ func TestUpdateTask_WorkflowId(t *testing.T) {
 			initialTask: &orcv1.Task{
 				Id:         "TASK-001",
 				Title:      "Test Task",
-				Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 				Status:     orcv1.TaskStatus_TASK_STATUS_CREATED,
 				WorkflowId: strPtr("small"),
 			},
@@ -53,7 +52,6 @@ func TestUpdateTask_WorkflowId(t *testing.T) {
 			initialTask: &orcv1.Task{
 				Id:         "TASK-002",
 				Title:      "Task Without Workflow",
-				Weight:     orcv1.TaskWeight_TASK_WEIGHT_SMALL,
 				Status:     orcv1.TaskStatus_TASK_STATUS_CREATED,
 				WorkflowId: nil,
 			},
@@ -69,7 +67,6 @@ func TestUpdateTask_WorkflowId(t *testing.T) {
 			initialTask: &orcv1.Task{
 				Id:         "TASK-003",
 				Title:      "Task With Workflow",
-				Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 				Status:     orcv1.TaskStatus_TASK_STATUS_CREATED,
 				WorkflowId: strPtr("medium"),
 			},
@@ -85,7 +82,6 @@ func TestUpdateTask_WorkflowId(t *testing.T) {
 			initialTask: &orcv1.Task{
 				Id:         "TASK-004",
 				Title:      "Test Task",
-				Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 				Status:     orcv1.TaskStatus_TASK_STATUS_CREATED,
 				WorkflowId: strPtr("medium"),
 			},
@@ -102,7 +98,6 @@ func TestUpdateTask_WorkflowId(t *testing.T) {
 			initialTask: &orcv1.Task{
 				Id:         "TASK-005",
 				Title:      "Custom Workflow Test",
-				Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 				Status:     orcv1.TaskStatus_TASK_STATUS_CREATED,
 				WorkflowId: strPtr("small"),
 			},
@@ -217,14 +212,12 @@ func TestUpdateTask_WorkflowId_MultipleTasks(t *testing.T) {
 	task1 := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Task 1",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_CREATED,
 		WorkflowId: strPtr("small"),
 	}
 	task2 := &orcv1.Task{
 		Id:         "TASK-002",
 		Title:      "Task 2",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_CREATED,
 		WorkflowId: strPtr("large"),
 	}
@@ -276,7 +269,6 @@ func TestUpdateTask_WorkflowId_WithOtherFieldUpdates(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Original Title",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_CREATED,
 		WorkflowId: strPtr("small"),
 	}

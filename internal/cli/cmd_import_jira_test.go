@@ -64,34 +64,6 @@ func TestResolveString(t *testing.T) {
 	}
 }
 
-func TestResolveWeight(t *testing.T) {
-	tests := []struct {
-		flag      string
-		configVal string
-		expected  orcv1.TaskWeight
-	}{
-		{"trivial", "", orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL},
-		{"small", "", orcv1.TaskWeight_TASK_WEIGHT_SMALL},
-		{"medium", "", orcv1.TaskWeight_TASK_WEIGHT_MEDIUM},
-		{"large", "", orcv1.TaskWeight_TASK_WEIGHT_LARGE},
-		{"MEDIUM", "", orcv1.TaskWeight_TASK_WEIGHT_MEDIUM}, // case insensitive
-		{"", "small", orcv1.TaskWeight_TASK_WEIGHT_SMALL},   // config fallback
-		{"large", "small", orcv1.TaskWeight_TASK_WEIGHT_LARGE}, // flag wins
-		{"", "", orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED},
-		{"invalid", "", orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED},
-	}
-
-	for _, tt := range tests {
-		name := tt.flag + "/" + tt.configVal
-		t.Run(name, func(t *testing.T) {
-			got := resolveWeight(tt.flag, tt.configVal)
-			if got != tt.expected {
-				t.Errorf("resolveWeight(%q, %q) = %v, want %v", tt.flag, tt.configVal, got, tt.expected)
-			}
-		})
-	}
-}
-
 func TestResolveQueue(t *testing.T) {
 	tests := []struct {
 		flag      string

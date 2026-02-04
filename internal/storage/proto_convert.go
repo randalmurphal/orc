@@ -90,11 +90,11 @@ func protoTaskToDBTask(t *orcv1.Task) *db.Task {
 	}
 
 	return &db.Task{
-		ID:               t.Id,
-		Title:            t.Title,
-		Description:      ptrToString(t.Description),
-		Weight:           task.WeightFromProto(t.Weight),
-		WorkflowID:       ptrToString(t.WorkflowId),
+		ID:          t.Id,
+		Title:       t.Title,
+		Description: ptrToString(t.Description),
+		// Weight field removed from proto (TASK-748) - DB column kept for backward compat
+		WorkflowID: ptrToString(t.WorkflowId),
 		Status:           task.StatusFromProto(t.Status),
 		CurrentPhase:     ptrToString(t.CurrentPhase),
 		Branch:           t.Branch,
@@ -190,11 +190,11 @@ func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
 	}
 
 	t := &orcv1.Task{
-		Id:               dbTask.ID,
-		Title:            dbTask.Title,
-		Description:      stringToPtr(dbTask.Description),
-		Weight:           task.WeightToProto(dbTask.Weight),
-		WorkflowId:       stringToPtr(dbTask.WorkflowID),
+		Id:          dbTask.ID,
+		Title:       dbTask.Title,
+		Description: stringToPtr(dbTask.Description),
+		// Weight field removed from proto (TASK-748) - DB column ignored
+		WorkflowId: stringToPtr(dbTask.WorkflowID),
 		Status:           task.StatusToProto(dbTask.Status),
 		CurrentPhase:     stringToPtr(dbTask.CurrentPhase),
 		Branch:           dbTask.Branch,

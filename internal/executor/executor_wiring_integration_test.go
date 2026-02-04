@@ -73,7 +73,6 @@ func TestEvaluatePhaseGate_PassesOptions(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tsk := task.NewProtoTask("TASK-001", "Test gate options")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 	task.SetDescriptionProto(tsk, "Implement security feature")
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
@@ -180,9 +179,6 @@ func TestEvaluatePhaseGate_PassesOptions(t *testing.T) {
 	}
 	if opts.TaskCategory != "TASK_CATEGORY_FEATURE" {
 		t.Errorf("TaskCategory = %q, want %q", opts.TaskCategory, "TASK_CATEGORY_FEATURE")
-	}
-	if opts.TaskWeight != "TASK_WEIGHT_MEDIUM" {
-		t.Errorf("TaskWeight = %q, want %q", opts.TaskWeight, "TASK_WEIGHT_MEDIUM")
 	}
 	if opts.Phase != "review" {
 		t.Errorf("Phase = %q, want %q", opts.Phase, "review")

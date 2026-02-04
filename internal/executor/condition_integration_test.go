@@ -45,7 +45,6 @@ func TestWorkflowExecutor_ConditionSkip(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tsk := task.NewProtoTask("TASK-001", "Test condition skip")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tsk); err != nil {
@@ -68,15 +67,15 @@ func TestWorkflowExecutor_ConditionSkip(t *testing.T) {
 		RCtx: &variable.ResolutionContext{},
 	}
 
-	// Condition: task.weight == "trivial" (but task weight is medium → false → skip)
-	conditionJSON := `{"field": "task.weight", "op": "eq", "value": "trivial"}`
+	// Condition: task.category == "bug" (but task category is feature → false → skip)
+	conditionJSON := `{"field": "task.category", "op": "eq", "value": "bug"}`
 
 	result, err := EvaluateCondition(conditionJSON, ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if result {
-		t.Fatal("condition should evaluate to false (weight is medium, not trivial)")
+		t.Fatal("condition should evaluate to false (category is feature, not bug)")
 	}
 
 	// The implementation should call skipPhaseForCondition (or equivalent)
@@ -148,9 +147,9 @@ func TestWorkflowExecutor_ConditionSkip(t *testing.T) {
 func TestWorkflowExecutor_ConditionPass(t *testing.T) {
 	t.Parallel()
 
-	// Task with weight=medium, condition checks for weight==medium → true
+	// Task with category=feature, condition checks for category==feature → true
 	tsk := task.NewProtoTask("TASK-002", "Test condition pass")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 
 	ctx := &ConditionContext{
 		Task: tsk,
@@ -158,14 +157,14 @@ func TestWorkflowExecutor_ConditionPass(t *testing.T) {
 		RCtx: &variable.ResolutionContext{},
 	}
 
-	conditionJSON := `{"field": "task.weight", "op": "eq", "value": "medium"}`
+	conditionJSON := `{"field": "task.category", "op": "eq", "value": "feature"}`
 
 	result, err := EvaluateCondition(conditionJSON, ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !result {
-		t.Error("condition should evaluate to true (weight IS medium) → phase should execute")
+		t.Error("condition should evaluate to true (category IS feature) → phase should execute")
 	}
 }
 
@@ -177,7 +176,7 @@ func TestWorkflowExecutor_ConditionInvalid(t *testing.T) {
 	t.Parallel()
 
 	tsk := task.NewProtoTask("TASK-003", "Test invalid condition")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 
 	ctx := &ConditionContext{
 		Task: tsk,
@@ -186,7 +185,7 @@ func TestWorkflowExecutor_ConditionInvalid(t *testing.T) {
 	}
 
 	// Invalid JSON → should return error (NOT silently skip or execute)
-	_, err := EvaluateCondition(`{"field": "task.weight", "op": "invalid_op"}`, ctx)
+	_, err := EvaluateCondition(`{"field": "task.category", "op": "invalid_op"}`, ctx)
 	if err == nil {
 		t.Fatal("expected error for invalid operator, got nil — per constitution: NO silent failures")
 	}
@@ -200,7 +199,7 @@ func TestWorkflowExecutor_EmptyCondition(t *testing.T) {
 	t.Parallel()
 
 	tsk := task.NewProtoTask("TASK-004", "Test empty condition")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 
 	ctx := &ConditionContext{
 		Task: tsk,
@@ -229,11 +228,11 @@ func TestWorkflowExecutor_ResumeSkipped(t *testing.T) {
 	// When the executor resumes, it should skip this phase without
 	// re-evaluating the condition.
 	tsk := task.NewProtoTask("TASK-005", "Test resume skipped")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 
 	// Mark the tdd_write phase as SKIPPED (from a previous run)
-	task.SkipPhaseProto(tsk.Execution, "tdd_write", "condition: task.weight eq trivial")
+	task.SkipPhaseProto(tsk.Execution, "tdd_write", "condition: task.category eq bug")
 
 	// Verify the phase is marked as SKIPPED
 	ps, ok := tsk.Execution.Phases["tdd_write"]
@@ -263,8 +262,8 @@ func TestWorkflowExecutor_MultipleSkips(t *testing.T) {
 	t.Parallel()
 
 	tsk := task.NewProtoTask("TASK-006", "Test multiple skips")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL
 	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_CHORE
+	tsk.Priority = orcv1.TaskPriority_TASK_PRIORITY_LOW
 
 	ctx := &ConditionContext{
 		Task: tsk,
@@ -272,16 +271,16 @@ func TestWorkflowExecutor_MultipleSkips(t *testing.T) {
 		RCtx: &variable.ResolutionContext{},
 	}
 
-	// Condition 1: task.weight in [medium, large] → false (trivial)
+	// Condition 1: task.category in [feature, bug] → false (chore)
 	result1, err := EvaluateCondition(
-		`{"field": "task.weight", "op": "in", "value": ["medium", "large"]}`,
+		`{"field": "task.category", "op": "in", "value": ["feature", "bug"]}`,
 		ctx,
 	)
 	if err != nil {
 		t.Fatalf("condition 1 error: %v", err)
 	}
 	if result1 {
-		t.Error("condition 1 should be false for trivial weight")
+		t.Error("condition 1 should be false for chore category")
 	}
 
 	// Condition 2: task.category == "feature" → false (chore)
@@ -311,7 +310,7 @@ func TestWorkflowExecutor_SkippedProducerPhase(t *testing.T) {
 	// Downstream variables that reference the skipped phase's output
 	// should be empty/missing (not error).
 	tsk := task.NewProtoTask("TASK-007", "Test skipped producer")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL
+	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_CHORE
 
 	ctx := &ConditionContext{
 		Task: tsk,

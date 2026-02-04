@@ -17,7 +17,7 @@ import {
 	ResumeTaskRequestSchema,
 } from '@/gen/orc/v1/task_pb';
 import type { Task, TaskPlan } from '@/gen/orc/v1/task_pb';
-import { TaskStatus, TaskWeight, TaskCategory, TaskPriority } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, TaskCategory, TaskPriority } from '@/gen/orc/v1/task_pb';
 import type { IconName } from '@/components/ui/Icon';
 import './TaskHeader.css';
 
@@ -39,15 +39,6 @@ const PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: string }> = 
 	[TaskPriority.NORMAL]: { label: 'Normal', color: 'var(--text-muted)' },
 	[TaskPriority.LOW]: { label: 'Low', color: 'var(--text-muted)' },
 	[TaskPriority.UNSPECIFIED]: { label: 'Normal', color: 'var(--text-muted)' },
-};
-
-// Weight labels for display
-const WEIGHT_LABELS: Record<TaskWeight, string> = {
-	[TaskWeight.TRIVIAL]: 'trivial',
-	[TaskWeight.SMALL]: 'small',
-	[TaskWeight.MEDIUM]: 'medium',
-	[TaskWeight.LARGE]: 'large',
-	[TaskWeight.UNSPECIFIED]: '',
 };
 
 // Priority keys for CSS class names
@@ -231,9 +222,6 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 								</span>
 							)}
 						</span>
-					)}
-					{task.weight !== TaskWeight.UNSPECIFIED && (
-						<span className="weight-badge">{WEIGHT_LABELS[task.weight]}</span>
 					)}
 					{categoryConfig && (
 						<span

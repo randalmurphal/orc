@@ -404,20 +404,6 @@ func runNewCommandWithWorkflowDefaults(
 		taskProto.Category = orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED
 	}
 
-	// Convert string weight to enum
-	switch weight {
-	case "trivial":
-		taskProto.Weight = orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL
-	case "small":
-		taskProto.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	case "medium":
-		taskProto.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-	case "large":
-		taskProto.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
-	default:
-		taskProto.Weight = orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED
-	}
-
 	// Set workflow ID as pointer to string
 	if resolvedWorkflow != "" {
 		taskProto.WorkflowId = &resolvedWorkflow

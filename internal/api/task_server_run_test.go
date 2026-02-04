@@ -50,7 +50,6 @@ func TestRunTask_NoWorkflowId_ReturnsError(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Task without workflow",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: nil, // No workflow_id
 	}
@@ -104,7 +103,6 @@ func TestRunTask_EmptyWorkflowId_ReturnsError(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Task with empty workflow",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &emptyWorkflow, // Empty string
 	}
@@ -149,7 +147,6 @@ func TestRunTask_SpawnsExecutor(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Ready to run",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &workflowID,
 	}
@@ -216,7 +213,6 @@ func TestRunTask_ExecutorFailure_RevertsStatus(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Executor will fail",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &workflowID,
 	}
@@ -265,7 +261,6 @@ func TestRunTask_AlreadyRunning_ReturnsError(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Already running",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_RUNNING, // Already running
 		WorkflowId: &workflowID,
 	}
@@ -307,7 +302,6 @@ func TestRunTask_CompletedTask_ReturnsError(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Already completed",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_COMPLETED,
 		WorkflowId: &workflowID,
 	}
@@ -354,7 +348,6 @@ func TestRunTask_FailedTask_AllowsRetry(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Previously failed",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_FAILED, // Failed status
 		WorkflowId: &workflowID,
 	}
@@ -399,7 +392,6 @@ func TestRunTask_PausedTask_ReturnsError(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Paused task",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PAUSED,
 		WorkflowId: &workflowID,
 	}
@@ -447,7 +439,6 @@ func TestRunTask_BlockedTask_ReturnsError(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Blocked task",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_BLOCKED,
 		WorkflowId: &workflowID,
 	}
@@ -492,7 +483,6 @@ func TestRunTask_BlockedByDependency_ReturnsError(t *testing.T) {
 	blocker := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Blocker task",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_SMALL,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED, // Not completed
 		WorkflowId: &workflowID,
 	}
@@ -501,7 +491,6 @@ func TestRunTask_BlockedByDependency_ReturnsError(t *testing.T) {
 	blockedTask := &orcv1.Task{
 		Id:         "TASK-002",
 		Title:      "Blocked task",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &workflowID,
 		BlockedBy:  []string{"TASK-001"}, // Blocked by TASK-001
@@ -551,7 +540,6 @@ func TestRunTask_DependencyCompleted_AllowsRun(t *testing.T) {
 	blocker := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Blocker task",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_SMALL,
 		Status:     orcv1.TaskStatus_TASK_STATUS_COMPLETED, // Completed!
 		WorkflowId: &workflowID,
 	}
@@ -560,7 +548,6 @@ func TestRunTask_DependencyCompleted_AllowsRun(t *testing.T) {
 	blockedTask := &orcv1.Task{
 		Id:         "TASK-002",
 		Title:      "Was blocked, now ready",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &workflowID,
 		BlockedBy:  []string{"TASK-001"},
@@ -608,7 +595,6 @@ func TestRunTask_ConcurrentCalls_SecondFails(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Concurrent test",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		WorkflowId: &workflowID,
 	}
@@ -691,7 +677,6 @@ func TestPauseTask_RunningTask(t *testing.T) {
 	task := &orcv1.Task{
 		Id:         "TASK-001",
 		Title:      "Running task",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		Status:     orcv1.TaskStatus_TASK_STATUS_RUNNING,
 		WorkflowId: &workflowID,
 	}

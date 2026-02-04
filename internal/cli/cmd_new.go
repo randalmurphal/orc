@@ -57,26 +57,26 @@ BAD task creation (vague → vague spec → poor implementation):
   orc new "Fix API"
 
 ═══════════════════════════════════════════════════════════════════════════════
-WEIGHT SELECTION (Determines phases & quality gates)
+WORKFLOW SELECTION (--workflow)
 ═══════════════════════════════════════════════════════════════════════════════
 
-Weight determines which phases run. Choose based on COMPLEXITY, not time:
+Use --workflow to assign a workflow. This determines which phases run:
 
-  trivial    One-liner fixes, typos, config tweaks
-             → tiny_spec → implement
-             Example: "Fix typo in error message"
+  implement-trivial   One-liner fixes, typos, config tweaks
+                      → implement
+                      Example: "Fix typo in error message"
 
-  small      Bug fixes, small features, isolated changes
-             → tiny_spec → implement → review
-             Example: "Add validation for email field"
+  implement-small     Bug fixes, small features, isolated changes
+                      → tiny_spec → implement → review
+                      Example: "Add validation for email field"
 
-  medium     Features requiring design thought (DEFAULT)
-             → spec → tdd_write → implement → review → docs
-             Example: "Add password reset flow"
+  implement-medium    Features requiring design thought (DEFAULT)
+                      → spec → tdd_write → implement → review → docs
+                      Example: "Add password reset flow"
 
-  large      Complex features, multi-file changes, new systems
-             → spec → tdd_write → breakdown → implement → review → docs
-             Example: "Implement caching layer for API"
+  implement-large     Complex features, multi-file changes, new systems
+                      → spec → tdd_write → breakdown → implement → review → docs
+                      Example: "Implement caching layer for API"
 
 Key phases:
   • spec/tiny_spec  Creates Success Criteria + Testing requirements (REQUIRED for quality)
@@ -86,15 +86,13 @@ Key phases:
 
 Use 'orc finalize TASK-XXX' to manually sync with target branch before merge.
 
-⚠️  COMMON MISTAKE: Under-weighting tasks. If unsure, go ONE weight heavier.
-    A "medium" task run as "small" skips the spec phase → Claude guesses
-    requirements → implementation misses the mark.
+⚠️  COMMON MISTAKE: Using too simple a workflow. If unsure, go ONE level heavier.
+    A task that needs "implement-medium" run as "implement-small" skips the spec
+    phase → Claude guesses requirements → implementation misses the mark.
 
-═══════════════════════════════════════════════════════════════════════════════
-WORKFLOW OVERRIDE (--workflow)
-═══════════════════════════════════════════════════════════════════════════════
+List available workflows: orc workflows
 
-Use --workflow to assign a workflow (required for task execution):
+Assign a workflow (required for task execution):
 
   orc new "Verify auth flow works" --workflow qa-e2e
   orc new "Review the refactor" --workflow review
@@ -113,7 +111,7 @@ The description flows into EVERY phase prompt. It's how you communicate:
   • Context Claude needs (related systems, edge cases)
 
 Example of description that produces excellent results:
-  orc new "Add user avatar upload" -w medium -d "Users should be able to
+  orc new "Add user avatar upload" --workflow implement-medium -d "Users should be able to
   upload a profile picture. Requirements: Accept PNG/JPG up to 5MB, resize
   to 200x200, store in S3, display in navbar. Must work on mobile. Related
   to existing User model in models/user.go."
@@ -126,8 +124,8 @@ When tasks are part of a larger feature, link them to an initiative:
 
   orc initiative new "User Authentication" -V "JWT-based auth with refresh tokens"
   orc initiative decide INIT-001 "Use bcrypt for password hashing"
-  orc new "Create login endpoint" -i INIT-001 -w medium
-  orc new "Create logout endpoint" -i INIT-001 -w small --blocked-by TASK-001
+  orc new "Create login endpoint" -i INIT-001 --workflow implement-medium
+  orc new "Create logout endpoint" -i INIT-001 --workflow implement-small --blocked-by TASK-001
 
 The initiative's VISION and DECISIONS flow into every linked task's prompts.
 This keeps Claude aligned across multiple related tasks.
@@ -153,32 +151,32 @@ DEPENDENCIES: ORDERING WORK
   --related-to TASK-XXX   Informational link - no execution blocking
 
 Example multi-task workflow:
-  orc new "Design database schema" -w medium
-  orc new "Implement data models" -w medium --blocked-by TASK-001
-  orc new "Create API endpoints" -w large --blocked-by TASK-002
-  orc new "Build frontend" -w large --blocked-by TASK-003
+  orc new "Design database schema" --workflow implement-medium
+  orc new "Implement data models" --workflow implement-medium --blocked-by TASK-001
+  orc new "Create API endpoints" --workflow implement-large --blocked-by TASK-002
+  orc new "Build frontend" --workflow implement-large --blocked-by TASK-003
 
 ═══════════════════════════════════════════════════════════════════════════════
 EXAMPLES
 ═══════════════════════════════════════════════════════════════════════════════
 
-# Good: Clear title, appropriate weight, detailed description
-orc new "Add pagination to user list API" -w medium -c feature \
+# Good: Clear title, appropriate workflow, detailed description
+orc new "Add pagination to user list API" --workflow implement-medium -c feature \
   -d "The /api/users endpoint returns all users. Add limit/offset pagination
   with default limit=20, max=100. Return total count in response header."
 
 # Good: Bug with context about the problem
-orc new "Fix login failing silently on timeout" -w small -c bug \
+orc new "Fix login failing silently on timeout" --workflow implement-small -c bug \
   -d "When auth service times out, login form shows no error. User sees
   nothing. Should show 'Service unavailable, try again' message."
 
 # Good: Part of initiative with dependency
-orc new "Implement refresh token rotation" -w medium -i INIT-001 \
+orc new "Implement refresh token rotation" --workflow implement-medium -i INIT-001 \
   --blocked-by TASK-005 \
   -d "After login endpoint is done, add refresh token rotation per RFC 6749."
 
 # Trivial: Simple fix, no spec needed
-orc new "Fix typo: 'recieve' → 'receive'" -w trivial
+orc new "Fix typo: 'recieve' → 'receive'" --workflow implement-trivial
 
 See also:
   orc run      - Execute a task (uses assigned workflow_id)
@@ -198,7 +196,6 @@ See also:
 			defer func() { _ = backend.Close() }()
 
 			title := args[0]
-			weight, _ := cmd.Flags().GetString("weight")
 			workflowID, _ := cmd.Flags().GetString("workflow")
 			category, _ := cmd.Flags().GetString("category")
 			priority, _ := cmd.Flags().GetString("priority")
@@ -307,11 +304,6 @@ See also:
 					return err
 				}
 
-				// Use template weight unless overridden
-				if weight == "" {
-					weight = tpl.Weight
-				}
-
 				// Render title and description with variables
 				vars["TASK_TITLE"] = title
 				currentDesc := ""
@@ -324,17 +316,6 @@ See also:
 				if !quiet {
 					fmt.Printf("Using template: %s\n", tpl.Name)
 				}
-			}
-
-			// Set weight (defaults to medium if not specified via --weight flag)
-			if weight != "" {
-				w, valid := task.ParseWeightProto(weight)
-				if !valid {
-					return fmt.Errorf("invalid weight: %s (valid: trivial, small, medium, large)", weight)
-				}
-				t.Weight = w
-			} else {
-				t.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 			}
 
 			// Set category (defaults to feature if not specified)
@@ -357,24 +338,15 @@ See also:
 
 			// Resolve workflow ID with priority hierarchy:
 			// 1. Explicit --workflow flag (highest priority)
-			// 2. Explicit --weight flag -> map to workflow
-			// 3. Category-based workflow defaults (NEW)
-			// 4. General workflow default (from WorkflowDefaults.Default)
-			// 5. Legacy config default workflow (config.Workflow)
-			// 6. Error if none of the above
+			// 2. Category-based workflow defaults
+			// 3. General workflow default (from WorkflowDefaults.Default)
+			// 4. Legacy config default workflow (config.Workflow)
+			// 5. Error if none of the above
 			if workflowID == "" {
-				weightExplicit := cmd.Flags().Changed("weight")
 				cfg, cfgErr := config.Load()
 
-				if weightExplicit {
-					// User specified --weight, map to workflow using WeightsConfig
-					var weightsCfg config.WeightsConfig
-					if cfgErr == nil {
-						weightsCfg = cfg.Weights
-					}
-					workflowID = workflow.ResolveWorkflowID("", t.Weight, weightsCfg)
-				} else if cfgErr == nil {
-					// Use new priority-based resolution: category defaults -> general default -> legacy
+				if cfgErr == nil {
+					// Use priority-based resolution: category defaults -> general default -> legacy
 					categoryStr := ""
 					if t.Category != orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED {
 						categoryStr = strings.ToLower(t.Category.String()[len("TASK_CATEGORY_"):])
@@ -396,7 +368,7 @@ See also:
 				}
 			}
 
-			// Set workflow if we have one (either explicit or from weight)
+			// Set workflow if we have one
 			if workflowID != "" {
 				t.WorkflowId = &workflowID
 			}
@@ -560,7 +532,6 @@ See also:
 
 			fmt.Printf("Task created: %s\n", id)
 			fmt.Printf("   Title:    %s\n", title)
-			fmt.Printf("   Weight:   %s\n", task.WeightFromProto(t.Weight))
 			fmt.Printf("   Category: %s\n", task.CategoryFromProto(t.Category))
 			fmt.Printf("   Priority: %s\n", task.PriorityFromProto(t.Priority))
 			if t.WorkflowId != nil && *t.WorkflowId != "" {
@@ -665,7 +636,6 @@ See also:
 			return nil
 		},
 	}
-	cmd.Flags().StringP("weight", "w", "", "task weight (trivial, small, medium, large, greenfield)")
 	cmd.Flags().String("workflow", "", "workflow to use for execution (e.g., implement, qa-e2e)")
 	cmd.Flags().StringP("category", "c", "", "task category (feature, bug, refactor, chore, docs, test)")
 	cmd.Flags().StringP("priority", "p", "", "task priority (critical, high, normal, low)")
