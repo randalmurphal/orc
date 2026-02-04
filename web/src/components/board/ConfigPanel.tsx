@@ -7,7 +7,7 @@
  * - MCP Servers (with count badge)
  * - Permissions (with profile badge)
  *
- * Each link shows: icon, title, description, badge and navigates to /settings/[section]
+ * Each link shows: icon, title, description, badge and navigates to /settings/general/[section]
  *
  * Reference: example_ui/board.html (.config-item class, lines 640-676)
  * Reference: example_ui/Screenshot_20260116_201804.png (right panel, cyan section)
@@ -53,7 +53,7 @@ const CONFIG_LINKS: ConfigLink[] = [
 		icon: 'terminal',
 		title: 'Slash Commands',
 		description: '~/.claude/commands',
-		route: '/settings/commands',
+		route: '/settings/general/commands',
 		getBadge: (config) =>
 			config?.slashCommandsCount !== undefined
 				? String(config.slashCommandsCount)
@@ -64,7 +64,7 @@ const CONFIG_LINKS: ConfigLink[] = [
 		icon: 'file-text',
 		title: 'CLAUDE.md',
 		description: 'Project context',
-		route: '/settings/claude-md',
+		route: '/settings/general/claude-md',
 		getBadge: (config) => {
 			if (config?.claudeMdSize === undefined) return undefined;
 			if (config.claudeMdSize >= 1024) {
@@ -78,7 +78,7 @@ const CONFIG_LINKS: ConfigLink[] = [
 		icon: 'server',
 		title: 'MCP Servers',
 		description: 'Integrations',
-		route: '/settings/mcp',
+		route: '/settings/general/mcp',
 		getBadge: (config) =>
 			config?.mcpServersCount !== undefined
 				? String(config.mcpServersCount)
@@ -89,7 +89,7 @@ const CONFIG_LINKS: ConfigLink[] = [
 		icon: 'shield',
 		title: 'Permissions',
 		description: 'Tools & actions',
-		route: '/settings/permissions',
+		route: '/settings/general/permissions',
 		getBadge: (config) => config?.permissionsProfile,
 	},
 ];
