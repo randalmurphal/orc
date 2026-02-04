@@ -184,9 +184,12 @@ describe('WorkflowEditorPage', () => {
 			renderEditorPage();
 
 			await waitFor(() => {
-				// Should show a "Built-in" badge in the header
-				const badge = screen.getByText(/Built-in/i);
-				expect(badge).toBeTruthy();
+				// Should show "Built-in" badges (header and settings panel may both show it)
+				const badges = screen.getAllByText(/Built-in/i);
+				expect(badges.length).toBeGreaterThan(0);
+				// Check specifically that the header badge exists
+				const headerBadge = document.querySelector('.workflow-editor-badge');
+				expect(headerBadge).toBeTruthy();
 			});
 		});
 

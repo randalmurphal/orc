@@ -115,6 +115,7 @@ message Workflow {
   google.protobuf.Timestamp updated_at = 10;
   optional string completion_action = 11; // "pr", "commit", "none", or "" (inherit from config)
   optional string target_branch = 12; // Default PR target branch for this workflow, or "" (inherit from config)
+  optional int32 default_max_iterations = 13; // Default maximum iterations for workflow phases
 }
 
 message WorkflowPhase {
@@ -304,6 +305,7 @@ message UpdateWorkflowRequest {
   optional bool default_thinking = 5;
   optional string completion_action = 6; // "pr", "commit", "none", or "" (inherit from config)
   optional string target_branch = 7; // Default PR target branch for this workflow
+  optional int32 default_max_iterations = 8; // Default maximum iterations for workflow phases
 }
 
 message UpdateWorkflowResponse {

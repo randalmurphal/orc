@@ -1,0 +1,56 @@
+/* LeftPalette styles */
+
+.left-palette {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+	background: var(--bg-secondary);
+	border-right: 1px solid var(--border);
+	/* QA-003 iter6 fix: Keep pointer-events: none inherited from parent.
+	   Only interactive children restore pointer-events. This prevents the
+	   palette container from intercepting canvas events on built-in workflows. */
+	pointer-events: none;
+}
+
+.left-palette-section {
+	display: flex;
+	flex-direction: column;
+	/* Allow sections to shrink and grow as needed */
+	flex-shrink: 0;
+	/* Restore pointer events for each section */
+	pointer-events: auto;
+}
+
+/* First section (workflow settings) - fixed height, no scrolling */
+.left-palette-section:first-child {
+	flex-shrink: 0;
+	border-bottom: 1px solid var(--border);
+}
+
+/* Second section (phase templates) - takes remaining space, scrollable */
+.left-palette-section:last-child {
+	flex: 1;
+	overflow: hidden;
+}
+
+/* Ensure proper vertical stacking on all screen sizes */
+@media (max-width: 768px) {
+	.left-palette {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.left-palette-section {
+		width: 100%;
+	}
+}
+
+/* Ensure the palette doesn't interfere with drag and drop */
+.left-palette:not([draggable]) {
+	/* Explicitly not draggable to preserve existing drag/drop functionality */
+}
+
+.left-palette-section:not([draggable]) {
+	/* Explicitly not draggable to preserve existing drag/drop functionality */
+}
