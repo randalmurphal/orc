@@ -106,15 +106,15 @@ Examples:
 		// Display as table
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		if showSources {
-			_, _ = fmt.Fprintln(w, "ID\tNAME\tMAX ITER\tGATE\tSOURCE")
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tGATE\tSOURCE")
 		} else {
-			_, _ = fmt.Fprintln(w, "ID\tNAME\tMAX ITER\tGATE\tARTIFACT\tBUILT-IN")
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tGATE\tARTIFACT\tBUILT-IN")
 		}
 		for _, rp := range filtered {
 			p := rp.Phase
 			if showSources {
-				_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n",
-					p.ID, p.Name, p.MaxIterations, p.GateType,
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+					p.ID, p.Name, p.GateType,
 					workflow.SourceDisplayName(rp.Source))
 			} else {
 				artifact := ""
@@ -125,8 +125,8 @@ Examples:
 				if rp.Source == workflow.SourceEmbedded {
 					builtin = "yes"
 				}
-				_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\n",
-					p.ID, p.Name, p.MaxIterations, p.GateType, artifact, builtin)
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+					p.ID, p.Name, p.GateType, artifact, builtin)
 			}
 		}
 		_ = w.Flush()
@@ -177,7 +177,6 @@ Examples:
 		if t.PromptPath != "" {
 			fmt.Printf("Prompt Path: %s\n", t.PromptPath)
 		}
-		fmt.Printf("Max Iterations: %d\n", t.MaxIterations)
 		if t.AgentID != "" {
 			fmt.Printf("Executor Agent: %s\n", t.AgentID)
 		}
@@ -257,7 +256,6 @@ Examples:
 
 		prompt, _ := cmd.Flags().GetString("prompt")
 		promptFile, _ := cmd.Flags().GetString("prompt-file")
-		maxIter, _ := cmd.Flags().GetInt("max-iterations")
 		gate, _ := cmd.Flags().GetString("gate")
 		artifact, _ := cmd.Flags().GetBool("artifact")
 		agentID, _ := cmd.Flags().GetString("agent")
@@ -296,7 +294,6 @@ Examples:
 			AgentID:          agentID,
 			PromptSource:     promptSource,
 			PromptContent:    promptContent,
-			MaxIterations:    maxIter,
 			GateType:         gate,
 			ProducesArtifact: artifact,
 			Checkpoint:       true,
@@ -367,12 +364,6 @@ Examples:
 				}
 			}
 			tmpl.AgentID = agentID
-			changed = true
-		}
-
-		if cmd.Flags().Changed("max-iterations") {
-			maxIter, _ := cmd.Flags().GetInt("max-iterations")
-			tmpl.MaxIterations = maxIter
 			changed = true
 		}
 

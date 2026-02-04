@@ -26,7 +26,7 @@ func TestUpdateWorkflow_BasicInformation(t *testing.T) {
 		Name:             "Original Name",
 		Description:      "Original Description",
 		DefaultThinking:  false,
-		DefaultModel:     "claude-sonnet-3-5",
+		DefaultModel:     "sonnet",
 		CompletionAction: "pr",
 		TargetBranch:     "main",
 	}
@@ -65,11 +65,10 @@ func TestUpdateWorkflow_ExecutionDefaults(t *testing.T) {
 
 	// Create a test workflow
 	workflow := &db.Workflow{
-		ID:                   "test-workflow",
-		Name:                 "Test Workflow",
-		DefaultModel:         "claude-sonnet-3-5",
-		DefaultThinking:      false,
-		DefaultMaxIterations: 20,
+		ID:              "test-workflow",
+		Name:            "Test Workflow",
+		DefaultModel:    "sonnet",
+		DefaultThinking: false,
 	}
 	err := globalDB.SaveWorkflow(workflow)
 	require.NoError(t, err)
@@ -77,10 +76,9 @@ func TestUpdateWorkflow_ExecutionDefaults(t *testing.T) {
 	// Test updating execution defaults
 	req := &connect.Request[orcv1.UpdateWorkflowRequest]{
 		Msg: &orcv1.UpdateWorkflowRequest{
-			Id:                   "test-workflow",
-			DefaultModel:         stringPtr("claude-opus-3"),
-			DefaultThinking:      boolPtr(true),
-			DefaultMaxIterations: int32Ptr(30),
+			Id:              "test-workflow",
+			DefaultModel:    stringPtr("opus"),
+			DefaultThinking: boolPtr(true),
 		},
 	}
 
@@ -89,17 +87,14 @@ func TestUpdateWorkflow_ExecutionDefaults(t *testing.T) {
 
 	// Verify response
 	require.NotNil(t, resp.Msg.Workflow.DefaultModel)
-	assert.Equal(t, "claude-opus-3", *resp.Msg.Workflow.DefaultModel)
+	assert.Equal(t, "opus", *resp.Msg.Workflow.DefaultModel)
 	assert.Equal(t, true, resp.Msg.Workflow.DefaultThinking)
-	require.NotNil(t, resp.Msg.Workflow.DefaultMaxIterations)
-	assert.Equal(t, int32(30), *resp.Msg.Workflow.DefaultMaxIterations)
 
 	// Verify persistence
 	updated, err := globalDB.GetWorkflow("test-workflow")
 	require.NoError(t, err)
-	assert.Equal(t, "claude-opus-3", updated.DefaultModel)
+	assert.Equal(t, "opus", updated.DefaultModel)
 	assert.Equal(t, true, updated.DefaultThinking)
-	assert.Equal(t, 30, updated.DefaultMaxIterations)
 }
 
 // Test SC-4: Completion Settings Configuration - API Integration
@@ -143,37 +138,33 @@ func TestUpdateWorkflow_CompletionSettings(t *testing.T) {
 	assert.Equal(t, "develop", updated.TargetBranch)
 }
 
-// Test default_max_iterations proto field exists and is properly handled
-// This tests that the missing field from workflow.proto is added
-func TestUpdateWorkflow_DefaultMaxIterations_ProtoFieldExists(t *testing.T) {
+// Test DefaultThinking proto field can be updated
+func TestUpdateWorkflow_DefaultThinking(t *testing.T) {
 	globalDB := setupTestGlobalDB(t)
 	backend := storage.NewTestBackend(t)
 	server := createTestWorkflowServer(globalDB, backend)
 
 	// Create a test workflow
 	workflow := &db.Workflow{
-		ID:                   "test-workflow",
-		Name:                 "Test Workflow",
-		DefaultMaxIterations: 0, // Default value
+		ID:   "test-workflow",
+		Name: "Test Workflow",
 	}
 	err := globalDB.SaveWorkflow(workflow)
 	require.NoError(t, err)
 
-	// Test that the proto field DefaultMaxIterations exists and can be set
+	// Test that the workflow can be updated
 	req := &connect.Request[orcv1.UpdateWorkflowRequest]{
 		Msg: &orcv1.UpdateWorkflowRequest{
-			Id:                   "test-workflow",
-			DefaultMaxIterations: int32Ptr(25),
+			Id:              "test-workflow",
+			DefaultThinking: boolPtr(true),
 		},
 	}
 
 	resp, err := server.UpdateWorkflow(context.Background(), req)
 	require.NoError(t, err)
 
-	// This test will fail if default_max_iterations field is missing from the proto
-	// or if the UpdateWorkflow method doesn't handle it
-	require.NotNil(t, resp.Msg.Workflow.DefaultMaxIterations)
-	assert.Equal(t, int32(25), *resp.Msg.Workflow.DefaultMaxIterations)
+	// Verify the update was applied
+	assert.Equal(t, true, resp.Msg.Workflow.DefaultThinking)
 }
 
 // Test SC-1: Read-only behavior for builtin workflows
@@ -211,10 +202,9 @@ func TestUpdateWorkflow_ErrorHandling(t *testing.T) {
 	server := createTestWorkflowServer(globalDB, backend)
 
 	// Test updating non-existent workflow - skipped due to resolver dependency
-	// This test would require a proper resolver setup which is outside the scope
-	// of testing DefaultMaxIterations field support
+	// This test would require a proper resolver setup
 
-	// Test empty ID
+	// Test empty ID - error handling is separate from field support tests
 	req := &connect.Request[orcv1.UpdateWorkflowRequest]{
 		Msg: &orcv1.UpdateWorkflowRequest{
 			Id:   "",

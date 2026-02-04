@@ -14,7 +14,7 @@ const mockAgents: Agent[] = [
 		name: 'TestAgent',
 		description: 'A test agent',
 		isBuiltin: false,
-		model: 'claude-sonnet-3-5',
+		model: 'sonnet',
 		scope: 1,
 	} as unknown as Agent,
 	{
@@ -22,7 +22,7 @@ const mockAgents: Agent[] = [
 		name: 'BuiltinAgent',
 		description: 'A built-in agent',
 		isBuiltin: true,
-		model: 'claude-opus-4',
+		model: 'opus',
 		scope: 1,
 	} as unknown as Agent,
 ];
@@ -46,7 +46,7 @@ const mockWorkflowDetails: WorkflowWithDetails = {
 		id: 'test-workflow',
 		name: 'Test Workflow',
 		description: 'A test workflow',
-		defaultModel: 'claude-sonnet-3-5',
+		defaultModel: 'sonnet',
 		defaultThinking: true,
 		completionAction: 'pr',
 		targetBranch: 'main',

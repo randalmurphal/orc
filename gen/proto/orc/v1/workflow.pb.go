@@ -381,7 +381,6 @@ type PhaseTemplate struct {
 	OutputSchema     *string                `protobuf:"bytes,8,opt,name=output_schema,json=outputSchema,proto3,oneof" json:"output_schema,omitempty"`
 	ProducesArtifact bool                   `protobuf:"varint,9,opt,name=produces_artifact,json=producesArtifact,proto3" json:"produces_artifact,omitempty"`
 	ArtifactType     *string                `protobuf:"bytes,10,opt,name=artifact_type,json=artifactType,proto3,oneof" json:"artifact_type,omitempty"`
-	MaxIterations    int32                  `protobuf:"varint,11,opt,name=max_iterations,json=maxIterations,proto3" json:"max_iterations,omitempty"`
 	// Field 12 removed: model_override - now on Agent
 	ThinkingEnabled *bool                  `protobuf:"varint,13,opt,name=thinking_enabled,json=thinkingEnabled,proto3,oneof" json:"thinking_enabled,omitempty"` // Phase-level concern (NOT on agent)
 	GateType        GateType               `protobuf:"varint,14,opt,name=gate_type,json=gateType,proto3,enum=orc.v1.GateType" json:"gate_type,omitempty"`
@@ -500,13 +499,6 @@ func (x *PhaseTemplate) GetArtifactType() string {
 	return ""
 }
 
-func (x *PhaseTemplate) GetMaxIterations() int32 {
-	if x != nil {
-		return x.MaxIterations
-	}
-	return 0
-}
-
 func (x *PhaseTemplate) GetThinkingEnabled() bool {
 	if x != nil && x.ThinkingEnabled != nil {
 		return *x.ThinkingEnabled
@@ -592,21 +584,20 @@ func (x *PhaseTemplate) GetOutputVarName() string {
 }
 
 type Workflow struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description          *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	DefaultModel         *string                `protobuf:"bytes,5,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
-	DefaultThinking      bool                   `protobuf:"varint,6,opt,name=default_thinking,json=defaultThinking,proto3" json:"default_thinking,omitempty"`
-	IsBuiltin            bool                   `protobuf:"varint,7,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
-	BasedOn              *string                `protobuf:"bytes,8,opt,name=based_on,json=basedOn,proto3,oneof" json:"based_on,omitempty"`
-	CreatedAt            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt            *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	CompletionAction     *string                `protobuf:"bytes,11,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"`                // "pr", "commit", "none", or "" (inherit from config)
-	TargetBranch         *string                `protobuf:"bytes,12,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`                            // Default PR target branch for this workflow, or "" (inherit from config)
-	DefaultMaxIterations *int32                 `protobuf:"varint,13,opt,name=default_max_iterations,json=defaultMaxIterations,proto3,oneof" json:"default_max_iterations,omitempty"` // Default maximum iterations for workflow phases
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name             string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description      *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	DefaultModel     *string                `protobuf:"bytes,5,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
+	DefaultThinking  bool                   `protobuf:"varint,6,opt,name=default_thinking,json=defaultThinking,proto3" json:"default_thinking,omitempty"`
+	IsBuiltin        bool                   `protobuf:"varint,7,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
+	BasedOn          *string                `protobuf:"bytes,8,opt,name=based_on,json=basedOn,proto3,oneof" json:"based_on,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CompletionAction *string                `protobuf:"bytes,11,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit from config)
+	TargetBranch     *string                `protobuf:"bytes,12,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`             // Default PR target branch for this workflow, or "" (inherit from config)
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Workflow) Reset() {
@@ -716,29 +707,21 @@ func (x *Workflow) GetTargetBranch() string {
 	return ""
 }
 
-func (x *Workflow) GetDefaultMaxIterations() int32 {
-	if x != nil && x.DefaultMaxIterations != nil {
-		return *x.DefaultMaxIterations
-	}
-	return 0
-}
-
 type WorkflowPhase struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	Id                    int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	WorkflowId            string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	PhaseTemplateId       string                 `protobuf:"bytes,3,opt,name=phase_template_id,json=phaseTemplateId,proto3" json:"phase_template_id,omitempty"`
-	Sequence              int32                  `protobuf:"varint,4,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	DependsOn             []string               `protobuf:"bytes,5,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	MaxIterationsOverride *int32                 `protobuf:"varint,6,opt,name=max_iterations_override,json=maxIterationsOverride,proto3,oneof" json:"max_iterations_override,omitempty"`
-	ModelOverride         *string                `protobuf:"bytes,7,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`           // Can still override model at workflow level
-	ThinkingOverride      *bool                  `protobuf:"varint,8,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"` // Phase-level thinking override
-	GateTypeOverride      *GateType              `protobuf:"varint,9,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
-	Condition             *string                `protobuf:"bytes,10,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
-	ClaudeConfigOverride  *string                `protobuf:"bytes,11,opt,name=claude_config_override,json=claudeConfigOverride,proto3,oneof" json:"claude_config_override,omitempty"` // Can still override claude config
-	PositionX             *float64               `protobuf:"fixed64,12,opt,name=position_x,json=positionX,proto3,oneof" json:"position_x,omitempty"`
-	PositionY             *float64               `protobuf:"fixed64,13,opt,name=position_y,json=positionY,proto3,oneof" json:"position_y,omitempty"`
-	LoopConfig            *string                `protobuf:"bytes,14,opt,name=loop_config,json=loopConfig,proto3,oneof" json:"loop_config,omitempty"`
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Id                   int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	WorkflowId           string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	PhaseTemplateId      string                 `protobuf:"bytes,3,opt,name=phase_template_id,json=phaseTemplateId,proto3" json:"phase_template_id,omitempty"`
+	Sequence             int32                  `protobuf:"varint,4,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	DependsOn            []string               `protobuf:"bytes,5,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	ModelOverride        *string                `protobuf:"bytes,7,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`           // Can still override model at workflow level
+	ThinkingOverride     *bool                  `protobuf:"varint,8,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"` // Phase-level thinking override
+	GateTypeOverride     *GateType              `protobuf:"varint,9,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
+	Condition            *string                `protobuf:"bytes,10,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
+	ClaudeConfigOverride *string                `protobuf:"bytes,11,opt,name=claude_config_override,json=claudeConfigOverride,proto3,oneof" json:"claude_config_override,omitempty"` // Can still override claude config
+	PositionX            *float64               `protobuf:"fixed64,12,opt,name=position_x,json=positionX,proto3,oneof" json:"position_x,omitempty"`
+	PositionY            *float64               `protobuf:"fixed64,13,opt,name=position_y,json=positionY,proto3,oneof" json:"position_y,omitempty"`
+	LoopConfig           *string                `protobuf:"bytes,14,opt,name=loop_config,json=loopConfig,proto3,oneof" json:"loop_config,omitempty"`
 	// NEW: Agent overrides
 	AgentOverride     *string        `protobuf:"bytes,15,opt,name=agent_override,json=agentOverride,proto3,oneof" json:"agent_override,omitempty"`         // Override executor agent
 	SubAgentsOverride []string       `protobuf:"bytes,16,rep,name=sub_agents_override,json=subAgentsOverride,proto3" json:"sub_agents_override,omitempty"` // Override sub-agents
@@ -810,13 +793,6 @@ func (x *WorkflowPhase) GetDependsOn() []string {
 		return x.DependsOn
 	}
 	return nil
-}
-
-func (x *WorkflowPhase) GetMaxIterationsOverride() int32 {
-	if x != nil && x.MaxIterationsOverride != nil {
-		return *x.MaxIterationsOverride
-	}
-	return 0
 }
 
 func (x *WorkflowPhase) GetModelOverride() string {
@@ -1930,17 +1906,16 @@ func (x *CreateWorkflowResponse) GetWorkflow() *Workflow {
 }
 
 type UpdateWorkflowRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                 *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description          *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	DefaultModel         *string                `protobuf:"bytes,4,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
-	DefaultThinking      *bool                  `protobuf:"varint,5,opt,name=default_thinking,json=defaultThinking,proto3,oneof" json:"default_thinking,omitempty"`
-	CompletionAction     *string                `protobuf:"bytes,6,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"`                // "pr", "commit", "none", or "" (inherit from config)
-	TargetBranch         *string                `protobuf:"bytes,7,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`                            // Default PR target branch for this workflow
-	DefaultMaxIterations *int32                 `protobuf:"varint,8,opt,name=default_max_iterations,json=defaultMaxIterations,proto3,oneof" json:"default_max_iterations,omitempty"` // Default maximum iterations for workflow phases
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name             *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description      *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	DefaultModel     *string                `protobuf:"bytes,4,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
+	DefaultThinking  *bool                  `protobuf:"varint,5,opt,name=default_thinking,json=defaultThinking,proto3,oneof" json:"default_thinking,omitempty"`
+	CompletionAction *string                `protobuf:"bytes,6,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit from config)
+	TargetBranch     *string                `protobuf:"bytes,7,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`             // Default PR target branch for this workflow
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateWorkflowRequest) Reset() {
@@ -2020,13 +1995,6 @@ func (x *UpdateWorkflowRequest) GetTargetBranch() string {
 		return *x.TargetBranch
 	}
 	return ""
-}
-
-func (x *UpdateWorkflowRequest) GetDefaultMaxIterations() int32 {
-	if x != nil && x.DefaultMaxIterations != nil {
-		return *x.DefaultMaxIterations
-	}
-	return 0
 }
 
 type UpdateWorkflowResponse struct {
@@ -2266,16 +2234,15 @@ func (x *CloneWorkflowResponse) GetWorkflow() *Workflow {
 }
 
 type AddPhaseRequest struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	WorkflowId            string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	PhaseTemplateId       string                 `protobuf:"bytes,2,opt,name=phase_template_id,json=phaseTemplateId,proto3" json:"phase_template_id,omitempty"`
-	Sequence              int32                  `protobuf:"varint,3,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	DependsOn             []string               `protobuf:"bytes,4,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	MaxIterationsOverride *int32                 `protobuf:"varint,5,opt,name=max_iterations_override,json=maxIterationsOverride,proto3,oneof" json:"max_iterations_override,omitempty"`
-	ModelOverride         *string                `protobuf:"bytes,6,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`
-	ThinkingOverride      *bool                  `protobuf:"varint,7,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"`
-	GateTypeOverride      *GateType              `protobuf:"varint,8,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
-	Condition             *string                `protobuf:"bytes,9,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId       string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	PhaseTemplateId  string                 `protobuf:"bytes,2,opt,name=phase_template_id,json=phaseTemplateId,proto3" json:"phase_template_id,omitempty"`
+	Sequence         int32                  `protobuf:"varint,3,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	DependsOn        []string               `protobuf:"bytes,4,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	ModelOverride    *string                `protobuf:"bytes,6,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`
+	ThinkingOverride *bool                  `protobuf:"varint,7,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"`
+	GateTypeOverride *GateType              `protobuf:"varint,8,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
+	Condition        *string                `protobuf:"bytes,9,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
 	// Agent overrides
 	AgentOverride     *string  `protobuf:"bytes,10,opt,name=agent_override,json=agentOverride,proto3,oneof" json:"agent_override,omitempty"`         // Override executor agent
 	SubAgentsOverride []string `protobuf:"bytes,11,rep,name=sub_agents_override,json=subAgentsOverride,proto3" json:"sub_agents_override,omitempty"` // Override sub-agents
@@ -2341,13 +2308,6 @@ func (x *AddPhaseRequest) GetDependsOn() []string {
 		return x.DependsOn
 	}
 	return nil
-}
-
-func (x *AddPhaseRequest) GetMaxIterationsOverride() int32 {
-	if x != nil && x.MaxIterationsOverride != nil {
-		return *x.MaxIterationsOverride
-	}
-	return 0
 }
 
 func (x *AddPhaseRequest) GetModelOverride() string {
@@ -2444,16 +2404,15 @@ func (x *AddPhaseResponse) GetPhase() *WorkflowPhase {
 }
 
 type UpdatePhaseRequest struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	WorkflowId            string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	PhaseId               int32                  `protobuf:"varint,2,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
-	Sequence              *int32                 `protobuf:"varint,3,opt,name=sequence,proto3,oneof" json:"sequence,omitempty"`
-	DependsOn             []string               `protobuf:"bytes,4,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	MaxIterationsOverride *int32                 `protobuf:"varint,5,opt,name=max_iterations_override,json=maxIterationsOverride,proto3,oneof" json:"max_iterations_override,omitempty"`
-	ModelOverride         *string                `protobuf:"bytes,6,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`
-	ThinkingOverride      *bool                  `protobuf:"varint,7,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"`
-	GateTypeOverride      *GateType              `protobuf:"varint,8,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
-	Condition             *string                `protobuf:"bytes,9,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId       string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	PhaseId          int32                  `protobuf:"varint,2,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	Sequence         *int32                 `protobuf:"varint,3,opt,name=sequence,proto3,oneof" json:"sequence,omitempty"`
+	DependsOn        []string               `protobuf:"bytes,4,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	ModelOverride    *string                `protobuf:"bytes,6,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`
+	ThinkingOverride *bool                  `protobuf:"varint,7,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"`
+	GateTypeOverride *GateType              `protobuf:"varint,8,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
+	Condition        *string                `protobuf:"bytes,9,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
 	// Agent overrides
 	AgentOverride        *string  `protobuf:"bytes,10,opt,name=agent_override,json=agentOverride,proto3,oneof" json:"agent_override,omitempty"`                           // Override executor agent
 	SubAgentsOverride    []string `protobuf:"bytes,11,rep,name=sub_agents_override,json=subAgentsOverride,proto3" json:"sub_agents_override,omitempty"`                   // Override sub-agents
@@ -2522,13 +2481,6 @@ func (x *UpdatePhaseRequest) GetDependsOn() []string {
 		return x.DependsOn
 	}
 	return nil
-}
-
-func (x *UpdatePhaseRequest) GetMaxIterationsOverride() int32 {
-	if x != nil && x.MaxIterationsOverride != nil {
-		return *x.MaxIterationsOverride
-	}
-	return 0
 }
 
 func (x *UpdatePhaseRequest) GetModelOverride() string {
@@ -3346,7 +3298,6 @@ type CreatePhaseTemplateRequest struct {
 	OutputSchema     *string                `protobuf:"bytes,7,opt,name=output_schema,json=outputSchema,proto3,oneof" json:"output_schema,omitempty"`
 	ProducesArtifact bool                   `protobuf:"varint,8,opt,name=produces_artifact,json=producesArtifact,proto3" json:"produces_artifact,omitempty"`
 	ArtifactType     *string                `protobuf:"bytes,9,opt,name=artifact_type,json=artifactType,proto3,oneof" json:"artifact_type,omitempty"`
-	MaxIterations    int32                  `protobuf:"varint,10,opt,name=max_iterations,json=maxIterations,proto3" json:"max_iterations,omitempty"`
 	// Field 11 removed: model_override - now on Agent
 	ThinkingEnabled *bool    `protobuf:"varint,12,opt,name=thinking_enabled,json=thinkingEnabled,proto3,oneof" json:"thinking_enabled,omitempty"` // Phase-level concern
 	GateType        GateType `protobuf:"varint,13,opt,name=gate_type,json=gateType,proto3,enum=orc.v1.GateType" json:"gate_type,omitempty"`
@@ -3451,13 +3402,6 @@ func (x *CreatePhaseTemplateRequest) GetArtifactType() string {
 		return *x.ArtifactType
 	}
 	return ""
-}
-
-func (x *CreatePhaseTemplateRequest) GetMaxIterations() int32 {
-	if x != nil {
-		return x.MaxIterations
-	}
-	return 0
 }
 
 func (x *CreatePhaseTemplateRequest) GetThinkingEnabled() bool {
@@ -3571,7 +3515,6 @@ type UpdatePhaseTemplateRequest struct {
 	OutputSchema     *string                `protobuf:"bytes,7,opt,name=output_schema,json=outputSchema,proto3,oneof" json:"output_schema,omitempty"`
 	ProducesArtifact *bool                  `protobuf:"varint,8,opt,name=produces_artifact,json=producesArtifact,proto3,oneof" json:"produces_artifact,omitempty"`
 	ArtifactType     *string                `protobuf:"bytes,9,opt,name=artifact_type,json=artifactType,proto3,oneof" json:"artifact_type,omitempty"`
-	MaxIterations    *int32                 `protobuf:"varint,10,opt,name=max_iterations,json=maxIterations,proto3,oneof" json:"max_iterations,omitempty"`
 	// Field 11 removed: model_override - now on Agent
 	ThinkingEnabled *bool     `protobuf:"varint,12,opt,name=thinking_enabled,json=thinkingEnabled,proto3,oneof" json:"thinking_enabled,omitempty"` // Phase-level concern
 	GateType        *GateType `protobuf:"varint,13,opt,name=gate_type,json=gateType,proto3,enum=orc.v1.GateType,oneof" json:"gate_type,omitempty"`
@@ -3676,13 +3619,6 @@ func (x *UpdatePhaseTemplateRequest) GetArtifactType() string {
 		return *x.ArtifactType
 	}
 	return ""
-}
-
-func (x *UpdatePhaseTemplateRequest) GetMaxIterations() int32 {
-	if x != nil && x.MaxIterations != nil {
-		return *x.MaxIterations
-	}
-	return 0
 }
 
 func (x *UpdatePhaseTemplateRequest) GetThinkingEnabled() bool {
@@ -5607,7 +5543,7 @@ var File_orc_v1_workflow_proto protoreflect.FileDescriptor
 
 const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\n" +
-	"\x15orc/v1/workflow.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\x1a\x11orc/v1/task.proto\"\x91\t\n" +
+	"\x15orc/v1/workflow.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\x1a\x11orc/v1/task.proto\"\xf0\b\n" +
 	"\rPhaseTemplate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -5620,8 +5556,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\routput_schema\x18\b \x01(\tH\x03R\foutputSchema\x88\x01\x01\x12+\n" +
 	"\x11produces_artifact\x18\t \x01(\bR\x10producesArtifact\x12(\n" +
 	"\rartifact_type\x18\n" +
-	" \x01(\tH\x04R\fartifactType\x88\x01\x01\x12%\n" +
-	"\x0emax_iterations\x18\v \x01(\x05R\rmaxIterations\x12.\n" +
+	" \x01(\tH\x04R\fartifactType\x88\x01\x01\x12.\n" +
 	"\x10thinking_enabled\x18\r \x01(\bH\x05R\x0fthinkingEnabled\x88\x01\x01\x12-\n" +
 	"\tgate_type\x18\x0e \x01(\x0e2\x10.orc.v1.GateTypeR\bgateType\x12\x1e\n" +
 	"\n" +
@@ -5650,7 +5585,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x12_retry_prompt_pathB\x10\n" +
 	"\x0e_claude_configB\v\n" +
 	"\t_agent_idB\x12\n" +
-	"\x10_output_var_name\"\xee\x04\n" +
+	"\x10_output_var_nameJ\x04\b\v\x10\f\"\x9e\x04\n" +
 	"\bWorkflow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -5666,14 +5601,12 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"updated_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x120\n" +
 	"\x11completion_action\x18\v \x01(\tH\x03R\x10completionAction\x88\x01\x01\x12(\n" +
-	"\rtarget_branch\x18\f \x01(\tH\x04R\ftargetBranch\x88\x01\x01\x129\n" +
-	"\x16default_max_iterations\x18\r \x01(\x05H\x05R\x14defaultMaxIterations\x88\x01\x01B\x0e\n" +
+	"\rtarget_branch\x18\f \x01(\tH\x04R\ftargetBranch\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_default_modelB\v\n" +
 	"\t_based_onB\x14\n" +
 	"\x12_completion_actionB\x10\n" +
-	"\x0e_target_branchB\x19\n" +
-	"\x17_default_max_iterationsJ\x04\b\x04\x10\x05\"\xa8\a\n" +
+	"\x0e_target_branchJ\x04\b\x04\x10\x05J\x04\b\r\x10\x0e\"\xd5\x06\n" +
 	"\rWorkflowPhase\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -5681,24 +5614,22 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x11phase_template_id\x18\x03 \x01(\tR\x0fphaseTemplateId\x12\x1a\n" +
 	"\bsequence\x18\x04 \x01(\x05R\bsequence\x12\x1d\n" +
 	"\n" +
-	"depends_on\x18\x05 \x03(\tR\tdependsOn\x12;\n" +
-	"\x17max_iterations_override\x18\x06 \x01(\x05H\x00R\x15maxIterationsOverride\x88\x01\x01\x12*\n" +
-	"\x0emodel_override\x18\a \x01(\tH\x01R\rmodelOverride\x88\x01\x01\x120\n" +
-	"\x11thinking_override\x18\b \x01(\bH\x02R\x10thinkingOverride\x88\x01\x01\x12C\n" +
-	"\x12gate_type_override\x18\t \x01(\x0e2\x10.orc.v1.GateTypeH\x03R\x10gateTypeOverride\x88\x01\x01\x12!\n" +
+	"depends_on\x18\x05 \x03(\tR\tdependsOn\x12*\n" +
+	"\x0emodel_override\x18\a \x01(\tH\x00R\rmodelOverride\x88\x01\x01\x120\n" +
+	"\x11thinking_override\x18\b \x01(\bH\x01R\x10thinkingOverride\x88\x01\x01\x12C\n" +
+	"\x12gate_type_override\x18\t \x01(\x0e2\x10.orc.v1.GateTypeH\x02R\x10gateTypeOverride\x88\x01\x01\x12!\n" +
 	"\tcondition\x18\n" +
-	" \x01(\tH\x04R\tcondition\x88\x01\x01\x129\n" +
-	"\x16claude_config_override\x18\v \x01(\tH\x05R\x14claudeConfigOverride\x88\x01\x01\x12\"\n" +
+	" \x01(\tH\x03R\tcondition\x88\x01\x01\x129\n" +
+	"\x16claude_config_override\x18\v \x01(\tH\x04R\x14claudeConfigOverride\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"position_x\x18\f \x01(\x01H\x06R\tpositionX\x88\x01\x01\x12\"\n" +
+	"position_x\x18\f \x01(\x01H\x05R\tpositionX\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"position_y\x18\r \x01(\x01H\aR\tpositionY\x88\x01\x01\x12$\n" +
-	"\vloop_config\x18\x0e \x01(\tH\bR\n" +
+	"position_y\x18\r \x01(\x01H\x06R\tpositionY\x88\x01\x01\x12$\n" +
+	"\vloop_config\x18\x0e \x01(\tH\aR\n" +
 	"loopConfig\x88\x01\x01\x12*\n" +
-	"\x0eagent_override\x18\x0f \x01(\tH\tR\ragentOverride\x88\x01\x01\x12.\n" +
+	"\x0eagent_override\x18\x0f \x01(\tH\bR\ragentOverride\x88\x01\x01\x12.\n" +
 	"\x13sub_agents_override\x18\x10 \x03(\tR\x11subAgentsOverride\x121\n" +
-	"\btemplate\x18d \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplateB\x1a\n" +
-	"\x18_max_iterations_overrideB\x11\n" +
+	"\btemplate\x18d \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplateB\x11\n" +
 	"\x0f_model_overrideB\x14\n" +
 	"\x12_thinking_overrideB\x15\n" +
 	"\x13_gate_type_overrideB\f\n" +
@@ -5708,7 +5639,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\v_position_xB\r\n" +
 	"\v_position_yB\x0e\n" +
 	"\f_loop_configB\x11\n" +
-	"\x0f_agent_override\"\xde\x03\n" +
+	"\x0f_agent_overrideJ\x04\b\x06\x10\a\"\xde\x03\n" +
 	"\x10WorkflowVariable\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -5853,7 +5784,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x12_completion_actionB\x10\n" +
 	"\x0e_target_branchJ\x04\b\x04\x10\x05\"F\n" +
 	"\x16CreateWorkflowResponse\x12,\n" +
-	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\xdb\x03\n" +
+	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\x8b\x03\n" +
 	"\x15UpdateWorkflowRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -5861,15 +5792,13 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\rdefault_model\x18\x04 \x01(\tH\x02R\fdefaultModel\x88\x01\x01\x12.\n" +
 	"\x10default_thinking\x18\x05 \x01(\bH\x03R\x0fdefaultThinking\x88\x01\x01\x120\n" +
 	"\x11completion_action\x18\x06 \x01(\tH\x04R\x10completionAction\x88\x01\x01\x12(\n" +
-	"\rtarget_branch\x18\a \x01(\tH\x05R\ftargetBranch\x88\x01\x01\x129\n" +
-	"\x16default_max_iterations\x18\b \x01(\x05H\x06R\x14defaultMaxIterations\x88\x01\x01B\a\n" +
+	"\rtarget_branch\x18\a \x01(\tH\x05R\ftargetBranch\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_default_modelB\x13\n" +
 	"\x11_default_thinkingB\x14\n" +
 	"\x12_completion_actionB\x10\n" +
-	"\x0e_target_branchB\x19\n" +
-	"\x17_default_max_iterations\"F\n" +
+	"\x0e_target_branchJ\x04\b\b\x10\t\"F\n" +
 	"\x16UpdateWorkflowResponse\x12,\n" +
 	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"'\n" +
 	"\x15DeleteWorkflowRequest\x12\x0e\n" +
@@ -5882,54 +5811,50 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\bnew_name\x18\x03 \x01(\tH\x00R\anewName\x88\x01\x01B\v\n" +
 	"\t_new_name\"E\n" +
 	"\x15CloneWorkflowResponse\x12,\n" +
-	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\xcb\x05\n" +
+	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\xf8\x04\n" +
 	"\x0fAddPhaseRequest\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12*\n" +
 	"\x11phase_template_id\x18\x02 \x01(\tR\x0fphaseTemplateId\x12\x1a\n" +
 	"\bsequence\x18\x03 \x01(\x05R\bsequence\x12\x1d\n" +
 	"\n" +
-	"depends_on\x18\x04 \x03(\tR\tdependsOn\x12;\n" +
-	"\x17max_iterations_override\x18\x05 \x01(\x05H\x00R\x15maxIterationsOverride\x88\x01\x01\x12*\n" +
-	"\x0emodel_override\x18\x06 \x01(\tH\x01R\rmodelOverride\x88\x01\x01\x120\n" +
-	"\x11thinking_override\x18\a \x01(\bH\x02R\x10thinkingOverride\x88\x01\x01\x12C\n" +
-	"\x12gate_type_override\x18\b \x01(\x0e2\x10.orc.v1.GateTypeH\x03R\x10gateTypeOverride\x88\x01\x01\x12!\n" +
-	"\tcondition\x18\t \x01(\tH\x04R\tcondition\x88\x01\x01\x12*\n" +
+	"depends_on\x18\x04 \x03(\tR\tdependsOn\x12*\n" +
+	"\x0emodel_override\x18\x06 \x01(\tH\x00R\rmodelOverride\x88\x01\x01\x120\n" +
+	"\x11thinking_override\x18\a \x01(\bH\x01R\x10thinkingOverride\x88\x01\x01\x12C\n" +
+	"\x12gate_type_override\x18\b \x01(\x0e2\x10.orc.v1.GateTypeH\x02R\x10gateTypeOverride\x88\x01\x01\x12!\n" +
+	"\tcondition\x18\t \x01(\tH\x03R\tcondition\x88\x01\x01\x12*\n" +
 	"\x0eagent_override\x18\n" +
-	" \x01(\tH\x05R\ragentOverride\x88\x01\x01\x12.\n" +
+	" \x01(\tH\x04R\ragentOverride\x88\x01\x01\x12.\n" +
 	"\x13sub_agents_override\x18\v \x03(\tR\x11subAgentsOverride\x129\n" +
-	"\x16claude_config_override\x18\f \x01(\tH\x06R\x14claudeConfigOverride\x88\x01\x01B\x1a\n" +
-	"\x18_max_iterations_overrideB\x11\n" +
+	"\x16claude_config_override\x18\f \x01(\tH\x05R\x14claudeConfigOverride\x88\x01\x01B\x11\n" +
 	"\x0f_model_overrideB\x14\n" +
 	"\x12_thinking_overrideB\x15\n" +
 	"\x13_gate_type_overrideB\f\n" +
 	"\n" +
 	"_conditionB\x11\n" +
 	"\x0f_agent_overrideB\x19\n" +
-	"\x17_claude_config_override\"?\n" +
+	"\x17_claude_config_overrideJ\x04\b\x05\x10\x06\"?\n" +
 	"\x10AddPhaseResponse\x12+\n" +
-	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"\xdd\x06\n" +
+	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"\x8a\x06\n" +
 	"\x12UpdatePhaseRequest\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12\x19\n" +
 	"\bphase_id\x18\x02 \x01(\x05R\aphaseId\x12\x1f\n" +
 	"\bsequence\x18\x03 \x01(\x05H\x00R\bsequence\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"depends_on\x18\x04 \x03(\tR\tdependsOn\x12;\n" +
-	"\x17max_iterations_override\x18\x05 \x01(\x05H\x01R\x15maxIterationsOverride\x88\x01\x01\x12*\n" +
-	"\x0emodel_override\x18\x06 \x01(\tH\x02R\rmodelOverride\x88\x01\x01\x120\n" +
-	"\x11thinking_override\x18\a \x01(\bH\x03R\x10thinkingOverride\x88\x01\x01\x12C\n" +
-	"\x12gate_type_override\x18\b \x01(\x0e2\x10.orc.v1.GateTypeH\x04R\x10gateTypeOverride\x88\x01\x01\x12!\n" +
-	"\tcondition\x18\t \x01(\tH\x05R\tcondition\x88\x01\x01\x12*\n" +
+	"depends_on\x18\x04 \x03(\tR\tdependsOn\x12*\n" +
+	"\x0emodel_override\x18\x06 \x01(\tH\x01R\rmodelOverride\x88\x01\x01\x120\n" +
+	"\x11thinking_override\x18\a \x01(\bH\x02R\x10thinkingOverride\x88\x01\x01\x12C\n" +
+	"\x12gate_type_override\x18\b \x01(\x0e2\x10.orc.v1.GateTypeH\x03R\x10gateTypeOverride\x88\x01\x01\x12!\n" +
+	"\tcondition\x18\t \x01(\tH\x04R\tcondition\x88\x01\x01\x12*\n" +
 	"\x0eagent_override\x18\n" +
-	" \x01(\tH\x06R\ragentOverride\x88\x01\x01\x12.\n" +
+	" \x01(\tH\x05R\ragentOverride\x88\x01\x01\x12.\n" +
 	"\x13sub_agents_override\x18\v \x03(\tR\x11subAgentsOverride\x12:\n" +
-	"\x17sub_agents_override_set\x18\r \x01(\bH\aR\x14subAgentsOverrideSet\x88\x01\x01\x129\n" +
-	"\x16claude_config_override\x18\f \x01(\tH\bR\x14claudeConfigOverride\x88\x01\x01\x12$\n" +
-	"\vloop_config\x18\x0e \x01(\tH\tR\n" +
+	"\x17sub_agents_override_set\x18\r \x01(\bH\x06R\x14subAgentsOverrideSet\x88\x01\x01\x129\n" +
+	"\x16claude_config_override\x18\f \x01(\tH\aR\x14claudeConfigOverride\x88\x01\x01\x12$\n" +
+	"\vloop_config\x18\x0e \x01(\tH\bR\n" +
 	"loopConfig\x88\x01\x01B\v\n" +
-	"\t_sequenceB\x1a\n" +
-	"\x18_max_iterations_overrideB\x11\n" +
+	"\t_sequenceB\x11\n" +
 	"\x0f_model_overrideB\x14\n" +
 	"\x12_thinking_overrideB\x15\n" +
 	"\x13_gate_type_overrideB\f\n" +
@@ -5938,7 +5863,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0f_agent_overrideB\x1a\n" +
 	"\x18_sub_agents_override_setB\x19\n" +
 	"\x17_claude_config_overrideB\x0e\n" +
-	"\f_loop_config\"B\n" +
+	"\f_loop_configJ\x04\b\x05\x10\x06\"B\n" +
 	"\x13UpdatePhaseResponse\x12+\n" +
 	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"P\n" +
 	"\x12RemovePhaseRequest\x12\x1f\n" +
@@ -6002,7 +5927,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x17GetPhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"M\n" +
 	"\x18GetPhaseTemplateResponse\x121\n" +
-	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xfe\x06\n" +
+	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xdd\x06\n" +
 	"\x1aCreatePhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -6013,9 +5938,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"promptPath\x88\x01\x01\x12(\n" +
 	"\routput_schema\x18\a \x01(\tH\x03R\foutputSchema\x88\x01\x01\x12+\n" +
 	"\x11produces_artifact\x18\b \x01(\bR\x10producesArtifact\x12(\n" +
-	"\rartifact_type\x18\t \x01(\tH\x04R\fartifactType\x88\x01\x01\x12%\n" +
-	"\x0emax_iterations\x18\n" +
-	" \x01(\x05R\rmaxIterations\x12.\n" +
+	"\rartifact_type\x18\t \x01(\tH\x04R\fartifactType\x88\x01\x01\x12.\n" +
 	"\x10thinking_enabled\x18\f \x01(\bH\x05R\x0fthinkingEnabled\x88\x01\x01\x12-\n" +
 	"\tgate_type\x18\r \x01(\x0e2\x10.orc.v1.GateTypeR\bgateType\x12\x1e\n" +
 	"\n" +
@@ -6034,9 +5957,10 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x11_thinking_enabledB\v\n" +
 	"\t_agent_idB\x10\n" +
 	"\x0e_claude_configB\x12\n" +
-	"\x10_output_var_name\"P\n" +
+	"\x10_output_var_nameJ\x04\b\n" +
+	"\x10\v\"P\n" +
 	"\x1bCreatePhaseTemplateResponse\x121\n" +
-	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xfd\a\n" +
+	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xc4\a\n" +
 	"\x1aUpdatePhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -6047,19 +5971,17 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"promptPath\x88\x01\x01\x12(\n" +
 	"\routput_schema\x18\a \x01(\tH\x05R\foutputSchema\x88\x01\x01\x120\n" +
 	"\x11produces_artifact\x18\b \x01(\bH\x06R\x10producesArtifact\x88\x01\x01\x12(\n" +
-	"\rartifact_type\x18\t \x01(\tH\aR\fartifactType\x88\x01\x01\x12*\n" +
-	"\x0emax_iterations\x18\n" +
-	" \x01(\x05H\bR\rmaxIterations\x88\x01\x01\x12.\n" +
-	"\x10thinking_enabled\x18\f \x01(\bH\tR\x0fthinkingEnabled\x88\x01\x01\x122\n" +
-	"\tgate_type\x18\r \x01(\x0e2\x10.orc.v1.GateTypeH\n" +
-	"R\bgateType\x88\x01\x01\x12#\n" +
+	"\rartifact_type\x18\t \x01(\tH\aR\fartifactType\x88\x01\x01\x12.\n" +
+	"\x10thinking_enabled\x18\f \x01(\bH\bR\x0fthinkingEnabled\x88\x01\x01\x122\n" +
+	"\tgate_type\x18\r \x01(\x0e2\x10.orc.v1.GateTypeH\tR\bgateType\x88\x01\x01\x12#\n" +
 	"\n" +
-	"checkpoint\x18\x0e \x01(\bH\vR\n" +
+	"checkpoint\x18\x0e \x01(\bH\n" +
+	"R\n" +
 	"checkpoint\x88\x01\x01\x12\x1e\n" +
-	"\bagent_id\x18\x0f \x01(\tH\fR\aagentId\x88\x01\x01\x12\"\n" +
+	"\bagent_id\x18\x0f \x01(\tH\vR\aagentId\x88\x01\x01\x12\"\n" +
 	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIds\x12(\n" +
-	"\rclaude_config\x18\x11 \x01(\tH\rR\fclaudeConfig\x88\x01\x01\x12+\n" +
-	"\x0foutput_var_name\x18\x12 \x01(\tH\x0eR\routputVarName\x88\x01\x01\x12'\n" +
+	"\rclaude_config\x18\x11 \x01(\tH\fR\fclaudeConfig\x88\x01\x01\x12+\n" +
+	"\x0foutput_var_name\x18\x12 \x01(\tH\rR\routputVarName\x88\x01\x01\x12'\n" +
 	"\x0finput_variables\x18\x13 \x03(\tR\x0einputVariablesB\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x10\n" +
@@ -6068,15 +5990,15 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\f_prompt_pathB\x10\n" +
 	"\x0e_output_schemaB\x14\n" +
 	"\x12_produces_artifactB\x10\n" +
-	"\x0e_artifact_typeB\x11\n" +
-	"\x0f_max_iterationsB\x13\n" +
+	"\x0e_artifact_typeB\x13\n" +
 	"\x11_thinking_enabledB\f\n" +
 	"\n" +
 	"_gate_typeB\r\n" +
 	"\v_checkpointB\v\n" +
 	"\t_agent_idB\x10\n" +
 	"\x0e_claude_configB\x12\n" +
-	"\x10_output_var_name\"P\n" +
+	"\x10_output_var_nameJ\x04\b\n" +
+	"\x10\v\"P\n" +
 	"\x1bUpdatePhaseTemplateResponse\x121\n" +
 	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\",\n" +
 	"\x1aDeletePhaseTemplateRequest\x12\x0e\n" +

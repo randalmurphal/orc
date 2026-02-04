@@ -91,7 +91,6 @@ export function EditPhaseTemplateModal({
 	const [name, setName] = useState('');
 	const [description, setDescription] = useState('');
 	const [agentId, setAgentId] = useState('');
-	const [maxIterations, setMaxIterations] = useState(50);
 	const [gateType, setGateType] = useState<GateType>(GateType.AUTO);
 	const [thinkingEnabled, setThinkingEnabled] = useState(false);
 	const [checkpoint, setCheckpoint] = useState(false);
@@ -197,7 +196,6 @@ export function EditPhaseTemplateModal({
 			setName(template.name || '');
 			setDescription(template.description || '');
 			setAgentId(template.agentId || '');
-			setMaxIterations(template.maxIterations || 50);
 			setGateType(template.gateType || GateType.AUTO);
 			setThinkingEnabled(template.thinkingEnabled || false);
 			setCheckpoint(template.checkpoint || false);
@@ -314,7 +312,6 @@ export function EditPhaseTemplateModal({
 				name: name.trim() || undefined,
 				description: description.trim() || undefined,
 				agentId: agentId.trim() || undefined,
-				maxIterations: maxIterations,
 				gateType: gateType,
 				thinkingEnabled: thinkingEnabled,
 				checkpoint: checkpoint,
@@ -341,7 +338,6 @@ export function EditPhaseTemplateModal({
 		name,
 		description,
 		agentId,
-		maxIterations,
 		gateType,
 		thinkingEnabled,
 		checkpoint,
@@ -485,25 +481,6 @@ export function EditPhaseTemplateModal({
 								))}
 							</select>
 						</div>
-					</div>
-
-					{/* Max iterations */}
-					<div className="form-group">
-						<label htmlFor="edit-template-iterations" className="form-label">
-							Max Iterations
-						</label>
-						<input
-							id="edit-template-iterations"
-							type="number"
-							className="form-input"
-							value={maxIterations}
-							onChange={(e) => setMaxIterations(Number(e.target.value))}
-							min={1}
-							max={1000}
-						/>
-						<span className="form-help">
-							Maximum number of LLM iterations for this phase
-						</span>
 					</div>
 
 					{/* Options */}

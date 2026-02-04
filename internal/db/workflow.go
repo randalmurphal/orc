@@ -62,7 +62,6 @@ type PhaseTemplate struct {
 	QualityChecks string `json:"quality_checks,omitempty"` // JSON array of QualityCheck
 
 	// Execution config
-	MaxIterations   int   `json:"max_iterations"`
 	ThinkingEnabled *bool `json:"thinking_enabled,omitempty"` // Phase-level concern (not agent-level)
 	GateType        string `json:"gate_type"`
 	Checkpoint      bool   `json:"checkpoint"`
@@ -92,10 +91,9 @@ type Workflow struct {
 	ID                   string    `json:"id"`
 	Name                 string    `json:"name"`
 	Description          string    `json:"description,omitempty"`
-	DefaultModel         string    `json:"default_model,omitempty"`
-	DefaultThinking      bool      `json:"default_thinking"`
-	DefaultMaxIterations int       `json:"default_max_iterations,omitempty"`
-	CompletionAction     string    `json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit)
+	DefaultModel     string `json:"default_model,omitempty"`
+	DefaultThinking  bool   `json:"default_thinking"`
+	CompletionAction string `json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit)
 	TargetBranch         string    `json:"target_branch,omitempty"`     // Default PR target branch, or "" (inherit from config)
 	IsBuiltin            bool      `json:"is_builtin"`
 	BasedOn              string    `json:"based_on,omitempty"`
@@ -280,8 +278,7 @@ type WorkflowPhase struct {
 	SubAgentsOverride string `json:"sub_agents_override,omitempty"` // Override sub-agents (JSON array)
 
 	// Per-workflow overrides
-	MaxIterationsOverride *int   `json:"max_iterations_override,omitempty"`
-	ModelOverride         string `json:"model_override,omitempty"`  // Override agent's model for this workflow
+	ModelOverride string `json:"model_override,omitempty"` // Override agent's model for this workflow
 	ThinkingOverride      *bool  `json:"thinking_override,omitempty"`
 	GateTypeOverride      string `json:"gate_type_override,omitempty"`
 	Condition             string `json:"condition,omitempty"`              // JSON - conditional execution
@@ -398,11 +395,11 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			prompt_source, prompt_content, prompt_path,
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			output_type, quality_checks,
-			max_iterations, thinking_enabled, gate_type, checkpoint,
+			thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
 			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
 			claude_config)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
@@ -418,7 +415,6 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			output_var_name = excluded.output_var_name,
 			output_type = excluded.output_type,
 			quality_checks = excluded.quality_checks,
-			max_iterations = excluded.max_iterations,
 			thinking_enabled = excluded.thinking_enabled,
 			gate_type = excluded.gate_type,
 			checkpoint = excluded.checkpoint,
@@ -434,7 +430,7 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 		pt.PromptSource, pt.PromptContent, pt.PromptPath,
 		pt.InputVariables, pt.OutputSchema, pt.ProducesArtifact, pt.ArtifactType, pt.OutputVarName,
 		pt.OutputType, pt.QualityChecks,
-		pt.MaxIterations, thinkingEnabled, pt.GateType, pt.Checkpoint,
+		thinkingEnabled, pt.GateType, pt.Checkpoint,
 		pt.RetryFromPhase, pt.RetryPromptPath, pt.IsBuiltin,
 		pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339),
 		pt.GateInputConfig, pt.GateOutputConfig, pt.GateMode, gateAgentID,
@@ -452,7 +448,7 @@ func (p *ProjectDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
 			prompt_source, prompt_content, prompt_path,
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			output_type, quality_checks,
-			max_iterations, thinking_enabled, gate_type, checkpoint,
+			thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
 			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
 			COALESCE(claude_config, '') as claude_config
@@ -476,7 +472,7 @@ func (p *ProjectDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
 			prompt_source, prompt_content, prompt_path,
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			output_type, quality_checks,
-			max_iterations, thinking_enabled, gate_type, checkpoint,
+			thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
 			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
 			COALESCE(claude_config, '') as claude_config
@@ -517,20 +513,19 @@ func (p *ProjectDB) SaveWorkflow(w *Workflow) error {
 	basedOn := sqlNullString(w.BasedOn)
 
 	_, err := p.Exec(`
-		INSERT INTO workflows (id, name, description, default_model, default_thinking, default_max_iterations, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO workflows (id, name, description, default_model, default_thinking, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
 			default_model = excluded.default_model,
 			default_thinking = excluded.default_thinking,
-			default_max_iterations = excluded.default_max_iterations,
 			completion_action = excluded.completion_action,
 			target_branch = excluded.target_branch,
 			based_on = excluded.based_on,
 			triggers = excluded.triggers,
 			updated_at = excluded.updated_at
-	`, w.ID, w.Name, w.Description, w.DefaultModel, w.DefaultThinking, w.DefaultMaxIterations, w.CompletionAction,
+	`, w.ID, w.Name, w.Description, w.DefaultModel, w.DefaultThinking, w.CompletionAction,
 		w.TargetBranch, w.IsBuiltin, basedOn, w.Triggers, w.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("save workflow: %w", err)
@@ -541,7 +536,7 @@ func (p *ProjectDB) SaveWorkflow(w *Workflow) error {
 // GetWorkflow retrieves a workflow by ID.
 func (p *ProjectDB) GetWorkflow(id string) (*Workflow, error) {
 	row := p.QueryRow(`
-		SELECT id, name, description, default_model, default_thinking, default_max_iterations, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at
+		SELECT id, name, description, default_model, default_thinking, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at
 		FROM workflows WHERE id = ?
 	`, id)
 
@@ -558,7 +553,7 @@ func (p *ProjectDB) GetWorkflow(id string) (*Workflow, error) {
 // ListWorkflows returns all workflows.
 func (p *ProjectDB) ListWorkflows() ([]*Workflow, error) {
 	rows, err := p.Query(`
-		SELECT id, name, description, default_model, default_thinking, default_max_iterations, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at
+		SELECT id, name, description, default_model, default_thinking, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at
 		FROM workflows
 		ORDER BY is_builtin DESC, name ASC
 	`)
@@ -592,7 +587,6 @@ func (p *ProjectDB) DeleteWorkflow(id string) error {
 // SaveWorkflowPhase creates or updates a workflow-phase link.
 func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 	thinkingOverride := sqlNullBool(wp.ThinkingOverride)
-	maxIterOverride := sqlNullInt(wp.MaxIterationsOverride)
 	posX := sqlNullFloat64(wp.PositionX)
 	posY := sqlNullFloat64(wp.PositionY)
 	// Use sqlNullString for FK columns to convert empty string to NULL
@@ -602,15 +596,14 @@ func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 	res, err := p.Exec(`
 		INSERT INTO workflow_phases (workflow_id, phase_template_id, sequence, depends_on,
 			agent_override, sub_agents_override,
-			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
+			model_override, thinking_override, gate_type_override, condition,
 			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(workflow_id, phase_template_id) DO UPDATE SET
 			sequence = excluded.sequence,
 			depends_on = excluded.depends_on,
 			agent_override = excluded.agent_override,
 			sub_agents_override = excluded.sub_agents_override,
-			max_iterations_override = excluded.max_iterations_override,
 			model_override = excluded.model_override,
 			thinking_override = excluded.thinking_override,
 			gate_type_override = excluded.gate_type_override,
@@ -623,7 +616,7 @@ func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 			position_y = excluded.position_y
 	`, wp.WorkflowID, wp.PhaseTemplateID, wp.Sequence, wp.DependsOn,
 		agentOverride, subAgentsOverride,
-		maxIterOverride, wp.ModelOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition,
+		wp.ModelOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition,
 		wp.QualityChecksOverride, wp.LoopConfig, wp.ClaudeConfigOverride, wp.BeforeTriggers, posX, posY)
 	if err != nil {
 		return fmt.Errorf("save workflow phase: %w", err)
@@ -642,7 +635,7 @@ func (p *ProjectDB) GetWorkflowPhases(workflowID string) ([]*WorkflowPhase, erro
 	rows, err := p.Query(`
 		SELECT id, workflow_id, phase_template_id, sequence, depends_on,
 			agent_override, sub_agents_override,
-			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
+			model_override, thinking_override, gate_type_override, condition,
 			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y
 		FROM workflow_phases
 		WHERE workflow_id = ?
@@ -1094,7 +1087,7 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 		&pt.PromptSource, &promptContent, &promptPath,
 		&inputVars, &outputSchema, &pt.ProducesArtifact, &artifactType, &outputVarName,
 		&outputType, &qualityChecks,
-		&pt.MaxIterations, &thinkingEnabled, &pt.GateType, &pt.Checkpoint,
+		&thinkingEnabled, &pt.GateType, &pt.Checkpoint,
 		&retryFromPhase, &retryPromptPath, &pt.IsBuiltin, &createdAt, &updatedAt,
 		&gateInputConfig, &gateOutputConfig, &gateMode, &gateAgentID,
 		&claudeConfig,
@@ -1136,10 +1129,9 @@ func scanWorkflow(row rowScanner) (*Workflow, error) {
 	w := &Workflow{}
 	var createdAt, updatedAt string
 	var description, defaultModel, completionAction, targetBranch, basedOn, triggers sql.NullString
-	var defaultMaxIterations sql.NullInt64
 
 	err := row.Scan(
-		&w.ID, &w.Name, &description, &defaultModel, &w.DefaultThinking, &defaultMaxIterations,
+		&w.ID, &w.Name, &description, &defaultModel, &w.DefaultThinking,
 		&completionAction, &targetBranch, &w.IsBuiltin, &basedOn, &triggers, &createdAt, &updatedAt,
 	)
 	if err != nil {
@@ -1148,9 +1140,6 @@ func scanWorkflow(row rowScanner) (*Workflow, error) {
 
 	w.Description = description.String
 	w.DefaultModel = defaultModel.String
-	if defaultMaxIterations.Valid {
-		w.DefaultMaxIterations = int(defaultMaxIterations.Int64)
-	}
 	w.CompletionAction = completionAction.String
 	w.TargetBranch = targetBranch.String
 	w.BasedOn = basedOn.String
@@ -1170,14 +1159,13 @@ func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
 	var dependsOn, agentOverride, subAgentsOverride sql.NullString
 	var modelOverride, gateTypeOverride, condition, qualityChecksOverride, loopConfig, claudeConfigOverride sql.NullString
 	var beforeTriggers sql.NullString
-	var maxIterOverride sql.NullInt64
 	var thinkingOverride sql.NullBool
 	var posX, posY sql.NullFloat64
 
 	err := rows.Scan(
 		&wp.ID, &wp.WorkflowID, &wp.PhaseTemplateID, &wp.Sequence, &dependsOn,
 		&agentOverride, &subAgentsOverride,
-		&maxIterOverride, &modelOverride, &thinkingOverride, &gateTypeOverride, &condition,
+		&modelOverride, &thinkingOverride, &gateTypeOverride, &condition,
 		&qualityChecksOverride, &loopConfig, &claudeConfigOverride, &beforeTriggers, &posX, &posY,
 	)
 	if err != nil {
@@ -1187,7 +1175,6 @@ func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
 	wp.DependsOn = dependsOn.String
 	wp.AgentOverride = agentOverride.String
 	wp.SubAgentsOverride = subAgentsOverride.String
-	wp.MaxIterationsOverride = nullIntToPtr(maxIterOverride)
 	wp.ModelOverride = modelOverride.String
 	wp.ThinkingOverride = nullBoolToPtr(thinkingOverride)
 	wp.GateTypeOverride = gateTypeOverride.String

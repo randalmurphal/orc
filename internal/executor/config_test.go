@@ -29,11 +29,11 @@ func TestDefaultConfig_SetsCorrectDefaults(t *testing.T) {
 	}
 
 	// Execution settings
-	if cfg.MaxIterations != 30 {
-		t.Errorf("MaxIterations = %d, want %d", cfg.MaxIterations, 30)
+	if cfg.MaxTurns != 150 {
+		t.Errorf("MaxTurns = %d, want %d", cfg.MaxTurns, 150)
 	}
-	if cfg.Timeout != 10*time.Minute {
-		t.Errorf("Timeout = %v, want %v", cfg.Timeout, 10*time.Minute)
+	if cfg.Timeout != 60*time.Minute {
+		t.Errorf("Timeout = %v, want %v", cfg.Timeout, 60*time.Minute)
 	}
 	if cfg.WorkDir != "." {
 		t.Errorf("WorkDir = %q, want %q", cfg.WorkDir, ".")
@@ -67,7 +67,7 @@ func TestConfig_AllFieldsExported(t *testing.T) {
 		DangerouslySkipPermissions: false,
 		AllowedTools:               []string{"Read", "Write"},
 		DisallowedTools:            []string{"Bash"},
-		MaxIterations:              50,
+		MaxTurns:              50,
 		Timeout:                    5 * time.Minute,
 		WorkDir:                    "/custom/work",
 		BranchPrefix:               "feature/",
@@ -92,8 +92,8 @@ func TestConfig_AllFieldsExported(t *testing.T) {
 	if len(cfg.DisallowedTools) != 1 {
 		t.Errorf("DisallowedTools length = %d, want %d", len(cfg.DisallowedTools), 1)
 	}
-	if cfg.MaxIterations != 50 {
-		t.Errorf("MaxIterations = %d, want %d", cfg.MaxIterations, 50)
+	if cfg.MaxTurns != 50 {
+		t.Errorf("MaxTurns = %d, want %d", cfg.MaxTurns, 50)
 	}
 	if cfg.Timeout != 5*time.Minute {
 		t.Errorf("Timeout = %v, want %v", cfg.Timeout, 5*time.Minute)

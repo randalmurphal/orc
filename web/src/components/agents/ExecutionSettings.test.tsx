@@ -6,7 +6,7 @@ import { ExecutionSettings, type ExecutionSettingsData } from './ExecutionSettin
 const defaultSettings: ExecutionSettingsData = {
 	parallelTasks: 2,
 	autoApprove: true,
-	defaultModel: 'claude-sonnet-4-20250514',
+	defaultModel: 'sonnet',
 	costLimit: 25,
 };
 
@@ -117,16 +117,16 @@ describe('ExecutionSettings', () => {
 			fireEvent.click(selectTrigger);
 
 			// Select a different option
-			const option = screen.getByRole('option', { name: /claude opus 4/i });
+			const option = screen.getByRole('option', { name: /opus/i });
 			fireEvent.click(option);
 
-			expect(handleChange).toHaveBeenCalledWith({ defaultModel: 'claude-opus-4-20250514' });
+			expect(handleChange).toHaveBeenCalledWith({ defaultModel: 'opus' });
 		});
 
 		it('displays current model selection', () => {
 			render(<ExecutionSettings settings={defaultSettings} onChange={vi.fn()} />);
 
-			expect(screen.getByText('Claude Sonnet 4')).toBeInTheDocument();
+			expect(screen.getByText('Sonnet')).toBeInTheDocument();
 		});
 	});
 

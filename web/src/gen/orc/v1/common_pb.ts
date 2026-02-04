@@ -189,7 +189,7 @@ export type SessionInfo = Message<"orc.v1.SessionInfo"> & {
   id: string;
 
   /**
-   * Model used (e.g., "claude-sonnet-4-20250514")
+   * Model used (e.g., "sonnet", "opus", "haiku")
    *
    * @generated from field: string model = 2;
    */

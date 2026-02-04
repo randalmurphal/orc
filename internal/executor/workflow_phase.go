@@ -22,17 +22,21 @@ import (
 	"github.com/randalmurphal/orc/templates"
 )
 
+// MaxOrcRetries is the maximum number of times orc will retry calling Claude
+// when it receives invalid JSON or a "continue" status. This is NOT the Claude
+// turn limit (--max-turns) which comes from config.MaxTurns.
+const MaxOrcRetries = 5
+
 // PhaseExecutionConfig holds configuration for a phase execution.
 type PhaseExecutionConfig struct {
-	Prompt        string
-	MaxIterations int
-	Model         string
-	WorkingDir    string
-	TaskID        string
-	PhaseID       string
-	RunID         string
-	Thinking      bool
-	ReviewRound   int // For review phase: 1 = findings, 2 = decision
+	Prompt     string
+	Model      string
+	WorkingDir string
+	TaskID     string
+	PhaseID    string
+	RunID      string
+	Thinking   bool
+	ReviewRound int // For review phase: 1 = findings, 2 = decision
 
 	// For quality checks
 	PhaseTemplate *db.PhaseTemplate
@@ -82,7 +86,6 @@ func (we *WorkflowExecutor) executePhase(
 	we.logger.Info("executing phase",
 		"run_id", run.ID,
 		"phase", tmpl.ID,
-		"max_iterations", tmpl.MaxIterations,
 	)
 
 	// Publish phase start event for real-time UI updates
@@ -125,10 +128,6 @@ func (we *WorkflowExecutor) executePhase(
 
 	// Render template with variables
 	renderedPrompt := variable.RenderTemplate(promptContent, vars)
-
-	// Determine max iterations via resolution chain:
-	// phase override > workflow default > template default > 20
-	maxIter := we.resolveMaxIterations(tmpl, phase)
 
 	// Determine model (workflow phase override > template default > config default)
 	model := we.resolvePhaseModel(tmpl, phase)
@@ -183,11 +182,52 @@ func (we *WorkflowExecutor) executePhase(
 		}
 	}
 
+	// Check if this phase already completed but task state wasn't updated (crash recovery).
+	// If runPhase.Content is populated, Claude already finished - use saved result.
+	// This prevents resuming a finished Claude session which would fail with empty structured_output.
+	if we.isResuming && runPhase.Content != "" {
+		we.logger.Info("using saved phase content from previous run (crash recovery)",
+			"phase", tmpl.ID,
+			"content_length", len(runPhase.Content),
+		)
+		// Build result from saved runPhase data
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED.String()
+		result.Content = runPhase.Content
+		result.Iterations = runPhase.Iterations
+		result.InputTokens = runPhase.InputTokens
+		result.OutputTokens = runPhase.OutputTokens
+		result.CostUSD = runPhase.CostUSD
+		result.DurationMS = 0 // Already completed, no new duration
+
+		// Ensure runPhase is marked completed (might already be, but idempotent)
+		if runPhase.Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED.String() {
+			runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED.String()
+			runPhase.CompletedAt = timePtr(time.Now())
+			if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
+				we.logger.Warn("failed to update run phase status", "error", err)
+			}
+		}
+
+		// Complete the task state that wasn't saved before crash
+		if we.task != nil {
+			task.CompletePhaseProto(we.task.Execution, tmpl.ID, runPhase.CommitSHA)
+			if err := we.backend.SaveTask(we.task); err != nil {
+				we.logger.Warn("failed to save task execution state", "error", err)
+			}
+		}
+
+		// Publish phase complete event
+		if t != nil {
+			we.publisher.PhaseComplete(t.Id, tmpl.ID, "")
+		}
+
+		return result, nil
+	}
+
 	// Build execution context for ClaudeExecutor
 	// Use worktree path if available, otherwise fall back to original working dir
 	execConfig := PhaseExecutionConfig{
 		Prompt:        renderedPrompt,
-		MaxIterations: maxIter,
 		Model:         model,
 		WorkingDir:    we.effectiveWorkingDir(),
 		TaskID:        rctx.TaskID,
@@ -393,11 +433,13 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 	}
 	result.SessionID = sessionID
 
-	// When resuming, use simple "continue" prompt instead of full phase prompt
-	// Claude will have full context from the previous session
+	// When resuming, use a simple continue prompt.
+	// The --json-schema flag uses constrained decoding which guarantees structured output
+	// if Claude produces a final response. The constraint is enforced at the token level,
+	// not through prompting.
 	if shouldResume {
-		prompt = "continue"
-		we.logger.Info("using resume prompt", "prompt", prompt)
+		prompt = "Continue where you left off."
+		we.logger.Info("resuming session", "session_id", sessionID)
 	}
 
 	// Use injected TurnExecutor for testing, or create real ClaudeExecutor
@@ -408,12 +450,13 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		turnExec.UpdateSessionID(sessionID)
 	} else {
 		// Build executor options
+		// MaxTurns comes from config (default 150) - this is Claude's internal turn limit
 		execOpts := []ClaudeExecutorOption{
 			WithClaudePath(we.claudePath),
 			WithClaudeWorkdir(cfg.WorkingDir),
 			WithClaudeModel(cfg.Model),
 			WithClaudeSessionID(sessionID),
-			WithClaudeMaxTurns(cfg.MaxIterations),
+			WithClaudeMaxTurns(we.orcConfig.MaxTurns),
 			WithClaudeLogger(we.logger),
 			WithClaudePhaseID(cfg.PhaseID),
 			WithClaudeProducesArtifact(cfg.PhaseTemplate != nil && cfg.PhaseTemplate.ProducesArtifact),
@@ -441,8 +484,8 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		turnExec = NewClaudeExecutor(execOpts...)
 	}
 
-	// Execute turns until completion
-	for i := 0; i < cfg.MaxIterations; i++ {
+	// Execute turns until completion (MaxOrcRetries is the orc retry loop limit, not Claude's turn limit)
+	for i := 0; i < MaxOrcRetries; i++ {
 		// Check context
 		if ctx.Err() != nil {
 			return result, ctx.Err()
@@ -492,7 +535,7 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			)
 			// Continue iteration
 			prompt = fmt.Sprintf("Continue. Previous output was not valid JSON. Iteration %d/%d.",
-				i+2, cfg.MaxIterations)
+				i+2, MaxOrcRetries)
 			continue
 		}
 
@@ -553,11 +596,11 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		case PhaseStatusContinue:
 			// Continue to next iteration
 			prompt = fmt.Sprintf("Continue working. Iteration %d/%d. %s",
-				i+2, cfg.MaxIterations, reason)
+				i+2, MaxOrcRetries, reason)
 		}
 	}
 
-	return result, fmt.Errorf("max iterations (%d) reached without completion", cfg.MaxIterations)
+	return result, fmt.Errorf("max orc retries (%d) reached without completion", MaxOrcRetries)
 }
 
 // loadPhasePrompt loads the prompt content for a phase template.
@@ -738,32 +781,6 @@ func (we *WorkflowExecutor) shouldUseThinking(tmpl *db.PhaseTemplate, phase *db.
 	}
 
 	return false
-}
-
-// resolveMaxIterations determines the max iterations for a phase.
-// Resolution chain (highest priority first):
-// 1. phase.MaxIterationsOverride (workflow-phase-level override)
-// 2. workflow.DefaultMaxIterations (workflow-level default, 0 = inherit)
-// 3. template.MaxIterations (phase template default)
-// 4. 20 (hardcoded fallback)
-func (we *WorkflowExecutor) resolveMaxIterations(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) int {
-	// Phase override takes precedence
-	if phase.MaxIterationsOverride != nil {
-		return *phase.MaxIterationsOverride
-	}
-
-	// Workflow default_max_iterations (0 means inherit, falls through)
-	if we.wf != nil && we.wf.DefaultMaxIterations > 0 {
-		return we.wf.DefaultMaxIterations
-	}
-
-	// Template default
-	if tmpl.MaxIterations > 0 {
-		return tmpl.MaxIterations
-	}
-
-	// Ultimate fallback
-	return 20
 }
 
 // phaseTimeoutError wraps an error to indicate it was caused by PhaseMax timeout.

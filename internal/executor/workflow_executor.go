@@ -792,9 +792,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						// LoopIteration is 1-indexed: loopCount+1 because we're about to run iteration N+1
 						// where N is the number of loops completed.
 						rctx.LoopIteration = loopCount + 1
-						// Keep QA compatibility: populate rctx.QAIteration/QAMaxIterations
+						// Keep QA compatibility: populate rctx.QAIteration/QAMaxLoops
 						rctx.QAIteration = loopCount
-						rctx.QAMaxIterations = maxLoops
+						rctx.QAMaxLoops = maxLoops
 
 						// Store previous findings for verification in next iteration
 						if findingsContent, ok := rctx.PriorOutputs[loopCfg.LoopToPhase]; ok {

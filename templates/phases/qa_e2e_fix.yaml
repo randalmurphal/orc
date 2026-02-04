@@ -9,7 +9,6 @@ input_variables: ["SPEC_CONTENT", "QA_FINDINGS", "QA_ITERATION", "QA_MAX_ITERATI
 output_type: code
 produces_artifact: false
 
-max_iterations: 30
 thinking: true
 gate_type: auto
 checkpoint: true

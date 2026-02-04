@@ -93,10 +93,6 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 				phase.gateTypeOverride ??
 				template?.gateType ??
 				GateType.AUTO,
-			maxIterations:
-				phase.maxIterationsOverride ??
-				template?.maxIterations ??
-				1,
 			agentId: phase.agentOverride || template?.agentId,
 			thinkingEnabled:
 				phase.thinkingOverride ?? template?.thinkingEnabled,

@@ -96,7 +96,6 @@ func TestDbPhaseTemplateToProto_InputVariablesWithOtherFields(t *testing.T) {
 		OutputVarName:  "ANALYSIS_REPORT",
 		PromptSource:   "file",
 		PromptPath:     "analysis.md",
-		MaxIterations:  5,
 		GateType:       "human",
 		AgentID:        "claude-agent",
 	}

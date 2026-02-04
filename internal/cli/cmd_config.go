@@ -45,7 +45,7 @@ Examples:
   orc config show --source         # Show with source annotations
   orc config get model             # Get model value
   orc config get model --source    # Get model with source info
-  orc config set model claude-sonnet-4    # Set in user config
+  orc config set model sonnet    # Set in user config
   orc config set --project profile safe   # Set in project config
   orc config resolution model      # Show resolution chain
   orc config edit                  # Open user config in $EDITOR
@@ -160,7 +160,7 @@ Use flags to specify a different target:
   --shared   Save to .orc/shared/config.yaml
 
 Examples:
-  orc config set model claude-sonnet-4
+  orc config set model sonnet
   orc config set --project profile safe
   orc config set --shared gates.default_type ai`,
 		Args: cobra.ExactArgs(2),
@@ -469,9 +469,9 @@ func getConfigDocs() []ConfigDoc {
 	return []ConfigDoc{
 		// Core
 		{Key: "profile", Type: "string", Default: "auto", EnvVar: "ORC_PROFILE", Description: "Automation profile (auto, fast, safe, strict)", Category: "Core"},
-		{Key: "model", Type: "string", Default: "claude-sonnet-4", EnvVar: "ORC_MODEL", Description: "Claude model to use", Category: "Core"},
-		{Key: "fallback_model", Type: "string", Default: "claude-sonnet-4", EnvVar: "ORC_FALLBACK_MODEL", Description: "Fallback model when primary fails", Category: "Core"},
-		{Key: "max_iterations", Type: "int", Default: "50", EnvVar: "ORC_MAX_ITERATIONS", Description: "Maximum Claude iterations per phase", Category: "Core"},
+		{Key: "model", Type: "string", Default: "sonnet", EnvVar: "ORC_MODEL", Description: "Claude model to use", Category: "Core"},
+		{Key: "fallback_model", Type: "string", Default: "sonnet", EnvVar: "ORC_FALLBACK_MODEL", Description: "Fallback model when primary fails", Category: "Core"},
+		{Key: "max_turns", Type: "int", Default: "150", EnvVar: "ORC_MAX_TURNS", Description: "Maximum Claude CLI turns per phase", Category: "Core"},
 		{Key: "timeout", Type: "duration", Default: "30m", EnvVar: "ORC_TIMEOUT", Description: "Maximum time per phase", Category: "Core"},
 
 		// Gates

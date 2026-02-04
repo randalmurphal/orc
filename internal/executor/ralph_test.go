@@ -39,8 +39,8 @@ func TestRalphStateManager_Create(t *testing.T) {
 	if state.Iteration != 1 {
 		t.Errorf("Iteration = %d, want %d", state.Iteration, 1)
 	}
-	if state.MaxIterations != DefaultMaxIterations {
-		t.Errorf("MaxIterations = %d, want %d", state.MaxIterations, DefaultMaxIterations)
+	if state.MaxTurns != DefaultMaxTurns {
+		t.Errorf("MaxTurns = %d, want %d", state.MaxTurns, DefaultMaxTurns)
 	}
 	if state.CompletionPromise != DefaultCompletionPromise {
 		t.Errorf("CompletionPromise = %q, want %q", state.CompletionPromise, DefaultCompletionPromise)
@@ -57,7 +57,7 @@ func TestRalphStateManager_CreateWithOptions(t *testing.T) {
 
 	prompt := "Test prompt"
 	err := mgr.Create("TASK-002", "test", prompt,
-		WithMaxIterations(50),
+		WithMaxTurns(50),
 		WithCompletionPromise("TESTS_PASS"),
 		WithSessionID("session-abc"),
 	)
@@ -70,8 +70,8 @@ func TestRalphStateManager_CreateWithOptions(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	if state.MaxIterations != 50 {
-		t.Errorf("MaxIterations = %d, want %d", state.MaxIterations, 50)
+	if state.MaxTurns != 50 {
+		t.Errorf("MaxTurns = %d, want %d", state.MaxTurns, 50)
 	}
 	if state.CompletionPromise != "TESTS_PASS" {
 		t.Errorf("CompletionPromise = %q, want %q", state.CompletionPromise, "TESTS_PASS")

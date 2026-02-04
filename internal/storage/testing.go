@@ -56,7 +56,6 @@ func seedTestPhaseTemplates(backend *DatabaseBackend) {
 			Name:          id,
 			PromptSource:  "db",
 			PromptContent: "Test prompt for " + id,
-			MaxIterations: 10,
 		})
 	}
 }

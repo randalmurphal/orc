@@ -66,11 +66,10 @@ func TestWorkflowNew_FromExisting(t *testing.T) {
 
 	for _, p := range phases {
 		newPhase := &db.WorkflowPhase{
-			WorkflowID:            "test-cloned",
-			PhaseTemplateID:       p.PhaseTemplateID,
-			Sequence:              p.Sequence,
-			MaxIterationsOverride: p.MaxIterationsOverride,
-			ModelOverride:         p.ModelOverride,
+			WorkflowID:      "test-cloned",
+			PhaseTemplateID: p.PhaseTemplateID,
+			Sequence:        p.Sequence,
+			ModelOverride:   p.ModelOverride,
 		}
 		if err := gdb.SaveWorkflowPhase(newPhase); err != nil {
 			t.Fatalf("SaveWorkflowPhase failed: %v", err)

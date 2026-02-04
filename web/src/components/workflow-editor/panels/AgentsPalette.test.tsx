@@ -60,7 +60,7 @@ function createMockAgent(overrides: Partial<Agent> = {}): Agent {
 		id: 'test-agent-1',
 		name: 'Test Agent',
 		description: 'A test agent for unit testing purposes',
-		model: 'claude-sonnet-4',
+		model: 'sonnet',
 		isBuiltin: false,
 		scope: 0,
 		skillRefs: [],

@@ -702,7 +702,6 @@ describe('EditWorkflowModal', () => {
 			const updatedPhase = createMockWorkflowPhase({
 				...workflowDetails.phases[0],
 				modelOverride: 'opus',
-				maxIterationsOverride: 5,
 			});
 			vi.mocked(workflowClient.updatePhase).mockResolvedValue(
 				createMockUpdatePhaseResponse(updatedPhase)
@@ -732,11 +731,6 @@ describe('EditWorkflowModal', () => {
 			const opusOption = await screen.findByRole('option', { name: /opus/i });
 			await user.click(opusOption);
 
-			// Edit max iterations
-			const iterationsInput = screen.getByLabelText(/max iterations/i);
-			await user.clear(iterationsInput);
-			await user.type(iterationsInput, '5');
-
 			// Save
 			const saveButton = screen.getByRole('button', { name: /save phase/i });
 			await user.click(saveButton);
@@ -747,7 +741,6 @@ describe('EditWorkflowModal', () => {
 						workflowId: 'my-custom-workflow',
 						phaseId: 1,
 						modelOverride: 'opus',
-						maxIterationsOverride: 5,
 					})
 				);
 			});
@@ -1585,7 +1578,6 @@ describe('EditWorkflowModal', () => {
 					modelOverride: 'opus',
 					thinkingOverride: true,
 					gateTypeOverride: GateType.HUMAN,
-					maxIterationsOverride: 5,
 				}),
 			];
 			const workflowDetails = createMockWorkflowWithDetails({

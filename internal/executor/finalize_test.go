@@ -31,8 +31,8 @@ func TestNewFinalizeExecutor_Defaults(t *testing.T) {
 	if exec.publisher == nil {
 		t.Error("expected default publisher to be set")
 	}
-	if exec.config.MaxIterations != 10 {
-		t.Errorf("expected MaxIterations = 10, got %d", exec.config.MaxIterations)
+	if exec.config.MaxTurns != 10 {
+		t.Errorf("expected MaxTurns = 10, got %d", exec.config.MaxTurns)
 	}
 	if exec.config.CheckpointInterval != 1 {
 		t.Errorf("expected CheckpointInterval = 1, got %d", exec.config.CheckpointInterval)
@@ -46,7 +46,7 @@ func TestNewFinalizeExecutor_WithOptions(t *testing.T) {
 	t.Parallel()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	cfg := ExecutorConfig{
-		MaxIterations:      5,
+		MaxTurns:      5,
 		CheckpointInterval: 2,
 		TargetBranch:       "develop",
 	}
@@ -66,8 +66,8 @@ func TestNewFinalizeExecutor_WithOptions(t *testing.T) {
 	if exec.logger != logger {
 		t.Error("expected logger to be set via option")
 	}
-	if exec.config.MaxIterations != 5 {
-		t.Errorf("expected MaxIterations = 5, got %d", exec.config.MaxIterations)
+	if exec.config.MaxTurns != 5 {
+		t.Errorf("expected MaxTurns = 5, got %d", exec.config.MaxTurns)
 	}
 	if exec.workingDir != "/tmp/test" {
 		t.Errorf("expected workingDir = '/tmp/test', got '%s'", exec.workingDir)

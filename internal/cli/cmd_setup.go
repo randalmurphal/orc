@@ -82,7 +82,7 @@ Example:
 		},
 	}
 	cmd.Flags().Bool("dry-run", false, "show the prompt without running Claude")
-	cmd.Flags().String("model", "", "Claude model to use (default: claude-opus-4-5-20251101)")
+	cmd.Flags().String("model", "", "Claude model to use (default: opus)")
 	cmd.Flags().Bool("skip-validation", false, "skip output validation after setup")
 	return cmd
 }

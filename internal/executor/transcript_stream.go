@@ -105,14 +105,25 @@ func (h *TranscriptStreamHandler) OnEvent(event claude.StreamEvent) {
 			"phase", h.phaseID,
 		)
 	case claude.StreamEventResult:
-		// Final result - could store summary if needed
+		// Final result - log structured output status for debugging
+		hasStructuredOutput := len(event.Result.StructuredOutput) > 0
 		h.logger.Debug("claude execution complete",
 			"session_id", event.SessionID,
 			"task", h.taskID,
 			"phase", h.phaseID,
 			"num_turns", event.Result.NumTurns,
 			"cost_usd", event.Result.TotalCostUSD,
+			"has_structured_output", hasStructuredOutput,
+			"subtype", event.Result.Subtype,
 		)
+		if !hasStructuredOutput && event.Result.Subtype != "success" {
+			h.logger.Warn("claude result without structured output",
+				"task", h.taskID,
+				"phase", h.phaseID,
+				"subtype", event.Result.Subtype,
+				"is_error", event.Result.IsError,
+			)
+		}
 	case claude.StreamEventHook:
 		// Hook execution - store based on captureHookEvents config
 		if event.Hook != nil {

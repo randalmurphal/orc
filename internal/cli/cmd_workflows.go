@@ -207,12 +207,8 @@ Examples:
 		if len(phases) > 0 {
 			fmt.Println("\nPhases:")
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			_, _ = fmt.Fprintln(w, "  SEQ\tPHASE\tMAX ITER\tMODEL\tGATE")
+			_, _ = fmt.Fprintln(w, "  SEQ\tPHASE\tMODEL\tGATE")
 			for _, p := range phases {
-				maxIter := "-"
-				if p.MaxIterationsOverride != nil {
-					maxIter = fmt.Sprintf("%d", *p.MaxIterationsOverride)
-				}
 				model := "-"
 				if p.ModelOverride != "" {
 					model = p.ModelOverride
@@ -221,8 +217,8 @@ Examples:
 				if p.GateTypeOverride != "" {
 					gate = p.GateTypeOverride
 				}
-				_, _ = fmt.Fprintf(w, "  %d\t%s\t%s\t%s\t%s\n",
-					p.Sequence, p.PhaseTemplateID, maxIter, model, gate)
+				_, _ = fmt.Fprintf(w, "  %d\t%s\t%s\t%s\n",
+					p.Sequence, p.PhaseTemplateID, model, gate)
 			}
 			_ = w.Flush()
 		}
@@ -325,15 +321,14 @@ Examples:
 			}
 			for _, p := range phases {
 				newPhase := &db.WorkflowPhase{
-					WorkflowID:            workflowID,
-					PhaseTemplateID:       p.PhaseTemplateID,
-					Sequence:              p.Sequence,
-					DependsOn:             p.DependsOn,
-					MaxIterationsOverride: p.MaxIterationsOverride,
-					ModelOverride:         p.ModelOverride,
-					ThinkingOverride:      p.ThinkingOverride,
-					GateTypeOverride:      p.GateTypeOverride,
-					Condition:             p.Condition,
+					WorkflowID:       workflowID,
+					PhaseTemplateID:  p.PhaseTemplateID,
+					Sequence:         p.Sequence,
+					DependsOn:        p.DependsOn,
+					ModelOverride:    p.ModelOverride,
+					ThinkingOverride: p.ThinkingOverride,
+					GateTypeOverride: p.GateTypeOverride,
+					Condition:        p.Condition,
 				}
 				if err := gdb.SaveWorkflowPhase(newPhase); err != nil {
 					return fmt.Errorf("save phase: %w", err)
@@ -571,10 +566,6 @@ Examples:
 		}
 
 		// Apply overrides from flags
-		if cmd.Flags().Changed("max-iterations") {
-			maxIter, _ := cmd.Flags().GetInt("max-iterations")
-			newPhase.MaxIterationsOverride = &maxIter
-		}
 		if cmd.Flags().Changed("model") {
 			newPhase.ModelOverride, _ = cmd.Flags().GetString("model")
 		}

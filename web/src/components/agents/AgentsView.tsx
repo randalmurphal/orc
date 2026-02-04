@@ -142,7 +142,7 @@ function configToExecutionSettings(config: Config): ExecutionSettingsData {
 	return {
 		parallelTasks: 2, // Default, not in current config
 		autoApprove: config.automation?.profile === 'auto',
-		defaultModel: config.claude?.model || 'claude-sonnet-4-20250514',
+		defaultModel: config.claude?.model || 'sonnet',
 		costLimit: 25, // Default, not in current config
 	};
 }
@@ -164,7 +164,7 @@ export function AgentsView({ className = '' }: AgentsViewProps) {
 	const [executionSettings, setExecutionSettings] = useState<ExecutionSettingsData>({
 		parallelTasks: 2,
 		autoApprove: false,
-		defaultModel: 'claude-sonnet-4-20250514',
+		defaultModel: 'sonnet',
 		costLimit: 25,
 	});
 	const [isSaving, setIsSaving] = useState(false);

@@ -92,9 +92,9 @@ func (we *WorkflowExecutor) buildResolutionContext(
 				rctx.BeforeImages = images
 			}
 			// Max iterations override (workflow default can be overridden per-task)
-			if maxIter, ok := t.Metadata["qa_max_iterations"]; ok {
+			if maxIter, ok := t.Metadata["qa_max_loops"]; ok {
 				if n, err := strconv.Atoi(maxIter); err == nil && n > 0 {
-					rctx.QAMaxIterations = n
+					rctx.QAMaxLoops = n
 				}
 			}
 		}

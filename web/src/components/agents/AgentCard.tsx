@@ -40,7 +40,7 @@ export interface Agent {
 	id: string;
 	/** Display name */
 	name: string;
-	/** Model identifier (e.g., "claude-sonnet-4-20250514") */
+	/** Model identifier (e.g., "sonnet", "opus", "haiku") */
 	model: string;
 	/** Current status */
 	status: AgentStatus;
@@ -90,7 +90,7 @@ const DEFAULT_MAX_TOOLS = 4;
  *   agent={{
  *     id: 'primary',
  *     name: 'Primary Coder',
- *     model: 'claude-sonnet-4-20250514',
+ *     model: 'sonnet',
  *     status: 'active',
  *     emoji: '🧠',
  *     iconColor: 'purple',

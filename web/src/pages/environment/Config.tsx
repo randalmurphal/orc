@@ -65,7 +65,7 @@ const defaultFormData: FormData = {
 		format: 'tar.gz',
 	},
 	claude: {
-		model: 'claude-sonnet-4-20250514',
+		model: 'sonnet',
 		thinking: false,
 		maxTurns: 10,
 		temperature: 0.7,
@@ -108,7 +108,7 @@ export function Config() {
 					format: cfg?.export?.format || 'tar.gz',
 				},
 				claude: {
-					model: cfg?.claude?.model || 'claude-sonnet-4-20250514',
+					model: cfg?.claude?.model || 'sonnet',
 					thinking: cfg?.claude?.thinking || false,
 					maxTurns: cfg?.claude?.maxTurns || 10,
 					temperature: cfg?.claude?.temperature || 0.7,
@@ -207,7 +207,7 @@ export function Config() {
 				format: config.export?.format || 'tar.gz',
 			},
 			claude: {
-				model: config.claude?.model || 'claude-sonnet-4-20250514',
+				model: config.claude?.model || 'sonnet',
 				thinking: config.claude?.thinking || false,
 				maxTurns: config.claude?.maxTurns || 10,
 				temperature: config.claude?.temperature || 0.7,
@@ -424,7 +424,7 @@ export function Config() {
 									value={formData.claude.model}
 									onChange={(e) => handleChange('claude', 'model', e.target.value)}
 									size="sm"
-									placeholder="claude-sonnet-4-20250514"
+									placeholder="sonnet"
 								/>
 							</div>
 							<div className="config-field config-checkbox-field">

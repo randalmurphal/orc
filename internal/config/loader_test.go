@@ -278,7 +278,7 @@ func TestLoadWithSources_FullHierarchy(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(`
 profile: auto
 model: shared-model
-max_iterations: 10
+max_turns: 10
 branch_prefix: team/
 `), 0644)
 
@@ -312,12 +312,12 @@ model: personal-model
 		t.Errorf("model source = %q, want env", tc.GetSource("model"))
 	}
 
-	// MaxIterations: only in shared
-	if tc.Config.MaxIterations != 10 {
-		t.Errorf("MaxIterations = %d, want 10", tc.Config.MaxIterations)
+	// MaxTurns: only in shared
+	if tc.Config.MaxTurns != 10 {
+		t.Errorf("MaxTurns = %d, want 10", tc.Config.MaxTurns)
 	}
-	if tc.GetSource("max_iterations") != SourceShared {
-		t.Errorf("max_iterations source = %q, want shared", tc.GetSource("max_iterations"))
+	if tc.GetSource("max_turns") != SourceShared {
+		t.Errorf("max_turns source = %q, want shared", tc.GetSource("max_turns"))
 	}
 
 	// BranchPrefix: only in shared
@@ -442,11 +442,11 @@ func TestApplyEnvVars(t *testing.T) {
 			wantPath: "profile",
 		},
 		{
-			name:     "max_iterations",
-			envVar:   "ORC_MAX_ITERATIONS",
+			name:     "max_turns",
+			envVar:   "ORC_MAX_TURNS",
 			value:    "50",
-			check:    func(c *Config) bool { return c.MaxIterations == 50 },
-			wantPath: "max_iterations",
+			check:    func(c *Config) bool { return c.MaxTurns == 50 },
+			wantPath: "max_turns",
 		},
 		{
 			name:     "timeout",

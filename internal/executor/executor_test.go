@@ -236,12 +236,12 @@ func TestDefaultConfig(t *testing.T) {
 		t.Error("Model is empty")
 	}
 
-	if cfg.MaxIterations != 30 {
-		t.Errorf("MaxIterations = %d, want 30", cfg.MaxIterations)
+	if cfg.MaxTurns != 150 {
+		t.Errorf("MaxTurns = %d, want 150", cfg.MaxTurns)
 	}
 
-	if cfg.Timeout != 10*time.Minute {
-		t.Errorf("Timeout = %v, want 10m", cfg.Timeout)
+	if cfg.Timeout != 60*time.Minute {
+		t.Errorf("Timeout = %v, want 60m", cfg.Timeout)
 	}
 
 	if cfg.BranchPrefix != "orc/" {
@@ -329,8 +329,8 @@ func TestNewWithNilConfig(t *testing.T) {
 	}
 
 	// Should use defaults
-	if e.config.MaxIterations != 30 {
-		t.Errorf("MaxIterations = %d, want 30", e.config.MaxIterations)
+	if e.config.MaxTurns != 150 {
+		t.Errorf("MaxTurns = %d, want 150", e.config.MaxTurns)
 	}
 }
 
@@ -467,14 +467,14 @@ func TestNewWithDifferentConfigs(t *testing.T) {
 		{
 			name:           "default config",
 			cfg:            DefaultConfig(),
-			wantIterations: 30,
+			wantIterations: 150,
 		},
 		{
 			name: "custom iterations",
 			cfg: &Config{
 				ClaudePath:                 "claude",
 				Model:                      "sonnet",
-				MaxIterations:              50,
+				MaxTurns:              50,
 				Timeout:                    5 * time.Minute,
 				BranchPrefix:               "custom/",
 				CommitPrefix:               "[custom]",
@@ -488,8 +488,8 @@ func TestNewWithDifferentConfigs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := New(tt.cfg)
-			if e.config.MaxIterations != tt.wantIterations {
-				t.Errorf("MaxIterations = %d, want %d", e.config.MaxIterations, tt.wantIterations)
+			if e.config.MaxTurns != tt.wantIterations {
+				t.Errorf("MaxTurns = %d, want %d", e.config.MaxTurns, tt.wantIterations)
 			}
 		})
 	}
@@ -501,7 +501,7 @@ func TestConfigFromOrc(t *testing.T) {
 		ClaudePath:                 "/custom/claude",
 		Model:                      "custom-model",
 		DangerouslySkipPermissions: false,
-		MaxIterations:              100,
+		MaxTurns:              100,
 		Timeout:                    20 * time.Minute,
 		BranchPrefix:               "custom/",
 		CommitPrefix:               "[custom]",
@@ -520,8 +520,8 @@ func TestConfigFromOrc(t *testing.T) {
 	if cfg.DangerouslySkipPermissions != orcCfg.DangerouslySkipPermissions {
 		t.Errorf("DangerouslySkipPermissions = %v, want %v", cfg.DangerouslySkipPermissions, orcCfg.DangerouslySkipPermissions)
 	}
-	if cfg.MaxIterations != orcCfg.MaxIterations {
-		t.Errorf("MaxIterations = %d, want %d", cfg.MaxIterations, orcCfg.MaxIterations)
+	if cfg.MaxTurns != orcCfg.MaxTurns {
+		t.Errorf("MaxTurns = %d, want %d", cfg.MaxTurns, orcCfg.MaxTurns)
 	}
 	if cfg.Timeout != orcCfg.Timeout {
 		t.Errorf("Timeout = %v, want %v", cfg.Timeout, orcCfg.Timeout)

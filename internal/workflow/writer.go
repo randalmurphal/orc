@@ -249,14 +249,13 @@ func (w *Writer) dirForLevel(level WriteLevel) (string, error) {
 // marshalWorkflowYAML converts a Workflow to YAML bytes.
 func marshalWorkflowYAML(workflow *Workflow) ([]byte, error) {
 	wf := workflowYAML{
-		ID:                   workflow.ID,
-		Name:                 workflow.Name,
-		Description:          workflow.Description,
-		DefaultModel:         workflow.DefaultModel,
-		DefaultThinking:      workflow.DefaultThinking,
-		DefaultMaxIterations: workflow.DefaultMaxIterations,
-		CompletionAction:     workflow.CompletionAction,
-		BasedOn:              workflow.BasedOn,
+		ID:               workflow.ID,
+		Name:             workflow.Name,
+		Description:      workflow.Description,
+		DefaultModel:     workflow.DefaultModel,
+		DefaultThinking:  workflow.DefaultThinking,
+		CompletionAction: workflow.CompletionAction,
+		BasedOn:          workflow.BasedOn,
 	}
 
 	for _, p := range workflow.Phases {
@@ -266,9 +265,6 @@ func marshalWorkflowYAML(workflow *Workflow) ([]byte, error) {
 			DependsOn: p.DependsOn,
 			Model:     p.ModelOverride,
 			Condition: p.Condition,
-		}
-		if p.MaxIterationsOverride != nil {
-			phase.MaxIterations = *p.MaxIterationsOverride
 		}
 		if p.ThinkingOverride != nil {
 			phase.Thinking = p.ThinkingOverride
@@ -310,7 +306,6 @@ func marshalPhaseYAML(phase *PhaseTemplate) ([]byte, error) {
 		OutputVarName:    phase.OutputVarName,
 		ProducesArtifact: phase.ProducesArtifact,
 		ArtifactType:     phase.ArtifactType,
-		MaxIterations:    phase.MaxIterations,
 		Thinking:         phase.ThinkingEnabled,
 		GateType:         string(phase.GateType),
 		Checkpoint:       phase.Checkpoint,

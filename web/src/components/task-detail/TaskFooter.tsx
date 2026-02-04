@@ -38,8 +38,6 @@ interface TaskFooterProps {
 	plan?: TaskPlan | null;
 	taskState?: TaskState | null;
 	metrics: TaskMetrics | null;
-	currentIteration?: number;
-	maxIterations?: number;
 	onTaskUpdate?: (task: Task) => void;
 }
 
@@ -70,8 +68,6 @@ export function TaskFooter({
 	plan,
 	taskState,
 	metrics,
-	currentIteration,
-	maxIterations,
 	onTaskUpdate,
 }: TaskFooterProps) {
 	const projectId = useCurrentProjectId();
@@ -273,12 +269,6 @@ export function TaskFooter({
 					</>
 				) : (
 					<span className="task-footer__metric">—</span>
-				)}
-				{currentIteration !== undefined && maxIterations !== undefined && (
-					<span className="task-footer__metric">
-						<Icon name="rotate-ccw" size={14} />
-						{currentIteration}/{maxIterations}
-					</span>
 				)}
 			</div>
 

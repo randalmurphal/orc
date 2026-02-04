@@ -27,7 +27,6 @@ func TestPhaseTemplateCRUD(t *testing.T) {
 		InputVariables:   `["VAR1", "VAR2"]`,
 		ProducesArtifact: true,
 		ArtifactType:     "test",
-		MaxIterations:    10,
 		GateType:         "auto",
 		Checkpoint:       true,
 		IsBuiltin:        false,
@@ -54,9 +53,6 @@ func TestPhaseTemplateCRUD(t *testing.T) {
 	if got.Name != pt.Name {
 		t.Errorf("Name mismatch: got %s, want %s", got.Name, pt.Name)
 	}
-	if got.MaxIterations != pt.MaxIterations {
-		t.Errorf("MaxIterations mismatch: got %d, want %d", got.MaxIterations, pt.MaxIterations)
-	}
 
 	// List
 	all, err := pdb.ListPhaseTemplates()
@@ -69,7 +65,6 @@ func TestPhaseTemplateCRUD(t *testing.T) {
 
 	// Update
 	pt.Name = "Updated Test Phase"
-	pt.MaxIterations = 20
 	err = pdb.SavePhaseTemplate(pt)
 	if err != nil {
 		t.Fatalf("SavePhaseTemplate (update) failed: %v", err)
@@ -81,9 +76,6 @@ func TestPhaseTemplateCRUD(t *testing.T) {
 	}
 	if got.Name != "Updated Test Phase" {
 		t.Errorf("Name not updated: got %s", got.Name)
-	}
-	if got.MaxIterations != 20 {
-		t.Errorf("MaxIterations not updated: got %d", got.MaxIterations)
 	}
 
 	// Delete
@@ -197,26 +189,24 @@ func TestWorkflowPhases(t *testing.T) {
 
 	// Create phase templates first
 	pt1 := &PhaseTemplate{
-		ID:            "phase-1",
-		Name:          "Phase 1",
-		PromptSource:  "embedded",
-		PromptPath:    "prompts/p1.md",
-		MaxIterations: 10,
-		GateType:      "auto",
-		IsBuiltin:     false,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:           "phase-1",
+		Name:         "Phase 1",
+		PromptSource: "embedded",
+		PromptPath:   "prompts/p1.md",
+		GateType:     "auto",
+		IsBuiltin:    false,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 	pt2 := &PhaseTemplate{
-		ID:            "phase-2",
-		Name:          "Phase 2",
-		PromptSource:  "embedded",
-		PromptPath:    "prompts/p2.md",
-		MaxIterations: 10,
-		GateType:      "auto",
-		IsBuiltin:     false,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:           "phase-2",
+		Name:         "Phase 2",
+		PromptSource: "embedded",
+		PromptPath:   "prompts/p2.md",
+		GateType:     "auto",
+		IsBuiltin:    false,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 	if err := pdb.SavePhaseTemplate(pt1); err != nil {
 		t.Fatalf("SavePhaseTemplate failed: %v", err)
@@ -507,24 +497,22 @@ func TestWorkflowRunPhases(t *testing.T) {
 
 	// Create phase templates first (required for foreign key)
 	specPt := &PhaseTemplate{
-		ID:            "spec",
-		Name:          "Spec",
-		PromptSource:  "embedded",
-		PromptPath:    "prompts/spec.md",
-		MaxIterations: 10,
-		GateType:      "auto",
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:           "spec",
+		Name:         "Spec",
+		PromptSource: "embedded",
+		PromptPath:   "prompts/spec.md",
+		GateType:     "auto",
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 	implPt := &PhaseTemplate{
-		ID:            "implement",
-		Name:          "Implement",
-		PromptSource:  "embedded",
-		PromptPath:    "prompts/implement.md",
-		MaxIterations: 20,
-		GateType:      "auto",
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:           "implement",
+		Name:         "Implement",
+		PromptSource: "embedded",
+		PromptPath:   "prompts/implement.md",
+		GateType:     "auto",
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 	if err := pdb.SavePhaseTemplate(specPt); err != nil {
 		t.Fatalf("SavePhaseTemplate(spec) failed: %v", err)

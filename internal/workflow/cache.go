@@ -390,19 +390,18 @@ func workflowToDBWorkflow(wf *Workflow, source Source) *db.Workflow {
 	}
 
 	return &db.Workflow{
-		ID:                   wf.ID,
-		Name:                 wf.Name,
-		Description:          wf.Description,
-		DefaultModel:         wf.DefaultModel,
-		DefaultThinking:      wf.DefaultThinking,
-		DefaultMaxIterations: wf.DefaultMaxIterations,
-		CompletionAction:     wf.CompletionAction,
-		TargetBranch:         wf.TargetBranch,
-		IsBuiltin:            source == SourceEmbedded,
-		BasedOn:              wf.BasedOn,
-		Triggers:             triggersJSON,
-		CreatedAt:            wf.CreatedAt,
-		UpdatedAt:            time.Now(),
+		ID:               wf.ID,
+		Name:             wf.Name,
+		Description:      wf.Description,
+		DefaultModel:     wf.DefaultModel,
+		DefaultThinking:  wf.DefaultThinking,
+		CompletionAction: wf.CompletionAction,
+		TargetBranch:     wf.TargetBranch,
+		IsBuiltin:        source == SourceEmbedded,
+		BasedOn:          wf.BasedOn,
+		Triggers:         triggersJSON,
+		CreatedAt:        wf.CreatedAt,
+		UpdatedAt:        time.Now(),
 	}
 }
 
@@ -428,7 +427,6 @@ func workflowPhaseToDBPhase(pt *PhaseTemplate, source Source) *db.PhaseTemplate 
 		OutputVarName:    pt.OutputVarName,
 		ProducesArtifact: pt.ProducesArtifact,
 		ArtifactType:     pt.ArtifactType,
-		MaxIterations:    pt.MaxIterations,
 		ThinkingEnabled:  pt.ThinkingEnabled,
 		GateType:         string(pt.GateType),
 		Checkpoint:       pt.Checkpoint,
@@ -460,9 +458,6 @@ func workflowPhaseToDBWorkflowPhase(wp *WorkflowPhase) *db.WorkflowPhase {
 		LoopConfig:      wp.LoopConfig,
 	}
 
-	if wp.MaxIterationsOverride != nil {
-		dbPhase.MaxIterationsOverride = wp.MaxIterationsOverride
-	}
 	if wp.ThinkingOverride != nil {
 		dbPhase.ThinkingOverride = wp.ThinkingOverride
 	}
@@ -495,17 +490,16 @@ func workflowVariableToDBVariable(wv *WorkflowVariable) *db.WorkflowVariable {
 // DBWorkflowToWorkflow converts a db.Workflow to workflow.Workflow.
 func DBWorkflowToWorkflow(dbWf *db.Workflow) *Workflow {
 	return &Workflow{
-		ID:                   dbWf.ID,
-		Name:                 dbWf.Name,
-		Description:          dbWf.Description,
-		DefaultModel:         dbWf.DefaultModel,
-		DefaultThinking:      dbWf.DefaultThinking,
-		DefaultMaxIterations: dbWf.DefaultMaxIterations,
-		CompletionAction:     dbWf.CompletionAction,
-		TargetBranch:         dbWf.TargetBranch,
-		IsBuiltin:            dbWf.IsBuiltin,
-		BasedOn:              dbWf.BasedOn,
-		CreatedAt:            dbWf.CreatedAt,
-		UpdatedAt:            dbWf.UpdatedAt,
+		ID:               dbWf.ID,
+		Name:             dbWf.Name,
+		Description:      dbWf.Description,
+		DefaultModel:     dbWf.DefaultModel,
+		DefaultThinking:  dbWf.DefaultThinking,
+		CompletionAction: dbWf.CompletionAction,
+		TargetBranch:     dbWf.TargetBranch,
+		IsBuiltin:        dbWf.IsBuiltin,
+		BasedOn:          dbWf.BasedOn,
+		CreatedAt:        dbWf.CreatedAt,
+		UpdatedAt:        dbWf.UpdatedAt,
 	}
 }

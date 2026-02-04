@@ -39,7 +39,6 @@ function createDefaultData(
 		sequence: 1,
 		phaseId: 1,
 		gateType: GateType.AUTO,
-		maxIterations: 3,
 		...overrides,
 	};
 }

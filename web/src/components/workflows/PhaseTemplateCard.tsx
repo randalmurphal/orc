@@ -86,10 +86,6 @@ export function PhaseTemplateCard({ template, source, onSelect }: PhaseTemplateC
 					<span className="phase-template-card-config-label">Gate</span>
 					<span className="phase-template-card-config-value">{template.gateType}</span>
 				</div>
-				<div className="phase-template-card-config-item">
-					<span className="phase-template-card-config-label">Max iterations</span>
-					<span className="phase-template-card-config-value">{template.maxIterations}</span>
-				</div>
 				{template.producesArtifact && (
 					<div className="phase-template-card-config-item">
 						<span className="phase-template-card-config-label">Produces</span>

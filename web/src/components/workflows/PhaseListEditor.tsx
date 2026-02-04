@@ -24,7 +24,6 @@ export interface PhaseOverrides {
 	modelOverride?: string;
 	thinkingOverride?: boolean;
 	gateTypeOverride?: GateType;
-	maxIterationsOverride?: number;
 	claudeConfigOverride?: string;
 }
 
@@ -160,7 +159,6 @@ export function PhaseListEditor({
 			modelOverride: phase.modelOverride || undefined,
 			thinkingOverride: phase.thinkingOverride || undefined,
 			gateTypeOverride: phase.gateTypeOverride,
-			maxIterationsOverride: phase.maxIterationsOverride,
 		});
 
 		// Parse existing claude_config_override
@@ -287,8 +285,7 @@ export function PhaseListEditor({
 					const hasOverrides =
 						phase.modelOverride ||
 						phase.thinkingOverride ||
-						phase.gateTypeOverride !== undefined ||
-						phase.maxIterationsOverride !== undefined;
+						phase.gateTypeOverride !== undefined;
 
 					return (
 						<div
@@ -322,11 +319,6 @@ export function PhaseListEditor({
 													{GateType[phase.gateTypeOverride]}
 												</span>
 											)}
-										{phase.maxIterationsOverride !== undefined && (
-											<span className="phase-badge phase-badge--iterations">
-												max {phase.maxIterationsOverride}
-											</span>
-										)}
 									</div>
 								)}
 							</div>
@@ -611,31 +603,6 @@ export function PhaseListEditor({
 								</RadixSelect.Content>
 							</RadixSelect.Portal>
 						</RadixSelect.Root>
-					</div>
-
-					{/* Max iterations override */}
-					<div className="form-group">
-						<label htmlFor="phase-iterations-input" className="form-label">
-							Max Iterations
-						</label>
-						<input
-							id="phase-iterations-input"
-							type="number"
-							className="form-input"
-							min={1}
-							max={20}
-							value={editOverrides.maxIterationsOverride ?? ''}
-							onChange={(e) =>
-								setEditOverrides((prev) => ({
-									...prev,
-									maxIterationsOverride: e.target.value
-										? parseInt(e.target.value, 10)
-										: undefined,
-								}))
-							}
-							aria-label="Max iterations"
-							placeholder="Inherit from template"
-						/>
 					</div>
 
 					{/* ─── Claude Config Override Sections ─────────────────── */}

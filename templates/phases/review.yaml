@@ -9,7 +9,6 @@ input_variables: ["SPEC_CONTENT", "REVIEW_ROUND", "REVIEW_FINDINGS"]
 output_type: none
 produces_artifact: false
 
-max_iterations: 3
 thinking: true
 gate_type: auto
 checkpoint: true

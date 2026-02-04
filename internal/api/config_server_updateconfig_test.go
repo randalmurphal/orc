@@ -383,7 +383,7 @@ func TestUpdateConfig_Model_PersistsToFile(t *testing.T) {
 
 	req := connect.NewRequest(&orcv1.UpdateConfigRequest{
 		Claude: &orcv1.ClaudeConfig{
-			Model: "claude-opus-4-20250514",
+			Model: "opus",
 		},
 	})
 
@@ -404,7 +404,7 @@ func TestUpdateConfig_Model_PersistsToFile(t *testing.T) {
 	}
 
 	model, ok := savedCfg["model"].(string)
-	if !ok || model != "claude-opus-4-20250514" {
+	if !ok || model != "opus" {
 		t.Errorf("model not persisted correctly, got %v", savedCfg["model"])
 	}
 }
@@ -645,7 +645,7 @@ func TestConfigRoundTrip_UpdateThenGet(t *testing.T) {
 			CostLimit:     80,
 		},
 		Claude: &orcv1.ClaudeConfig{
-			Model: "claude-opus-4-20250514",
+			Model: "opus",
 		},
 	})
 
@@ -673,8 +673,8 @@ func TestConfigRoundTrip_UpdateThenGet(t *testing.T) {
 	if cfg.Execution.CostLimit != 80 {
 		t.Errorf("CostLimit = %d, want 80", cfg.Execution.CostLimit)
 	}
-	if cfg.Claude.Model != "claude-opus-4-20250514" {
-		t.Errorf("Model = %q, want claude-opus-4-20250514", cfg.Claude.Model)
+	if cfg.Claude.Model != "opus" {
+		t.Errorf("Model = %q, want opus", cfg.Claude.Model)
 	}
 }
 

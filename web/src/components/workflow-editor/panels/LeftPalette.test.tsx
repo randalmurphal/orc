@@ -36,7 +36,7 @@ const mockWorkflow = {
 	id: 'test-workflow',
 	name: 'Test Workflow',
 	description: 'A test workflow',
-	defaultModel: 'claude-sonnet-3-5',
+	defaultModel: 'sonnet',
 	defaultThinking: true,
 	completionAction: 'pr',
 	targetBranch: 'main',

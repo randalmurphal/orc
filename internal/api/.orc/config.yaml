@@ -229,8 +229,8 @@ automation:
     max_concurrent: 1
     default_mode: auto
 model: opus
-max_iterations: 30
-timeout: 10m0s
+max_turns: 150
+timeout: 60m0s
 branch_prefix: orc/
 commit_prefix: '[orc]'
 claude_path: claude

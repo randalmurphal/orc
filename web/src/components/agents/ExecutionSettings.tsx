@@ -30,9 +30,9 @@ export interface ExecutionSettingsProps extends Omit<HTMLAttributes<HTMLDivEleme
 }
 
 const MODEL_OPTIONS: SelectOption[] = [
-	{ value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
-	{ value: 'claude-opus-4-20250514', label: 'Claude Opus 4' },
-	{ value: 'claude-haiku-3-5-20241022', label: 'Claude Haiku 3.5' },
+	{ value: 'sonnet', label: 'Sonnet' },
+	{ value: 'opus', label: 'Opus' },
+	{ value: 'haiku', label: 'Haiku' },
 ];
 
 /**
@@ -43,7 +43,7 @@ const MODEL_OPTIONS: SelectOption[] = [
  *   settings={{
  *     parallelTasks: 2,
  *     autoApprove: true,
- *     defaultModel: 'claude-sonnet-4-20250514',
+ *     defaultModel: 'sonnet',
  *     costLimit: 25,
  *   }}
  *   onChange={(update) => setSettings(prev => ({ ...prev, ...update }))}

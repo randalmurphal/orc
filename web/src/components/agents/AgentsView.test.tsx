@@ -20,7 +20,7 @@ describe('AgentsView', () => {
 		{
 			name: 'Primary Coder',
 			description: 'Main coding agent',
-			model: 'claude-sonnet-4-20250514',
+			model: 'sonnet',
 			tools: { allow: ['File Read', 'File Write', 'Bash'], deny: [], $typeName: 'orc.v1.ToolPermissions' },
 			skillRefs: [],
 			scope: SettingsScope.PROJECT,
@@ -28,7 +28,7 @@ describe('AgentsView', () => {
 		{
 			name: 'Reviewer',
 			description: 'Code review agent',
-			model: 'claude-opus-4-20250514',
+			model: 'opus',
 			tools: { allow: ['File Read', 'Git'], deny: [], $typeName: 'orc.v1.ToolPermissions' },
 			skillRefs: [],
 			scope: SettingsScope.PROJECT,
@@ -36,7 +36,7 @@ describe('AgentsView', () => {
 		{
 			name: 'Docs Agent',
 			description: 'Documentation writer',
-			model: 'claude-haiku-3-5-20241022',
+			model: 'haiku',
 			tools: { allow: [], deny: [], $typeName: 'orc.v1.ToolPermissions' },
 			path: 'docs-tools.md',
 			skillRefs: [],
@@ -53,7 +53,7 @@ describe('AgentsView', () => {
 			$typeName: 'orc.v1.AutomationConfig',
 		},
 		claude: {
-			model: 'claude-sonnet-4-20250514',
+			model: 'sonnet',
 			thinking: false,
 			maxTurns: 100,
 			temperature: 0,
@@ -225,8 +225,8 @@ describe('AgentsView', () => {
 			render(<AgentsView />);
 
 			await waitFor(() => {
-				expect(screen.getByText('claude-sonnet-4-20250514')).toBeInTheDocument();
-				expect(screen.getByText('claude-opus-4-20250514')).toBeInTheDocument();
+				expect(screen.getByText('sonnet')).toBeInTheDocument();
+				expect(screen.getByText('opus')).toBeInTheDocument();
 			});
 		});
 	});
@@ -323,7 +323,7 @@ describe('AgentsPage', () => {
 					$typeName: 'orc.v1.AutomationConfig',
 				},
 				claude: {
-					model: 'claude-sonnet-4-20250514',
+					model: 'sonnet',
 					thinking: false,
 					maxTurns: 100,
 					temperature: 0,

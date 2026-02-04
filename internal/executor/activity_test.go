@@ -88,7 +88,7 @@ func TestActivityTracker_Options(t *testing.T) {
 		WithHeartbeatInterval(heartbeat),
 		WithIdleTimeout(idle),
 		WithTurnTimeout(turn),
-		WithActivityMaxIterations(10),
+		WithActivityMaxTurns(10),
 	)
 
 	if tracker.heartbeatInterval != heartbeat {
@@ -171,7 +171,7 @@ func TestActivityTracker_TurnDuration(t *testing.T) {
 
 func TestActivityTracker_Progress(t *testing.T) {
 	t.Parallel()
-	tracker := NewActivityTracker(WithActivityMaxIterations(20))
+	tracker := NewActivityTracker(WithActivityMaxTurns(20))
 	tracker.SetIteration(5)
 
 	current, max := tracker.Progress()

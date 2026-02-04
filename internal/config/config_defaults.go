@@ -249,9 +249,9 @@ func Default() *Config {
 			Triggers:       nil,                // No triggers defined by default
 			Templates:      nil,                // No templates defined by default
 		},
-		Model:                      "opus",
-		MaxIterations:              30,
-		Timeout:                    10 * time.Minute,
+		Model:    "opus",
+		MaxTurns: 150,              // Claude CLI turn limit - reasonable default for complex phases
+		Timeout:  60 * time.Minute, // 60 minutes minimum - complex phases take time
 		BranchPrefix:               "orc/",
 		CommitPrefix:               "[orc]",
 		ClaudePath:                 "claude",

@@ -211,7 +211,7 @@ See also:
 			relatedTo, _ := cmd.Flags().GetStringSlice("related-to")
 			targetBranch, _ := cmd.Flags().GetString("target-branch")
 			beforeImages, _ := cmd.Flags().GetStringSlice("before-images")
-			qaMaxIterations, _ := cmd.Flags().GetInt("qa-max-iterations")
+			qaMaxLoops, _ := cmd.Flags().GetInt("qa-max-loops")
 			gateOverrides, _ := cmd.Flags().GetStringSlice("gate")
 			specContent, _ := cmd.Flags().GetString("spec-content")
 			// Branch control flags
@@ -434,7 +434,7 @@ See also:
 			}
 
 			// Set QA-specific task metadata
-			if len(beforeImages) > 0 || qaMaxIterations > 0 {
+			if len(beforeImages) > 0 || qaMaxLoops > 0 {
 				if t.Metadata == nil {
 					t.Metadata = make(map[string]string)
 				}
@@ -442,8 +442,8 @@ See also:
 					// Join image paths with newlines for BEFORE_IMAGES variable
 					t.Metadata["before_images"] = strings.Join(beforeImages, "\n")
 				}
-				if qaMaxIterations > 0 {
-					t.Metadata["qa_max_iterations"] = fmt.Sprintf("%d", qaMaxIterations)
+				if qaMaxLoops > 0 {
+					t.Metadata["qa_max_loops"] = fmt.Sprintf("%d", qaMaxLoops)
 				}
 			}
 
@@ -614,8 +614,8 @@ See also:
 			if len(beforeImages) > 0 {
 				fmt.Printf("   Before Images: %d file(s) for visual comparison\n", len(beforeImages))
 			}
-			if qaMaxIterations > 0 {
-				fmt.Printf("   Max QA Iterations: %d\n", qaMaxIterations)
+			if qaMaxLoops > 0 {
+				fmt.Printf("   Max QA Iterations: %d\n", qaMaxLoops)
 			}
 			if len(gateOverrides) > 0 {
 				fmt.Printf("   Gate Overrides: %s\n", strings.Join(gateOverrides, ", "))
@@ -678,7 +678,7 @@ See also:
 	cmd.Flags().StringSlice("related-to", nil, "task IDs related to this task")
 	cmd.Flags().String("target-branch", "", "override target branch for PR (instead of project default)")
 	cmd.Flags().StringSlice("before-images", nil, "baseline images for visual comparison (QA E2E workflow)")
-	cmd.Flags().Int("qa-max-iterations", 0, "max QA iterations before stopping (default: 3)")
+	cmd.Flags().Int("qa-max-loops", 0, "max QA iterations before stopping (default: 3)")
 	cmd.Flags().StringSlice("gate", nil, "gate overrides (phase:type, e.g., spec:human, review:ai)")
 	cmd.Flags().String("spec-content", "", "pre-populate spec content (enables spec phase auto-skip)")
 	// Branch control flags

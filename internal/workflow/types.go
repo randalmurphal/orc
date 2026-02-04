@@ -160,7 +160,6 @@ type PhaseTemplate struct {
 	OutputVarName    string   `json:"output_var_name,omitempty" db:"output_var_name"` // Variable name for output (e.g., 'SPEC_CONTENT')
 
 	// Execution config
-	MaxIterations   int      `json:"max_iterations" db:"max_iterations"`
 	ThinkingEnabled *bool    `json:"thinking_enabled,omitempty" db:"thinking_enabled"` // Phase-level concern
 	GateType        GateType `json:"gate_type" db:"gate_type"`
 	Checkpoint      bool     `json:"checkpoint" db:"checkpoint"`
@@ -187,13 +186,12 @@ type PhaseTemplate struct {
 // Workflow composes phases into an execution plan.
 // Stored in workflows table.
 type Workflow struct {
-	ID                   string       `json:"id" db:"id"`
-	Name                 string       `json:"name" db:"name"`
-	Description          string       `json:"description,omitempty" db:"description"`
-	DefaultModel         string       `json:"default_model,omitempty" db:"default_model"`
-	DefaultThinking      bool         `json:"default_thinking" db:"default_thinking"`
-	DefaultMaxIterations int          `json:"default_max_iterations,omitempty" db:"default_max_iterations"`
-	CompletionAction     string       `json:"completion_action,omitempty" yaml:"completion_action" db:"completion_action"` // "pr", "commit", "none", or "" (inherit)
+	ID               string `json:"id" db:"id"`
+	Name             string `json:"name" db:"name"`
+	Description      string `json:"description,omitempty" db:"description"`
+	DefaultModel     string `json:"default_model,omitempty" db:"default_model"`
+	DefaultThinking  bool   `json:"default_thinking" db:"default_thinking"`
+	CompletionAction string `json:"completion_action,omitempty" yaml:"completion_action" db:"completion_action"` // "pr", "commit", "none", or "" (inherit)
 	TargetBranch         string       `json:"target_branch,omitempty" yaml:"target_branch" db:"target_branch"`             // Default PR target branch, or "" (inherit from config)
 	IsBuiltin            bool         `json:"is_builtin" db:"is_builtin"`
 	BasedOn              string       `json:"based_on,omitempty" db:"based_on"`
@@ -215,11 +213,10 @@ type WorkflowPhase struct {
 	WorkflowID      string `json:"workflow_id" db:"workflow_id"`
 	PhaseTemplateID string `json:"phase_template_id" db:"phase_template_id"`
 	Sequence        int    `json:"sequence" db:"sequence"`
-	DependsOn       []string `json:"depends_on,omitempty"` // Parsed from JSON
+	DependsOn []string `json:"depends_on,omitempty"` // Parsed from JSON
 
 	// Per-workflow overrides (nil = use phase template defaults)
-	MaxIterationsOverride *int     `json:"max_iterations_override,omitempty" db:"max_iterations_override"`
-	ModelOverride         string   `json:"model_override,omitempty" db:"model_override"`
+	ModelOverride string `json:"model_override,omitempty" db:"model_override"`
 	ThinkingOverride      *bool    `json:"thinking_override,omitempty" db:"thinking_override"`
 	GateTypeOverride      GateType `json:"gate_type_override,omitempty" db:"gate_type_override"`
 	Condition             string   `json:"condition,omitempty" db:"condition"` // JSON skip conditions
@@ -444,17 +441,6 @@ func (wp *WorkflowPhase) GetEffectiveModel(workflow *Workflow) string {
 	}
 	// Agent model is resolved in executor.resolveExecutorAgent()
 	return workflow.DefaultModel
-}
-
-// GetEffectiveMaxIterations returns max iterations considering overrides.
-func (wp *WorkflowPhase) GetEffectiveMaxIterations() int {
-	if wp.MaxIterationsOverride != nil {
-		return *wp.MaxIterationsOverride
-	}
-	if wp.Template != nil {
-		return wp.Template.MaxIterations
-	}
-	return 20 // Default
 }
 
 // GetEffectiveGateType returns gate type considering overrides.

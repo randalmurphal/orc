@@ -131,7 +131,6 @@ export function GateInspector({
 			await workflowClient.updatePhaseTemplate({
 				id: phaseId.toString(),
 				gateType: updates.gateType ?? gateType,
-				maxIterations: updates.maxRetries ?? maxRetries,
 				...(updates.autoCriteria !== undefined && { autoCriteria: updates.autoCriteria }),
 				...(updates.humanConfig !== undefined && { humanConfig: updates.humanConfig }),
 				...(updates.aiConfig !== undefined && { aiConfig: updates.aiConfig }),
@@ -149,7 +148,7 @@ export function GateInspector({
 		} finally {
 			setIsLoading(false);
 		}
-	}, [phaseId, readOnly, gateType, maxRetries]);
+	}, [phaseId, readOnly, gateType]);
 
 	// Event handlers
 	const handleGateTypeChange = useCallback(async (event: React.ChangeEvent<HTMLSelectElement>) => {

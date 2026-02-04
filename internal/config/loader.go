@@ -211,9 +211,9 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 		cfg.FallbackModel = fileCfg.FallbackModel
 		tc.SetSourceWithPath("fallback_model", source, path)
 	}
-	if _, ok := raw["max_iterations"]; ok {
-		cfg.MaxIterations = fileCfg.MaxIterations
-		tc.SetSourceWithPath("max_iterations", source, path)
+	if _, ok := raw["max_turns"]; ok {
+		cfg.MaxTurns = fileCfg.MaxTurns
+		tc.SetSourceWithPath("max_turns", source, path)
 	}
 	if _, ok := raw["timeout"]; ok {
 		cfg.Timeout = fileCfg.Timeout
@@ -613,7 +613,7 @@ func mergeDatabaseConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]in
 // markDefaults marks all config paths as having SourceDefault.
 func markDefaults(tc *TrackedConfig) {
 	paths := []string{
-		"version", "profile", "model", "fallback_model", "max_iterations", "timeout",
+		"version", "profile", "model", "fallback_model", "max_turns", "timeout",
 		"branch_prefix", "commit_prefix", "claude_path", "dangerously_skip_permissions",
 		"templates_dir", "enable_checkpoints",
 		"gates.default_type", "gates.auto_approve_on_success", "gates.retry_on_failure", "gates.max_retries",

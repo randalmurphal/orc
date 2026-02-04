@@ -122,7 +122,7 @@ func NewFinalizeExecutor(opts ...FinalizeExecutorOption) *FinalizeExecutor {
 		logger:     slog.Default(),
 		publisher:  events.NewPublishHelper(nil),
 		config: ExecutorConfig{
-			MaxIterations:      10, // Lower for finalize - most work is git ops
+			MaxTurns:      10, // Lower for finalize - most work is git ops
 			CheckpointInterval: 1,
 			SessionPersistence: true,
 		},

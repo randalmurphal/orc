@@ -1466,7 +1466,7 @@ func TestProjectDB_GetLatestTranscript(t *testing.T) {
 		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-001", Type: "user", Role: "user", Content: "First message", Timestamp: now},
 		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess-001", MessageUUID: "msg-002", Type: "assistant", Role: "assistant", Content: "Second message", Timestamp: now.Add(time.Second)},
 		{TaskID: "TASK-001", Phase: "test", SessionID: "sess-002", MessageUUID: "msg-003", Type: "user", Role: "user", Content: "Third message", Timestamp: now.Add(2 * time.Second)},
-		{TaskID: "TASK-001", Phase: "test", SessionID: "sess-002", MessageUUID: "msg-004", Type: "assistant", Role: "assistant", Content: "Latest message", Model: "claude-sonnet-4", Timestamp: now.Add(3 * time.Second)},
+		{TaskID: "TASK-001", Phase: "test", SessionID: "sess-002", MessageUUID: "msg-004", Type: "assistant", Role: "assistant", Content: "Latest message", Model: "sonnet", Timestamp: now.Add(3 * time.Second)},
 	}
 
 	for i := range transcripts {
@@ -1492,8 +1492,8 @@ func TestProjectDB_GetLatestTranscript(t *testing.T) {
 	if latest.Phase != "test" {
 		t.Errorf("latest.Phase = %q, want test", latest.Phase)
 	}
-	if latest.Model != "claude-sonnet-4" {
-		t.Errorf("latest.Model = %q, want claude-sonnet-4", latest.Model)
+	if latest.Model != "sonnet" {
+		t.Errorf("latest.Model = %q, want sonnet", latest.Model)
 	}
 
 	// Test non-existent task returns nil

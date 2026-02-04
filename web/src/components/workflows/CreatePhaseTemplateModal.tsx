@@ -319,7 +319,6 @@ export function CreatePhaseTemplateModal({
 
 	// Execution settings
 	const [agentId, setAgentId] = useState('');
-	const [maxIterations, setMaxIterations] = useState(20);
 	const [gateType, setGateType] = useState<GateType>(GateType.AUTO);
 	const [thinkingEnabled, setThinkingEnabled] = useState(false);
 	const [checkpoint, setCheckpoint] = useState(false);
@@ -370,7 +369,6 @@ export function CreatePhaseTemplateModal({
 			setInputVariables([]);
 			setOutputVarName('');
 			setAgentId('');
-			setMaxIterations(20);
 			setGateType(GateType.AUTO);
 			setThinkingEnabled(false);
 			setCheckpoint(false);
@@ -529,7 +527,6 @@ export function CreatePhaseTemplateModal({
 				promptSource: promptSource === 'file' ? PromptSource.FILE : PromptSource.DB,
 				promptContent: promptSource === 'inline' ? promptContent || undefined : undefined,
 				promptPath: promptSource === 'file' ? promptPath || undefined : undefined,
-				maxIterations: maxIterations,
 				gateType: gateType,
 				thinkingEnabled: thinkingEnabled || undefined,
 				checkpoint: checkpoint,
@@ -560,7 +557,6 @@ export function CreatePhaseTemplateModal({
 		promptSource,
 		promptContent,
 		promptPath,
-		maxIterations,
 		gateType,
 		thinkingEnabled,
 		checkpoint,
@@ -783,22 +779,6 @@ export function CreatePhaseTemplateModal({
 								))}
 							</select>
 						</div>
-					</div>
-
-					{/* Max iterations */}
-					<div className="form-group">
-						<label htmlFor="create-template-iterations" className="form-label">
-							Max Iterations
-						</label>
-						<input
-							id="create-template-iterations"
-							type="number"
-							className="form-input"
-							value={maxIterations}
-							onChange={(e) => setMaxIterations(Number(e.target.value))}
-							min={1}
-							max={1000}
-						/>
 					</div>
 
 					{/* Options */}

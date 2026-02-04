@@ -259,31 +259,6 @@ describe('TASK-774: GateInspector Component', () => {
 			});
 		});
 
-		it('calls API when max retries is changed', async () => {
-			const user = userEvent.setup();
-			const edge = createMockGateEdge({ maxRetries: 3 });
-
-			render(
-				<GateInspector
-					edge={edge}
-					workflowDetails={defaultWorkflowDetails}
-					readOnly={false}
-				/>
-			);
-
-			const input = screen.getByLabelText(/max retries/i);
-			await user.clear(input);
-			await user.type(input, '5');
-
-			await waitFor(() => {
-				expect(mockUpdatePhaseTemplate).toHaveBeenCalledWith(
-					expect.objectContaining({
-						maxIterations: 5,
-					})
-				);
-			});
-		});
-
 		it('calls API when auto criteria checkbox is toggled', async () => {
 			const user = userEvent.setup();
 			const edge = createMockGateEdge({ gateType: GateType.AUTO });

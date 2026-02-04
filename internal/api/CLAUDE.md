@@ -143,6 +143,18 @@ Interceptors map internal errors to Connect codes (`interceptors.go:56-117`):
 
 `UpdateTask` uses `*_set` sentinel fields (`PrLabelsSet`, `PrReviewersSet`) to distinguish "set to empty" from "not provided" -- setting `*_set=false` clears the override.
 
+### Model Name Validation (`config_server.go`)
+
+**Use short model names everywhere:** `sonnet`, `opus`, `haiku`
+
+| ❌ Don't | ✅ Do |
+|----------|-------|
+| `claude-sonnet-4-20250514` | `sonnet` |
+| `claude-opus-4-5-20251101` | `opus` |
+| `claude-haiku-4-5-20251101` | `haiku` |
+
+`ValidModels` (`config_server.go:107`) validates incoming model names. UI dropdowns, API requests, and config files all use short names. Claude Code resolves them to full model IDs internally.
+
 ### Server Streaming (Events)
 
 `EventService.Subscribe` (`event_server.go:60-136`) provides real-time events via server streaming. Clients filter by task ID, initiative ID, or event types. Heartbeat support included.

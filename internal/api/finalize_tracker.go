@@ -312,7 +312,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 		targetBranch = s.orcConfig.Completion.TargetBranch
 	}
 	execCfg := executor.ExecutorConfig{
-		MaxIterations:      10,
+		MaxTurns:      10,
 		CheckpointInterval: 1,
 		SessionPersistence: true,
 		TargetBranch:       targetBranch,
