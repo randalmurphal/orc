@@ -53,6 +53,38 @@ Do not design for hypothetical future requirements.
 Three similar lines of code are better than a premature abstraction.
 </over_engineering_guard>
 
+<no_op_guard>
+## Optional Props with Empty Fallbacks = NO-OP (BANNED PATTERN)
+
+If the spec requires behavior X, you CANNOT make it optional with an empty fallback:
+
+**❌ BANNED:**
+```tsx
+// This compiles and renders but does NOTHING when clicked
+interface Props {
+  onAgentClick?: (agent: Agent) => void;  // Optional!
+}
+<AgentsPalette onAgentClick={onAgentClick || (() => {})} />  // Empty fallback!
+```
+
+**✅ REQUIRED:**
+```tsx
+// Parent MUST provide handler - wiring is enforced
+interface Props {
+  onAgentClick: (agent: Agent) => void;  // Required!
+}
+// And the parent component MUST be updated to pass it:
+<LeftPalette onAgentClick={handleAgentClick} />
+```
+
+**The test:** If you can delete your new code and the app still compiles and runs identically, you created a no-op.
+
+**If review feedback says "wire X to Y":**
+- Making X optional is NOT wiring
+- Adding an empty fallback is NOT wiring
+- You MUST modify the parent (Y) to pass the actual handler
+</no_op_guard>
+
 <verification_mandate>
 The most common failure is declaring completion without running verification. If you haven't run `{{TEST_COMMAND}}` and seen all tests pass, you are not done. If you haven't verified every success criterion, you are not done.
 </verification_mandate>

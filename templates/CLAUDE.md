@@ -256,8 +256,14 @@ Spec phases include a quality checklist that must pass before implementation:
 | `max_3_clarifications` | ≤3 clarifications, rest are assumptions |
 | `initiative_aligned` | All initiative vision requirements captured in SC |
 | `complexity_within_weight` | Scope fits weight classification (see Complexity Assessment) |
+| `ui_behavior_has_integration_sc` | Every SC involving UI interaction (click, input, toggle) has companion SC for parent→child handler wiring |
 
 Failed checklist triggers retry with feedback.
+
+**UI Behavior Integration:** When SC describes "clicking X does Y", the spec must include:
+1. SC for the child component calling the handler
+2. SC for the parent component passing the handler down
+Without both, implement phase will use empty fallbacks (`(() => {})`) creating no-op code.
 
 ## Complexity Assessment
 

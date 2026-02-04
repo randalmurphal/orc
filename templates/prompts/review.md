@@ -74,6 +74,20 @@ Base your decision purely on the severity of findings. Any high-severity finding
 - Business logic wrong in multiple places
 - Security vulnerabilities
 - Wrong fundamental approach
+
+**Rationalization Anti-Patterns (NEVER ACCEPT THESE EXCUSES):**
+
+The implement phase finds creative workarounds. You must recognize and reject them:
+
+| Rationalization | Why It's Wrong | Correct Action |
+|-----------------|----------------|----------------|
+| "Optional props with empty fallbacks allow incremental wiring" | If SC says behavior works NOW, empty fallbacks = NO-OP. Clicking does nothing. | BLOCK: "Props must be wired, not optional" |
+| "Medium-severity, documented as future improvement" | SC requirements are not "future." If spec says it works, it must work NOW. | BLOCK: "SC-X requires this behavior now, not later" |
+| "Tests pass so implementation is correct" | Tests may only cover component isolation, not integration. | Verify: "Does clicking ACTUALLY work end-to-end?" |
+| "Component design is correct, just needs wiring later" | Unwired component = dead code. | BLOCK: "Dead code ships if we merge this" |
+| "This is good progress, we can wire it in the next task" | Partial implementations create debt and confusion. | BLOCK: "Task must be complete per spec" |
+
+**The test for UI behavior:** Can you actually perform the action described in the SC? Not "does the component have an onClick prop" but "if I click it in the running app, does the specified behavior happen?"
 </critical_constraints>
 
 <context>
