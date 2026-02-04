@@ -53,6 +53,15 @@ const mockBuiltinWorkflow = {
 	isBuiltin: true,
 };
 
+// Default props for LeftPalette - all required props must be provided
+const defaultProps = {
+	workflow: mockWorkflow,
+	onWorkflowUpdate: vi.fn(),
+	onAgentClick: vi.fn(),
+	onAgentAssign: vi.fn(),
+	selectedNodeId: null as string | null,
+};
+
 describe('LeftPalette', () => {
 	// ─────────────────────────────────────────────────────────────────────────────
 	// TASK-725: Integration tests for AgentsPalette wiring
@@ -63,21 +72,21 @@ describe('LeftPalette', () => {
 	// SC-1: Agents section appears in left palette below Workflow Settings
 	describe('AgentsPalette Integration (SC-1)', () => {
 		it('renders AgentsPalette section', () => {
-			render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
+			render(<LeftPalette {...defaultProps} />);
 
 			// This test FAILS if AgentsPalette is not imported and rendered by LeftPalette
 			expect(screen.getByTestId('agents-palette')).toBeInTheDocument();
 		});
 
 		it('passes readOnly=false to AgentsPalette for custom workflows', () => {
-			render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
+			render(<LeftPalette {...defaultProps} />);
 
 			const agentsPalette = screen.getByTestId('agents-palette');
 			expect(agentsPalette).toHaveAttribute('data-readonly', 'false');
 		});
 
 		it('passes readOnly=true to AgentsPalette for builtin workflows', () => {
-			render(<LeftPalette workflow={mockBuiltinWorkflow} onWorkflowUpdate={vi.fn()} />);
+			render(<LeftPalette {...defaultProps} workflow={mockBuiltinWorkflow} />);
 
 			const agentsPalette = screen.getByTestId('agents-palette');
 			expect(agentsPalette).toHaveAttribute('data-readonly', 'true');
@@ -85,7 +94,7 @@ describe('LeftPalette', () => {
 
 		it('renders AgentsPalette between WorkflowSettings and PhaseTemplates', () => {
 			const { container } = render(
-				<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />
+				<LeftPalette {...defaultProps} />
 			);
 
 			const sections = container.querySelectorAll('.left-palette-section');
@@ -102,8 +111,7 @@ describe('LeftPalette', () => {
 			const onAgentClick = vi.fn();
 			render(
 				<LeftPalette
-					workflow={mockWorkflow}
-					onWorkflowUpdate={vi.fn()}
+					{...defaultProps}
 					onAgentClick={onAgentClick}
 				/>
 			);
@@ -119,8 +127,7 @@ describe('LeftPalette', () => {
 			const onAgentAssign = vi.fn();
 			render(
 				<LeftPalette
-					workflow={mockWorkflow}
-					onWorkflowUpdate={vi.fn()}
+					{...defaultProps}
 					onAgentAssign={onAgentAssign}
 				/>
 			);
@@ -136,7 +143,7 @@ describe('LeftPalette', () => {
 	// Integration test - SC-6: Integration with existing editor
 	describe('Integration with Editor Components', () => {
 		it('renders all three palette sections (settings, agents, templates)', () => {
-			render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
+			render(<LeftPalette {...defaultProps} />);
 
 			expect(screen.getByTestId('workflow-settings-panel')).toBeInTheDocument();
 			expect(screen.getByTestId('agents-palette')).toBeInTheDocument();
@@ -145,19 +152,19 @@ describe('LeftPalette', () => {
 
 		it('passes correct props to WorkflowSettingsPanel', () => {
 			const onUpdate = vi.fn();
-			render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={onUpdate} />);
+			render(<LeftPalette {...defaultProps} onWorkflowUpdate={onUpdate} />);
 
 			expect(screen.getByText('Workflow Settings for Test Workflow')).toBeInTheDocument();
 		});
 
 		it('passes correct props to PhaseTemplatePalette', () => {
-			render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
+			render(<LeftPalette {...defaultProps} />);
 
 			expect(screen.getByText(/Phase Templates.*readOnly: false.*workflowId: test-workflow/)).toBeInTheDocument();
 		});
 
 		it('sets readOnly=true for builtin workflows', () => {
-			render(<LeftPalette workflow={mockBuiltinWorkflow} onWorkflowUpdate={vi.fn()} />);
+			render(<LeftPalette {...defaultProps} workflow={mockBuiltinWorkflow} />);
 
 			// Both AgentsPalette and PhaseTemplatePalette show readOnly: true
 			const readOnlyElements = screen.getAllByText(/readOnly: true/);
@@ -165,7 +172,7 @@ describe('LeftPalette', () => {
 		});
 
 		it('maintains proper section order - settings first, agents second, templates third', () => {
-			const { container } = render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
+			const { container } = render(<LeftPalette {...defaultProps} />);
 
 			const sections = container.querySelectorAll('.left-palette-section');
 			expect(sections).toHaveLength(3);
@@ -179,7 +186,7 @@ describe('LeftPalette', () => {
 		});
 
 		it('applies consistent styling for palette sections', () => {
-			const { container } = render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
+			const { container } = render(<LeftPalette {...defaultProps} />);
 
 			expect(container.querySelector('.left-palette')).toBeInTheDocument();
 			expect(container.querySelectorAll('.left-palette-section')).toHaveLength(3);
@@ -187,7 +194,7 @@ describe('LeftPalette', () => {
 
 		it('handles workflow update callback from settings panel', () => {
 			const onUpdate = vi.fn();
-			render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={onUpdate} />);
+			render(<LeftPalette {...defaultProps} onWorkflowUpdate={onUpdate} />);
 
 			// Click the update button in the mocked WorkflowSettingsPanel
 			const updateButton = screen.getByText('Update');
@@ -200,7 +207,7 @@ describe('LeftPalette', () => {
 	// Integration test - does not interfere with drag-and-drop
 	describe('Drag and Drop Integration', () => {
 		it('does not interfere with phase template drag handlers', () => {
-			const { container } = render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
+			const { container } = render(<LeftPalette {...defaultProps} />);
 
 			// The palette should not add any drag event handlers that would interfere
 			const palette = container.querySelector('.left-palette');
@@ -208,7 +215,7 @@ describe('LeftPalette', () => {
 		});
 
 		it('preserves phase template palette functionality', () => {
-			render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
+			render(<LeftPalette {...defaultProps} />);
 
 			// The PhaseTemplatePalette component should be rendered normally
 			// (specific drag/drop behavior is tested in PhaseTemplatePalette.test.tsx)
@@ -219,7 +226,7 @@ describe('LeftPalette', () => {
 	// Responsive behavior
 	describe('Responsive Layout', () => {
 		it('maintains vertical stacking on narrow screens', () => {
-			const { container } = render(<LeftPalette workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
+			const { container } = render(<LeftPalette {...defaultProps} />);
 
 			const palette = container.querySelector('.left-palette');
 			expect(palette).toHaveClass('left-palette');

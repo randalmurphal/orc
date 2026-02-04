@@ -1,10 +1,31 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { vi, beforeEach, describe, it, expect, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { WorkflowEditorPage } from './WorkflowEditorPage';
-import { workflowClient } from '@/lib/client';
+import { workflowClient, configClient } from '@/lib/client';
 import type { WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
+import type { Agent } from '@/gen/orc/v1/config_pb';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
+
+// Mock agents for testing
+const mockAgents: Agent[] = [
+	{
+		id: 'agent-1',
+		name: 'TestAgent',
+		description: 'A test agent',
+		isBuiltin: false,
+		model: 'claude-sonnet-3-5',
+		scope: 1,
+	} as unknown as Agent,
+	{
+		id: 'agent-2',
+		name: 'BuiltinAgent',
+		description: 'A built-in agent',
+		isBuiltin: true,
+		model: 'claude-opus-4',
+		scope: 1,
+	} as unknown as Agent,
+];
 
 // Mock the client
 vi.mock('@/lib/client', () => ({
@@ -13,6 +34,10 @@ vi.mock('@/lib/client', () => ({
 		updateWorkflow: vi.fn(),
 		listPhaseTemplates: vi.fn(),
 		listWorkflowRuns: vi.fn(),
+		updatePhase: vi.fn(),
+	},
+	configClient: {
+		listAgents: vi.fn(),
 	},
 }));
 
@@ -55,6 +80,7 @@ describe('WorkflowEditorPage Integration', () => {
 		(workflowClient.getWorkflow as ReturnType<typeof vi.fn>).mockResolvedValue({ workflow: mockWorkflowDetails });
 		(workflowClient.listPhaseTemplates as ReturnType<typeof vi.fn>).mockResolvedValue({ templates: [], sources: {} });
 		(workflowClient.listWorkflowRuns as ReturnType<typeof vi.fn>).mockResolvedValue({ runs: [] });
+		(configClient.listAgents as ReturnType<typeof vi.fn>).mockResolvedValue({ agents: mockAgents });
 	});
 
 	afterEach(() => {
@@ -288,6 +314,200 @@ describe('WorkflowEditorPage Integration', () => {
 
 			const leftPalette = screen.getByTestId('left-palette');
 			expect(leftPalette).toHaveClass('left-palette');
+		});
+	});
+
+	// TASK-725: Agent Integration Tests
+	// These tests verify the full integration from clicking an agent in the palette
+	// through to showing the AgentInspector panel.
+	describe('Agent Integration (TASK-725)', () => {
+		it('renders AgentsPalette in the left palette', async () => {
+			render(
+				<MemoryRouter initialEntries={['/workflows/test-workflow']}>
+					<Routes>
+						<Route path="/workflows/:id" element={<WorkflowEditorPage />} />
+					</Routes>
+				</MemoryRouter>
+			);
+
+			await waitFor(() => {
+				expect(screen.getByText('Test Workflow')).toBeInTheDocument();
+			});
+
+			// Verify AgentsPalette is rendered within the left palette
+			expect(screen.getByTestId('left-palette')).toBeInTheDocument();
+			expect(screen.getByTestId('agents-palette')).toBeInTheDocument();
+		});
+
+		it('opens AgentInspector when clicking an agent in the palette', async () => {
+			render(
+				<MemoryRouter initialEntries={['/workflows/test-workflow']}>
+					<Routes>
+						<Route path="/workflows/:id" element={<WorkflowEditorPage />} />
+					</Routes>
+				</MemoryRouter>
+			);
+
+			await waitFor(() => {
+				expect(screen.getByText('Test Workflow')).toBeInTheDocument();
+			});
+
+			// Wait for agents to load (palette has count badge when loaded)
+			await waitFor(() => {
+				expect(screen.getByTestId('agents-palette')).toBeInTheDocument();
+			});
+
+			// Wait for agents to appear in the palette
+			await waitFor(() => {
+				expect(screen.getByTestId('agent-card-agent-1')).toBeInTheDocument();
+			});
+
+			// Click the agent card (div with role="button")
+			const agentCard = screen.getByTestId('agent-card-agent-1');
+			await act(async () => {
+				fireEvent.click(agentCard);
+			});
+
+			// Wait for AgentInspector to appear
+			await waitFor(() => {
+				expect(screen.getByTestId('agent-inspector')).toBeInTheDocument();
+			});
+
+			// Verify agent details are shown in the inspector
+			const inspector = screen.getByTestId('agent-inspector');
+			expect(inspector).toHaveTextContent('TestAgent');
+		});
+
+		it('closes AgentInspector when clicking close button', async () => {
+			render(
+				<MemoryRouter initialEntries={['/workflows/test-workflow']}>
+					<Routes>
+						<Route path="/workflows/:id" element={<WorkflowEditorPage />} />
+					</Routes>
+				</MemoryRouter>
+			);
+
+			await waitFor(() => {
+				expect(screen.getByText('Test Workflow')).toBeInTheDocument();
+			});
+
+			// Wait for agents to load
+			await waitFor(() => {
+				expect(screen.getByTestId('agent-card-agent-1')).toBeInTheDocument();
+			});
+
+			// Open the inspector by clicking an agent
+			const agentCard = screen.getByTestId('agent-card-agent-1');
+			await act(async () => {
+				fireEvent.click(agentCard);
+			});
+
+			await waitFor(() => {
+				expect(screen.getByTestId('agent-inspector')).toBeInTheDocument();
+			});
+
+			// Find and click the close button (aria-label is "Close agent inspector")
+			const closeButton = screen.getByRole('button', { name: /close agent inspector/i });
+			await act(async () => {
+				fireEvent.click(closeButton);
+			});
+
+			// Verify inspector is closed
+			await waitFor(() => {
+				expect(screen.queryByTestId('agent-inspector')).not.toBeInTheDocument();
+			});
+		});
+
+		it('selects agent and updates store when no phase is selected', async () => {
+			render(
+				<MemoryRouter initialEntries={['/workflows/test-workflow']}>
+					<Routes>
+						<Route path="/workflows/:id" element={<WorkflowEditorPage />} />
+					</Routes>
+				</MemoryRouter>
+			);
+
+			await waitFor(() => {
+				expect(screen.getByText('Test Workflow')).toBeInTheDocument();
+			});
+
+			// Wait for agents to load
+			await waitFor(() => {
+				expect(screen.getByTestId('agent-card-agent-1')).toBeInTheDocument();
+			});
+
+			// Verify no agent or node is selected initially
+			expect(useWorkflowEditorStore.getState().selectedAgent).toBeNull();
+			expect(useWorkflowEditorStore.getState().selectedNodeId).toBeNull();
+
+			// Click an agent card (with no phase selected)
+			const agentCard = screen.getByTestId('agent-card-agent-1');
+			await act(async () => {
+				fireEvent.click(agentCard);
+			});
+
+			// Verify: agent is now selected in the store
+			await waitFor(() => {
+				expect(useWorkflowEditorStore.getState().selectedAgent?.id).toBe('agent-1');
+			});
+		});
+
+		it('shows correct agent details in AgentInspector', async () => {
+			render(
+				<MemoryRouter initialEntries={['/workflows/test-workflow']}>
+					<Routes>
+						<Route path="/workflows/:id" element={<WorkflowEditorPage />} />
+					</Routes>
+				</MemoryRouter>
+			);
+
+			await waitFor(() => {
+				expect(screen.getByText('Test Workflow')).toBeInTheDocument();
+			});
+
+			// Wait for agents to load
+			await waitFor(() => {
+				expect(screen.getByTestId('agent-card-agent-2')).toBeInTheDocument();
+			});
+
+			// Click the builtin agent card
+			const agentCard = screen.getByTestId('agent-card-agent-2');
+			await act(async () => {
+				fireEvent.click(agentCard);
+			});
+
+			await waitFor(() => {
+				expect(screen.getByTestId('agent-inspector')).toBeInTheDocument();
+			});
+
+			// Verify agent details are shown correctly in the inspector
+			const inspector = screen.getByTestId('agent-inspector');
+			expect(inspector).toHaveTextContent('BuiltinAgent');
+			expect(inspector).toHaveTextContent('A built-in agent');
+			// The agent badge shows "Built-in" for builtin agents
+			expect(inspector).toHaveTextContent('Built-in');
+		});
+
+		it('passes readOnly to AgentsPalette based on workflow.isBuiltin', async () => {
+			(workflowClient.getWorkflow as ReturnType<typeof vi.fn>).mockResolvedValue({
+				workflow: mockBuiltinWorkflowDetails,
+			});
+
+			render(
+				<MemoryRouter initialEntries={['/workflows/builtin-workflow']}>
+					<Routes>
+						<Route path="/workflows/:id" element={<WorkflowEditorPage />} />
+					</Routes>
+				</MemoryRouter>
+			);
+
+			await waitFor(() => {
+				expect(screen.getByText('Built-in Workflow')).toBeInTheDocument();
+			});
+
+			// AgentsPalette should receive readOnly=true for builtin workflows
+			const agentsPalette = screen.getByTestId('agents-palette');
+			expect(agentsPalette).toHaveAttribute('data-readonly', 'true');
 		});
 	});
 });
