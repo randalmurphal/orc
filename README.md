@@ -10,7 +10,7 @@ Trivial bug fix? One phase, done in minutes. Major feature? Full lifecycle with 
 
 ## The Opus Requirement
 
-Orc delegates judgment to Claude. The weight classification, the phase execution, the code review—it's all Claude making decisions in loops until the work is done. This works because Opus has the judgment to know when something is actually finished versus "close enough."
+Orc delegates judgment to Claude. The workflow selection, the phase execution, the code review—it's all Claude making decisions in loops until the work is done. This works because Opus has the judgment to know when something is actually finished versus "close enough."
 
 Sonnet can implement. Haiku can search. But the orchestration brain? That's Opus. The system is designed around trusting a model that can assess its own work, catch its own mistakes, and know when to ask for help versus when to push through.
 
@@ -35,25 +35,25 @@ orc run TASK-001
 orc serve  # Web UI at localhost:8080
 ```
 
-That's it. Orc classifies the task weight, generates a phase plan, executes each phase in a loop until completion, commits after each phase, and opens a PR when done.
+That's it. Orc uses the selected workflow to determine phases, executes each phase in a loop until completion, commits after each phase, and opens a PR when done.
 
 ## How It Works
 
-### 1. Weight Classification
+### 1. Workflow Selection
 
-Not all tasks deserve the same process. Orc classifies tasks into weights, and weights determine phases:
+Not all tasks deserve the same process. Orc uses workflows to determine which phases run:
 
-| Weight | What It Means | Phases |
-|--------|---------------|--------|
-| **trivial** | Typo fix, one-liner | tiny_spec → implement |
+| Workflow | What It Means | Phases |
+|----------|---------------|--------|
+| **trivial** | Typo fix, one-liner | implement |
 | **small** | Single component change | tiny_spec → implement → review |
 | **medium** | Multiple files, clear scope | spec → tdd_write → implement → review → docs |
-| **large** | Complex, cross-cutting, new systems | spec → tdd_write → breakdown → implement → review → docs → validate |
+| **large** | Complex, cross-cutting, new systems | spec → tdd_write → breakdown → implement → review → docs |
 
-AI classifies automatically. Override when you know better:
+Select the workflow that matches your task:
 
 ```bash
-orc new "Refactor the entire auth system" --weight large
+orc new "Refactor the entire auth system" --workflow large
 ```
 
 ### 2. Phase Execution (The Ralph Loop)
@@ -222,8 +222,8 @@ ORC_RETRY_ENABLED=false
 ### Task Lifecycle
 
 ```bash
-orc new "title"              # Create task (AI classifies weight)
-orc new "title" --weight X   # Override weight classification
+orc new "title"              # Create task with default workflow
+orc new "title" --workflow X # Select specific workflow (trivial/small/medium/large)
 orc new "title" --category X # Set category (feature/bug/refactor/chore/docs/test)
 orc run TASK-ID              # Execute task
 orc run TASK-ID --profile X  # Execute with specific profile

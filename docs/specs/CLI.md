@@ -66,12 +66,12 @@ Next steps:
 Create a new task.
 
 ```bash
-orc new <title> [--weight <weight>] [--category <category>] [--description <desc>] [--attach <file>] [--initiative <id>]
+orc new <title> [--workflow <workflow>] [--category <category>] [--description <desc>] [--attach <file>] [--initiative <id>]
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--weight`, `-w` | Task weight: trivial/small/medium/large/greenfield | auto-classify |
+| `--workflow`, `-w` | Workflow: trivial/small/medium/large (or custom) | medium |
 | `--category`, `-c` | Task category: feature/bug/refactor/chore/docs/test | feature |
 | `--description`, `-d` | Task description | opens editor |
 | `--branch`, `-b` | Custom branch name | `orc/TASK-XXX` |
@@ -92,7 +92,7 @@ orc new <title> [--weight <weight>] [--category <category>] [--description <desc
 
 **Examples**:
 ```bash
-orc new "Fix typo in README" --weight trivial
+orc new "Fix typo in README" --workflow trivial
 orc new "Add OAuth2 authentication" -w large -d "Support Google and GitHub"
 orc new "Add dark mode toggle button"   # Auto-detects UI testing required
 orc new "Fix login bug" --category bug
@@ -126,13 +126,13 @@ Next steps:
 List tasks.
 
 ```bash
-orc list [--status <status>] [--weight <weight>] [--category <category>] [--queue <queue>] [--limit <n>] [--all]
+orc list [--status <status>] [--workflow <workflow>] [--category <category>] [--queue <queue>] [--limit <n>] [--all]
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--status`, `-s` | Filter by status | active |
-| `--weight`, `-w` | Filter by weight | all |
+| `--workflow`, `-w` | Filter by workflow | all |
 | `--category`, `-c` | Filter by category: `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | all |
 | `--queue`, `-Q` | Filter by queue: `active`, `backlog` | all |
 | `--limit`, `-n` | Limit output to N most recent tasks | 0 (all) |
@@ -140,9 +140,9 @@ orc list [--status <status>] [--weight <weight>] [--category <category>] [--queu
 
 **Output**:
 ```
-ID        WEIGHT   STATUS      PHASE      TITLE
+ID        WORKFLOW STATUS      PHASE      TITLE
 TASK-001  medium   running     implement  Add user auth
-TASK-002  small    paused      research   Fix rate limiting
+TASK-002  small    paused      spec       Fix rate limiting
 ```
 
 **Examples**:
@@ -172,14 +172,14 @@ orc show <task-id> [--checkpoints]
 Edit task properties after creation.
 
 ```bash
-orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>] [--priority <priority>] [--status <status>] [--initiative <id>]
+orc edit <task-id> [--title <title>] [--description <desc>] [--workflow <workflow>] [--priority <priority>] [--status <status>] [--initiative <id>]
 ```
 
 | Option | Description | Notes |
 |--------|-------------|-------|
 | `--title`, `-t` | New task title | |
 | `--description`, `-d` | New task description | |
-| `--weight`, `-w` | New weight (trivial/small/medium/large/greenfield) | Triggers plan regeneration |
+| `--workflow`, `-w` | New workflow (trivial/small/medium/large or custom) | Triggers plan regeneration |
 | `--priority`, `-p` | New priority (critical/high/normal/low) | |
 | `--status`, `-s` | New task status | For administrative corrections |
 | `--initiative`, `-i` | Link/unlink task to initiative | Use `""` to unlink |
@@ -190,9 +190,9 @@ orc edit <task-id> [--title <title>] [--description <desc>] [--weight <weight>] 
 | `--add-related` | Add task(s) to related_to list | Comma-separated |
 | `--remove-related` | Remove task(s) from related_to list | Comma-separated |
 
-Weight changes regenerate the task plan with phases appropriate for the new weight. Completed/skipped phases that exist in both the old and new plans retain their status. Requires the task to not be running.
+Workflow changes regenerate the task plan with phases appropriate for the new workflow. Completed/skipped phases that exist in both the old and new plans retain their status. Requires the task to not be running.
 
-**Status changes:** Valid status values are `created`, `classifying`, `planned`, `paused`, `blocked`, `completed`, `finished`, `failed`. Note: running tasks cannot have their status changed (pause first). This is intended for administrative corrections like marking already-fixed tasks as completed without re-running.
+**Status changes:** Valid status values are `created`, `planned`, `paused`, `blocked`, `completed`, `finished`, `failed`. Note: running tasks cannot have their status changed (pause first). This is intended for administrative corrections like marking already-fixed tasks as completed without re-running.
 
 **Initiative linking:** Setting `--initiative INIT-001` links the task to an initiative. The task is auto-added to the initiative's task list (bidirectional sync). Use `--initiative ""` to unlink a task from its initiative.
 
@@ -201,7 +201,7 @@ Weight changes regenerate the task plan with phases appropriate for the new weig
 **Examples**:
 ```bash
 orc edit TASK-001 --title "Better title"
-orc edit TASK-001 --weight large
+orc edit TASK-001 --workflow large
 orc edit TASK-001 --priority critical
 orc edit TASK-001 --status completed             # Mark task as done
 orc edit TASK-001 -s planned                     # Reset to planned status
