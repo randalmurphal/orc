@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
+import { Tooltip } from '@/components/ui/Tooltip';
 import type { PhaseNodeData, PhaseStatus, PhaseCategory } from './index';
 import './PhaseNode.css';
 
@@ -48,6 +50,40 @@ function getTypeBadge(gateType: GateType): { label: string; variant: 'ai' | 'hum
 	}
 }
 
+/**
+ * Build tooltip content showing input/output variables
+ */
+function buildVariableTooltipContent(
+	inputVariables?: string[],
+	outputVarName?: string
+): ReactNode | null {
+	const hasInputs = inputVariables && inputVariables.length > 0;
+	const hasOutput = !!outputVarName;
+
+	if (!hasInputs && !hasOutput) {
+		return null;
+	}
+
+	return (
+		<div className="phase-node__tooltip">
+			{hasInputs && (
+				<div className="phase-node__tooltip-section">
+					<span className="phase-node__tooltip-label">Inputs:</span>
+					<span className="phase-node__tooltip-vars">
+						{inputVariables!.join(', ')}
+					</span>
+				</div>
+			)}
+			{hasOutput && (
+				<div className="phase-node__tooltip-section">
+					<span className="phase-node__tooltip-label">Output:</span>
+					<span className="phase-node__tooltip-vars">{outputVarName}</span>
+				</div>
+			)}
+		</div>
+	);
+}
+
 export function PhaseNode({ data, selected, isConnectable }: NodeProps) {
 	const d = data as unknown as PhaseNodeData;
 	const displayName = d.templateName || d.phaseTemplateId;
@@ -66,7 +102,9 @@ export function PhaseNode({ data, selected, isConnectable }: NodeProps) {
 	if (statusClass) classes.push(statusClass);
 	if (selected) classes.push('phase-node--selected');
 
-	return (
+	const tooltipContent = buildVariableTooltipContent(d.inputVariables, d.outputVarName);
+
+	const nodeContent = (
 		<div className={classes.join(' ')}>
 			<Handle
 				type="target"
@@ -121,4 +159,15 @@ export function PhaseNode({ data, selected, isConnectable }: NodeProps) {
 			/>
 		</div>
 	);
+
+	// Only wrap with tooltip if there's variable content to show
+	if (tooltipContent) {
+		return (
+			<Tooltip content={tooltipContent} side="top" sideOffset={8}>
+				{nodeContent}
+			</Tooltip>
+		);
+	}
+
+	return nodeContent;
 }

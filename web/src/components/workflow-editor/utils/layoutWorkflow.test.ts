@@ -697,4 +697,150 @@ describe('layoutWorkflow', () => {
 			expect(data.agentId).toBe('opus');
 		});
 	});
+
+	// TASK-730: Variable passthrough tests
+	describe('variable passthrough to PhaseNodeData', () => {
+		it('passes inputVariables from template to PhaseNodeData', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'implement',
+						sequence: 1,
+						template: createMockPhaseTemplate({
+							id: 'implement',
+							name: 'Implement',
+							inputVariables: ['SPEC_CONTENT', 'TDD_TEST_CODE'],
+						}),
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			const phaseNode = result.nodes.find((n) => n.type === 'phase');
+			expect(phaseNode).toBeDefined();
+			expect(phaseNode!.data).toHaveProperty('inputVariables');
+			expect(phaseNode!.data.inputVariables).toEqual(['SPEC_CONTENT', 'TDD_TEST_CODE']);
+		});
+
+		it('passes outputVarName from template to PhaseNodeData', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'spec',
+						sequence: 1,
+						template: createMockPhaseTemplate({
+							id: 'spec',
+							name: 'Specification',
+							outputVarName: 'SPEC_CONTENT',
+						}),
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			const phaseNode = result.nodes.find((n) => n.type === 'phase');
+			expect(phaseNode).toBeDefined();
+			expect(phaseNode!.data).toHaveProperty('outputVarName', 'SPEC_CONTENT');
+		});
+
+		it('passes both inputVariables and outputVarName when both are set', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'implement',
+						sequence: 1,
+						template: createMockPhaseTemplate({
+							id: 'implement',
+							name: 'Implement',
+							inputVariables: ['SPEC_CONTENT', 'BREAKDOWN'],
+							outputVarName: 'IMPLEMENTATION',
+						}),
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			const phaseNode = result.nodes.find((n) => n.type === 'phase');
+			expect(phaseNode).toBeDefined();
+			expect(phaseNode!.data.inputVariables).toEqual(['SPEC_CONTENT', 'BREAKDOWN']);
+			expect(phaseNode!.data.outputVarName).toBe('IMPLEMENTATION');
+		});
+
+		it('handles empty inputVariables array', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'spec',
+						sequence: 1,
+						template: createMockPhaseTemplate({
+							id: 'spec',
+							name: 'Specification',
+							inputVariables: [],
+							outputVarName: 'SPEC_CONTENT',
+						}),
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			const phaseNode = result.nodes.find((n) => n.type === 'phase');
+			expect(phaseNode).toBeDefined();
+			expect(phaseNode!.data.inputVariables).toEqual([]);
+			expect(phaseNode!.data.outputVarName).toBe('SPEC_CONTENT');
+		});
+
+		it('handles undefined outputVarName', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'review',
+						sequence: 1,
+						template: createMockPhaseTemplate({
+							id: 'review',
+							name: 'Review',
+							inputVariables: ['IMPLEMENTATION'],
+							// outputVarName not set
+						}),
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			const phaseNode = result.nodes.find((n) => n.type === 'phase');
+			expect(phaseNode).toBeDefined();
+			expect(phaseNode!.data.inputVariables).toEqual(['IMPLEMENTATION']);
+			expect(phaseNode!.data.outputVarName).toBeUndefined();
+		});
+
+		it('handles phase with no template (variables should be undefined)', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'custom',
+						sequence: 1,
+						// No template attached
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			const phaseNode = result.nodes.find((n) => n.type === 'phase');
+			expect(phaseNode).toBeDefined();
+			// When no template, variables should be undefined
+			expect(phaseNode!.data.inputVariables).toBeUndefined();
+			expect(phaseNode!.data.outputVarName).toBeUndefined();
+		});
+	});
 });
