@@ -206,14 +206,18 @@ export function TranscriptViewer({
 		(transcriptList: FlatTranscriptEntry[], streaming: TranscriptLine[]): SectionData[] => {
 			const sections: SectionData[] = [];
 			let currentPhaseSection: SectionData | null = null;
+			let phaseSectionCounter = 0;
 
 			for (const t of transcriptList) {
 				// Check if this is a new phase
 				if (!currentPhaseSection || currentPhaseSection.title !== t.phase) {
+					// Use negative ID range for phase sections to avoid collision with child IDs
+					// Phase sections use -(phaseSectionCounter + 1000000) to stay distinct
+					phaseSectionCounter++;
 					currentPhaseSection = {
 						type: 'phase',
 						title: t.phase,
-						id: t.id,
+						id: -(phaseSectionCounter + 1000000),
 						timestamp: t.timestamp,
 						children: [],
 						tokens: 0,
@@ -275,11 +279,13 @@ export function TranscriptViewer({
 				// Find or create phase section for streaming content
 				let streamingSection = sections.find(s => s.title === streamingPhase);
 				if (!streamingSection) {
+					// Use a unique ID for streaming phase sections
+					// Increment counter to ensure uniqueness if multiple streaming phases
+					phaseSectionCounter++;
 					streamingSection = {
 						type: 'phase',
 						title: streamingPhase,
-						// Use a unique ID that won't conflict with streaming children (which use -1, -2, etc.)
-						id: Number.MIN_SAFE_INTEGER,
+						id: -(phaseSectionCounter + 1000000),
 						timestamp: streaming[0]?.timestamp || new Date().toISOString(),
 						children: [],
 					};
