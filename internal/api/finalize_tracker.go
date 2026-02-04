@@ -206,8 +206,9 @@ func (s *Server) TriggerFinalizeOnApproval(taskID string, projectID string) (boo
 		return false, fmt.Errorf("load task: %w", err)
 	}
 
-	if !s.orcConfig.ShouldRunFinalize(task.WeightFromProto(t.Weight)) {
-		s.logger.Debug("finalize not applicable for task weight", "task", taskID, "weight", t.Weight)
+	workflowID := task.GetWorkflowIDProto(t)
+	if !s.orcConfig.ShouldRunFinalize(workflowID) {
+		s.logger.Debug("finalize not applicable for workflow", "task", taskID, "workflow_id", workflowID)
 		return false, nil
 	}
 

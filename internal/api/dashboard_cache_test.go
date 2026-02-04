@@ -51,8 +51,7 @@ func TestDashboardCache_ConcurrentCallsShareSingleLoad(t *testing.T) {
 	// Seed some tasks
 	for i := 0; i < 10; i++ {
 		tk := task.NewProtoTask(fmt.Sprintf("TASK-%03d", i+1), fmt.Sprintf("Task %d", i+1))
-		tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+				tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		tk.CompletedAt = timestamppb.Now()
 		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task: %v", err)
@@ -122,8 +121,7 @@ func TestDashboardCache_TTL_ReusesWithinWindow(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tk := task.NewProtoTask("TASK-001", "Task 1")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	tk.CompletedAt = timestamppb.Now()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -164,8 +162,7 @@ func TestDashboardCache_TTL_RefreshesAfterExpiry(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tk := task.NewProtoTask("TASK-001", "Task 1")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	tk.CompletedAt = timestamppb.Now()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -211,8 +208,7 @@ func TestDashboardCache_InvalidateOnWrite(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tk := task.NewProtoTask("TASK-001", "Task 1")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	tk.CompletedAt = timestamppb.Now()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -232,7 +228,6 @@ func TestDashboardCache_InvalidateOnWrite(t *testing.T) {
 
 	// Add another task
 	tk2 := task.NewProtoTask("TASK-002", "Task 2")
-	tk2.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tk2.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tk2); err != nil {
 		t.Fatalf("save task 2: %v", err)
@@ -275,8 +270,7 @@ func TestGetTopInitiatives_BatchLoading_NoN1(t *testing.T) {
 		for j := 0; j < 2; j++ {
 			initID := id
 			tk := task.NewProtoTask(fmt.Sprintf("TASK-%s-%d", id, j), fmt.Sprintf("Task %d-%d", i, j))
-			tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-			tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+						tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 			tk.InitiativeId = &initID
 			tk.CompletedAt = timestamppb.Now()
 			if err := backend.SaveTask(tk); err != nil {
@@ -371,8 +365,7 @@ func TestDashboardCache_ConcurrentReadWrite(t *testing.T) {
 
 	// Seed initial data
 	tk := task.NewProtoTask("TASK-001", "Task 1")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	tk.CompletedAt = timestamppb.Now()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -425,8 +418,7 @@ func TestDashboardCache_LoadError_NotCached(t *testing.T) {
 
 	// Second call should succeed (error not cached)
 	tk := task.NewProtoTask("TASK-001", "Task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	tk.CompletedAt = timestamppb.Now()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -485,8 +477,7 @@ func TestDashboardCache_NullDates(t *testing.T) {
 
 	// Task with no completed_at (still running)
 	tk := task.NewProtoTask("TASK-001", "Running task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	// No CompletedAt set
 
 	if err := backend.SaveTask(tk); err != nil {
@@ -520,8 +511,7 @@ func TestDashboardCache_AllTasksCreatedToday(t *testing.T) {
 	now := time.Now()
 	for i := 0; i < 5; i++ {
 		tk := task.NewProtoTask(fmt.Sprintf("TASK-%03d", i+1), fmt.Sprintf("Task %d", i+1))
-		tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+				tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		tk.CreatedAt = timestamppb.New(now)
 		tk.CompletedAt = timestamppb.New(now)
 		if err := backend.SaveTask(tk); err != nil {
@@ -560,8 +550,7 @@ func TestTopInitiatives_MissingTitle_FallsBackToID(t *testing.T) {
 
 	initID := "INIT-001"
 	tk := task.NewProtoTask("TASK-001", "Task")
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	tk.InitiativeId = &initID
 	tk.CompletedAt = timestamppb.Now()
 	if err := backend.SaveTask(tk); err != nil {

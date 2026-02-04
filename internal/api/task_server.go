@@ -355,9 +355,6 @@ func (s *taskServer) CreateTask(
 	if req.Msg.Description != nil {
 		t.Description = req.Msg.Description
 	}
-	if req.Msg.Weight != orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
-		t.Weight = req.Msg.Weight
-	}
 	if req.Msg.Queue != nil {
 		t.Queue = *req.Msg.Queue
 	}
@@ -370,18 +367,9 @@ func (s *taskServer) CreateTask(
 	if req.Msg.InitiativeId != nil {
 		t.InitiativeId = req.Msg.InitiativeId
 	}
-	// Auto-assign workflow based on weight if not explicitly provided
+	// Set workflow ID directly
 	if req.Msg.WorkflowId != nil {
 		t.WorkflowId = req.Msg.WorkflowId
-	} else if t.Weight != orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
-		var weightsCfg config.WeightsConfig
-		if s.config != nil {
-			weightsCfg = s.config.Weights
-		}
-		wfID := workflow.ResolveWorkflowID("", t.Weight, weightsCfg)
-		if wfID != "" {
-			t.WorkflowId = &wfID
-		}
 	}
 	if req.Msg.TargetBranch != nil {
 		t.TargetBranch = req.Msg.TargetBranch
@@ -527,9 +515,6 @@ func (s *taskServer) UpdateTask(
 	}
 	if req.Msg.Description != nil {
 		t.Description = req.Msg.Description
-	}
-	if req.Msg.Weight != nil {
-		t.Weight = *req.Msg.Weight
 	}
 	if req.Msg.Queue != nil {
 		t.Queue = *req.Msg.Queue
@@ -688,7 +673,6 @@ func (s *taskServer) GetTaskPlan(
 	// Build TaskPlan from execution state
 	plan := &orcv1.TaskPlan{
 		Version: 1,
-		Weight:  t.Weight,
 	}
 	if t.Description != nil {
 		plan.Description = *t.Description

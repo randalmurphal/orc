@@ -57,15 +57,15 @@ type ExecutorConfig struct {
 	OrcConfig *config.Config
 }
 
-// DefaultConfigForWeight returns the recommended configuration for a task weight.
-func DefaultConfigForWeight(weight orcv1.TaskWeight) ExecutorConfig {
+// DefaultConfigForWorkflow returns the recommended configuration for a workflow.
+func DefaultConfigForWorkflow(workflowID string) ExecutorConfig {
 	// Base timeout settings (can be overridden by config)
 	baseTurnTimeout := 10 * time.Minute
 	baseHeartbeat := 30 * time.Second
 	baseIdleTimeout := 2 * time.Minute
 
-	switch weight {
-	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
+	switch workflowID {
+	case "implement-trivial":
 		return ExecutorConfig{
 			MaxTurns:      50,
 			CheckpointInterval: 0,
@@ -74,7 +74,7 @@ func DefaultConfigForWeight(weight orcv1.TaskWeight) ExecutorConfig {
 			HeartbeatInterval:  baseHeartbeat,
 			IdleTimeout:        baseIdleTimeout,
 		}
-	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
+	case "implement-small":
 		return ExecutorConfig{
 			MaxTurns:      100,
 			CheckpointInterval: 0,
@@ -83,7 +83,7 @@ func DefaultConfigForWeight(weight orcv1.TaskWeight) ExecutorConfig {
 			HeartbeatInterval:  baseHeartbeat,
 			IdleTimeout:        baseIdleTimeout,
 		}
-	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
+	case "implement-medium":
 		return ExecutorConfig{
 			MaxTurns:      150,
 			CheckpointInterval: 0,
@@ -92,7 +92,7 @@ func DefaultConfigForWeight(weight orcv1.TaskWeight) ExecutorConfig {
 			HeartbeatInterval:  baseHeartbeat,
 			IdleTimeout:        baseIdleTimeout,
 		}
-	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
+	case "implement-large":
 		return ExecutorConfig{
 			MaxTurns:      250,
 			CheckpointInterval: 1,

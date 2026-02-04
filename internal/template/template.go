@@ -12,7 +12,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -352,13 +351,13 @@ func SaveFromTask(taskID, name, description string, global bool, backend storage
 		return nil, fmt.Errorf("load task: %w", err)
 	}
 
-	// Derive phases from task weight
-	phases := phasesForWeight(t.Weight)
+	// Derive phases from task workflow
+	workflowID := task.GetWorkflowIDProto(t)
+	phases := phasesForWorkflow(workflowID)
 
 	template := &Template{
 		Name:        name,
 		Description: description,
-		Weight:      task.WeightFromProto(t.Weight),
 		Phases:      phases,
 		CreatedFrom: taskID,
 		CreatedAt:   time.Now(),
@@ -445,16 +444,16 @@ func Exists(name string) bool {
 	return err == nil
 }
 
-// phasesForWeight returns the phase IDs for a given task weight.
-func phasesForWeight(weight orcv1.TaskWeight) []string {
-	switch weight {
-	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
+// phasesForWorkflow returns the phase IDs for a given workflow ID.
+func phasesForWorkflow(workflowID string) []string {
+	switch workflowID {
+	case "implement-trivial":
 		return []string{"tiny_spec", "implement"}
-	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
+	case "implement-small":
 		return []string{"tiny_spec", "implement", "review"}
-	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
+	case "implement-medium":
 		return []string{"spec", "tdd_write", "implement", "review", "docs"}
-	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
+	case "implement-large":
 		return []string{"spec", "tdd_write", "breakdown", "implement", "review", "docs"}
 	default:
 		return []string{"spec", "implement", "review"}

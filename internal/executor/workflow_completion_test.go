@@ -109,7 +109,6 @@ func TestAutoCommitBeforeCompletion_DetectsAndCommitsChanges(t *testing.T) {
 	// Create task
 	tsk := &orcv1.Task{
 		Id:     "TASK-001",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}
 
 	// Call autoCommitBeforeCompletion (this function doesn't exist yet - test will fail)
@@ -174,7 +173,6 @@ func TestAutoCommitBeforeCompletion_SkipsCleanWorktree(t *testing.T) {
 	// Create task
 	tsk := &orcv1.Task{
 		Id:     "TASK-001",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}
 
 	// Call autoCommitBeforeCompletion with clean worktree
@@ -259,7 +257,6 @@ func TestAutoCommitBeforeCompletion_IncludesAllChanges(t *testing.T) {
 	// Create task
 	tsk := &orcv1.Task{
 		Id:     "TASK-001",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}
 
 	// Call autoCommitBeforeCompletion
@@ -306,8 +303,7 @@ func TestRunCompletion_CallsAutoCommitBeforePR(t *testing.T) {
 
 	// Create task with PR action
 	tsk := &orcv1.Task{
-		Id:     "TASK-001",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM, // maps to "pr" action in test config
+		Id: "TASK-001",
 	}
 
 	// Mock remote (runCompletion checks for remote and skips if missing)
@@ -357,7 +353,6 @@ func TestRunCompletion_SkipsAutoCommitWhenActionNone(t *testing.T) {
 	// Create task with "none" action
 	tsk := &orcv1.Task{
 		Id:     "TASK-001",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}
 
 	ctx := context.Background()
@@ -597,7 +592,6 @@ func TestRunCompletion_WorkflowActionOverridesConfig(t *testing.T) {
 
 	tsk := &orcv1.Task{
 		Id:     "TASK-001",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}
 
 	ctx := context.Background()
@@ -641,7 +635,6 @@ func TestRunCompletion_EmptyWorkflowActionFallsBackToConfig(t *testing.T) {
 
 	tsk := &orcv1.Task{
 		Id:     "TASK-001",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}
 
 	ctx := context.Background()
@@ -698,7 +691,6 @@ func TestRunCompletion_WorkflowCommitActionOverridesConfigPR(t *testing.T) {
 	tsk := &orcv1.Task{
 		Id:     "TASK-001",
 		Branch: "orc/TASK-001",
-		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}
 
 	ctx := context.Background()

@@ -11,20 +11,11 @@ option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
 // ENUMS
 // =============================================================================
 
-// Task weight classification determining required phases
-enum TaskWeight {
-  TASK_WEIGHT_UNSPECIFIED = 0;
-  TASK_WEIGHT_TRIVIAL = 1;  // One-liner fixes, typos
-  TASK_WEIGHT_SMALL = 2;    // Bug fixes, isolated changes
-  TASK_WEIGHT_MEDIUM = 3;   // Features needing thought
-  TASK_WEIGHT_LARGE = 4;    // Complex multi-file features
-}
-
 // Task execution status
 enum TaskStatus {
   TASK_STATUS_UNSPECIFIED = 0;
   TASK_STATUS_CREATED = 1;      // Task created, not started
-  TASK_STATUS_CLASSIFYING = 2;  // Determining weight/workflow
+  TASK_STATUS_CLASSIFYING = 2;  // Determining workflow
   TASK_STATUS_PLANNED = 3;      // Plan generated
   TASK_STATUS_RUNNING = 4;      // Execution in progress
   TASK_STATUS_PAUSED = 5;       // Manually paused
@@ -186,7 +177,7 @@ message Task {
   string id = 1;
   string title = 2;
   optional string description = 3;
-  TaskWeight weight = 4;
+  // Field 4 removed: weight — workflow-first model (TASK-748)
   TaskStatus status = 5;
   optional string current_phase = 6;
   string branch = 7;
@@ -246,7 +237,7 @@ message PlanPhase {
 // Task plan (dynamically generated phase sequence)
 message TaskPlan {
   int32 version = 1;
-  TaskWeight weight = 2;
+  // Field 2 removed: weight — workflow-first model (TASK-748)
   string description = 3;
   repeated PlanPhase phases = 4;
 }
@@ -288,7 +279,7 @@ message DependencyNode {
   string id = 1;
   string title = 2;
   TaskStatus status = 3;
-  TaskWeight weight = 4;
+  // Field 4 removed: weight — workflow-first model (TASK-748)
 }
 
 message DependencyEdge {
@@ -507,7 +498,7 @@ message CreateTaskRequest {
   string project_id = 1;  // Required: project to create task in
   string title = 2;
   optional string description = 3;
-  TaskWeight weight = 4;
+  // Field 4 removed: weight — workflow-first model (TASK-748)
   optional TaskQueue queue = 5;
   optional TaskPriority priority = 6;
   optional TaskCategory category = 7;
@@ -537,7 +528,7 @@ message UpdateTaskRequest {
   string task_id = 2;
   optional string title = 3;
   optional string description = 4;
-  optional TaskWeight weight = 5;
+  // Field 5 removed: weight — workflow-first model (TASK-748)
   optional TaskQueue queue = 6;
   optional TaskPriority priority = 7;
   optional TaskCategory category = 8;

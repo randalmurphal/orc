@@ -142,7 +142,6 @@ func setupLoopWorkflow(t *testing.T, backend *storage.DatabaseBackend, loopConfi
 func setupTaskForLoop(t *testing.T, backend *storage.DatabaseBackend, taskID string) *orcv1.Task {
 	t.Helper()
 	tsk := task.NewProtoTask(taskID, "Loop test task")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "loop-wf"
@@ -473,7 +472,6 @@ func TestPhaseLoop_GateRetrySharesCounter(t *testing.T) {
 	}
 
 	tsk := task.NewProtoTask("TASK-GATE-LOOP", "Gate loop test")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "gate-loop-wf"
 	tsk.WorkflowId = &wfID
@@ -540,7 +538,6 @@ func TestPhaseLoop_NoRetryCountsMapForTaskContext(t *testing.T) {
 
 	backend := storage.NewTestBackend(t)
 	tsk := task.NewProtoTask("TASK-RETRY-COUNT", "Retry count test")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 
 	task.EnsurePhaseProto(tsk.Execution, "review")
@@ -772,7 +769,6 @@ func TestPhaseLoop_InvalidTarget(t *testing.T) {
 	}
 
 	tsk := task.NewProtoTask("TASK-BADTARGET", "Bad target test")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "invalid-target-wf"
 	tsk.WorkflowId = &wfID
@@ -850,7 +846,6 @@ func TestPhaseLoop_ForwardReference(t *testing.T) {
 	}
 
 	tsk := task.NewProtoTask("TASK-FWDREF", "Forward ref test")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "fwd-ref-wf"
 	tsk.WorkflowId = &wfID
@@ -1262,7 +1257,6 @@ func TestPhaseLoop_GateRetryUsesLowerLimit(t *testing.T) {
 	}
 
 	tsk := task.NewProtoTask("TASK-LOWER-LIMIT", "Lower limit test")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	wfID := "lower-limit-wf"
 	tsk.WorkflowId = &wfID

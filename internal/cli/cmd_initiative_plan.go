@@ -242,15 +242,13 @@ Examples:
 					t.Description = &mt.Description
 				}
 
-				// Set weight (default medium)
-				if mt.Weight != "" {
-					t.Weight = task.WeightToProto(mt.Weight)
-				} else {
-					t.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-				}
-
 				// Auto-assign workflow based on weight using config-based resolution
-				wfID := workflow.ResolveWorkflowID("", t.Weight, weightsCfg)
+				// Weight is no longer stored on task - only workflow ID
+				weightStr := mt.Weight
+				if weightStr == "" {
+					weightStr = "medium"
+				}
+				wfID := workflow.ResolveWorkflowIDFromString("", weightStr, weightsCfg)
 				if wfID != "" {
 					t.WorkflowId = &wfID
 				}
@@ -309,7 +307,7 @@ Examples:
 				if mt.Spec != "" {
 					specNote = " (spec stored)"
 				}
-				fmt.Printf("Created task: %s - %s [%s]%s\n", taskID, t.Title, task.WeightFromProto(t.Weight), specNote)
+				fmt.Printf("Created task: %s - %s [%s]%s\n", taskID, t.Title, task.GetWorkflowIDProto(t), specNote)
 			}
 
 			// Save initiative with updated task list

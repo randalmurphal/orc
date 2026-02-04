@@ -172,11 +172,11 @@ func (TimelineEventType) EnumDescriptor() ([]byte, []int) {
 
 // Task was created
 type TaskCreatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Weight        TaskWeight             `protobuf:"varint,3,opt,name=weight,proto3,enum=orc.v1.TaskWeight" json:"weight,omitempty"`
-	InitiativeId  *string                `protobuf:"bytes,4,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	TaskId string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Title  string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	// Field 3 removed: weight — workflow-first model (TASK-748)
+	InitiativeId  *string `protobuf:"bytes,4,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -223,13 +223,6 @@ func (x *TaskCreatedEvent) GetTitle() string {
 		return x.Title
 	}
 	return ""
-}
-
-func (x *TaskCreatedEvent) GetWeight() TaskWeight {
-	if x != nil {
-		return x.Weight
-	}
-	return TaskWeight_TASK_WEIGHT_UNSPECIFIED
 }
 
 func (x *TaskCreatedEvent) GetInitiativeId() string {
@@ -2240,11 +2233,10 @@ var File_orc_v1_events_proto protoreflect.FileDescriptor
 
 const file_orc_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x13orc/v1/events.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\x1a\x11orc/v1/task.proto\"\xa9\x01\n" +
+	"\x13orc/v1/events.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\x1a\x11orc/v1/task.proto\"}\n" +
 	"\x10TaskCreatedEvent\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x14\n" +
-	"\x05title\x18\x02 \x01(\tR\x05title\x12*\n" +
-	"\x06weight\x18\x03 \x01(\x0e2\x12.orc.v1.TaskWeightR\x06weight\x12(\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12(\n" +
 	"\rinitiative_id\x18\x04 \x01(\tH\x00R\finitiativeId\x88\x01\x01B\x10\n" +
 	"\x0e_initiative_id\"t\n" +
 	"\x10TaskUpdatedEvent\x12\x17\n" +
@@ -2505,67 +2497,65 @@ var file_orc_v1_events_proto_goTypes = []any{
 	(*GetEventsResponse)(nil),      // 25: orc.v1.GetEventsResponse
 	(*GetTimelineRequest)(nil),     // 26: orc.v1.GetTimelineRequest
 	(*GetTimelineResponse)(nil),    // 27: orc.v1.GetTimelineResponse
-	(TaskWeight)(0),                // 28: orc.v1.TaskWeight
-	(*Task)(nil),                   // 29: orc.v1.Task
-	(PhaseStatus)(0),               // 30: orc.v1.PhaseStatus
-	(*TokenUsage)(nil),             // 31: orc.v1.TokenUsage
-	(*timestamppb.Timestamp)(nil),  // 32: google.protobuf.Timestamp
-	(*SessionInfo)(nil),            // 33: orc.v1.SessionInfo
-	(*PageRequest)(nil),            // 34: orc.v1.PageRequest
-	(*PageResponse)(nil),           // 35: orc.v1.PageResponse
+	(*Task)(nil),                   // 28: orc.v1.Task
+	(PhaseStatus)(0),               // 29: orc.v1.PhaseStatus
+	(*TokenUsage)(nil),             // 30: orc.v1.TokenUsage
+	(*timestamppb.Timestamp)(nil),  // 31: google.protobuf.Timestamp
+	(*SessionInfo)(nil),            // 32: orc.v1.SessionInfo
+	(*PageRequest)(nil),            // 33: orc.v1.PageRequest
+	(*PageResponse)(nil),           // 34: orc.v1.PageResponse
 }
 var file_orc_v1_events_proto_depIdxs = []int32{
-	28, // 0: orc.v1.TaskCreatedEvent.weight:type_name -> orc.v1.TaskWeight
-	29, // 1: orc.v1.TaskUpdatedEvent.task:type_name -> orc.v1.Task
-	30, // 2: orc.v1.PhaseChangedEvent.status:type_name -> orc.v1.PhaseStatus
-	31, // 3: orc.v1.TokensUpdatedEvent.tokens:type_name -> orc.v1.TokenUsage
-	0,  // 4: orc.v1.ActivityEvent.activity:type_name -> orc.v1.ActivityState
-	32, // 5: orc.v1.DecisionRequiredEvent.requested_at:type_name -> google.protobuf.Timestamp
-	32, // 6: orc.v1.DecisionResolvedEvent.resolved_at:type_name -> google.protobuf.Timestamp
-	13, // 7: orc.v1.FilesChangedEvent.files:type_name -> orc.v1.FileChangedInfo
-	33, // 8: orc.v1.SessionUpdateEvent.session:type_name -> orc.v1.SessionInfo
-	32, // 9: orc.v1.HeartbeatEvent.timestamp:type_name -> google.protobuf.Timestamp
-	32, // 10: orc.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
-	2,  // 11: orc.v1.Event.task_created:type_name -> orc.v1.TaskCreatedEvent
-	3,  // 12: orc.v1.Event.task_updated:type_name -> orc.v1.TaskUpdatedEvent
-	4,  // 13: orc.v1.Event.task_deleted:type_name -> orc.v1.TaskDeletedEvent
-	5,  // 14: orc.v1.Event.phase_changed:type_name -> orc.v1.PhaseChangedEvent
-	6,  // 15: orc.v1.Event.tokens_updated:type_name -> orc.v1.TokensUpdatedEvent
-	7,  // 16: orc.v1.Event.activity:type_name -> orc.v1.ActivityEvent
-	8,  // 17: orc.v1.Event.initiative_created:type_name -> orc.v1.InitiativeCreatedEvent
-	9,  // 18: orc.v1.Event.initiative_updated:type_name -> orc.v1.InitiativeUpdatedEvent
-	10, // 19: orc.v1.Event.initiative_deleted:type_name -> orc.v1.InitiativeDeletedEvent
-	11, // 20: orc.v1.Event.decision_required:type_name -> orc.v1.DecisionRequiredEvent
-	12, // 21: orc.v1.Event.decision_resolved:type_name -> orc.v1.DecisionResolvedEvent
-	14, // 22: orc.v1.Event.files_changed:type_name -> orc.v1.FilesChangedEvent
-	15, // 23: orc.v1.Event.session_update:type_name -> orc.v1.SessionUpdateEvent
-	17, // 24: orc.v1.Event.error:type_name -> orc.v1.ErrorEvent
-	18, // 25: orc.v1.Event.warning:type_name -> orc.v1.WarningEvent
-	19, // 26: orc.v1.Event.heartbeat:type_name -> orc.v1.HeartbeatEvent
-	16, // 27: orc.v1.Event.session_metrics:type_name -> orc.v1.SessionMetricsEvent
-	1,  // 28: orc.v1.TimelineEvent.event_type:type_name -> orc.v1.TimelineEventType
-	32, // 29: orc.v1.TimelineEvent.created_at:type_name -> google.protobuf.Timestamp
-	20, // 30: orc.v1.SubscribeResponse.event:type_name -> orc.v1.Event
-	34, // 31: orc.v1.GetEventsRequest.page:type_name -> orc.v1.PageRequest
-	32, // 32: orc.v1.GetEventsRequest.since:type_name -> google.protobuf.Timestamp
-	32, // 33: orc.v1.GetEventsRequest.until:type_name -> google.protobuf.Timestamp
-	20, // 34: orc.v1.GetEventsResponse.events:type_name -> orc.v1.Event
-	35, // 35: orc.v1.GetEventsResponse.page:type_name -> orc.v1.PageResponse
-	34, // 36: orc.v1.GetTimelineRequest.page:type_name -> orc.v1.PageRequest
-	1,  // 37: orc.v1.GetTimelineRequest.types:type_name -> orc.v1.TimelineEventType
-	21, // 38: orc.v1.GetTimelineResponse.events:type_name -> orc.v1.TimelineEvent
-	35, // 39: orc.v1.GetTimelineResponse.page:type_name -> orc.v1.PageResponse
-	22, // 40: orc.v1.EventService.Subscribe:input_type -> orc.v1.SubscribeRequest
-	24, // 41: orc.v1.EventService.GetEvents:input_type -> orc.v1.GetEventsRequest
-	26, // 42: orc.v1.EventService.GetTimeline:input_type -> orc.v1.GetTimelineRequest
-	23, // 43: orc.v1.EventService.Subscribe:output_type -> orc.v1.SubscribeResponse
-	25, // 44: orc.v1.EventService.GetEvents:output_type -> orc.v1.GetEventsResponse
-	27, // 45: orc.v1.EventService.GetTimeline:output_type -> orc.v1.GetTimelineResponse
-	43, // [43:46] is the sub-list for method output_type
-	40, // [40:43] is the sub-list for method input_type
-	40, // [40:40] is the sub-list for extension type_name
-	40, // [40:40] is the sub-list for extension extendee
-	0,  // [0:40] is the sub-list for field type_name
+	28, // 0: orc.v1.TaskUpdatedEvent.task:type_name -> orc.v1.Task
+	29, // 1: orc.v1.PhaseChangedEvent.status:type_name -> orc.v1.PhaseStatus
+	30, // 2: orc.v1.TokensUpdatedEvent.tokens:type_name -> orc.v1.TokenUsage
+	0,  // 3: orc.v1.ActivityEvent.activity:type_name -> orc.v1.ActivityState
+	31, // 4: orc.v1.DecisionRequiredEvent.requested_at:type_name -> google.protobuf.Timestamp
+	31, // 5: orc.v1.DecisionResolvedEvent.resolved_at:type_name -> google.protobuf.Timestamp
+	13, // 6: orc.v1.FilesChangedEvent.files:type_name -> orc.v1.FileChangedInfo
+	32, // 7: orc.v1.SessionUpdateEvent.session:type_name -> orc.v1.SessionInfo
+	31, // 8: orc.v1.HeartbeatEvent.timestamp:type_name -> google.protobuf.Timestamp
+	31, // 9: orc.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
+	2,  // 10: orc.v1.Event.task_created:type_name -> orc.v1.TaskCreatedEvent
+	3,  // 11: orc.v1.Event.task_updated:type_name -> orc.v1.TaskUpdatedEvent
+	4,  // 12: orc.v1.Event.task_deleted:type_name -> orc.v1.TaskDeletedEvent
+	5,  // 13: orc.v1.Event.phase_changed:type_name -> orc.v1.PhaseChangedEvent
+	6,  // 14: orc.v1.Event.tokens_updated:type_name -> orc.v1.TokensUpdatedEvent
+	7,  // 15: orc.v1.Event.activity:type_name -> orc.v1.ActivityEvent
+	8,  // 16: orc.v1.Event.initiative_created:type_name -> orc.v1.InitiativeCreatedEvent
+	9,  // 17: orc.v1.Event.initiative_updated:type_name -> orc.v1.InitiativeUpdatedEvent
+	10, // 18: orc.v1.Event.initiative_deleted:type_name -> orc.v1.InitiativeDeletedEvent
+	11, // 19: orc.v1.Event.decision_required:type_name -> orc.v1.DecisionRequiredEvent
+	12, // 20: orc.v1.Event.decision_resolved:type_name -> orc.v1.DecisionResolvedEvent
+	14, // 21: orc.v1.Event.files_changed:type_name -> orc.v1.FilesChangedEvent
+	15, // 22: orc.v1.Event.session_update:type_name -> orc.v1.SessionUpdateEvent
+	17, // 23: orc.v1.Event.error:type_name -> orc.v1.ErrorEvent
+	18, // 24: orc.v1.Event.warning:type_name -> orc.v1.WarningEvent
+	19, // 25: orc.v1.Event.heartbeat:type_name -> orc.v1.HeartbeatEvent
+	16, // 26: orc.v1.Event.session_metrics:type_name -> orc.v1.SessionMetricsEvent
+	1,  // 27: orc.v1.TimelineEvent.event_type:type_name -> orc.v1.TimelineEventType
+	31, // 28: orc.v1.TimelineEvent.created_at:type_name -> google.protobuf.Timestamp
+	20, // 29: orc.v1.SubscribeResponse.event:type_name -> orc.v1.Event
+	33, // 30: orc.v1.GetEventsRequest.page:type_name -> orc.v1.PageRequest
+	31, // 31: orc.v1.GetEventsRequest.since:type_name -> google.protobuf.Timestamp
+	31, // 32: orc.v1.GetEventsRequest.until:type_name -> google.protobuf.Timestamp
+	20, // 33: orc.v1.GetEventsResponse.events:type_name -> orc.v1.Event
+	34, // 34: orc.v1.GetEventsResponse.page:type_name -> orc.v1.PageResponse
+	33, // 35: orc.v1.GetTimelineRequest.page:type_name -> orc.v1.PageRequest
+	1,  // 36: orc.v1.GetTimelineRequest.types:type_name -> orc.v1.TimelineEventType
+	21, // 37: orc.v1.GetTimelineResponse.events:type_name -> orc.v1.TimelineEvent
+	34, // 38: orc.v1.GetTimelineResponse.page:type_name -> orc.v1.PageResponse
+	22, // 39: orc.v1.EventService.Subscribe:input_type -> orc.v1.SubscribeRequest
+	24, // 40: orc.v1.EventService.GetEvents:input_type -> orc.v1.GetEventsRequest
+	26, // 41: orc.v1.EventService.GetTimeline:input_type -> orc.v1.GetTimelineRequest
+	23, // 42: orc.v1.EventService.Subscribe:output_type -> orc.v1.SubscribeResponse
+	25, // 43: orc.v1.EventService.GetEvents:output_type -> orc.v1.GetEventsResponse
+	27, // 44: orc.v1.EventService.GetTimeline:output_type -> orc.v1.GetTimelineResponse
+	42, // [42:45] is the sub-list for method output_type
+	39, // [39:42] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_events_proto_init() }

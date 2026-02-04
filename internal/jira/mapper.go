@@ -13,8 +13,8 @@ import (
 
 // MapperConfig controls how Jira fields are mapped to orc types.
 type MapperConfig struct {
-	// DefaultWeight is the orc weight for imported tasks (default: medium).
-	DefaultWeight orcv1.TaskWeight
+	// DefaultWorkflow is the orc workflow for imported tasks (default: implement-medium).
+	DefaultWorkflow string
 	// DefaultQueue is the orc queue for imported tasks (default: backlog).
 	DefaultQueue orcv1.TaskQueue
 
@@ -32,8 +32,8 @@ type MapperConfig struct {
 // DefaultMapperConfig returns the default mapper configuration.
 func DefaultMapperConfig() MapperConfig {
 	return MapperConfig{
-		DefaultWeight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
-		DefaultQueue:  orcv1.TaskQueue_TASK_QUEUE_BACKLOG,
+		DefaultWorkflow: "implement-medium",
+		DefaultQueue:    orcv1.TaskQueue_TASK_QUEUE_BACKLOG,
 	}
 }
 
@@ -51,11 +51,12 @@ func NewMapper(cfg MapperConfig) *Mapper {
 // taskID should be pre-allocated via backend.GetNextTaskID().
 func (m *Mapper) MapIssueToTask(issue Issue, taskID string) *orcv1.Task {
 	desc := issue.Description
+	workflowID := m.cfg.DefaultWorkflow
 	t := &orcv1.Task{
 		Id:          taskID,
 		Title:       issue.Summary,
 		Description: &desc,
-		Weight:      m.cfg.DefaultWeight,
+		WorkflowId:  &workflowID,
 		Status:      mapStatus(issue.StatusKey),
 		Queue:       m.resolveQueue(issue),
 		Priority:    m.resolvePriority(issue.Priority),

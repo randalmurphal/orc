@@ -12,6 +12,7 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/jira"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 func newImportJiraCmd() *cobra.Command {
@@ -110,8 +111,8 @@ Examples:
 			}
 
 			mapperCfg := jira.DefaultMapperConfig()
-			if w := resolveWeight(weight, cfg.Jira.DefaultWeight); w != orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
-				mapperCfg.DefaultWeight = w
+			if wfID := resolveWorkflowFromWeight(weight, cfg.Jira.DefaultWeight, cfg.Weights); wfID != "" {
+				mapperCfg.DefaultWorkflow = wfID
 			}
 			if q := resolveQueue(queue, cfg.Jira.DefaultQueue); q != orcv1.TaskQueue_TASK_QUEUE_UNSPECIFIED {
 				mapperCfg.DefaultQueue = q
@@ -173,26 +174,17 @@ func resolveString(flag, envVar, configVal string) string {
 	return configVal
 }
 
-func resolveWeight(flag, configVal string) orcv1.TaskWeight {
+// resolveWorkflowFromWeight resolves a workflow ID from a weight flag/config.
+// Uses workflow.ResolveWorkflowIDFromString for consistent resolution.
+func resolveWorkflowFromWeight(flag, configVal string, weightsCfg config.WeightsConfig) string {
 	val := flag
 	if val == "" {
 		val = configVal
 	}
 	if val == "" {
-		return orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED
+		return ""
 	}
-	switch strings.ToLower(val) {
-	case "trivial":
-		return orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL
-	case "small":
-		return orcv1.TaskWeight_TASK_WEIGHT_SMALL
-	case "medium":
-		return orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-	case "large":
-		return orcv1.TaskWeight_TASK_WEIGHT_LARGE
-	default:
-		return orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED
-	}
+	return workflow.ResolveWorkflowIDFromString("", strings.ToLower(val), weightsCfg)
 }
 
 func resolveQueue(flag, configVal string) orcv1.TaskQueue {

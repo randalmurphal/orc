@@ -47,7 +47,6 @@ func createFinalizeTestTask(t *testing.T, tmpDir, id string, status orcv1.TaskSt
 
 	tk := task.NewProtoTask(id, "Test task for finalize")
 	tk.Status = status
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
 	currentPhase := "finalize"
 	tk.CurrentPhase = &currentPhase
 

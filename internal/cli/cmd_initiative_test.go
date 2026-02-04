@@ -1775,8 +1775,8 @@ tasks:
 
 	for _, tk := range allTasks {
 		if tk.WorkflowId == nil || *tk.WorkflowId == "" {
-			t.Errorf("task %s (%s) has no workflow_id set, but should have one based on weight %s",
-				tk.Id, tk.Title, tk.Weight)
+			t.Errorf("task %s (%s) has no workflow_id set",
+				tk.Id, tk.Title)
 		}
 	}
 
@@ -1932,11 +1932,6 @@ tasks:
 	}
 
 	tk := allTasks[0]
-
-	// Weight should default to medium
-	if tk.Weight != orcv1.TaskWeight_TASK_WEIGHT_MEDIUM {
-		t.Errorf("task weight = %s, want TASK_WEIGHT_MEDIUM", tk.Weight)
-	}
 
 	// WorkflowId should be set to implement-medium
 	if tk.WorkflowId == nil {

@@ -120,7 +120,6 @@ func TestCancelRun_WithLinkedTask_SignalsProcess(t *testing.T) {
 	// Create a running task with the sleep process PID
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tk.ExecutorPid = int32(sleepPID)
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
@@ -188,7 +187,6 @@ func TestCancelRun_WithLinkedTask_DeadPID(t *testing.T) {
 	// Create a running task with a PID that doesn't exist
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tk.ExecutorPid = 99999999 // Very high PID that shouldn't exist
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
@@ -274,7 +272,6 @@ func TestCancelRun_WithLinkedTask_NoPID(t *testing.T) {
 	// Create a running task with no executor PID (ExecutorPid=0)
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tk.ExecutorPid = 0 // No executor PID
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)

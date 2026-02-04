@@ -41,7 +41,6 @@ func TestCreateTask_LifecycleTrigger_Fires(t *testing.T) {
 	wfID := "implement-medium"
 	req := connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:      "Task with trigger",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		WorkflowId: &wfID,
 	})
 
@@ -91,7 +90,6 @@ func TestCreateTask_LifecycleTrigger_ErrorDoesNotFailCreation(t *testing.T) {
 	wfID := "implement-medium"
 	req := connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:      "Task with failing reaction trigger",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		WorkflowId: &wfID,
 	})
 
@@ -139,7 +137,6 @@ func TestCreateTask_LifecycleTrigger_GateRejects(t *testing.T) {
 	wfID := "implement-medium"
 	req := connect.NewRequest(&orcv1.CreateTaskRequest{
 		Title:      "Fix stuff",
-		Weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 		WorkflowId: &wfID,
 	})
 

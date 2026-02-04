@@ -21,7 +21,6 @@ func TestResumeCommand_RaceConditionPrevention(t *testing.T) {
 	backend := createResumeTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task.SetCurrentPhaseProto(tk, "implement")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
@@ -119,7 +118,6 @@ func TestResumeCommand_PausedTaskClaimWorks(t *testing.T) {
 	backend := createResumeTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task.SetCurrentPhaseProto(tk, "implement")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
@@ -176,7 +174,6 @@ func TestResumeCommand_BlockedTaskClaimWorks(t *testing.T) {
 	backend := createResumeTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task.SetCurrentPhaseProto(tk, "implement")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
@@ -216,7 +213,6 @@ func TestResumeCommand_ClaimErrorMessages(t *testing.T) {
 	backend := createResumeTestBackend(t, tmpDir)
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
-	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	task.SetCurrentPhaseProto(tk, "implement")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)

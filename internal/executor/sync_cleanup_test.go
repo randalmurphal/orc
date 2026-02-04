@@ -73,7 +73,6 @@ func setupSyncCleanupTest(t *testing.T, taskID string) *syncCleanupTestEnv {
 
 	// Create task
 	tsk := task.NewProtoTask(taskID, "Sync conflict test task")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 
 	// Create worktree for the task
 	cfg := config.Default()
@@ -536,7 +535,6 @@ func TestDetectExistingWork_FreshWorktree(t *testing.T) {
 
 	// Create a fresh task with NO execution state
 	tsk := task.NewProtoTask("TASK-FRESH", "Fresh task")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	// Explicitly ensure NO execution state
 	tsk.Execution = nil
 
@@ -606,7 +604,6 @@ func TestDetectExistingWork_WithUncommittedChanges(t *testing.T) {
 	}
 
 	tsk := task.NewProtoTask("TASK-DIRTY", "Task with uncommitted changes")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 
 	cfg := config.Default()
 	cfg.Worktree.Enabled = true
@@ -675,7 +672,6 @@ func TestDetectExistingWork_WithPhaseState(t *testing.T) {
 	}
 
 	tsk := task.NewProtoTask("TASK-PHASED", "Task with phase state")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	// Set up execution state with a started phase
 	tsk.Execution = &orcv1.ExecutionState{
 		Phases: map[string]*orcv1.PhaseState{

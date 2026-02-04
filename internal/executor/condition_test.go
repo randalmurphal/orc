@@ -31,7 +31,6 @@ import (
 func newTestConditionContext(t *testing.T) *ConditionContext {
 	t.Helper()
 	tsk := task.NewProtoTask("TASK-001", "Test task")
-	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 	tsk.Priority = orcv1.TaskPriority_TASK_PRIORITY_NORMAL
 
@@ -62,7 +61,7 @@ func TestEvaluateCondition_Eq_Match(t *testing.T) {
 	ctx := newTestConditionContext(t)
 
 	result, err := EvaluateCondition(
-		`{"field": "task.weight", "op": "eq", "value": "medium"}`,
+		`{"field": "task.category", "op": "eq", "value": "feature"}`,
 		ctx,
 	)
 	if err != nil {
@@ -78,7 +77,7 @@ func TestEvaluateCondition_Eq_NoMatch(t *testing.T) {
 	ctx := newTestConditionContext(t)
 
 	result, err := EvaluateCondition(
-		`{"field": "task.weight", "op": "eq", "value": "trivial"}`,
+		`{"field": "task.category", "op": "eq", "value": "bug"}`,
 		ctx,
 	)
 	if err != nil {
@@ -104,34 +103,34 @@ func TestEvaluateCondition_Operators(t *testing.T) {
 		// eq
 		{
 			name:      "eq match",
-			condition: `{"field": "task.weight", "op": "eq", "value": "medium"}`,
+			condition: `{"field": "task.category", "op": "eq", "value": "feature"}`,
 			want:      true,
 		},
 		{
 			name:      "eq no match",
-			condition: `{"field": "task.weight", "op": "eq", "value": "large"}`,
+			condition: `{"field": "task.category", "op": "eq", "value": "bug"}`,
 			want:      false,
 		},
 		// neq
 		{
 			name:      "neq match (different values)",
-			condition: `{"field": "task.weight", "op": "neq", "value": "trivial"}`,
+			condition: `{"field": "task.category", "op": "neq", "value": "bug"}`,
 			want:      true,
 		},
 		{
 			name:      "neq no match (same values)",
-			condition: `{"field": "task.weight", "op": "neq", "value": "medium"}`,
+			condition: `{"field": "task.category", "op": "neq", "value": "feature"}`,
 			want:      false,
 		},
 		// in
 		{
 			name:      "in match",
-			condition: `{"field": "task.weight", "op": "in", "value": ["medium", "large"]}`,
+			condition: `{"field": "task.category", "op": "in", "value": ["feature", "bug"]}`,
 			want:      true,
 		},
 		{
 			name:      "in no match",
-			condition: `{"field": "task.weight", "op": "in", "value": ["trivial", "small"]}`,
+			condition: `{"field": "task.category", "op": "in", "value": ["docs", "chore"]}`,
 			want:      false,
 		},
 		// contains
@@ -204,7 +203,7 @@ func TestEvaluateCondition_UnknownOperator(t *testing.T) {
 	ctx := newTestConditionContext(t)
 
 	_, err := EvaluateCondition(
-		`{"field": "task.weight", "op": "invalid_op", "value": "medium"}`,
+		`{"field": "task.category", "op": "invalid_op", "value": "feature"}`,
 		ctx,
 	)
 	if err == nil {
@@ -215,42 +214,6 @@ func TestEvaluateCondition_UnknownOperator(t *testing.T) {
 // =============================================================================
 // SC-3: Field resolver resolves task fields to lowercase short forms
 // =============================================================================
-
-func TestEvaluateCondition_TaskFields_Weight(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name   string
-		weight orcv1.TaskWeight
-		value  string
-		want   bool
-	}{
-		{"trivial", orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL, "trivial", true},
-		{"small", orcv1.TaskWeight_TASK_WEIGHT_SMALL, "small", true},
-		{"medium", orcv1.TaskWeight_TASK_WEIGHT_MEDIUM, "medium", true},
-		{"large", orcv1.TaskWeight_TASK_WEIGHT_LARGE, "large", true},
-		{"mismatch", orcv1.TaskWeight_TASK_WEIGHT_MEDIUM, "large", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			ctx := newTestConditionContext(t)
-			ctx.Task.Weight = tt.weight
-
-			cond := `{"field": "task.weight", "op": "eq", "value": "` + tt.value + `"}`
-			result, err := EvaluateCondition(cond, ctx)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if result != tt.want {
-				t.Errorf("task.weight=%s, eq %q → %v, want %v",
-					tt.weight.String(), tt.value, result, tt.want)
-			}
-		})
-	}
-}
 
 func TestEvaluateCondition_TaskFields_Category(t *testing.T) {
 	t.Parallel()
@@ -321,25 +284,6 @@ func TestEvaluateCondition_TaskFields_Priority(t *testing.T) {
 					tt.priority.String(), tt.value, result, tt.want)
 			}
 		})
-	}
-}
-
-// SC-3 edge case: Proto enum form ("TASK_WEIGHT_MEDIUM") should also match
-func TestEvaluateCondition_TaskFields_ProtoEnumValue(t *testing.T) {
-	t.Parallel()
-	ctx := newTestConditionContext(t)
-	ctx.Task.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
-
-	// Both short form and proto form should match
-	result, err := EvaluateCondition(
-		`{"field": "task.weight", "op": "eq", "value": "TASK_WEIGHT_MEDIUM"}`,
-		ctx,
-	)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !result {
-		t.Error("proto enum value should match after normalization")
 	}
 }
 
@@ -470,11 +414,11 @@ func TestEvaluateCondition_All_AllTrue(t *testing.T) {
 	t.Parallel()
 	ctx := newTestConditionContext(t)
 
-	// task.weight=medium, task.category=feature — both true
+	// task.category=feature, task.priority=normal — both true
 	result, err := EvaluateCondition(
 		`{"all": [
-			{"field": "task.weight", "op": "eq", "value": "medium"},
-			{"field": "task.category", "op": "eq", "value": "feature"}
+			{"field": "task.category", "op": "eq", "value": "feature"},
+			{"field": "task.priority", "op": "eq", "value": "normal"}
 		]}`,
 		ctx,
 	)
@@ -490,11 +434,11 @@ func TestEvaluateCondition_All_OneFalse(t *testing.T) {
 	t.Parallel()
 	ctx := newTestConditionContext(t)
 
-	// task.weight=medium (true), task.weight=trivial (false)
+	// task.category=feature (true), task.category=bug (false)
 	result, err := EvaluateCondition(
 		`{"all": [
-			{"field": "task.weight", "op": "eq", "value": "medium"},
-			{"field": "task.weight", "op": "eq", "value": "trivial"}
+			{"field": "task.category", "op": "eq", "value": "feature"},
+			{"field": "task.category", "op": "eq", "value": "bug"}
 		]}`,
 		ctx,
 	)
@@ -530,8 +474,8 @@ func TestEvaluateCondition_Any_OneTrue(t *testing.T) {
 
 	result, err := EvaluateCondition(
 		`{"any": [
-			{"field": "task.weight", "op": "eq", "value": "trivial"},
-			{"field": "task.weight", "op": "eq", "value": "medium"}
+			{"field": "task.category", "op": "eq", "value": "bug"},
+			{"field": "task.category", "op": "eq", "value": "feature"}
 		]}`,
 		ctx,
 	)
@@ -549,8 +493,8 @@ func TestEvaluateCondition_Any_AllFalse(t *testing.T) {
 
 	result, err := EvaluateCondition(
 		`{"any": [
-			{"field": "task.weight", "op": "eq", "value": "trivial"},
-			{"field": "task.weight", "op": "eq", "value": "large"}
+			{"field": "task.category", "op": "eq", "value": "docs"},
+			{"field": "task.category", "op": "eq", "value": "chore"}
 		]}`,
 		ctx,
 	)
@@ -614,11 +558,11 @@ func TestEvaluateCondition_DeepNesting(t *testing.T) {
 	result, err := EvaluateCondition(
 		`{"all": [
 			{"any": [
-				{"field": "task.weight", "op": "eq", "value": "medium"},
-				{"field": "task.weight", "op": "eq", "value": "large"}
+				{"field": "task.category", "op": "eq", "value": "feature"},
+				{"field": "task.category", "op": "eq", "value": "bug"}
 			]},
 			{"all": [
-				{"field": "task.category", "op": "eq", "value": "feature"},
+				{"field": "task.priority", "op": "eq", "value": "normal"},
 				{"field": "env.HOME", "op": "exists"}
 			]}
 		]}`,
@@ -637,7 +581,7 @@ func TestEvaluateCondition_InSingleElement(t *testing.T) {
 	ctx := newTestConditionContext(t)
 
 	result, err := EvaluateCondition(
-		`{"field": "task.weight", "op": "in", "value": ["medium"]}`,
+		`{"field": "task.category", "op": "in", "value": ["feature"]}`,
 		ctx,
 	)
 	if err != nil {
@@ -756,17 +700,17 @@ func TestEvaluateCondition_NilTask(t *testing.T) {
 		},
 	}
 
-	// task.weight with nil task: resolves to ("", false)
+	// task.category with nil task: resolves to ("", false)
 	// exists → false
 	result, err := EvaluateCondition(
-		`{"field": "task.weight", "op": "exists"}`,
+		`{"field": "task.category", "op": "exists"}`,
 		ctx,
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if result {
-		t.Error("task.weight with nil task should resolve to empty → exists returns false")
+		t.Error("task.category with nil task should resolve to empty → exists returns false")
 	}
 }
 
@@ -776,7 +720,7 @@ func TestEvaluateCondition_InNonArray(t *testing.T) {
 
 	// "in" operator with string instead of array → parse error
 	_, err := EvaluateCondition(
-		`{"field": "task.weight", "op": "in", "value": "medium"}`,
+		`{"field": "task.category", "op": "in", "value": "feature"}`,
 		ctx,
 	)
 	if err == nil {
@@ -790,7 +734,7 @@ func TestEvaluateCondition_AmbiguousCondition(t *testing.T) {
 
 	// Has both simple fields AND compound fields → error
 	_, err := EvaluateCondition(
-		`{"field": "task.weight", "op": "eq", "value": "medium", "all": [{"field": "task.category", "op": "eq", "value": "feature"}]}`,
+		`{"field": "task.category", "op": "eq", "value": "feature", "all": [{"field": "task.priority", "op": "eq", "value": "normal"}]}`,
 		ctx,
 	)
 	if err == nil {
@@ -826,16 +770,16 @@ func TestEvaluateCondition_ExistsOnSetEnvVar(t *testing.T) {
 func TestEvaluateCondition_CompoundInAndNeq(t *testing.T) {
 	t.Parallel()
 
-	// Small weight task, feature category
+	// Feature category task, normal priority
 	ctx := newTestConditionContext(t)
-	ctx.Task.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	ctx.Task.Category = orcv1.TaskCategory_TASK_CATEGORY_DOCS
 
-	// Condition: weight in [medium, large] AND category != docs
-	// Since weight is "small", the first condition fails → all returns false
+	// Condition: category in [feature, bug] AND priority != low
+	// Since category is "docs", the first condition fails → all returns false
 	result, err := EvaluateCondition(
 		`{"all": [
-			{"field": "task.weight", "op": "in", "value": ["medium", "large"]},
-			{"field": "task.category", "op": "neq", "value": "docs"}
+			{"field": "task.category", "op": "in", "value": ["feature", "bug"]},
+			{"field": "task.priority", "op": "neq", "value": "low"}
 		]}`,
 		ctx,
 	)
@@ -843,6 +787,6 @@ func TestEvaluateCondition_CompoundInAndNeq(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if result {
-		t.Error("all should return false when weight is 'small' and condition requires medium/large")
+		t.Error("all should return false when category is 'docs' and condition requires feature/bug")
 	}
 }

@@ -201,10 +201,8 @@ func SetTestingRequirementsProto(t *orcv1.Task, hasFrontend bool) {
 		t.TestingRequirements = &orcv1.TestingRequirements{}
 	}
 
-	// Unit tests are always recommended for non-trivial tasks
-	if t.Weight != orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL {
-		t.TestingRequirements.Unit = true
-	}
+	// Unit tests are always recommended (workflow determines actual execution)
+	t.TestingRequirements.Unit = true
 
 	// E2E tests for frontend projects with UI tasks
 	if hasFrontend && t.RequiresUiTesting {
