@@ -434,14 +434,12 @@ func TestPhaseLoop_GateRetrySharesCounter(t *testing.T) {
 		Name:          "Implement",
 		PromptSource:  "embedded",
 		GateType:      "auto",
-		MaxIterations: 10,
 	}
 	reviewTmpl := &db.PhaseTemplate{
 		ID:             "review",
 		Name:           "Review",
 		PromptSource:   "embedded",
 		GateType:       "auto",
-		MaxIterations:  10,
 		RetryFromPhase: "implement",
 	}
 	if err := pdb.SavePhaseTemplate(implTmpl); err != nil {
@@ -1224,7 +1222,6 @@ func TestPhaseLoop_GateRetryUsesLowerLimit(t *testing.T) {
 		Name:          "Implement",
 		PromptSource:  "db",
 		PromptContent: "Implement",
-		MaxIterations: 10,
 	}
 	reviewTmpl := &db.PhaseTemplate{
 		ID:               "review",
@@ -1232,7 +1229,6 @@ func TestPhaseLoop_GateRetryUsesLowerLimit(t *testing.T) {
 		PromptSource:     "db",
 		PromptContent:    "Review",
 		GateType:         "ai",
-		MaxIterations:    10,
 		GateOutputConfig: string(outputCfgJSON),
 	}
 	if err := pdb.SavePhaseTemplate(implTmpl); err != nil {

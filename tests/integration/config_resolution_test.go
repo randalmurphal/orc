@@ -122,7 +122,7 @@ func TestConfigResolutionSourceTracking(t *testing.T) {
 	// Set values at project level (loaded as shared source)
 	repo.SetConfig("profile", "safe")
 	repo.SetConfig("model", "claude-sonnet")
-	repo.SetConfig("max_iterations", 50)
+	repo.SetConfig("max_turns", 50)
 
 	// Create personal config
 	userHome := testutil.MockUserConfig(t, "AM")
@@ -149,7 +149,7 @@ func TestConfigResolutionSourceTracking(t *testing.T) {
 	}{
 		{"profile", config.SourceShared},        // Set in shared
 		{"model", config.SourceShared},          // Set in shared
-		{"max_iterations", config.SourceShared}, // Project is treated as shared level
+		{"max_turns", config.SourceShared}, // Project is treated as shared level
 		{"timeout", config.SourcePersonal},      // Set in personal
 		{"retry.enabled", config.SourceEnv},     // Set via env
 	}
@@ -190,8 +190,8 @@ func TestConfigResolutionDefaults(t *testing.T) {
 	if tc.Config.Profile != defaults.Profile {
 		t.Errorf("profile = %q, want default %q", tc.Config.Profile, defaults.Profile)
 	}
-	if tc.Config.MaxIterations != defaults.MaxIterations {
-		t.Errorf("max_iterations = %d, want default %d", tc.Config.MaxIterations, defaults.MaxIterations)
+	if tc.Config.MaxTurns != defaults.MaxTurns {
+		t.Errorf("max_turns = %d, want default %d", tc.Config.MaxTurns, defaults.MaxTurns)
 	}
 	if tc.Config.Retry.Enabled != defaults.Retry.Enabled {
 		t.Errorf("retry.enabled = %v, want default %v", tc.Config.Retry.Enabled, defaults.Retry.Enabled)

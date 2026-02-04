@@ -9,7 +9,6 @@ input_variables: ["SPEC_CONTENT", "TDD_TESTS_CONTENT", "BREAKDOWN_CONTENT"]
 output_type: code
 produces_artifact: false
 
-max_iterations: 50
 thinking: false
 gate_type: auto
 checkpoint: true

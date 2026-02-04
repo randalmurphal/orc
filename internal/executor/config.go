@@ -20,9 +20,9 @@ type Config struct {
 	DisallowedTools []string
 
 	// Execution settings
-	MaxIterations int
-	Timeout       time.Duration
-	WorkDir       string
+	MaxTurns int           // Claude CLI turn limit (default 150)
+	Timeout  time.Duration
+	WorkDir  string
 
 	// Git settings
 	BranchPrefix string
@@ -47,8 +47,8 @@ func DefaultConfig() *Config {
 		ClaudePath:                 "claude",
 		Model:                      "opus",
 		DangerouslySkipPermissions: true,
-		MaxIterations:              30,
-		Timeout:                    10 * time.Minute,
+		MaxTurns:                   150,
+		Timeout:                    60 * time.Minute,
 		WorkDir:                    ".",
 		BranchPrefix:               "orc/",
 		CommitPrefix:               "[orc]",
@@ -63,7 +63,7 @@ func ConfigFromOrc(cfg *config.Config) *Config {
 		ClaudePath:                 cfg.ClaudePath,
 		Model:                      cfg.Model,
 		DangerouslySkipPermissions: cfg.DangerouslySkipPermissions,
-		MaxIterations:              cfg.MaxIterations,
+		MaxTurns:                   cfg.MaxTurns,
 		Timeout:                    cfg.Timeout,
 		WorkDir:                    ".",
 		BranchPrefix:               cfg.BranchPrefix,

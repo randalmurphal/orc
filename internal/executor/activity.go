@@ -116,8 +116,8 @@ func WithHeartbeatCallback(fn func()) ActivityTrackerOption {
 	return func(t *ActivityTracker) { t.onHeartbeat = fn }
 }
 
-// WithActivityMaxIterations sets the maximum iterations for progress display.
-func WithActivityMaxIterations(max int) ActivityTrackerOption {
+// WithActivityMaxTurns sets the maximum iterations for progress display.
+func WithActivityMaxTurns(max int) ActivityTrackerOption {
 	return func(t *ActivityTracker) { t.maxIterations = max }
 }
 

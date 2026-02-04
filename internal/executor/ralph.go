@@ -18,8 +18,8 @@ const (
 	// RalphStateFile is the filename for ralph loop state.
 	RalphStateFile = "orc-ralph.local.md"
 
-	// DefaultMaxIterations is the default max iterations for ralph loop.
-	DefaultMaxIterations = 30
+	// DefaultMaxTurns is the default max iterations for ralph loop.
+	DefaultMaxTurns = 150
 
 	// DefaultCompletionPromise is the default completion promise text.
 	DefaultCompletionPromise = "PHASE_COMPLETE"
@@ -30,7 +30,7 @@ type RalphState struct {
 	TaskID            string    `yaml:"task_id"`
 	Phase             string    `yaml:"phase"`
 	Iteration         int       `yaml:"iteration"`
-	MaxIterations     int       `yaml:"max_iterations"`
+	MaxTurns     int       `yaml:"max_turns"`
 	CompletionPromise string    `yaml:"completion_promise"`
 	SessionID         string    `yaml:"session_id,omitempty"`
 	StartedAt         time.Time `yaml:"started_at"`
@@ -59,7 +59,7 @@ func (m *RalphStateManager) Create(taskID, phase, prompt string, opts ...RalphOp
 		TaskID:            taskID,
 		Phase:             phase,
 		Iteration:         1,
-		MaxIterations:     DefaultMaxIterations,
+		MaxTurns:     DefaultMaxTurns,
 		CompletionPromise: DefaultCompletionPromise,
 		StartedAt:         time.Now(),
 	}
@@ -187,10 +187,10 @@ func parseRalphFile(content string) (*RalphState, string, error) {
 // RalphOption configures ralph state creation.
 type RalphOption func(*RalphState)
 
-// WithMaxIterations sets the max iterations for the loop.
-func WithMaxIterations(n int) RalphOption {
+// WithMaxTurns sets the max iterations for the loop.
+func WithMaxTurns(n int) RalphOption {
 	return func(s *RalphState) {
-		s.MaxIterations = n
+		s.MaxTurns = n
 	}
 }
 

@@ -15,7 +15,7 @@ const mockWorkflow = {
 	id: 'test-workflow',
 	name: 'Test Workflow',
 	description: 'A test workflow',
-	defaultModel: 'claude-sonnet-3-5',
+	defaultModel: 'sonnet',
 	defaultThinking: true,
 	completionAction: 'pr',
 	targetBranch: 'main',
@@ -118,23 +118,24 @@ describe('WorkflowSettingsPanel', () => {
 		it('renders default model dropdown with current value', () => {
 			render(<WorkflowSettingsPanel workflow={mockWorkflow} onWorkflowUpdate={vi.fn()} />);
 
-			expect(screen.getByLabelText('Default Model')).toBeInTheDocument();
-			expect(screen.getByDisplayValue('claude-sonnet-3-5')).toBeInTheDocument();
+			const modelSelect = screen.getByLabelText('Default Model') as HTMLSelectElement;
+			expect(modelSelect).toBeInTheDocument();
+			expect(modelSelect.value).toBe('sonnet');
 		});
 
 		it('allows changing default model', async () => {
 			const onUpdate = vi.fn();
-			(workflowClient.updateWorkflow as any).mockResolvedValue({ workflow: { ...mockWorkflow, defaultModel: 'claude-opus-3' } });
+			(workflowClient.updateWorkflow as any).mockResolvedValue({ workflow: { ...mockWorkflow, defaultModel: 'opus' } });
 
 			render(<WorkflowSettingsPanel workflow={mockWorkflow} onWorkflowUpdate={onUpdate} />);
 
 			const modelSelect = screen.getByLabelText('Default Model');
-			fireEvent.change(modelSelect, { target: { value: 'claude-opus-3' } });
+			fireEvent.change(modelSelect, { target: { value: 'opus' } });
 
 			await waitFor(() => {
 				expect(workflowClient.updateWorkflow).toHaveBeenCalledWith({
 					id: 'test-workflow',
-					defaultModel: 'claude-opus-3',
+					defaultModel: 'opus',
 				});
 			});
 		});
@@ -163,31 +164,6 @@ describe('WorkflowSettingsPanel', () => {
 			});
 		});
 
-		it('renders default max iterations input', () => {
-			const workflowWithIterations = { ...mockWorkflow, defaultMaxIterations: 20 };
-			render(<WorkflowSettingsPanel workflow={workflowWithIterations} onWorkflowUpdate={vi.fn()} />);
-
-			expect(screen.getByLabelText('Default Max Iterations')).toBeInTheDocument();
-			expect(screen.getByDisplayValue('20')).toBeInTheDocument();
-		});
-
-		it('allows changing default max iterations', async () => {
-			const onUpdate = vi.fn();
-			(workflowClient.updateWorkflow as any).mockResolvedValue({ workflow: { ...mockWorkflow, defaultMaxIterations: 30 } });
-
-			render(<WorkflowSettingsPanel workflow={mockWorkflow} onWorkflowUpdate={onUpdate} />);
-
-			const iterationsInput = screen.getByLabelText('Default Max Iterations');
-			fireEvent.change(iterationsInput, { target: { value: '30' } });
-			fireEvent.blur(iterationsInput);
-
-			await waitFor(() => {
-				expect(workflowClient.updateWorkflow).toHaveBeenCalledWith({
-					id: 'test-workflow',
-					defaultMaxIterations: 30,
-				});
-			});
-		});
 	});
 
 	// SC-4: Completion Settings Configuration

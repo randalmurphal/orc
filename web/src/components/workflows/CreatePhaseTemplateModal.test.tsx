@@ -1199,22 +1199,6 @@ describe('CreatePhaseTemplateModal', () => {
 			expect(screen.getByLabelText(/gate type/i) || screen.getByText(/gate type/i)).toBeInTheDocument();
 		});
 
-		it('renders max iterations field', async () => {
-			render(
-				<CreatePhaseTemplateModal
-					open={true}
-					onClose={mockOnClose}
-					onCreated={mockOnCreated}
-				/>
-			);
-
-			await waitFor(() => {
-				expect(configClient.listAgents).toHaveBeenCalled();
-			});
-
-			expect(screen.getByLabelText(/max iterations/i) || screen.getByText(/max iterations/i)).toBeInTheDocument();
-		});
-
 		it('renders thinking toggle', async () => {
 			render(
 				<CreatePhaseTemplateModal
@@ -1254,7 +1238,6 @@ describe('CreatePhaseTemplateModal', () => {
 				createMockCreatePhaseTemplateResponse({
 					id: 'with-execution',
 					name: 'With Execution',
-					maxIterations: 5,
 					checkpoint: true,
 				})
 			);
@@ -1275,11 +1258,6 @@ describe('CreatePhaseTemplateModal', () => {
 			const nameInput = screen.getByLabelText(/^name/i);
 			await user.type(nameInput, 'With Execution');
 
-			// Set max iterations
-			const maxIterInput = screen.getByLabelText(/max iterations/i) as HTMLInputElement;
-			await user.clear(maxIterInput);
-			await user.type(maxIterInput, '5');
-
 			// Toggle checkpoint
 			const checkpointToggle = screen.getByLabelText(/checkpoint/i);
 			await user.click(checkpointToggle);
@@ -1291,7 +1269,6 @@ describe('CreatePhaseTemplateModal', () => {
 			await waitFor(() => {
 				expect(workflowClient.createPhaseTemplate).toHaveBeenCalledWith(
 					expect.objectContaining({
-						maxIterations: 5,
 						checkpoint: true,
 					})
 				);

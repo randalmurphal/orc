@@ -387,8 +387,8 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	if rctx.QAIteration > 0 {
 		vars["QA_ITERATION"] = fmt.Sprintf("%d", rctx.QAIteration)
 	}
-	if rctx.QAMaxIterations > 0 {
-		vars["QA_MAX_ITERATIONS"] = fmt.Sprintf("%d", rctx.QAMaxIterations)
+	if rctx.QAMaxLoops > 0 {
+		vars["QA_MAX_LOOPS"] = fmt.Sprintf("%d", rctx.QAMaxLoops)
 	}
 	vars["QA_FINDINGS"] = rctx.QAFindings
 	vars["BEFORE_IMAGES"] = rctx.BeforeImages

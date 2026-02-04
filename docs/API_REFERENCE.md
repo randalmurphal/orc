@@ -1094,7 +1094,7 @@ Orc orchestrator configuration from `.orc/config.yaml`. All settings are editabl
     "retry_max": 3
   },
   "execution": {
-    "model": "claude-sonnet-4-20250514",
+    "model": "sonnet",
     "max_iterations": 10,
     "timeout": "30m"
   },
@@ -1146,7 +1146,7 @@ Orc orchestrator configuration from `.orc/config.yaml`. All settings are editabl
     "retry_max": 5
   },
   "execution": {
-    "model": "claude-opus-4-20250514",
+    "model": "opus",
     "max_iterations": 20,
     "timeout": "1h"
   },

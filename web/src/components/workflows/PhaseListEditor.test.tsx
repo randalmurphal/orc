@@ -316,7 +316,6 @@ describe('PhaseListEditor', () => {
 			expect(await screen.findByLabelText(/model/i)).toBeInTheDocument();
 			expect(screen.getByLabelText(/thinking/i)).toBeInTheDocument();
 			expect(screen.getByLabelText(/gate/i)).toBeInTheDocument();
-			expect(screen.getByLabelText(/max iterations/i)).toBeInTheDocument();
 		});
 
 		it('should pre-fill edit dialog with current overrides', async () => {
@@ -327,7 +326,6 @@ describe('PhaseListEditor', () => {
 					phaseTemplateId: 'implement',
 					sequence: 1,
 					modelOverride: 'opus',
-					maxIterationsOverride: 5,
 				}),
 			];
 
@@ -341,9 +339,6 @@ describe('PhaseListEditor', () => {
 				const modelSelect = screen.getByLabelText(/model/i);
 				expect(modelSelect).toHaveTextContent(/opus/i);
 			});
-
-			const iterationsInput = screen.getByLabelText(/max iterations/i);
-			expect(iterationsInput).toHaveValue(5);
 		});
 
 		it('should call onUpdatePhase with new overrides when saved', async () => {
@@ -414,29 +409,6 @@ describe('PhaseListEditor', () => {
 				1,
 				expect.objectContaining({
 					gateTypeOverride: GateType.HUMAN,
-				})
-			);
-		});
-
-		it('should allow editing max iterations override', async () => {
-			const user = userEvent.setup();
-			render(<PhaseListEditor {...defaultProps} />);
-
-			const phaseItems = screen.getAllByTestId(/phase-item/);
-			const editButton = within(phaseItems[0]).getByRole('button', { name: /edit/i });
-			await user.click(editButton);
-
-			const iterationsInput = await screen.findByLabelText(/max iterations/i);
-			await user.clear(iterationsInput);
-			await user.type(iterationsInput, '10');
-
-			const saveButton = screen.getByRole('button', { name: /save phase/i });
-			await user.click(saveButton);
-
-			expect(mockOnUpdatePhase).toHaveBeenCalledWith(
-				1,
-				expect.objectContaining({
-					maxIterationsOverride: 10,
 				})
 			);
 		});
@@ -699,7 +671,6 @@ describe('PhaseListEditor', () => {
 					modelOverride: 'opus',
 					thinkingOverride: true,
 					gateTypeOverride: GateType.HUMAN,
-					maxIterationsOverride: 5,
 				}),
 			];
 

@@ -211,9 +211,6 @@ func TestBuiltinPhaseTemplatesHaveRequiredFields(t *testing.T) {
 		if pt.PromptSource == "embedded" && pt.PromptPath == "" {
 			t.Errorf("phase template %s has embedded source but empty PromptPath", pt.ID)
 		}
-		if pt.MaxIterations <= 0 {
-			t.Errorf("phase template %s has invalid MaxIterations: %d", pt.ID, pt.MaxIterations)
-		}
 	}
 }
 

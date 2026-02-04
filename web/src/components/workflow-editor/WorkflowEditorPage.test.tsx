@@ -92,7 +92,6 @@ function createMultiPhaseWorkflow(overrides: { id?: string; name?: string; isBui
 				phaseTemplateId: 'review',
 				sequence: 4,
 				gateTypeOverride: GateType.HUMAN,
-				maxIterationsOverride: 5,
 			}),
 			createMockWorkflowPhase({
 				id: 5,
@@ -337,7 +336,6 @@ describe('WorkflowEditorPage', () => {
 						phaseTemplateId: 'review',
 						sequence: 1,
 						gateTypeOverride: GateType.HUMAN,
-						maxIterationsOverride: 5,
 						modelOverride: 'opus',
 					}),
 				],

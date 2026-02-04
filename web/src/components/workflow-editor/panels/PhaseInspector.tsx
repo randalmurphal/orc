@@ -502,29 +502,18 @@ function AlwaysVisibleSection({
 	const [phaseName, setPhaseName] = useState(template.name || '');
 	const [agentOverride, setAgentOverride] = useState(phase.agentOverride || '');
 	const [modelOverride, setModelOverride] = useState(phase.modelOverride || '');
-	const [maxIterations, setMaxIterations] = useState(
-		phase.maxIterationsOverride ?? template.maxIterations ?? 3
-	);
 
 	// Reset local state when phase changes
 	useEffect(() => {
 		setPhaseName(template.name || '');
 		setAgentOverride(phase.agentOverride || '');
 		setModelOverride(phase.modelOverride || '');
-		setMaxIterations(phase.maxIterationsOverride ?? template.maxIterations ?? 3);
-	}, [phase.id, template, phase.agentOverride, phase.modelOverride, phase.maxIterationsOverride]);
+	}, [phase.id, template, phase.agentOverride, phase.modelOverride]);
 
 	// Validation helpers
 	const validatePhaseName = (name: string): FieldError | null => {
 		if (!name.trim()) {
 			return { message: 'Name cannot be empty', type: 'validation' };
-		}
-		return null;
-	};
-
-	const validateMaxIterations = (iterations: number): FieldError | null => {
-		if (iterations < 1 || iterations > 20) {
-			return { message: 'Must be between 1 and 20', type: 'validation' };
 		}
 		return null;
 	};
@@ -568,35 +557,7 @@ function AlwaysVisibleSection({
 		autoSave('modelOverride', value || undefined);
 	};
 
-	const handleMaxIterationsChange = (value: number) => {
-		setMaxIterations(value);
-		const error = validateMaxIterations(value);
-		if (!error) {
-			autoSave('maxIterationsOverride', value);
-		}
-	};
-
-	const handleMaxIterationsBlur = () => {
-		const error = validateMaxIterations(maxIterations);
-		if (error) {
-			// Set error state before reverting (so error message appears)
-			setFieldErrors(prev => ({ ...prev, maxIterationsOverride: error }));
-			// Revert to original value after a brief delay to allow error display
-			setTimeout(() => {
-				setMaxIterations(phase.maxIterationsOverride ?? template.maxIterations ?? 3);
-				// Clear error after revert
-				setTimeout(() => {
-					setFieldErrors(prev => ({ ...prev, maxIterationsOverride: null }));
-				}, 100);
-			}, 50);
-		} else {
-			setFieldErrors(prev => ({ ...prev, maxIterationsOverride: null }));
-			autoSave('maxIterationsOverride', maxIterations, true);
-		}
-	};
-
 	const nameError = fieldErrors.templateName || validatePhaseName(phaseName);
-	const iterationsError = fieldErrors.maxIterationsOverride || validateMaxIterations(maxIterations);
 
 	return (
 		<div className={`always-visible-fields ${isMobile ? 'always-visible--mobile-stack' : ''}`}>
@@ -676,40 +637,15 @@ function AlwaysVisibleSection({
 					className={`field-input ${isMobile ? 'touch-friendly' : ''}`}
 				>
 					<option value="">Inherit from workflow</option>
-					<option value="claude-sonnet-4-20250514">Sonnet</option>
-					<option value="claude-opus-4-5-20251101">Opus</option>
-					<option value="claude-haiku-35-20241022">Haiku</option>
+					<option value="sonnet">Sonnet</option>
+					<option value="opus">Opus</option>
+					<option value="haiku">Haiku</option>
 				</select>
 				{savingFields.has('modelOverride') && (
 					<span className="field-saving">Saving...</span>
 				)}
 				{fieldErrors.modelOverride && (
 					<span className="field-error">{fieldErrors.modelOverride.message}</span>
-				)}
-			</div>
-
-			{/* Max Iterations */}
-			<div className="field-group">
-				<label htmlFor="phase-max-iterations" className="field-label">
-					Max Iterations
-				</label>
-				<input
-					id="phase-max-iterations"
-					aria-label="Max Iterations"
-					type="number"
-					min="1"
-					max="20"
-					value={maxIterations}
-					onChange={(e) => handleMaxIterationsChange(Number(e.target.value))}
-					onBlur={handleMaxIterationsBlur}
-					disabled={readOnly || savingFields.has('maxIterationsOverride')}
-					className={`field-input ${iterationsError ? 'field-error' : ''} ${isMobile ? 'touch-friendly' : ''}`}
-				/>
-				{iterationsError && (
-					<span className="field-error">{iterationsError.message}</span>
-				)}
-				{savingFields.has('maxIterationsOverride') && (
-					<span className="field-saving">Saving...</span>
 				)}
 			</div>
 		</div>
@@ -1388,7 +1324,6 @@ interface CompletionCriteriaTabProps {
 export function CompletionCriteriaTab({ phase }: CompletionCriteriaTabProps) {
 	const template = phase.template;
 	const gateType = phase.gateTypeOverride || template?.gateType || GateType.AUTO;
-	const maxIterations = phase.maxIterationsOverride ?? template?.maxIterations ?? 3;
 
 	const getGateLabel = (gt: GateType): string => {
 		switch (gt) {
@@ -1410,14 +1345,6 @@ export function CompletionCriteriaTab({ phase }: CompletionCriteriaTabProps) {
 					{gateType === GateType.HUMAN && 'Requires human approval to proceed'}
 					{gateType === GateType.AI && 'AI agent evaluates the gate'}
 					{gateType === GateType.SKIP && 'Phase is skipped entirely'}
-				</p>
-			</div>
-
-			<div className="phase-inspector__criteria-section">
-				<h4 className="phase-inspector__criteria-label">Max Iterations</h4>
-				<p className="phase-inspector__criteria-value">{maxIterations}</p>
-				<p className="phase-inspector__criteria-hint">
-					Maximum attempts before phase fails
 				</p>
 			</div>
 
@@ -1538,9 +1465,6 @@ export function SettingsTab({
 	onWorkflowRefresh,
 	onDeletePhase,
 }: SettingsTabProps) {
-	const [maxIterations, setMaxIterations] = useState<number>(
-		phase.maxIterationsOverride ?? phase.template?.maxIterations ?? 3,
-	);
 	const [modelOverride, setModelOverride] = useState<string>(
 		phase.modelOverride ?? '',
 	);
@@ -1589,7 +1513,6 @@ export function SettingsTab({
 
 	// Reset state when phase changes (e.g. after save + refresh, or selecting a different node)
 	useEffect(() => {
-		setMaxIterations(phase.maxIterationsOverride ?? phase.template?.maxIterations ?? 3);
 		setModelOverride(phase.modelOverride ?? '');
 		setThinkingOverride(phase.thinkingOverride ?? false);
 		setGateTypeOverride(phase.gateTypeOverride ?? GateType.UNSPECIFIED);
@@ -1608,7 +1531,6 @@ export function SettingsTab({
 		if (modelOverride !== (phase.modelOverride ?? '')) return true;
 		if (thinkingOverride !== (phase.thinkingOverride ?? false)) return true;
 		if (gateTypeOverride !== (phase.gateTypeOverride ?? GateType.UNSPECIFIED)) return true;
-		if (maxIterations !== (phase.maxIterationsOverride ?? phase.template?.maxIterations ?? 3)) return true;
 		if (agentOverride !== (phase.agentOverride ?? '')) return true;
 		const origSorted = [...(phase.subAgentsOverride ?? [])].sort();
 		const currSorted = [...subAgentsOverride].sort();
@@ -1617,7 +1539,7 @@ export function SettingsTab({
 		if (conditionDirty) return true;
 		if (loopConfigDirty) return true;
 		return false;
-	}, [modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, loopConfigDirty, phase]);
+	}, [modelOverride, thinkingOverride, gateTypeOverride, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, loopConfigDirty, phase]);
 
 	// Save all pending changes in one API call
 	const handleSave = useCallback(async () => {
@@ -1632,7 +1554,6 @@ export function SettingsTab({
 				modelOverride: modelOverride || undefined,
 				thinkingOverride,
 				gateTypeOverride: gateTypeOverride || undefined,
-				maxIterationsOverride: maxIterations,
 				agentOverride: agentOverride || undefined,
 				subAgentsOverride,
 				subAgentsOverrideSet: true,
@@ -1650,11 +1571,10 @@ export function SettingsTab({
 		} finally {
 			setSaving(false);
 		}
-	}, [workflowDetails, phase.id, modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, conditionDraft, loopConfigDirty, loopConfigDraft, onError, onWorkflowRefresh]);
+	}, [workflowDetails, phase.id, modelOverride, thinkingOverride, gateTypeOverride, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, conditionDraft, loopConfigDirty, loopConfigDraft, onError, onWorkflowRefresh]);
 
 	// Discard all pending changes
 	const handleDiscard = useCallback(() => {
-		setMaxIterations(phase.maxIterationsOverride ?? phase.template?.maxIterations ?? 3);
 		setModelOverride(phase.modelOverride ?? '');
 		setThinkingOverride(phase.thinkingOverride ?? false);
 		setGateTypeOverride(phase.gateTypeOverride ?? GateType.UNSPECIFIED);
@@ -1743,9 +1663,9 @@ export function SettingsTab({
 					disabled={disabled}
 				>
 					<option value="">Inherit from workflow</option>
-					<option value="claude-sonnet-4-20250514">Sonnet</option>
-					<option value="claude-opus-4">Opus</option>
-					<option value="claude-haiku-35-20241022">Haiku</option>
+					<option value="sonnet">Sonnet</option>
+					<option value="opus">Opus</option>
+					<option value="haiku">Haiku</option>
 				</select>
 			</div>
 
@@ -1812,22 +1732,6 @@ export function SettingsTab({
 					)}
 				</div>
 			)}
-
-			<div className="phase-inspector-setting">
-				<label htmlFor="inspector-max-iterations" className="phase-inspector-setting-label">
-					Max Iterations
-				</label>
-				<input
-					id="inspector-max-iterations"
-					type="number"
-					className="phase-inspector-setting-input"
-					value={maxIterations}
-					onChange={(e) => setMaxIterations(Number(e.target.value))}
-					min={1}
-					max={20}
-					disabled={disabled}
-				/>
-			</div>
 
 			{/* Executor */}
 			<div className="phase-inspector-setting">

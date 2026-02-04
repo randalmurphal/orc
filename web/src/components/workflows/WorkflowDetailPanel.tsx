@@ -61,11 +61,6 @@ function PhaseItem({
 					</span>
 				)}
 			</div>
-			{phase.maxIterationsOverride !== undefined && (
-				<span className="workflow-detail-phase-iterations">
-					max {phase.maxIterationsOverride}
-				</span>
-			)}
 		</div>
 	);
 }

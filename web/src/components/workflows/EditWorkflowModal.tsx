@@ -200,7 +200,6 @@ export function EditWorkflowModal({
 					modelOverride: overrides.modelOverride,
 					thinkingOverride: overrides.thinkingOverride,
 					gateTypeOverride: overrides.gateTypeOverride,
-					maxIterationsOverride: overrides.maxIterationsOverride,
 				});
 				if (response.phase) {
 					setPhases((prev) =>

@@ -17,8 +17,6 @@ type PhaseDisplay struct {
 	CommitSHA string           `yaml:"commit_sha,omitempty" json:"commit_sha,omitempty"`
 	Gate      gate.Gate        `yaml:"gate,omitempty" json:"gate,omitempty"`
 
-	// Execution configuration
-	MaxIterations int `yaml:"max_iterations,omitempty" json:"max_iterations,omitempty"`
 }
 
 // Plan represents an execution plan containing phases for display.

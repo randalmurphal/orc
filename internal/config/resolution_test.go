@@ -159,7 +159,7 @@ func TestGetEnvVarForPath(t *testing.T) {
 	}{
 		{"profile", "ORC_PROFILE"},
 		{"model", "ORC_MODEL"},
-		{"max_iterations", "ORC_MAX_ITERATIONS"},
+		{"max_turns", "ORC_MAX_TURNS"},
 		{"timeout", "ORC_TIMEOUT"},
 		{"retry.enabled", "ORC_RETRY_ENABLED"},
 		{"gates.default_type", "ORC_GATES_DEFAULT"},

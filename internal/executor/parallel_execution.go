@@ -442,7 +442,7 @@ func cloneResolutionContext(rctx *variable.ResolutionContext) *variable.Resoluti
 
 		// QA E2E testing context
 		QAIteration:      rctx.QAIteration,
-		QAMaxIterations:  rctx.QAMaxIterations,
+		QAMaxLoops:  rctx.QAMaxLoops,
 		QAFindings:       rctx.QAFindings,
 		BeforeImages:     rctx.BeforeImages,
 		PreviousFindings: rctx.PreviousFindings,

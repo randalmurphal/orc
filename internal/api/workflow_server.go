@@ -227,9 +227,6 @@ func (s *workflowServer) UpdateWorkflow(
 		if req.Msg.DefaultThinking != nil {
 			dbWf.DefaultThinking = *req.Msg.DefaultThinking
 		}
-		if req.Msg.DefaultMaxIterations != nil {
-			dbWf.DefaultMaxIterations = int(*req.Msg.DefaultMaxIterations)
-		}
 		if req.Msg.CompletionAction != nil {
 			dbWf.CompletionAction = *req.Msg.CompletionAction
 		}
@@ -271,9 +268,6 @@ func (s *workflowServer) UpdateWorkflow(
 	}
 	if req.Msg.DefaultThinking != nil {
 		wf.DefaultThinking = *req.Msg.DefaultThinking
-	}
-	if req.Msg.DefaultMaxIterations != nil {
-		wf.DefaultMaxIterations = int(*req.Msg.DefaultMaxIterations)
 	}
 	if req.Msg.CompletionAction != nil {
 		wf.CompletionAction = *req.Msg.CompletionAction
@@ -481,10 +475,6 @@ func (s *workflowServer) AddPhase(
 		Sequence:        int(req.Msg.Sequence),
 		DependsOn:       dependsOnToJSON(req.Msg.DependsOn),
 	}
-	if req.Msg.MaxIterationsOverride != nil {
-		v := int(*req.Msg.MaxIterationsOverride)
-		phase.MaxIterationsOverride = &v
-	}
 	if req.Msg.ModelOverride != nil {
 		phase.ModelOverride = *req.Msg.ModelOverride
 	}
@@ -554,10 +544,6 @@ func (s *workflowServer) UpdatePhase(
 	}
 	if len(req.Msg.DependsOn) > 0 {
 		existingPhase.DependsOn = dependsOnToJSON(req.Msg.DependsOn)
-	}
-	if req.Msg.MaxIterationsOverride != nil {
-		v := int(*req.Msg.MaxIterationsOverride)
-		existingPhase.MaxIterationsOverride = &v
 	}
 	if req.Msg.ModelOverride != nil {
 		existingPhase.ModelOverride = *req.Msg.ModelOverride
@@ -876,7 +862,6 @@ func (s *workflowServer) CreatePhaseTemplate(
 		Name:             req.Msg.Name,
 		PromptSource:     protoPromptSourceToString(req.Msg.PromptSource),
 		ProducesArtifact: req.Msg.ProducesArtifact,
-		MaxIterations:    int(req.Msg.MaxIterations),
 		GateType:         protoGateTypeToString(req.Msg.GateType),
 		Checkpoint:       req.Msg.Checkpoint,
 		IsBuiltin:        false,
@@ -912,9 +897,6 @@ func (s *workflowServer) CreatePhaseTemplate(
 		tmpl.ClaudeConfig = *req.Msg.ClaudeConfig
 	}
 
-	if tmpl.MaxIterations == 0 {
-		tmpl.MaxIterations = 20
-	}
 	if tmpl.PromptSource == "" {
 		tmpl.PromptSource = "db"
 	}
@@ -993,9 +975,6 @@ func (s *workflowServer) UpdatePhaseTemplate(
 	// repeated fields are always present; update if non-nil
 	if req.Msg.InputVariables != nil {
 		pt.InputVariables = req.Msg.InputVariables
-	}
-	if req.Msg.MaxIterations != nil {
-		pt.MaxIterations = int(*req.Msg.MaxIterations)
 	}
 	// NOTE: model_override is now set via agent reference, not directly on phase template
 	if req.Msg.ThinkingEnabled != nil {
@@ -1078,9 +1057,6 @@ func (s *workflowServer) updateDBOnlyPhaseTemplate(
 		} else {
 			tmpl.InputVariables = "[]" // Empty array, not empty string
 		}
-	}
-	if req.MaxIterations != nil {
-		tmpl.MaxIterations = int(*req.MaxIterations)
 	}
 	if req.ThinkingEnabled != nil {
 		tmpl.ThinkingEnabled = req.ThinkingEnabled
@@ -1551,10 +1527,6 @@ func dbWorkflowToProto(w *db.Workflow) *orcv1.Workflow {
 	if w.DefaultModel != "" {
 		result.DefaultModel = &w.DefaultModel
 	}
-	if w.DefaultMaxIterations != 0 {
-		iterations := int32(w.DefaultMaxIterations)
-		result.DefaultMaxIterations = &iterations
-	}
 	if w.BasedOn != "" {
 		result.BasedOn = &w.BasedOn
 	}
@@ -1576,10 +1548,6 @@ func dbWorkflowPhasesToProto(phases []*db.WorkflowPhase) []*orcv1.WorkflowPhase 
 			WorkflowId:      p.WorkflowID,
 			PhaseTemplateId: p.PhaseTemplateID,
 			Sequence:        int32(p.Sequence),
-		}
-		if p.MaxIterationsOverride != nil {
-			v := int32(*p.MaxIterationsOverride)
-			result[i].MaxIterationsOverride = &v
 		}
 		if p.ModelOverride != "" {
 			result[i].ModelOverride = &p.ModelOverride
@@ -1740,10 +1708,6 @@ func dbWorkflowPhaseToProto(p *db.WorkflowPhase) *orcv1.WorkflowPhase {
 			result.SubAgentsOverride = subAgentIDs
 		}
 	}
-	if p.MaxIterationsOverride != nil {
-		v := int32(*p.MaxIterationsOverride)
-		result.MaxIterationsOverride = &v
-	}
 	if p.ModelOverride != "" {
 		result.ModelOverride = &p.ModelOverride
 	}
@@ -1812,7 +1776,6 @@ func dbPhaseTemplateToProto(t *db.PhaseTemplate) *orcv1.PhaseTemplate {
 		Name:             t.Name,
 		PromptSource:     stringToProtoPromptSource(t.PromptSource),
 		ProducesArtifact: t.ProducesArtifact,
-		MaxIterations:    int32(t.MaxIterations),
 		GateType:         stringToProtoGateType(t.GateType),
 		Checkpoint:       t.Checkpoint,
 		IsBuiltin:        t.IsBuiltin,

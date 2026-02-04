@@ -54,7 +54,6 @@ function createDefaultData(overrides: Partial<PhaseNodeData> = {}): PhaseNodeDat
 		sequence: 1,
 		phaseId: 1,
 		gateType: GateType.AUTO,
-		maxIterations: 3,
 		...overrides,
 	};
 }
@@ -252,7 +251,6 @@ describe('PhaseNode - Connection Handles (TASK-684)', () => {
 			const { container } = renderPhaseNode(
 				createDefaultData({
 					gateType: GateType.HUMAN,
-					maxIterations: 5,
 					agentId: 'custom-agent',
 				})
 			);

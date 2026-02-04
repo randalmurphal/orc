@@ -132,7 +132,6 @@ name: Complete Workflow
 description: A workflow with all settings
 default_model: opus
 default_thinking: true
-default_max_iterations: 30
 completion_action: pr
 phases:
   - template: spec
@@ -148,7 +147,6 @@ phases:
 		assert.Equal(t, "A workflow with all settings", wf.Description)
 		assert.Equal(t, "opus", wf.DefaultModel)
 		assert.True(t, wf.DefaultThinking)
-		assert.Equal(t, 30, wf.DefaultMaxIterations)
 		assert.Equal(t, "pr", wf.CompletionAction)
 		assert.Len(t, wf.Phases, 2)
 	})

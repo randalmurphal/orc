@@ -105,10 +105,11 @@ func (s *configServer) GetConfig(
 }
 
 // ValidModels is the list of allowed model identifiers for the DefaultModel setting.
+// Short names (sonnet, opus, haiku) are preferred and resolved by Claude Code.
 var ValidModels = []string{
-	"claude-sonnet-4-20250514",
-	"claude-opus-4-20250514",
-	"claude-haiku-3-5-20241022",
+	"sonnet",
+	"opus",
+	"haiku",
 }
 
 // UpdateConfig updates the ORC configuration and persists to config.yaml.

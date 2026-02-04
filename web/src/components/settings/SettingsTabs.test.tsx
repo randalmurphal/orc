@@ -29,7 +29,7 @@ vi.mock('@/lib/client', () => ({
 		getConfig: vi.fn().mockResolvedValue({
 			config: {
 				automation: { profile: 'auto' },
-				claude: { model: 'claude-sonnet-4-20250514' },
+				claude: { model: 'sonnet' },
 			},
 		}),
 	},

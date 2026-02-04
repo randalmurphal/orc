@@ -310,7 +310,7 @@ type SessionInfo struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Session UUID
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Model used (e.g., "claude-sonnet-4-20250514")
+	// Model used (e.g., "sonnet", "opus", "haiku")
 	Model string `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"`
 	// Session status
 	Status string `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`

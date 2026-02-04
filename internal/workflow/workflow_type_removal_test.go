@@ -50,7 +50,7 @@ func TestWorkflowYAML_BackwardCompat_IgnoresWorkflowType(t *testing.T) {
 id: legacy-workflow
 name: "Legacy With Type"
 workflow_type: task
-default_model: claude-sonnet-4-20250514
+default_model: sonnet
 
 phases:
   - template: spec
@@ -70,8 +70,8 @@ phases:
 	if wf.Name != "Legacy With Type" {
 		t.Errorf("Name = %q, want %q", wf.Name, "Legacy With Type")
 	}
-	if wf.DefaultModel != "claude-sonnet-4-20250514" {
-		t.Errorf("DefaultModel = %q, want %q", wf.DefaultModel, "claude-sonnet-4-20250514")
+	if wf.DefaultModel != "sonnet" {
+		t.Errorf("DefaultModel = %q, want %q", wf.DefaultModel, "sonnet")
 	}
 	if len(wf.Phases) != 2 {
 		t.Errorf("expected 2 phases, got %d", len(wf.Phases))

@@ -159,10 +159,6 @@ export function PhaseTemplateDetailPanel({
 						<Icon name="shield" size={12} />
 						Gate: {getGateTypeLabel(template.gateType)}
 					</span>
-					<span className="template-detail-meta-item">
-						<Icon name="refresh" size={12} />
-						Max iterations: {template.maxIterations}
-					</span>
 					{template.agentId && (
 						<span className="template-detail-meta-item">
 							<Icon name="cpu" size={12} />

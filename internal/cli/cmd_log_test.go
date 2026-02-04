@@ -90,7 +90,7 @@ func TestDisplaySingleTranscript(t *testing.T) {
 	transcript := storage.Transcript{
 		Phase:        "implement",
 		Type:         "assistant",
-		Model:        "claude-sonnet-4",
+		Model:        "sonnet",
 		Content:      `[{"type": "text", "text": "I will implement this feature."}]`,
 		InputTokens:  100,
 		OutputTokens: 50,
@@ -114,7 +114,7 @@ func TestDisplaySingleTranscript(t *testing.T) {
 	// Check for expected elements
 	expectations := []string{
 		"ASSISTANT",
-		"claude-sonnet-4",
+		"sonnet",
 		"in:100",
 		"out:50",
 		"I will implement this feature",

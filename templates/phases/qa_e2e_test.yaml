@@ -11,7 +11,6 @@ output_type: findings
 produces_artifact: true
 artifact_type: qa_findings
 
-max_iterations: 20
 thinking: false
 gate_type: auto
 checkpoint: false

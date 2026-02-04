@@ -222,7 +222,7 @@ func AllConfigPaths() []string {
 		"profile",
 		"model",
 		"fallback_model",
-		"max_iterations",
+		"max_turns",
 		"timeout",
 		"branch_prefix",
 		"commit_prefix",

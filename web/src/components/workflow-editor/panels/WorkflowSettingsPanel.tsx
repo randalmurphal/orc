@@ -36,7 +36,7 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 		}
 	};
 
-	const handleFieldChange = (field: string, value: any) => {
+	const handleFieldChange = (field: string, value: string | number | boolean | null) => {
 		handleUpdate({ [field]: value });
 	};
 
@@ -105,11 +105,9 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 								disabled={workflow.isBuiltin || isLoading}
 							>
 								<option value="">Select a model...</option>
-								<option value="claude-sonnet-3-5">claude-sonnet-3-5</option>
-								<option value="claude-opus-3">claude-opus-3</option>
-								<option value="claude-haiku-3">claude-haiku-3</option>
-								<option value="claude-sonnet-4">claude-sonnet-4</option>
-								<option value="claude-opus-4">claude-opus-4</option>
+								<option value="sonnet">Sonnet (default)</option>
+								<option value="opus">Opus</option>
+								<option value="haiku">Haiku</option>
 							</select>
 						</div>
 
@@ -124,30 +122,6 @@ export function WorkflowSettingsPanel({ workflow, onWorkflowUpdate }: WorkflowSe
 								/>
 								<label htmlFor="default-thinking">Enable Thinking by Default</label>
 							</div>
-						</div>
-
-						<div className="form-field">
-							<label htmlFor="default-max-iterations">Default Max Iterations</label>
-							<input
-								id="default-max-iterations"
-								type="number"
-								value={workflow.defaultMaxIterations || ''}
-								onChange={(e) => {
-									const value = parseInt(e.target.value, 10);
-									if (!isNaN(value)) {
-										handleFieldChange('defaultMaxIterations', value);
-									}
-								}}
-								onBlur={(e) => {
-									const value = parseInt(e.target.value, 10);
-									if (!isNaN(value)) {
-										handleFieldChange('defaultMaxIterations', value);
-									}
-								}}
-								disabled={workflow.isBuiltin || isLoading}
-								min="1"
-								max="100"
-							/>
 						</div>
 					</div>
 

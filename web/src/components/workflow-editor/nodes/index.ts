@@ -29,7 +29,6 @@ export interface PhaseNodeData {
 	sequence: number;
 	phaseId: number;
 	gateType: GateType;
-	maxIterations: number;
 	agentId?: string;
 	thinkingEnabled?: boolean;
 	status?: PhaseStatus;

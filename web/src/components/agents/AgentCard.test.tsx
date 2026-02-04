@@ -10,7 +10,7 @@ import { AgentCard, type Agent, type IconColor } from './AgentCard';
 const createMockAgent = (overrides: Partial<Agent> = {}): Agent => ({
 	id: 'test-agent',
 	name: 'Test Agent',
-	model: 'claude-sonnet-4-20250514',
+	model: 'sonnet',
 	status: 'active',
 	emoji: '🧠',
 	iconColor: 'purple',
@@ -36,9 +36,9 @@ describe('AgentCard', () => {
 		});
 
 		it('renders agent model', () => {
-			const agent = createMockAgent({ model: 'claude-haiku-3-5-20241022' });
+			const agent = createMockAgent({ model: 'haiku' });
 			render(<AgentCard agent={agent} />);
-			expect(screen.getByText('claude-haiku-3-5-20241022')).toBeInTheDocument();
+			expect(screen.getByText('haiku')).toBeInTheDocument();
 		});
 
 		it('renders status badge', () => {

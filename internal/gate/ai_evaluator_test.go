@@ -786,7 +786,7 @@ func TestAIGateCostTracking(t *testing.T) {
 			OutputTokens: 100,
 			TotalTokens:  600,
 		},
-		model: "claude-sonnet-4-20250514",
+		model: "sonnet",
 	}
 	creator := &mockClientCreator{client: client}
 	lookup := &mockAgentLookup{

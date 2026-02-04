@@ -226,6 +226,8 @@ export function WorkflowEditorPage() {
 				console.warn('Failed to load phase templates:', err);
 			});
 		}
+		// Only run when templates array is empty - using length to avoid refetch on template content changes
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [phaseTemplates?.length, setPhaseTemplates]);
 
 	// Fetch active run after workflow loads

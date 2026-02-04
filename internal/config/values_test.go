@@ -9,7 +9,7 @@ func TestConfig_GetValue(t *testing.T) {
 	cfg := Default()
 	cfg.Profile = ProfileSafe
 	cfg.Model = "test-model"
-	cfg.MaxIterations = 50
+	cfg.MaxTurns = 50
 	cfg.Gates.DefaultType = "human"
 	cfg.Retry.Enabled = false
 
@@ -20,10 +20,10 @@ func TestConfig_GetValue(t *testing.T) {
 	}{
 		{"profile", "safe", false},
 		{"model", "test-model", false},
-		{"max_iterations", "50", false},
+		{"max_turns", "50", false},
 		{"gates.default_type", "human", false},
 		{"retry.enabled", "false", false},
-		{"timeout", "10m0s", false},
+		{"timeout", "1h0m0s", false},
 		{"branch_prefix", "orc/", false},
 		// Nested values
 		{"worktree.enabled", "true", false},
@@ -72,9 +72,9 @@ func TestConfig_SetValue(t *testing.T) {
 		},
 		{
 			name:  "set int",
-			path:  "max_iterations",
+			path:  "max_turns",
 			value: "100",
-			check: func(c *Config) bool { return c.MaxIterations == 100 },
+			check: func(c *Config) bool { return c.MaxTurns == 100 },
 		},
 		{
 			name:  "set bool true",
@@ -132,7 +132,7 @@ func TestConfig_SetValue(t *testing.T) {
 		},
 		{
 			name:    "invalid int",
-			path:    "max_iterations",
+			path:    "max_turns",
 			value:   "not-a-number",
 			wantErr: true,
 		},
@@ -187,8 +187,8 @@ func TestFormatValue(t *testing.T) {
 					t.Errorf("formatValue(%v) = %q, want %q", tt.input, got, tt.want)
 				}
 			case int:
-				cfg.MaxIterations = v
-				got, _ := cfg.GetValue("max_iterations")
+				cfg.MaxTurns = v
+				got, _ := cfg.GetValue("max_turns")
 				if got != tt.want {
 					t.Errorf("formatValue(%v) = %q, want %q", tt.input, got, tt.want)
 				}
@@ -222,7 +222,7 @@ func TestAllConfigPaths(t *testing.T) {
 	expectedPaths := []string{
 		"profile",
 		"model",
-		"max_iterations",
+		"max_turns",
 		"timeout",
 		"gates.default_type",
 		"retry.enabled",

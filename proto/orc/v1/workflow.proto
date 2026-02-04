@@ -85,7 +85,7 @@ message PhaseTemplate {
   optional string output_schema = 8;
   bool produces_artifact = 9;
   optional string artifact_type = 10;
-  int32 max_iterations = 11;
+  reserved 11; // was max_iterations (removed)
   // Field 12 removed: model_override - now on Agent
   optional bool thinking_enabled = 13;   // Phase-level concern (NOT on agent)
   GateType gate_type = 14;
@@ -115,7 +115,7 @@ message Workflow {
   google.protobuf.Timestamp updated_at = 10;
   optional string completion_action = 11; // "pr", "commit", "none", or "" (inherit from config)
   optional string target_branch = 12; // Default PR target branch for this workflow, or "" (inherit from config)
-  optional int32 default_max_iterations = 13; // Default maximum iterations for workflow phases
+  reserved 13; // was default_max_iterations (removed)
 }
 
 message WorkflowPhase {
@@ -124,7 +124,7 @@ message WorkflowPhase {
   string phase_template_id = 3;
   int32 sequence = 4;
   repeated string depends_on = 5;
-  optional int32 max_iterations_override = 6;
+  reserved 6; // was max_iterations_override (removed)
   optional string model_override = 7;           // Can still override model at workflow level
   optional bool thinking_override = 8;          // Phase-level thinking override
   optional GateType gate_type_override = 9;
@@ -305,7 +305,7 @@ message UpdateWorkflowRequest {
   optional bool default_thinking = 5;
   optional string completion_action = 6; // "pr", "commit", "none", or "" (inherit from config)
   optional string target_branch = 7; // Default PR target branch for this workflow
-  optional int32 default_max_iterations = 8; // Default maximum iterations for workflow phases
+  reserved 8; // was default_max_iterations (removed)
 }
 
 message UpdateWorkflowResponse {
@@ -335,7 +335,7 @@ message AddPhaseRequest {
   string phase_template_id = 2;
   int32 sequence = 3;
   repeated string depends_on = 4;
-  optional int32 max_iterations_override = 5;
+  reserved 5; // was max_iterations_override (removed)
   optional string model_override = 6;
   optional bool thinking_override = 7;
   optional GateType gate_type_override = 8;
@@ -356,7 +356,7 @@ message UpdatePhaseRequest {
   int32 phase_id = 2;
   optional int32 sequence = 3;
   repeated string depends_on = 4;
-  optional int32 max_iterations_override = 5;
+  reserved 5; // was max_iterations_override (removed)
   optional string model_override = 6;
   optional bool thinking_override = 7;
   optional GateType gate_type_override = 8;
@@ -455,7 +455,7 @@ message CreatePhaseTemplateRequest {
   optional string output_schema = 7;
   bool produces_artifact = 8;
   optional string artifact_type = 9;
-  int32 max_iterations = 10;
+  reserved 10; // was max_iterations (removed)
   // Field 11 removed: model_override - now on Agent
   optional bool thinking_enabled = 12;   // Phase-level concern
   GateType gate_type = 13;
@@ -481,7 +481,7 @@ message UpdatePhaseTemplateRequest {
   optional string output_schema = 7;
   optional bool produces_artifact = 8;
   optional string artifact_type = 9;
-  optional int32 max_iterations = 10;
+  reserved 10; // was max_iterations (removed)
   // Field 11 removed: model_override - now on Agent
   optional bool thinking_enabled = 12;   // Phase-level concern
   optional GateType gate_type = 13;

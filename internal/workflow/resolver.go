@@ -452,15 +452,14 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 	}
 
 	workflow := &Workflow{
-		ID:                   wf.ID,
-		Name:                 wf.Name,
-		Description:          wf.Description,
-		DefaultModel:         wf.DefaultModel,
-		DefaultThinking:      wf.DefaultThinking,
-		DefaultMaxIterations: wf.DefaultMaxIterations,
-		CompletionAction:     wf.CompletionAction,
-		TargetBranch:         wf.TargetBranch,
-		BasedOn:              wf.BasedOn,
+		ID:               wf.ID,
+		Name:             wf.Name,
+		Description:      wf.Description,
+		DefaultModel:     wf.DefaultModel,
+		DefaultThinking:  wf.DefaultThinking,
+		CompletionAction: wf.CompletionAction,
+		TargetBranch:     wf.TargetBranch,
+		BasedOn:          wf.BasedOn,
 	}
 
 	// Convert phases
@@ -471,10 +470,6 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 			Sequence:        p.Sequence,
 			DependsOn:       p.DependsOn,
 			ModelOverride:   p.Model,
-		}
-		if p.MaxIterations > 0 {
-			mi := p.MaxIterations
-			wp.MaxIterationsOverride = &mi
 		}
 		if p.Thinking != nil {
 			wp.ThinkingOverride = p.Thinking
@@ -544,7 +539,6 @@ func parsePhaseYAML(data []byte) (*PhaseTemplate, error) {
 		OutputVarName:    pt.OutputVarName,
 		ProducesArtifact: pt.ProducesArtifact,
 		ArtifactType:     pt.ArtifactType,
-		MaxIterations:    pt.MaxIterations,
 		GateType:         GateType(pt.GateType),
 		Checkpoint:       pt.Checkpoint,
 		RetryFromPhase:   pt.RetryFromPhase,
@@ -560,9 +554,6 @@ func parsePhaseYAML(data []byte) (*PhaseTemplate, error) {
 	if phase.PromptSource == "" {
 		phase.PromptSource = PromptSourceEmbedded
 	}
-	if phase.MaxIterations == 0 {
-		phase.MaxIterations = 20
-	}
 	if phase.GateType == "" {
 		phase.GateType = GateAuto
 	}
@@ -572,18 +563,17 @@ func parsePhaseYAML(data []byte) (*PhaseTemplate, error) {
 
 // workflowYAML is the YAML structure for workflow files.
 type workflowYAML struct {
-	ID                   string                `yaml:"id"`
-	Name                 string                `yaml:"name"`
-	Description          string                `yaml:"description,omitempty"`
-	DefaultModel         string                `yaml:"default_model,omitempty"`
-	DefaultThinking      bool                  `yaml:"default_thinking,omitempty"`
-	DefaultMaxIterations int                   `yaml:"default_max_iterations,omitempty"`
-	CompletionAction     string                `yaml:"completion_action,omitempty"`
-	TargetBranch         string                `yaml:"target_branch,omitempty"`
-	BasedOn              string                `yaml:"based_on,omitempty"`
-	Phases               []workflowPhaseYAML   `yaml:"phases,omitempty"`
-	Variables            []variableYAML        `yaml:"variables,omitempty"`
-	Triggers             []workflowTriggerYAML `yaml:"triggers,omitempty"`
+	ID               string                `yaml:"id"`
+	Name             string                `yaml:"name"`
+	Description      string                `yaml:"description,omitempty"`
+	DefaultModel     string                `yaml:"default_model,omitempty"`
+	DefaultThinking  bool                  `yaml:"default_thinking,omitempty"`
+	CompletionAction string                `yaml:"completion_action,omitempty"`
+	TargetBranch     string                `yaml:"target_branch,omitempty"`
+	BasedOn          string                `yaml:"based_on,omitempty"`
+	Phases           []workflowPhaseYAML   `yaml:"phases,omitempty"`
+	Variables        []variableYAML        `yaml:"variables,omitempty"`
+	Triggers         []workflowTriggerYAML `yaml:"triggers,omitempty"`
 }
 
 type workflowTriggerYAML struct {
@@ -594,15 +584,14 @@ type workflowTriggerYAML struct {
 }
 
 type workflowPhaseYAML struct {
-	Template      string   `yaml:"template"`
-	Sequence      int      `yaml:"sequence"`
-	DependsOn     []string `yaml:"depends_on,omitempty"`
-	MaxIterations int      `yaml:"max_iterations,omitempty"`
-	Model         string   `yaml:"model,omitempty"`
-	Thinking      *bool    `yaml:"thinking,omitempty"`
-	GateType      string   `yaml:"gate_type,omitempty"`
-	Condition     string   `yaml:"condition,omitempty"`
-	LoopConfig    any      `yaml:"loop_config,omitempty"` // Parsed as any, converted to JSON string
+	Template   string   `yaml:"template"`
+	Sequence   int      `yaml:"sequence"`
+	DependsOn  []string `yaml:"depends_on,omitempty"`
+	Model      string   `yaml:"model,omitempty"`
+	Thinking   *bool    `yaml:"thinking,omitempty"`
+	GateType   string   `yaml:"gate_type,omitempty"`
+	Condition  string   `yaml:"condition,omitempty"`
+	LoopConfig any      `yaml:"loop_config,omitempty"` // Parsed as any, converted to JSON string
 }
 
 type variableYAML struct {
@@ -625,9 +614,9 @@ type phaseYAML struct {
 	SubAgents string `yaml:"sub_agents,omitempty"` // JSON array of agent IDs
 
 	// Prompt configuration
-	PromptSource  string   `yaml:"prompt_source,omitempty"`
-	PromptPath    string   `yaml:"prompt_path,omitempty"`
-	PromptContent string   `yaml:"prompt_content,omitempty"`
+	PromptSource  string `yaml:"prompt_source,omitempty"`
+	PromptPath    string `yaml:"prompt_path,omitempty"`
+	PromptContent string `yaml:"prompt_content,omitempty"`
 
 	// Contract
 	InputVariables   []string `yaml:"input_variables,omitempty"`
@@ -638,12 +627,11 @@ type phaseYAML struct {
 	ArtifactType     string   `yaml:"artifact_type,omitempty"`
 
 	// Execution config
-	MaxIterations  int    `yaml:"max_iterations,omitempty"`
-	Thinking       *bool  `yaml:"thinking,omitempty"` // Phase-level thinking
-	GateType       string `yaml:"gate_type,omitempty"`
-	Checkpoint     bool   `yaml:"checkpoint,omitempty"`
-	RetryFromPhase string `yaml:"retry_from_phase,omitempty"`
+	Thinking        *bool  `yaml:"thinking,omitempty"` // Phase-level thinking
+	GateType        string `yaml:"gate_type,omitempty"`
+	Checkpoint      bool   `yaml:"checkpoint,omitempty"`
+	RetryFromPhase  string `yaml:"retry_from_phase,omitempty"`
 	RetryPromptPath string `yaml:"retry_prompt_path,omitempty"`
-	QualityChecks  string `yaml:"quality_checks,omitempty"`
-	ClaudeConfig   string `yaml:"claude_config,omitempty"`
+	QualityChecks   string `yaml:"quality_checks,omitempty"`
+	ClaudeConfig    string `yaml:"claude_config,omitempty"`
 }

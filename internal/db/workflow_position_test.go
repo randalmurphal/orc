@@ -19,15 +19,14 @@ func TestWorkflowPhasePositionFields(t *testing.T) {
 
 	// Create phase template
 	pt := &PhaseTemplate{
-		ID:            "pos-phase-1",
-		Name:          "Position Phase",
-		PromptSource:  "embedded",
-		PromptPath:    "prompts/p1.md",
-		MaxIterations: 10,
-		GateType:      "auto",
-		IsBuiltin:     false,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:           "pos-phase-1",
+		Name:         "Position Phase",
+		PromptSource: "embedded",
+		PromptPath:   "prompts/p1.md",
+		GateType:     "auto",
+		IsBuiltin:    false,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 	if err := pdb.SavePhaseTemplate(pt); err != nil {
 		t.Fatalf("SavePhaseTemplate failed: %v", err)
@@ -91,15 +90,14 @@ func TestWorkflowPhaseNullPositions(t *testing.T) {
 	now := time.Now()
 
 	pt := &PhaseTemplate{
-		ID:            "null-pos-phase",
-		Name:          "Null Position Phase",
-		PromptSource:  "embedded",
-		PromptPath:    "prompts/p1.md",
-		MaxIterations: 10,
-		GateType:      "auto",
-		IsBuiltin:     false,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:           "null-pos-phase",
+		Name:         "Null Position Phase",
+		PromptSource: "embedded",
+		PromptPath:   "prompts/p1.md",
+		GateType:     "auto",
+		IsBuiltin:    false,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 	if err := pdb.SavePhaseTemplate(pt); err != nil {
 		t.Fatalf("SavePhaseTemplate failed: %v", err)
@@ -160,15 +158,14 @@ func TestWorkflowPhaseDuplicateSequenceAllowed(t *testing.T) {
 	// Create two phase templates
 	for _, id := range []string{"dup-seq-1", "dup-seq-2"} {
 		pt := &PhaseTemplate{
-			ID:            id,
-			Name:          id,
-			PromptSource:  "embedded",
-			PromptPath:    "prompts/p.md",
-			MaxIterations: 10,
-			GateType:      "auto",
-			IsBuiltin:     false,
-			CreatedAt:     now,
-			UpdatedAt:     now,
+			ID:           id,
+			Name:         id,
+			PromptSource: "embedded",
+			PromptPath:   "prompts/p.md",
+			GateType:     "auto",
+			IsBuiltin:    false,
+			CreatedAt:    now,
+			UpdatedAt:    now,
 		}
 		if err := pdb.SavePhaseTemplate(pt); err != nil {
 			t.Fatalf("SavePhaseTemplate %s failed: %v", id, err)
@@ -231,15 +228,14 @@ func TestUpdateWorkflowPhasePositions(t *testing.T) {
 	// Create two phase templates
 	for _, id := range []string{"bulk-pos-1", "bulk-pos-2"} {
 		pt := &PhaseTemplate{
-			ID:            id,
-			Name:          id,
-			PromptSource:  "embedded",
-			PromptPath:    "prompts/p.md",
-			MaxIterations: 10,
-			GateType:      "auto",
-			IsBuiltin:     false,
-			CreatedAt:     now,
-			UpdatedAt:     now,
+			ID:           id,
+			Name:         id,
+			PromptSource: "embedded",
+			PromptPath:   "prompts/p.md",
+			GateType:     "auto",
+			IsBuiltin:    false,
+			CreatedAt:    now,
+			UpdatedAt:    now,
 		}
 		if err := pdb.SavePhaseTemplate(pt); err != nil {
 			t.Fatalf("SavePhaseTemplate %s failed: %v", id, err)

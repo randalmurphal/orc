@@ -32,7 +32,7 @@ fi
 # Parse markdown frontmatter (YAML between ---) and extract values
 FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$RALPH_STATE_FILE")
 ITERATION=$(echo "$FRONTMATTER" | grep '^iteration:' | sed 's/iteration: *//')
-MAX_ITERATIONS=$(echo "$FRONTMATTER" | grep '^max_iterations:' | sed 's/max_iterations: *//')
+MAX_TURNS=$(echo "$FRONTMATTER" | grep '^max_turns:' | sed 's/max_turns: *//')
 # Extract completion_promise and strip surrounding quotes if present
 COMPLETION_PROMISE=$(echo "$FRONTMATTER" | grep '^completion_promise:' | sed 's/completion_promise: *//' | sed 's/^"\(.*\)"$/\1/')
 
@@ -43,15 +43,15 @@ if [[ ! "$ITERATION" =~ ^[0-9]+$ ]]; then
     exit 0
 fi
 
-if [[ ! "$MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
-    echo "orc: Ralph loop state corrupted (invalid max_iterations: '$MAX_ITERATIONS')" >&2
+if [[ ! "$MAX_TURNS" =~ ^[0-9]+$ ]]; then
+    echo "orc: Ralph loop state corrupted (invalid max_turns: '$MAX_TURNS')" >&2
     rm "$RALPH_STATE_FILE"
     exit 0
 fi
 
-# Check if max iterations reached
-if [[ $MAX_ITERATIONS -gt 0 ]] && [[ $ITERATION -ge $MAX_ITERATIONS ]]; then
-    echo "orc: Max iterations ($MAX_ITERATIONS) reached for this phase."
+# Check if max turns reached
+if [[ $MAX_TURNS -gt 0 ]] && [[ $ITERATION -ge $MAX_TURNS ]]; then
+    echo "orc: Max turns ($MAX_TURNS) reached for this phase."
     rm "$RALPH_STATE_FILE"
     exit 0
 fi

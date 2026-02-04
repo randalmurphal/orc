@@ -624,28 +624,6 @@ describe('layoutWorkflow', () => {
 			expect(phaseNode!.data).toHaveProperty('gateType', GateType.HUMAN);
 		});
 
-		it('computes effective maxIterations from override', () => {
-			const details = createMockWorkflowWithDetails({
-				phases: [
-					createMockWorkflowPhase({
-						id: 1,
-						phaseTemplateId: 'implement',
-						sequence: 1,
-						maxIterationsOverride: 5,
-						template: createMockPhaseTemplate({
-							id: 'implement',
-							maxIterations: 3,
-						}),
-					}),
-				],
-			});
-
-			const result = layoutWorkflow(details);
-
-			const phaseNode = result.nodes.find((n) => n.type === 'phase');
-			expect(phaseNode!.data).toHaveProperty('maxIterations', 5);
-		});
-
 		it('includes agentId when set on template', () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
@@ -655,7 +633,7 @@ describe('layoutWorkflow', () => {
 						sequence: 1,
 						template: createMockPhaseTemplate({
 							id: 'implement',
-							agentId: 'claude-opus-4',
+							agentId: 'opus',
 						}),
 					}),
 				],
@@ -664,7 +642,7 @@ describe('layoutWorkflow', () => {
 			const result = layoutWorkflow(details);
 
 			const phaseNode = result.nodes.find((n) => n.type === 'phase');
-			expect(phaseNode!.data).toHaveProperty('agentId', 'claude-opus-4');
+			expect(phaseNode!.data).toHaveProperty('agentId', 'opus');
 		});
 
 		it('does not include agentId when not set', () => {
@@ -694,14 +672,12 @@ describe('layoutWorkflow', () => {
 						phaseTemplateId: 'review',
 						sequence: 5,
 						gateTypeOverride: GateType.HUMAN,
-						maxIterationsOverride: 10,
 						template: createMockPhaseTemplate({
 							id: 'review',
 							name: 'Code Review',
 							description: 'Multi-agent review',
 							gateType: GateType.AUTO,
-							maxIterations: 3,
-							agentId: 'claude-opus-4',
+							agentId: 'opus',
 						}),
 					}),
 				],
@@ -718,8 +694,7 @@ describe('layoutWorkflow', () => {
 			expect(data.sequence).toBe(5);
 			expect(data.phaseId).toBe(42);
 			expect(data.gateType).toBe(GateType.HUMAN);
-			expect(data.maxIterations).toBe(10);
-			expect(data.agentId).toBe('claude-opus-4');
+			expect(data.agentId).toBe('opus');
 		});
 	});
 });

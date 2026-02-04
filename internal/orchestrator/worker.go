@@ -154,7 +154,7 @@ func (w *Worker) run(pool *WorkerPool, t *orcv1.Task, pln *executor.Plan) {
 		// Create ralph state file in worktree
 		mgr := executor.NewRalphStateManager(w.WorktreePath)
 		err = mgr.Create(t.Id, currentPhase.ID, phasePrompt,
-			executor.WithMaxIterations(30),
+			executor.WithMaxTurns(30),
 			executor.WithCompletionPromise("PHASE_COMPLETE"),
 		)
 		if err != nil {

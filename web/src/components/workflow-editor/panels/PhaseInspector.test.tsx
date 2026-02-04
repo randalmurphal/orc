@@ -191,7 +191,6 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 			expect(screen.getByTestId('phase-name')).toBeInTheDocument();
 			expect(screen.getByLabelText(/executor/i)).toBeInTheDocument();
 			expect(screen.getByLabelText(/model/i)).toBeInTheDocument();
-			expect(screen.getByLabelText(/max iterations/i)).toBeInTheDocument();
 		});
 	});
 
@@ -273,13 +272,13 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 			);
 
 			const modelSelect = screen.getByLabelText(/model/i);
-			await userEvent.selectOptions(modelSelect, 'claude-sonnet-4-20250514');
+			await userEvent.selectOptions(modelSelect, 'sonnet');
 
 			await waitFor(
 				() => {
 					expect(mockUpdatePhase).toHaveBeenCalledWith(
 						expect.objectContaining({
-							modelOverride: 'claude-sonnet-4-20250514',
+							modelOverride: 'sonnet',
 						})
 					);
 				},
@@ -403,90 +402,6 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 		});
 	});
 
-	describe('SC-4: Validates max iterations (1-20 range)', () => {
-		it('shows error for max iterations below 1', async () => {
-			vi.useRealTimers();
-			const phase = createMockWorkflowPhase({
-				template: createMockPhaseTemplate({ name: 'implement', maxIterations: 3 }),
-			});
-
-			render(
-				<PhaseInspector
-					phase={phase}
-					workflowDetails={{ ...defaultWorkflowDetails, phases: [phase] }}
-					readOnly={false}
-					onWorkflowRefresh={vi.fn()}
-				/>
-			);
-
-			const iterationsInput = screen.getByLabelText(/max iterations/i) as HTMLInputElement;
-			await userEvent.clear(iterationsInput);
-			await userEvent.type(iterationsInput, '0');
-			fireEvent.blur(iterationsInput);
-
-			await waitFor(() => {
-				expect(screen.getByText(/must be between 1 and 20/i)).toBeInTheDocument();
-			});
-		});
-
-		it('shows error for max iterations above 20', async () => {
-			vi.useRealTimers();
-			const phase = createMockWorkflowPhase({
-				template: createMockPhaseTemplate({ name: 'implement', maxIterations: 3 }),
-			});
-
-			render(
-				<PhaseInspector
-					phase={phase}
-					workflowDetails={{ ...defaultWorkflowDetails, phases: [phase] }}
-					readOnly={false}
-					onWorkflowRefresh={vi.fn()}
-				/>
-			);
-
-			const iterationsInput = screen.getByLabelText(/max iterations/i);
-			await userEvent.clear(iterationsInput);
-			await userEvent.type(iterationsInput, '25');
-			fireEvent.blur(iterationsInput);
-
-			await waitFor(() => {
-				expect(screen.getByText(/must be between 1 and 20/i)).toBeInTheDocument();
-			});
-		});
-
-		it('accepts valid max iterations value', async () => {
-			vi.useRealTimers();
-			const phase = createMockWorkflowPhase({
-				template: createMockPhaseTemplate({ name: 'implement', maxIterations: 3 }),
-			});
-
-			render(
-				<PhaseInspector
-					phase={phase}
-					workflowDetails={{ ...defaultWorkflowDetails, phases: [phase] }}
-					readOnly={false}
-					onWorkflowRefresh={vi.fn()}
-				/>
-			);
-
-			const iterationsInput = screen.getByLabelText(/max iterations/i);
-			await userEvent.clear(iterationsInput);
-			await userEvent.type(iterationsInput, '10');
-			fireEvent.blur(iterationsInput);
-
-			await waitFor(() => {
-				expect(mockUpdatePhase).toHaveBeenCalledWith(
-					expect.objectContaining({
-						maxIterationsOverride: 10,
-					})
-				);
-			});
-
-			// Should not show error
-			expect(screen.queryByText(/must be between/i)).not.toBeInTheDocument();
-		});
-	});
-
 	describe('SC-5: Shows read-only notice for built-in templates', () => {
 		it('displays read-only notice for built-in template', async () => {
 			const phase = createMockWorkflowPhase({
@@ -526,7 +441,6 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 				expect(screen.getByLabelText(/executor/i)).toBeDisabled();
 			});
 			expect(screen.getByLabelText(/model/i)).toBeDisabled();
-			expect(screen.getByLabelText(/max iterations/i)).toBeDisabled();
 		});
 	});
 
@@ -660,7 +574,7 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 			);
 
 			const modelSelect = screen.getByLabelText(/model/i);
-			await userEvent.selectOptions(modelSelect, 'claude-sonnet-4-20250514');
+			await userEvent.selectOptions(modelSelect, 'sonnet');
 
 			await waitFor(() => {
 				expect(screen.getByText(/save failed/i)).toBeInTheDocument();

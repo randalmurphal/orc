@@ -97,32 +97,6 @@ describe('TaskFooter', () => {
 			expect(screen.getByText(/\$1\.96/)).toBeInTheDocument();
 		});
 
-		it('displays iteration count when available', () => {
-			const task = createMockTask({ status: TaskStatus.RUNNING });
-			const plan = createMockTaskPlan({
-				phases: [
-					createMockPhase({
-						id: 'phase-1',
-						name: 'implement',
-						status: PhaseStatus.PENDING,
-						iterations: 2,
-					}),
-				],
-			});
-
-			render(
-				<TaskFooter
-					task={task}
-					plan={plan}
-					metrics={{ tokens: 45200, cost: 1.96 }}
-					currentIteration={2}
-					maxIterations={10}
-				/>
-			);
-
-			expect(screen.getByText(/2\/10/)).toBeInTheDocument();
-		});
-
 		it('displays placeholder when metrics are unavailable', () => {
 			const task = createMockTask({ status: TaskStatus.RUNNING });
 

@@ -11,7 +11,7 @@ import (
 var EnvVarMapping = map[string]string{
 	"ORC_PROFILE":              "profile",
 	"ORC_MODEL":                "model",
-	"ORC_MAX_ITERATIONS":       "max_iterations",
+	"ORC_MAX_TURNS": "max_turns",
 	"ORC_TIMEOUT":              "timeout",
 	"ORC_CLAUDE_PATH":          "claude_path",
 	"ORC_RETRY_ENABLED":        "retry.enabled",
@@ -102,9 +102,9 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 		cfg.Profile = AutomationProfile(value)
 	case "model":
 		cfg.Model = value
-	case "max_iterations":
+	case "max_turns":
 		if v, err := strconv.Atoi(value); err == nil {
-			cfg.MaxIterations = v
+			cfg.MaxTurns = v
 		}
 	case "timeout":
 		if d, err := time.ParseDuration(value); err == nil {

@@ -354,7 +354,6 @@ export function createMockPhaseTemplate(overrides: Partial<Omit<PhaseTemplate, '
 		promptSource: PromptSource.FILE,
 		inputVariables: [],
 		producesArtifact: false,
-		maxIterations: 3,
 		gateType: GateType.AUTO,
 		checkpoint: false,
 		isBuiltin: true,

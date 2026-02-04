@@ -32,12 +32,12 @@ func setupTranscriptTest(t *testing.T) *ProjectDB {
 	// Create sample transcripts
 	baseTime := time.Now().Add(-1 * time.Hour)
 	transcripts := []Transcript{
-		{TaskID: "TASK-001", Phase: "spec", SessionID: "sess1", MessageUUID: "msg1", Type: "assistant", Role: "assistant", Content: "Spec message 1", Model: "claude-3-5-sonnet-20241022", Timestamp: baseTime},
-		{TaskID: "TASK-001", Phase: "spec", SessionID: "sess1", MessageUUID: "msg2", Type: "assistant", Role: "assistant", Content: "Spec message 2", Model: "claude-3-5-sonnet-20241022", Timestamp: baseTime.Add(1 * time.Minute)},
-		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess1", MessageUUID: "msg3", Type: "assistant", Role: "assistant", Content: "Implement message 1", Model: "claude-3-5-sonnet-20241022", Timestamp: baseTime.Add(2 * time.Minute)},
-		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess1", MessageUUID: "msg4", Type: "assistant", Role: "assistant", Content: "Implement message 2", Model: "claude-3-5-sonnet-20241022", Timestamp: baseTime.Add(3 * time.Minute)},
-		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess1", MessageUUID: "msg5", Type: "assistant", Role: "assistant", Content: "Implement message 3", Model: "claude-3-5-sonnet-20241022", Timestamp: baseTime.Add(4 * time.Minute)},
-		{TaskID: "TASK-001", Phase: "review", SessionID: "sess1", MessageUUID: "msg6", Type: "assistant", Role: "assistant", Content: "Review message 1", Model: "claude-3-5-sonnet-20241022", Timestamp: baseTime.Add(5 * time.Minute)},
+		{TaskID: "TASK-001", Phase: "spec", SessionID: "sess1", MessageUUID: "msg1", Type: "assistant", Role: "assistant", Content: "Spec message 1", Model: "sonnet", Timestamp: baseTime},
+		{TaskID: "TASK-001", Phase: "spec", SessionID: "sess1", MessageUUID: "msg2", Type: "assistant", Role: "assistant", Content: "Spec message 2", Model: "sonnet", Timestamp: baseTime.Add(1 * time.Minute)},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess1", MessageUUID: "msg3", Type: "assistant", Role: "assistant", Content: "Implement message 1", Model: "sonnet", Timestamp: baseTime.Add(2 * time.Minute)},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess1", MessageUUID: "msg4", Type: "assistant", Role: "assistant", Content: "Implement message 2", Model: "sonnet", Timestamp: baseTime.Add(3 * time.Minute)},
+		{TaskID: "TASK-001", Phase: "implement", SessionID: "sess1", MessageUUID: "msg5", Type: "assistant", Role: "assistant", Content: "Implement message 3", Model: "sonnet", Timestamp: baseTime.Add(4 * time.Minute)},
+		{TaskID: "TASK-001", Phase: "review", SessionID: "sess1", MessageUUID: "msg6", Type: "assistant", Role: "assistant", Content: "Review message 1", Model: "sonnet", Timestamp: baseTime.Add(5 * time.Minute)},
 	}
 
 	for i := range transcripts {
@@ -78,7 +78,7 @@ func TestGetTranscriptsPaginated_DefaultLimit(t *testing.T) {
 			Type:        "assistant",
 			Role:        "assistant",
 			Content:     "Message",
-			Model:       "claude-3-5-sonnet-20241022",
+			Model:       "sonnet",
 			Timestamp:   baseTime.Add(time.Duration(i) * time.Minute),
 		}
 		if err := db.AddTranscript(&transcript); err != nil {
@@ -376,7 +376,7 @@ func TestGetTranscriptsPaginated_Performance(t *testing.T) {
 			Type:        "assistant",
 			Role:        "assistant",
 			Content:     "Message content",
-			Model:       "claude-3-5-sonnet-20241022",
+			Model:       "sonnet",
 			Timestamp:   baseTime.Add(time.Duration(i) * time.Second),
 		}
 		if err := db.AddTranscript(&transcript); err != nil {
@@ -446,7 +446,7 @@ func TestGetTranscriptsPaginated_IndexUsage(t *testing.T) {
 			Type:        "assistant",
 			Role:        "assistant",
 			Content:     "Message",
-			Model:       "claude-3-5-sonnet-20241022",
+			Model:       "sonnet",
 			Timestamp:   baseTime.Add(time.Duration(i) * time.Second),
 		}
 		if err := db.AddTranscript(&transcript); err != nil {

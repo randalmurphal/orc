@@ -211,7 +211,7 @@ orc config profile safe  # Set default
 
 ```bash
 ORC_PROFILE=strict
-ORC_MODEL=claude-opus-4-5-20251101  # Default, recommended
+ORC_MODEL=opus  # Short names: opus, sonnet, haiku
 ORC_GATES_DEFAULT=human
 ORC_WORKTREE_ENABLED=false
 ORC_RETRY_ENABLED=false

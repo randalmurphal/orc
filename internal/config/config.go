@@ -173,8 +173,8 @@ type Config struct {
 	FallbackModel string `yaml:"fallback_model,omitempty"`
 
 	// Execution settings
-	MaxIterations int           `yaml:"max_iterations"`
-	Timeout       time.Duration `yaml:"timeout"`
+	MaxTurns int           `yaml:"max_turns"` // Claude CLI turn limit (default 150)
+	Timeout  time.Duration `yaml:"timeout"`
 
 	// Git settings
 	BranchPrefix string `yaml:"branch_prefix"`

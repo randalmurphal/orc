@@ -22,8 +22,8 @@ type PhaseExecutor interface {
 
 // ExecutorConfig provides weight-specific execution configuration.
 type ExecutorConfig struct {
-	// MaxIterations limits the number of LLM turns per phase.
-	MaxIterations int
+	// MaxTurns limits the number of LLM turns per phase.
+	MaxTurns int
 
 	// CheckpointInterval determines how often to save state.
 	// 0 = only on phase complete, 1 = every iteration.
@@ -67,7 +67,7 @@ func DefaultConfigForWeight(weight orcv1.TaskWeight) ExecutorConfig {
 	switch weight {
 	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
 		return ExecutorConfig{
-			MaxIterations:      5,
+			MaxTurns:      50,
 			CheckpointInterval: 0,
 			SessionPersistence: false,
 			TurnTimeout:        5 * time.Minute, // Shorter timeout for trivial tasks
@@ -76,7 +76,7 @@ func DefaultConfigForWeight(weight orcv1.TaskWeight) ExecutorConfig {
 		}
 	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
 		return ExecutorConfig{
-			MaxIterations:      10,
+			MaxTurns:      100,
 			CheckpointInterval: 0,
 			SessionPersistence: false,
 			TurnTimeout:        baseTurnTimeout,
@@ -85,7 +85,7 @@ func DefaultConfigForWeight(weight orcv1.TaskWeight) ExecutorConfig {
 		}
 	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
 		return ExecutorConfig{
-			MaxIterations:      20,
+			MaxTurns:      150,
 			CheckpointInterval: 0,
 			SessionPersistence: false,
 			TurnTimeout:        baseTurnTimeout,
@@ -94,7 +94,7 @@ func DefaultConfigForWeight(weight orcv1.TaskWeight) ExecutorConfig {
 		}
 	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
 		return ExecutorConfig{
-			MaxIterations:      30,
+			MaxTurns:      250,
 			CheckpointInterval: 1,
 			SessionPersistence: true,
 			TurnTimeout:        15 * time.Minute, // Longer for large tasks
@@ -104,7 +104,7 @@ func DefaultConfigForWeight(weight orcv1.TaskWeight) ExecutorConfig {
 	default:
 		// Default to medium config
 		return ExecutorConfig{
-			MaxIterations:      20,
+			MaxTurns:      150,
 			CheckpointInterval: 0,
 			SessionPersistence: false,
 			TurnTimeout:        baseTurnTimeout,

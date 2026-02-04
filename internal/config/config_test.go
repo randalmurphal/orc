@@ -38,8 +38,8 @@ func TestDefault(t *testing.T) {
 		t.Error("Model is empty")
 	}
 
-	if cfg.MaxIterations <= 0 {
-		t.Errorf("MaxIterations = %d, want > 0", cfg.MaxIterations)
+	if cfg.MaxTurns <= 0 {
+		t.Errorf("MaxTurns = %d, want > 0", cfg.MaxTurns)
 	}
 
 	if cfg.Timeout <= 0 {
@@ -167,7 +167,7 @@ func TestSaveAndLoad(t *testing.T) {
 	// Create and save config
 	cfg := Default()
 	cfg.Model = "test-model"
-	cfg.MaxIterations = 50
+	cfg.MaxTurns = 50
 	cfg.Timeout = 15 * time.Minute
 
 	err := cfg.SaveTo(configPath)
@@ -185,8 +185,8 @@ func TestSaveAndLoad(t *testing.T) {
 		t.Errorf("loaded Model = %s, want %s", loaded.Model, cfg.Model)
 	}
 
-	if loaded.MaxIterations != cfg.MaxIterations {
-		t.Errorf("loaded MaxIterations = %d, want %d", loaded.MaxIterations, cfg.MaxIterations)
+	if loaded.MaxTurns != cfg.MaxTurns {
+		t.Errorf("loaded MaxTurns = %d, want %d", loaded.MaxTurns, cfg.MaxTurns)
 	}
 
 	if loaded.Timeout != cfg.Timeout {
