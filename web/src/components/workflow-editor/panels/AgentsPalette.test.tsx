@@ -49,6 +49,11 @@ const mockSelectNode = vi.fn();
 const mockOnAgentClick = vi.fn();
 const mockOnAgentAssign = vi.fn();
 
+// Helper to create properly typed mock response
+function mockAgentsResponse(agents: Agent[]) {
+	return { agents, $typeName: 'orc.v1.ListAgentsResponse' as const };
+}
+
 // Helper to create mock agent data
 function createMockAgent(overrides: Partial<Agent> = {}): Agent {
 	return {
@@ -79,7 +84,7 @@ describe('AgentsPalette', () => {
 	describe('API Integration (SC-2)', () => {
 		it('fetches agents from API on mount', async () => {
 			const mockAgents = [createMockAgent()];
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: mockAgents });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse(mockAgents));
 
 			render(
 				<AgentsPalette
@@ -130,11 +135,11 @@ describe('AgentsPalette', () => {
 	describe('Loading State (SC-3)', () => {
 		it('shows loading indicator while fetching agents', async () => {
 			// Create a promise that doesn't resolve immediately
-			let resolvePromise: (value: { agents: Agent[] }) => void;
-			const pendingPromise = new Promise<{ agents: Agent[] }>((resolve) => {
+			let resolvePromise: (value: { agents: Agent[]; $typeName: 'orc.v1.ListAgentsResponse' }) => void;
+			const pendingPromise = new Promise<{ agents: Agent[]; $typeName: 'orc.v1.ListAgentsResponse' }>((resolve) => {
 				resolvePromise = resolve;
 			});
-			vi.mocked(configClient.listAgents).mockReturnValue(pendingPromise);
+			vi.mocked(configClient.listAgents).mockReturnValue(pendingPromise as never);
 
 			render(
 				<AgentsPalette
@@ -147,7 +152,7 @@ describe('AgentsPalette', () => {
 			expect(screen.getByText(/loading agents/i)).toBeInTheDocument();
 
 			// Resolve the promise
-			resolvePromise!({ agents: [createMockAgent()] });
+			resolvePromise!(mockAgentsResponse([createMockAgent()]));
 
 			// Wait for loading to complete
 			await waitFor(() => {
@@ -156,11 +161,11 @@ describe('AgentsPalette', () => {
 		});
 
 		it('has accessible loading state with aria-busy', async () => {
-			let resolvePromise: (value: { agents: Agent[] }) => void;
-			const pendingPromise = new Promise<{ agents: Agent[] }>((resolve) => {
+			let resolvePromise: (value: { agents: Agent[]; $typeName: 'orc.v1.ListAgentsResponse' }) => void;
+			const pendingPromise = new Promise<{ agents: Agent[]; $typeName: 'orc.v1.ListAgentsResponse' }>((resolve) => {
 				resolvePromise = resolve;
 			});
-			vi.mocked(configClient.listAgents).mockReturnValue(pendingPromise);
+			vi.mocked(configClient.listAgents).mockReturnValue(pendingPromise as never);
 
 			render(
 				<AgentsPalette
@@ -172,7 +177,7 @@ describe('AgentsPalette', () => {
 			const palette = screen.getByTestId('agents-palette');
 			expect(palette).toHaveAttribute('aria-busy', 'true');
 
-			resolvePromise!({ agents: [] });
+			resolvePromise!(mockAgentsResponse([]));
 
 			await waitFor(() => {
 				expect(palette).toHaveAttribute('aria-busy', 'false');
@@ -193,9 +198,7 @@ describe('AgentsPalette', () => {
 				name: 'My Personal Agent',
 				isBuiltin: false,
 			});
-			vi.mocked(configClient.listAgents).mockResolvedValue({
-				agents: [builtinAgent, customAgent],
-			});
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([builtinAgent, customAgent]));
 
 			render(
 				<AgentsPalette
@@ -221,9 +224,7 @@ describe('AgentsPalette', () => {
 				name: 'Test Writer',
 				isBuiltin: true,
 			});
-			vi.mocked(configClient.listAgents).mockResolvedValue({
-				agents: [builtinAgent1, builtinAgent2],
-			});
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([builtinAgent1, builtinAgent2]));
 
 			render(
 				<AgentsPalette
@@ -250,9 +251,7 @@ describe('AgentsPalette', () => {
 				name: 'My Agent 2',
 				isBuiltin: false,
 			});
-			vi.mocked(configClient.listAgents).mockResolvedValue({
-				agents: [customAgent1, customAgent2],
-			});
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([customAgent1, customAgent2]));
 
 			render(
 				<AgentsPalette
@@ -275,9 +274,7 @@ describe('AgentsPalette', () => {
 				name: 'My Custom Agent',
 				isBuiltin: false,
 			});
-			vi.mocked(configClient.listAgents).mockResolvedValue({
-				agents: [customAgent],
-			});
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([customAgent]));
 
 			render(
 				<AgentsPalette
@@ -293,7 +290,7 @@ describe('AgentsPalette', () => {
 		});
 
 		it('shows empty state when no agents exist', async () => {
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([]));
 
 			render(
 				<AgentsPalette
@@ -312,7 +309,7 @@ describe('AgentsPalette', () => {
 	describe('Agent Card Display (SC-5)', () => {
 		it('displays agent name', async () => {
 			const agent = createMockAgent({ name: 'Code Reviewer Agent' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -328,7 +325,7 @@ describe('AgentsPalette', () => {
 
 		it('displays agent description', async () => {
 			const agent = createMockAgent({ description: 'Reviews code for bugs' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -346,7 +343,7 @@ describe('AgentsPalette', () => {
 			const longDescription =
 				'This is a very long description that should be truncated because it exceeds the maximum allowed length for display in the compact agent card view within the palette';
 			const agent = createMockAgent({ description: longDescription });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -364,7 +361,7 @@ describe('AgentsPalette', () => {
 
 		it('displays agent icon', async () => {
 			const agent = createMockAgent({ id: 'agent-1', name: 'Test Agent' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -382,7 +379,7 @@ describe('AgentsPalette', () => {
 
 		it('handles missing description gracefully', async () => {
 			const agent = createMockAgent({ description: '' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -403,7 +400,7 @@ describe('AgentsPalette', () => {
 		it('calls onAgentClick when clicking agent with no phase selected', async () => {
 			mockSelectedNodeId = null; // No phase selected
 			const agent = createMockAgent({ id: 'agent-1', name: 'Test Agent' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -426,7 +423,7 @@ describe('AgentsPalette', () => {
 		it('does not call onAgentAssign when no phase is selected', async () => {
 			mockSelectedNodeId = null;
 			const agent = createMockAgent({ id: 'agent-1' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -450,7 +447,7 @@ describe('AgentsPalette', () => {
 		it('calls onAgentAssign when clicking agent with phase selected', async () => {
 			mockSelectedNodeId = 'phase-node-1'; // Phase is selected
 			const agent = createMockAgent({ id: 'agent-1', name: 'Test Agent' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -473,7 +470,7 @@ describe('AgentsPalette', () => {
 		it('does not call onAgentClick when phase is selected', async () => {
 			mockSelectedNodeId = 'phase-node-1';
 			const agent = createMockAgent({ id: 'agent-1' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -495,7 +492,7 @@ describe('AgentsPalette', () => {
 		it('shows visual indicator that clicking will assign agent when phase is selected', async () => {
 			mockSelectedNodeId = 'phase-node-1';
 			const agent = createMockAgent({ id: 'agent-1' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -516,9 +513,7 @@ describe('AgentsPalette', () => {
 	// ─── SC-8: Section is collapsible ─────────────────────────────────────────
 	describe('Collapsible Section (SC-8)', () => {
 		it('renders as a collapsible section', async () => {
-			vi.mocked(configClient.listAgents).mockResolvedValue({
-				agents: [createMockAgent()],
-			});
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([createMockAgent()]));
 
 			render(
 				<AgentsPalette
@@ -534,9 +529,7 @@ describe('AgentsPalette', () => {
 		});
 
 		it('starts expanded by default', async () => {
-			vi.mocked(configClient.listAgents).mockResolvedValue({
-				agents: [createMockAgent()],
-			});
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([createMockAgent()]));
 
 			render(
 				<AgentsPalette
@@ -552,9 +545,7 @@ describe('AgentsPalette', () => {
 		});
 
 		it('collapses when header is clicked', async () => {
-			vi.mocked(configClient.listAgents).mockResolvedValue({
-				agents: [createMockAgent({ name: 'Visible Agent' })],
-			});
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([createMockAgent({ name: 'Visible Agent' })]));
 
 			render(
 				<AgentsPalette
@@ -579,9 +570,7 @@ describe('AgentsPalette', () => {
 		});
 
 		it('expands when collapsed header is clicked', async () => {
-			vi.mocked(configClient.listAgents).mockResolvedValue({
-				agents: [createMockAgent({ name: 'Hidden Agent' })],
-			});
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([createMockAgent({ name: 'Hidden Agent' })]));
 
 			render(
 				<AgentsPalette
@@ -606,9 +595,7 @@ describe('AgentsPalette', () => {
 		});
 
 		it('shows chevron indicator matching expanded state', async () => {
-			vi.mocked(configClient.listAgents).mockResolvedValue({
-				agents: [createMockAgent()],
-			});
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([createMockAgent()]));
 
 			render(
 				<AgentsPalette
@@ -638,7 +625,7 @@ describe('AgentsPalette', () => {
 	describe('Keyboard Accessibility', () => {
 		it('agent cards are focusable', async () => {
 			const agent = createMockAgent({ id: 'agent-1' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -656,7 +643,7 @@ describe('AgentsPalette', () => {
 		it('activates agent on Enter key', async () => {
 			mockSelectedNodeId = null;
 			const agent = createMockAgent({ id: 'agent-1' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -679,7 +666,7 @@ describe('AgentsPalette', () => {
 		it('activates agent on Space key', async () => {
 			mockSelectedNodeId = null;
 			const agent = createMockAgent({ id: 'agent-1' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -704,7 +691,7 @@ describe('AgentsPalette', () => {
 	describe('Read-Only Mode', () => {
 		it('disables interaction when readOnly is true', async () => {
 			const agent = createMockAgent({ id: 'agent-1' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
@@ -728,7 +715,7 @@ describe('AgentsPalette', () => {
 
 		it('shows visual indication of read-only state', async () => {
 			const agent = createMockAgent({ id: 'agent-1' });
-			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [agent] });
+			vi.mocked(configClient.listAgents).mockResolvedValue(mockAgentsResponse([agent]));
 
 			render(
 				<AgentsPalette
