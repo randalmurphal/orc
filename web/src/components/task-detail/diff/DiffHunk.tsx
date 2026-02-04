@@ -1,9 +1,19 @@
-import { Fragment } from 'react';
+import { Fragment, useState, useCallback } from 'react';
 import { InlineCommentThread } from './InlineCommentThread';
+import { FeedbackIndicator } from './FeedbackIndicator';
+import { FeedbackType, FeedbackTiming, type Feedback } from '@/gen/orc/v1/feedback_pb';
 import type { DiffHunk as Hunk, DiffLine } from '@/gen/orc/v1/common_pb';
 import type { ReviewComment } from '@/gen/orc/v1/task_pb';
 import type { CreateCommentRequest } from './types';
 import './DiffHunk.css';
+
+interface InlineFeedbackInput {
+	type: FeedbackType;
+	text: string;
+	timing: FeedbackTiming;
+	file: string;
+	line: number;
+}
 
 interface DiffHunkProps {
 	hunk: Hunk;
@@ -17,6 +27,9 @@ interface DiffHunkProps {
 	onWontFixComment: (id: string) => void;
 	onDeleteComment: (id: string) => void;
 	onCloseThread: () => void;
+	// New props for inline feedback
+	inlineFeedback?: Feedback[];
+	onAddInlineFeedback?: (input: InlineFeedbackInput) => Promise<void>;
 }
 
 export function DiffHunk({
@@ -31,7 +44,61 @@ export function DiffHunk({
 	onWontFixComment,
 	onDeleteComment,
 	onCloseThread,
+	inlineFeedback = [],
+	onAddInlineFeedback,
 }: DiffHunkProps) {
+	// Track which line has the feedback input open
+	const [feedbackInputLine, setFeedbackInputLine] = useState<number | null>(null);
+	// Track which line is being hovered
+	const [hoveredLine, setHoveredLine] = useState<number | null>(null);
+
+	// Get feedback for a specific line
+	const getFeedbackForLine = useCallback(
+		(lineNumber: number | undefined) => {
+			if (!lineNumber) return [];
+			return inlineFeedback.filter((f) => f.file === filePath && f.line === lineNumber);
+		},
+		[inlineFeedback, filePath]
+	);
+
+	// Handle opening feedback input
+	const handleOpenFeedbackInput = useCallback((lineNumber: number) => {
+		setFeedbackInputLine(lineNumber);
+	}, []);
+
+	// Handle closing feedback input
+	const handleCloseFeedbackInput = useCallback(() => {
+		setFeedbackInputLine(null);
+	}, []);
+
+	// Handle submitting feedback
+	const handleSubmitFeedback = useCallback(
+		async (text: string, lineNumber: number) => {
+			if (!onAddInlineFeedback || !text.trim()) return;
+
+			await onAddInlineFeedback({
+				type: FeedbackType.INLINE,
+				text: text.trim(),
+				timing: FeedbackTiming.WHEN_DONE,
+				file: filePath,
+				line: lineNumber,
+			});
+
+			setFeedbackInputLine(null);
+		},
+		[onAddInlineFeedback, filePath]
+	);
+
+	// Check if hunk is binary (no line-level content)
+	const isBinary = (hunk as unknown as { binary?: boolean }).binary;
+	if (isBinary) {
+		return (
+			<div className="diff-hunk">
+				<div className="hunk-header">Binary file</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="diff-hunk">
 			{/* Hunk Header */}
@@ -53,6 +120,13 @@ export function DiffHunk({
 						onWontFixComment={onWontFixComment}
 						onDeleteComment={onDeleteComment}
 						onCloseThread={onCloseThread}
+						getFeedbackForLine={getFeedbackForLine}
+						hoveredLine={hoveredLine}
+						setHoveredLine={setHoveredLine}
+						feedbackInputLine={feedbackInputLine}
+						onOpenFeedbackInput={handleOpenFeedbackInput}
+						onCloseFeedbackInput={handleCloseFeedbackInput}
+						onSubmitFeedback={handleSubmitFeedback}
 					/>
 				) : (
 					<UnifiedView
@@ -66,6 +140,13 @@ export function DiffHunk({
 						onWontFixComment={onWontFixComment}
 						onDeleteComment={onDeleteComment}
 						onCloseThread={onCloseThread}
+						getFeedbackForLine={getFeedbackForLine}
+						hoveredLine={hoveredLine}
+						setHoveredLine={setHoveredLine}
+						feedbackInputLine={feedbackInputLine}
+						onOpenFeedbackInput={handleOpenFeedbackInput}
+						onCloseFeedbackInput={handleCloseFeedbackInput}
+						onSubmitFeedback={handleSubmitFeedback}
 					/>
 				)}
 			</div>
@@ -73,7 +154,7 @@ export function DiffHunk({
 	);
 }
 
-// Split View (side-by-side)
+// Shared view props
 interface ViewProps {
 	hunk: Hunk;
 	filePath: string;
@@ -85,8 +166,134 @@ interface ViewProps {
 	onWontFixComment: (id: string) => void;
 	onDeleteComment: (id: string) => void;
 	onCloseThread: () => void;
+	getFeedbackForLine: (lineNumber: number | undefined) => Feedback[];
+	hoveredLine: number | null;
+	setHoveredLine: (line: number | null) => void;
+	feedbackInputLine: number | null;
+	onOpenFeedbackInput: (lineNumber: number) => void;
+	onCloseFeedbackInput: () => void;
+	onSubmitFeedback: (text: string, lineNumber: number) => Promise<void>;
 }
 
+// Line Number Cell with hover "+" button and feedback indicator
+interface LineNumberCellProps {
+	lineNumber: number | undefined;
+	side: 'old' | 'new';
+	feedback: Feedback[];
+	isHovered: boolean;
+	onHover: () => void;
+	onUnhover: () => void;
+	onAddClick: () => void;
+}
+
+function LineNumberCell({
+	lineNumber,
+	side,
+	feedback,
+	isHovered,
+	onHover,
+	onUnhover,
+	onAddClick,
+}: LineNumberCellProps) {
+	const hasFeedback = feedback.length > 0;
+
+	return (
+		<td
+			className={`line-number ${side}`}
+			onMouseEnter={onHover}
+			onMouseLeave={onUnhover}
+		>
+			{lineNumber ?? ''}
+			{isHovered && lineNumber && (
+				<button
+					type="button"
+					className="add-feedback-button"
+					onClick={(e) => {
+						e.stopPropagation();
+						onAddClick();
+					}}
+					aria-label="Add feedback"
+				>
+					+
+				</button>
+			)}
+			{hasFeedback && <FeedbackIndicator feedback={feedback} />}
+		</td>
+	);
+}
+
+// Inline Feedback Input Row
+interface InlineFeedbackRowProps {
+	colSpan: number;
+	onSubmit: (text: string) => Promise<void>;
+	onCancel: () => void;
+}
+
+function InlineFeedbackRow({ colSpan, onSubmit, onCancel }: InlineFeedbackRowProps) {
+	const [text, setText] = useState('');
+	const [error, setError] = useState<string | null>(null);
+	const [submitting, setSubmitting] = useState(false);
+
+	const handleSubmit = async () => {
+		if (!text.trim()) return;
+		setSubmitting(true);
+		setError(null);
+		try {
+			await onSubmit(text);
+		} catch (_err) {
+			setError('Failed to add feedback');
+			setSubmitting(false);
+		}
+	};
+
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			handleSubmit();
+		} else if (e.key === 'Escape') {
+			onCancel();
+		}
+	};
+
+	return (
+		<tr className="inline-feedback-row" data-testid="inline-feedback-row">
+			<td colSpan={colSpan}>
+				<div className="inline-feedback-input">
+					<input
+						type="text"
+						placeholder="Add feedback for this line..."
+						value={text}
+						onChange={(e) => setText(e.target.value)}
+						onKeyDown={handleKeyDown}
+						disabled={submitting}
+						autoFocus
+					/>
+					<div className="inline-feedback-actions">
+						{error && <span className="inline-feedback-error">{error}</span>}
+						<button
+							type="button"
+							className="cancel-button"
+							onClick={onCancel}
+							disabled={submitting}
+						>
+							Cancel
+						</button>
+						<button
+							type="button"
+							className="submit-button"
+							onClick={handleSubmit}
+							disabled={!text.trim() || submitting}
+						>
+							Add
+						</button>
+					</div>
+				</div>
+			</td>
+		</tr>
+	);
+}
+
+// Split View (side-by-side)
 function SplitView({
 	hunk,
 	filePath,
@@ -98,6 +305,13 @@ function SplitView({
 	onWontFixComment,
 	onDeleteComment,
 	onCloseThread,
+	getFeedbackForLine,
+	hoveredLine,
+	setHoveredLine,
+	feedbackInputLine,
+	onOpenFeedbackInput,
+	onCloseFeedbackInput,
+	onSubmitFeedback,
 }: ViewProps) {
 	// Build pairs for split view
 	const pairs: Array<{
@@ -148,18 +362,30 @@ function SplitView({
 						rightLineNum
 							? getLineComments(rightLineNum)
 							: leftLineNum
-							? getLineComments(leftLineNum)
-							: [];
+								? getLineComments(leftLineNum)
+								: [];
 					const isActive = Boolean(
 						(rightLineNum && activeLineNumber === rightLineNum) ||
-						(leftLineNum && activeLineNumber === leftLineNum)
+							(leftLineNum && activeLineNumber === leftLineNum)
 					);
+
+					// Determine which line number is used for feedback input
+					const effectiveLineNum = rightLineNum ?? leftLineNum;
+					const showFeedbackInput = feedbackInputLine === effectiveLineNum;
 
 					return (
 						<Fragment key={index}>
 							<tr className="split-row">
 								{/* Left side (old) */}
-								<td className="line-number old">{leftLine?.oldLine ?? ''}</td>
+								<LineNumberCell
+									lineNumber={leftLineNum}
+									side="old"
+									feedback={getFeedbackForLine(leftLineNum)}
+									isHovered={hoveredLine === leftLineNum}
+									onHover={() => leftLineNum && setHoveredLine(leftLineNum)}
+									onUnhover={() => setHoveredLine(null)}
+									onAddClick={() => leftLineNum && onOpenFeedbackInput(leftLineNum)}
+								/>
 								<td
 									className={`line-content old ${leftLine?.type ?? 'empty'}`}
 									onClick={() =>
@@ -171,7 +397,15 @@ function SplitView({
 								</td>
 
 								{/* Right side (new) */}
-								<td className="line-number new">{rightLine?.newLine ?? ''}</td>
+								<LineNumberCell
+									lineNumber={rightLineNum}
+									side="new"
+									feedback={getFeedbackForLine(rightLineNum)}
+									isHovered={hoveredLine === rightLineNum}
+									onHover={() => rightLineNum && setHoveredLine(rightLineNum)}
+									onUnhover={() => setHoveredLine(null)}
+									onAddClick={() => rightLineNum && onOpenFeedbackInput(rightLineNum)}
+								/>
 								<td
 									className={`line-content new ${rightLine?.type ?? 'empty'}`}
 									onClick={() =>
@@ -182,6 +416,16 @@ function SplitView({
 									{rightLine?.content ?? ''}
 								</td>
 							</tr>
+
+							{/* Inline feedback input row */}
+							{showFeedbackInput && effectiveLineNum && (
+								<InlineFeedbackRow
+									colSpan={4}
+									onSubmit={(text) => onSubmitFeedback(text, effectiveLineNum)}
+									onCancel={onCloseFeedbackInput}
+								/>
+							)}
+
 							{/* Comment thread */}
 							{(isActive || lineComments.length > 0) && (
 								<tr className="comment-row">
@@ -220,6 +464,13 @@ function UnifiedView({
 	onWontFixComment,
 	onDeleteComment,
 	onCloseThread,
+	getFeedbackForLine,
+	hoveredLine,
+	setHoveredLine,
+	feedbackInputLine,
+	onOpenFeedbackInput,
+	onCloseFeedbackInput,
+	onSubmitFeedback,
 }: ViewProps) {
 	const getLineComments = (lineNumber?: number) =>
 		lineNumber ? comments.filter((c) => c.lineNumber === lineNumber) : [];
@@ -231,12 +482,33 @@ function UnifiedView({
 					const lineNum = line.newLine ?? line.oldLine;
 					const lineComments = getLineComments(lineNum);
 					const isActive = Boolean(lineNum && activeLineNumber === lineNum);
+					const showFeedbackInput = feedbackInputLine === lineNum;
+
+					// For unified view, use oldLine for deletions, newLine for additions/context
+					const effectiveLineNum = line.type === 'deletion' ? line.oldLine : line.newLine;
+					const feedback = getFeedbackForLine(effectiveLineNum);
 
 					return (
 						<Fragment key={index}>
 							<tr className={`unified-row ${line.type}`}>
-								<td className="line-number old">{line.oldLine ?? ''}</td>
-								<td className="line-number new">{line.newLine ?? ''}</td>
+								<LineNumberCell
+									lineNumber={line.oldLine}
+									side="old"
+									feedback={line.type === 'deletion' ? feedback : []}
+									isHovered={hoveredLine === line.oldLine && line.type !== 'addition'}
+									onHover={() => line.oldLine && setHoveredLine(line.oldLine)}
+									onUnhover={() => setHoveredLine(null)}
+									onAddClick={() => line.oldLine && onOpenFeedbackInput(line.oldLine)}
+								/>
+								<LineNumberCell
+									lineNumber={line.newLine}
+									side="new"
+									feedback={line.type !== 'deletion' ? feedback : []}
+									isHovered={hoveredLine === line.newLine && line.type !== 'deletion'}
+									onHover={() => line.newLine && setHoveredLine(line.newLine)}
+									onUnhover={() => setHoveredLine(null)}
+									onAddClick={() => line.newLine && onOpenFeedbackInput(line.newLine)}
+								/>
 								<td
 									className={`line-content ${line.type}`}
 									onClick={() => lineNum && onLineClick(lineNum, filePath)}
@@ -247,6 +519,16 @@ function UnifiedView({
 									{line.content}
 								</td>
 							</tr>
+
+							{/* Inline feedback input row */}
+							{showFeedbackInput && lineNum && (
+								<InlineFeedbackRow
+									colSpan={3}
+									onSubmit={(text) => onSubmitFeedback(text, lineNum)}
+									onCancel={onCloseFeedbackInput}
+								/>
+							)}
+
 							{/* Comment thread */}
 							{(isActive || lineComments.length > 0) && (
 								<tr className="comment-row">

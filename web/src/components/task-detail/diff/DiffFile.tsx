@@ -5,8 +5,18 @@ import { DiffHunk } from './DiffHunk';
 import type { FileDiff } from '@/gen/orc/v1/common_pb';
 import type { ReviewComment } from '@/gen/orc/v1/task_pb';
 import { CommentStatus } from '@/gen/orc/v1/task_pb';
+import type { Feedback } from '@/gen/orc/v1/feedback_pb';
+import { FeedbackType, FeedbackTiming } from '@/gen/orc/v1/feedback_pb';
 import type { CreateCommentRequest } from './types';
 import './DiffFile.css';
+
+interface InlineFeedbackInput {
+	type: FeedbackType;
+	text: string;
+	timing: FeedbackTiming;
+	file: string;
+	line: number;
+}
 
 interface DiffFileProps {
 	file: FileDiff;
@@ -23,6 +33,10 @@ interface DiffFileProps {
 	onCloseThread: () => void;
 	/** When true, hides the file header (useful when rendered in modal with its own header) */
 	hideHeader?: boolean;
+	/** Inline feedback for this file */
+	inlineFeedback?: Feedback[];
+	/** Callback to add new inline feedback */
+	onAddInlineFeedback?: (input: InlineFeedbackInput) => Promise<void>;
 }
 
 export function DiffFile({
@@ -39,6 +53,8 @@ export function DiffFile({
 	onDeleteComment,
 	onCloseThread,
 	hideHeader = false,
+	inlineFeedback = [],
+	onAddInlineFeedback,
 }: DiffFileProps) {
 	// Filter comments for this file
 	const fileComments = useMemo(
@@ -129,6 +145,8 @@ export function DiffFile({
 									onWontFixComment={onWontFixComment}
 									onDeleteComment={onDeleteComment}
 									onCloseThread={onCloseThread}
+									inlineFeedback={inlineFeedback}
+									onAddInlineFeedback={onAddInlineFeedback}
 								/>
 							))}
 						</div>

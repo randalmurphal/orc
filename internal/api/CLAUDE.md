@@ -6,7 +6,7 @@ Connect RPC server with WebSocket support for real-time updates.
 
 ```
 Server
-├── Connect RPC Services (13) → *_server.go
+├── Connect RPC Services (14) → *_server.go
 ├── ProjectCache              → project_cache.go (multi-project routing)
 ├── EventServer               → event_server.go (internal events)
 │   └── WebSocketHub          → websocket.go (forwards to web clients)
@@ -40,6 +40,7 @@ Services are registered in `server_connect.go:17-116`. Each implements a handler
 | `NotificationService` | `notification_server.go` | Yes | Push notifications |
 | `MCPService` | `mcp_server.go` | No | MCP server config (global) |
 | `FeedbackService` | `feedback_server.go` | Yes | Real-time user feedback to agents (Add, List, Send, Delete) |
+| `ReviewService` | `review_server.go` | Yes | Task review data and inline code feedback (GetTaskReview, GetTaskInlineFeedback) |
 
 ## Key Patterns
 

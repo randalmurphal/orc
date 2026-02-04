@@ -117,6 +117,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `TaskFooter` | `task-detail/` | Footer with session metrics (tokens/cost), action buttons (pause/resume/cancel/retry), error display with retry options |
 | `LiveOutputPanel` | `task-detail/` | Real-time transcript streaming: WebSocket events, auto-scroll, virtual scrolling for large transcripts, message styling by type |
 | `FeedbackPanel` | `task-detail/` | Agent feedback UI: create feedback (general/inline/approval/direction), timing controls (now/when-done/manual), send pending, form validation |
+| `InlineFeedbackPanel` | `task-detail/` | Displays inline code feedback from review: groups by file, severity badges (critical/error/warning/info/suggestion), line ranges, category tags, suggestion blocks |
 | `ChangesTabEnhanced` | `task-detail/` | Enhanced changes view: wraps `ChangesTab` with error boundary, list/tree toggle (Ctrl+T), responsive design (mobile/tablet), classic view fallback |
 | `FileList` | `task-detail/` | File list with list/tree views, directory expansion, status filtering (added/modified/deleted), keyboard navigation (arrows/Enter), diff stats |
 | `SettingsTabs` | `settings/` | Top-level 3-tab navigation (General, Agents, Environment) with URL-driven state |
