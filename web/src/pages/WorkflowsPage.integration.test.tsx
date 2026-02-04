@@ -23,7 +23,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { WorkflowsPage } from './WorkflowsPage';
 import { workflowClient } from '@/lib/client';
-import type { Workflow } from '@/gen/orc/v1/workflow_pb';
+// Type imported via factory return type
 import { createMockWorkflow, createMockListWorkflowsResponse } from '@/test/factories';
 
 // Mock all client methods used by WorkflowsPage and child components
