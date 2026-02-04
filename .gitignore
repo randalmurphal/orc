@@ -43,6 +43,11 @@ internal/api/static/*
 .mcp.json
 .claude/settings.json
 
+# SQLite WAL files (should never be committed)
+*.db-shm
+*.db-wal
+*.db-journal
+
 /test-results/
 
 # QA artifacts (should go to /tmp/orc-qa-*, but gitignore as safety net)
