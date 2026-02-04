@@ -546,6 +546,12 @@ message UpdateTaskRequest {
   repeated string pr_reviewers = 18;
   optional bool pr_labels_set = 19;
   optional bool pr_reviewers_set = 20;
+
+  // Status management (TASK-776)
+  // Changes task status. Rejects changes to RUNNING tasks.
+  optional TaskStatus status = 21;
+  // Sets quality.manual_intervention when true
+  optional bool manual_fix = 22;
 }
 
 message UpdateTaskResponse {

@@ -500,12 +500,18 @@ func (s *taskServer) UpdateTask(
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
-	// Prevent branch-related changes on running tasks (branch already checked out)
+	// Prevent changes on running tasks
 	if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
+		// Branch settings cannot be changed while running (branch already checked out)
 		hasBranchChange := req.Msg.BranchName != nil || req.Msg.TargetBranch != nil
 		if hasBranchChange {
 			return nil, connect.NewError(connect.CodeFailedPrecondition,
 				errors.New("cannot change branch settings on a running task - pause it first"))
+		}
+		// Status cannot be changed via UpdateTask while running
+		if req.Msg.Status != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition,
+				errors.New("cannot change status of a running task via UpdateTask - use pause/resume commands"))
 		}
 	}
 
@@ -569,6 +575,21 @@ func (s *taskServer) UpdateTask(
 			t.PrReviewers = nil
 			t.PrReviewersSet = false
 		}
+	}
+
+	// Status change (TASK-776)
+	// Running task check is handled above; this only applies to non-running tasks
+	if req.Msg.Status != nil {
+		t.Status = *req.Msg.Status
+	}
+
+	// Manual fix flag (TASK-776)
+	// Sets quality.manual_intervention when true
+	if req.Msg.ManualFix != nil && *req.Msg.ManualFix {
+		if t.Quality == nil {
+			t.Quality = &orcv1.QualityMetrics{}
+		}
+		t.Quality.ManualIntervention = true
 	}
 
 	// Update timestamp
