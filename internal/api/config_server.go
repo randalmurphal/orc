@@ -1227,9 +1227,11 @@ func (s *configServer) DeleteAgent(
 // dbAgentToProto converts a db.Agent to proto Agent with stats and status.
 func dbAgentToProto(a *db.Agent, stats *db.AgentStats, scope orcv1.SettingsScope) *orcv1.Agent {
 	agent := &orcv1.Agent{
+		Id:          a.ID,
 		Name:        a.Name,
 		Description: a.Description,
 		Scope:       scope,
+		IsBuiltin:   a.IsBuiltin,
 	}
 
 	// Set model if present
