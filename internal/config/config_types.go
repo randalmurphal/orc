@@ -1088,7 +1088,17 @@ func (j JiraConfig) GetTokenEnvVar() string {
 
 // DatabaseConfig defines database connection settings.
 type DatabaseConfig struct {
+	// Dialect is the database type: "sqlite" (default) or "postgres"
+	// Use this for new config; Driver is kept for backward compatibility.
+	Dialect string `yaml:"dialect,omitempty"`
+
+	// DSNEnv is the environment variable name containing the PostgreSQL DSN.
+	// Required when dialect is "postgres". The env var must exist and be non-empty.
+	// Example: ORC_DATABASE_DSN="postgres://user:pass@host:5432/orc"
+	DSNEnv string `yaml:"dsn_env,omitempty"`
+
 	// Driver is the database type: "sqlite" or "postgres"
+	// Deprecated: Use Dialect instead
 	Driver string `yaml:"driver"`
 
 	// SQLite settings
