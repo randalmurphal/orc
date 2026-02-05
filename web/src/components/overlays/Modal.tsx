@@ -54,7 +54,17 @@ export function Modal({
 	useEffect(() => {
 		if (!open) return;
 
+		// Track when the modal opened to ignore the click that triggered the open.
+		// In production, the opening click is still bubbling when this effect runs.
+		// We ignore clicks that happen within 10ms of opening (same event loop tick).
+		const openTime = performance.now();
+
 		const handleDocumentClick = (e: MouseEvent) => {
+			// Ignore clicks that happen immediately after opening (the opening click itself)
+			// e.timeStamp uses the same time origin as performance.now() in modern browsers
+			if (e.timeStamp - openTime < 10) {
+				return;
+			}
 			// Check if click is outside the modal content
 			if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
 				onClose();
