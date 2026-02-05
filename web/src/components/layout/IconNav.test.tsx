@@ -118,7 +118,7 @@ describe('IconNav', () => {
 			renderWithProviders(<IconNav />);
 
 			const links = screen.getAllByRole('link');
-			expect(links.length).toBe(7); // 7 nav items (Board, Initiatives, Timeline, Stats, Workflows, Settings, Help)
+			expect(links.length).toBe(8); // 8 nav items (My Work, Board, Initiatives, Timeline, Stats, Workflows, Settings, Help)
 
 			// All links should be focusable (tabindex not -1)
 			links.forEach((link) => {
@@ -163,7 +163,7 @@ describe('IconNav', () => {
 
 			const links = screen.getAllByRole('link');
 			// All nav items should have data-state from Tooltip wrapper
-			expect(links.length).toBe(7);
+			expect(links.length).toBe(8);
 			links.forEach((link) => {
 				expect(link).toHaveAttribute('data-state');
 			});

@@ -6,7 +6,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PageLoader } from '@/components/ui/PageLoader';
 import { NewTaskWorkflowModal, ProjectSwitcher } from '@/components/overlays';
 import { useTaskStore } from '@/stores/taskStore';
-import { useCurrentProjectId, useProjectLoading } from '@/stores';
+import { useProjectLoading } from '@/stores';
 import type { Task } from '@/gen/orc/v1/task_pb';
 
 // Lazy-loaded page components for code splitting
@@ -22,7 +22,7 @@ const Mcp = lazy(() => import('@/pages/environment/Mcp').then(m => ({ default: m
 const WorkflowsPage = lazy(() => import('@/pages/WorkflowsPage').then(m => ({ default: m.WorkflowsPage })));
 const WorkflowEditorPage = lazy(() => import('@/components/workflow-editor').then(m => ({ default: m.WorkflowEditorPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
-const ProjectPickerPage = lazy(() => import('@/pages/ProjectPickerPage').then(m => ({ default: m.ProjectPickerPage })));
+const MyWorkPage = lazy(() => import('@/pages/MyWorkPage').then(m => ({ default: m.MyWorkPage })));
 
 // Environment pages (accessed via Settings navigation)
 const EnvHooks = lazy(() => import('@/pages/environment/Hooks').then(m => ({ default: m.Hooks })));
@@ -91,11 +91,10 @@ function TaskRedirect() {
 }
 
 /**
- * Root layout wrapper that shows ProjectPickerPage when no project is selected.
- * Once a project is selected, renders the AppShellLayout with normal navigation.
+ * Root layout wrapper that renders AppShellLayout with navigation.
+ * My Work page serves as the landing page regardless of project selection state.
  */
 function RootLayout() {
-	const currentProjectId = useCurrentProjectId();
 	const loading = useProjectLoading();
 
 	// Show loader while projects are being fetched
@@ -103,16 +102,6 @@ function RootLayout() {
 		return <PageLoader />;
 	}
 
-	// Show project picker if no project is selected
-	if (!currentProjectId) {
-		return (
-			<LazyRoute>
-				<ProjectPickerPage />
-			</LazyRoute>
-		);
-	}
-
-	// Project selected - show the normal app
 	return <AppShellLayout />;
 }
 
@@ -165,10 +154,14 @@ export const routes: RouteObject[] = [
 		element: <RootLayout />,
 		errorElement: <ErrorBoundary />,
 		children: [
-			// Index route redirects to board
+			// Index route - My Work dashboard
 			{
 				index: true,
-				element: <Navigate to="/board" replace />,
+				element: (
+					<LazyRoute>
+						<MyWorkPage />
+					</LazyRoute>
+				),
 			},
 			// Board - Main kanban board view
 			{

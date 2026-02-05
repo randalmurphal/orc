@@ -22,6 +22,7 @@ vi.mock('@/lib/client', () => ({
 		listProjects: vi.fn().mockResolvedValue({
 			projects: [{ id: 'project-1', name: 'Test Project', path: '/path/to/project' }],
 		}),
+		getAllProjectsStatus: vi.fn().mockResolvedValue({ projects: [] }),
 	},
 	taskClient: {
 		listTasks: vi.fn().mockResolvedValue({ tasks: [] }),
@@ -134,12 +135,11 @@ describe('App', () => {
 		});
 	});
 
-	it('redirects root route to /board', async () => {
+	it('renders MyWorkPage at root route', async () => {
 		renderApp('/');
 		await waitFor(() => {
-			// Root route redirects to /board which renders BoardView
-			const boardView = document.querySelector('.board-view');
-			expect(boardView).toBeInTheDocument();
+			// Root route renders MyWorkPage which shows "My Work" heading
+			expect(screen.getByText('My Work')).toBeInTheDocument();
 		});
 	});
 
