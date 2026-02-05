@@ -55,7 +55,6 @@ func TestWorkflowExecutor_ClaimsTaskBeforeExecution(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		projectDB,
-		nil, // globalDB not needed for this test
 		&config.Config{
 			Model: "sonnet",
 		},
@@ -132,7 +131,6 @@ func TestWorkflowExecutor_ClaimFailure_StopsExecution(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		projectDB,
-		nil,
 		&config.Config{
 			Model: "sonnet",
 		},
@@ -195,8 +193,6 @@ func TestWorkflowExecutor_ReleasesClaimOnCompletion(t *testing.T) {
 	wfPhase := &db.WorkflowPhase{
 		WorkflowID:      workflowID,
 		PhaseTemplateID: "implement",
-		PositionX:       0,
-		PositionY:       0,
 	}
 	if err := backend.SaveWorkflowPhase(wfPhase); err != nil {
 		t.Fatalf("save workflow phase: %v", err)
@@ -215,7 +211,6 @@ func TestWorkflowExecutor_ReleasesClaimOnCompletion(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		projectDB,
-		nil,
 		&config.Config{
 			Model: "sonnet",
 		},
@@ -232,7 +227,7 @@ func TestWorkflowExecutor_ReleasesClaimOnCompletion(t *testing.T) {
 
 	// Verify release was called after execution
 	if !backend.ReleaseCalled() {
-		t.Error("ReleaseClaimByUser should have been called after completion")
+		t.Error("ReleaseUserClaim should have been called after completion")
 	}
 }
 
@@ -267,8 +262,6 @@ func TestWorkflowExecutor_ReleasesClaimOnFailure(t *testing.T) {
 	wfPhase := &db.WorkflowPhase{
 		WorkflowID:      workflowID,
 		PhaseTemplateID: "implement",
-		PositionX:       0,
-		PositionY:       0,
 	}
 	if err := backend.SaveWorkflowPhase(wfPhase); err != nil {
 		t.Fatalf("save workflow phase: %v", err)
@@ -289,7 +282,6 @@ func TestWorkflowExecutor_ReleasesClaimOnFailure(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		projectDB,
-		nil,
 		&config.Config{
 			Model: "sonnet",
 		},
@@ -311,7 +303,7 @@ func TestWorkflowExecutor_ReleasesClaimOnFailure(t *testing.T) {
 
 	// But release should still have been called (cleanup)
 	if !backend.ReleaseCalled() {
-		t.Error("ReleaseClaimByUser should have been called even on failure")
+		t.Error("ReleaseUserClaim should have been called even on failure")
 	}
 }
 
@@ -319,25 +311,19 @@ func TestWorkflowExecutor_ReleasesClaimOnFailure(t *testing.T) {
 // Test helpers and mock types
 // ============================================================================
 
-// userClaimContextKey is the context key for the current user ID.
-// This will be defined in the executor when implemented.
-type userClaimContextKeyType string
-
-const userClaimContextKey userClaimContextKeyType = "userID"
-
 // userClaimTrackingBackend wraps a real backend to track claim/release calls.
 type userClaimTrackingBackend struct {
 	storage.Backend
-	claimCalled     atomic.Bool
-	releaseCalled   atomic.Bool
-	lastClaimUser   atomic.Value // string
-	lastClaimTask   atomic.Value // string
-	claimOrder      atomic.Int64
-	phaseExecOrder  atomic.Int64
-	orderCounter    atomic.Int64
+	claimCalled    atomic.Bool
+	releaseCalled  atomic.Bool
+	lastClaimUser  atomic.Value // string
+	lastClaimTask  atomic.Value // string
+	claimOrder     atomic.Int64
+	phaseExecOrder atomic.Int64
+	orderCounter   atomic.Int64
 }
 
-func (b *userClaimTrackingBackend) ClaimTaskByUser(ctx context.Context, taskID, userID string) (bool, error) {
+func (b *userClaimTrackingBackend) ClaimTaskByUser(taskID, userID string) (bool, error) {
 	b.claimCalled.Store(true)
 	b.lastClaimUser.Store(userID)
 	b.lastClaimTask.Store(taskID)
@@ -345,7 +331,7 @@ func (b *userClaimTrackingBackend) ClaimTaskByUser(ctx context.Context, taskID, 
 	return true, nil
 }
 
-func (b *userClaimTrackingBackend) ReleaseClaimByUser(ctx context.Context, taskID, userID string) (bool, error) {
+func (b *userClaimTrackingBackend) ReleaseUserClaim(taskID, userID string) (bool, error) {
 	b.releaseCalled.Store(true)
 	return true, nil
 }
@@ -394,7 +380,7 @@ type userClaimRejectingBackend struct {
 	phasesExecuted atomic.Bool
 }
 
-func (b *userClaimRejectingBackend) ClaimTaskByUser(ctx context.Context, taskID, userID string) (bool, error) {
+func (b *userClaimRejectingBackend) ClaimTaskByUser(taskID, userID string) (bool, error) {
 	return false, nil // Claim rejected (someone else owns it)
 }
 

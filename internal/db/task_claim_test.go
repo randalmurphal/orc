@@ -1,7 +1,6 @@
 package db
 
 import (
-	"context"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -12,10 +11,10 @@ import (
 // SC-1: Atomic claim sets claimed_by and claimed_at on tasks table
 // ============================================================================
 
-// TestClaimTask_AtomicUpdate tests that ClaimTask sets claimed_by and claimed_at
-// in a single atomic UPDATE operation.
+// TestClaimTaskByUser_AtomicUpdate tests that ClaimTaskByUser sets claimed_by
+// and claimed_at in a single atomic UPDATE operation on the tasks table.
 // Covers: SC-1
-func TestClaimTask_AtomicUpdate(t *testing.T) {
+func TestClaimTaskByUser_AtomicUpdate(t *testing.T) {
 	t.Parallel()
 	pdb := setupTestProjectDB(t)
 
@@ -33,16 +32,16 @@ func TestClaimTask_AtomicUpdate(t *testing.T) {
 	userID := "user-alice"
 	beforeClaim := time.Now().Truncate(time.Second)
 
-	// Claim the task
-	rowsAffected, err := pdb.ClaimTask(context.Background(), "TASK-001", userID)
+	// Claim the task - new atomic method on tasks table
+	rowsAffected, err := pdb.ClaimTaskByUser("TASK-001", userID)
 	if err != nil {
-		t.Fatalf("ClaimTask failed: %v", err)
+		t.Fatalf("ClaimTaskByUser failed: %v", err)
 	}
 	if rowsAffected != 1 {
 		t.Errorf("expected 1 row affected, got %d", rowsAffected)
 	}
 
-	// Verify claimed_by and claimed_at are set
+	// Verify claimed_by and claimed_at are set on the task
 	updatedTask, err := pdb.GetTask("TASK-001")
 	if err != nil {
 		t.Fatalf("get task: %v", err)
@@ -58,10 +57,10 @@ func TestClaimTask_AtomicUpdate(t *testing.T) {
 	}
 }
 
-// TestClaimTask_AlreadyClaimed tests that claiming an already-claimed task
+// TestClaimTaskByUser_AlreadyClaimed tests that claiming an already-claimed task
 // returns 0 rows affected when claimed by another user.
 // Covers: SC-1 error path
-func TestClaimTask_AlreadyClaimed(t *testing.T) {
+func TestClaimTaskByUser_AlreadyClaimed(t *testing.T) {
 	t.Parallel()
 	pdb := setupTestProjectDB(t)
 
@@ -71,13 +70,13 @@ func TestClaimTask_AlreadyClaimed(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	_, err := pdb.ClaimTask(context.Background(), "TASK-001", "user-alice")
+	_, err := pdb.ClaimTaskByUser("TASK-001", "user-alice")
 	if err != nil {
 		t.Fatalf("first claim failed: %v", err)
 	}
 
-	// Bob tries to claim - should fail
-	rowsAffected, err := pdb.ClaimTask(context.Background(), "TASK-001", "user-bob")
+	// Bob tries to claim - should fail (0 rows affected)
+	rowsAffected, err := pdb.ClaimTaskByUser("TASK-001", "user-bob")
 	if err != nil {
 		t.Fatalf("second claim should not error (just return 0 rows): %v", err)
 	}
@@ -86,9 +85,9 @@ func TestClaimTask_AlreadyClaimed(t *testing.T) {
 	}
 }
 
-// TestClaimTask_Idempotent tests that claiming a task you already own is a no-op.
+// TestClaimTaskByUser_Idempotent tests that claiming a task you already own is a no-op.
 // Covers: SC-1 edge case (idempotent)
-func TestClaimTask_Idempotent(t *testing.T) {
+func TestClaimTaskByUser_Idempotent(t *testing.T) {
 	t.Parallel()
 	pdb := setupTestProjectDB(t)
 
@@ -98,13 +97,13 @@ func TestClaimTask_Idempotent(t *testing.T) {
 	}
 
 	// Claim as alice
-	_, err := pdb.ClaimTask(context.Background(), "TASK-001", "user-alice")
+	_, err := pdb.ClaimTaskByUser("TASK-001", "user-alice")
 	if err != nil {
 		t.Fatalf("first claim failed: %v", err)
 	}
 
 	// Claim again as alice - should succeed (idempotent)
-	rowsAffected, err := pdb.ClaimTask(context.Background(), "TASK-001", "user-alice")
+	rowsAffected, err := pdb.ClaimTaskByUser("TASK-001", "user-alice")
 	if err != nil {
 		t.Fatalf("idempotent claim failed: %v", err)
 	}
@@ -113,13 +112,13 @@ func TestClaimTask_Idempotent(t *testing.T) {
 	}
 }
 
-// TestClaimTask_NonexistentTask tests claiming a task that doesn't exist.
+// TestClaimTaskByUser_NonexistentTask tests claiming a task that doesn't exist.
 // Covers: Failure mode - task not found
-func TestClaimTask_NonexistentTask(t *testing.T) {
+func TestClaimTaskByUser_NonexistentTask(t *testing.T) {
 	t.Parallel()
 	pdb := setupTestProjectDB(t)
 
-	rowsAffected, err := pdb.ClaimTask(context.Background(), "TASK-999", "user-alice")
+	rowsAffected, err := pdb.ClaimTaskByUser("TASK-999", "user-alice")
 	if err != nil {
 		t.Fatalf("claim should not error for nonexistent task: %v", err)
 	}
@@ -148,15 +147,13 @@ func TestConcurrentClaim_OnlyOneSucceeds(t *testing.T) {
 	var wg sync.WaitGroup
 	results := make(chan int64, numAttempts)
 
-	ctx := context.Background()
-
 	// Launch concurrent claim attempts from different "users"
 	for i := 0; i < numAttempts; i++ {
 		wg.Add(1)
 		userID := "user-" + string(rune('a'+i))
 		go func(userID string) {
 			defer wg.Done()
-			rowsAffected, err := pdb.ClaimTask(ctx, "TASK-001", userID)
+			rowsAffected, err := pdb.ClaimTaskByUser("TASK-001", userID)
 			if err != nil {
 				t.Errorf("claim error: %v", err)
 				results <- -1
@@ -184,13 +181,13 @@ func TestConcurrentClaim_OnlyOneSucceeds(t *testing.T) {
 }
 
 // ============================================================================
-// SC-3: Successful claim inserts a row into task_claims history table
+// SC-3: Successful claim inserts a row into task_claim_history table
 // ============================================================================
 
-// TestClaimTaskHistory_InsertedOnClaim tests that claiming a task inserts
-// a row into the task_claims history table.
+// TestClaimHistory_InsertedOnClaim tests that claiming a task inserts
+// a row into the task_claim_history table.
 // Covers: SC-3
-func TestClaimTaskHistory_InsertedOnClaim(t *testing.T) {
+func TestClaimHistory_InsertedOnClaim(t *testing.T) {
 	t.Parallel()
 	pdb := setupTestProjectDB(t)
 
@@ -203,13 +200,13 @@ func TestClaimTaskHistory_InsertedOnClaim(t *testing.T) {
 	beforeClaim := time.Now().Truncate(time.Second)
 
 	// Claim the task
-	_, err := pdb.ClaimTask(context.Background(), "TASK-001", userID)
+	_, err := pdb.ClaimTaskByUser("TASK-001", userID)
 	if err != nil {
-		t.Fatalf("ClaimTask failed: %v", err)
+		t.Fatalf("ClaimTaskByUser failed: %v", err)
 	}
 
 	// Verify history entry was created
-	history, err := pdb.GetTaskClaimHistoryByUser("TASK-001")
+	history, err := pdb.GetUserClaimHistory("TASK-001")
 	if err != nil {
 		t.Fatalf("get claim history: %v", err)
 	}
@@ -252,18 +249,16 @@ func TestClaimHistoryAppendOnly(t *testing.T) {
 	}
 
 	// Claim, release, claim again, release again
-	ctx := context.Background()
-
 	// First claim by alice
-	_, _ = pdb.ClaimTask(ctx, "TASK-001", "user-alice")
-	_, _ = pdb.ReleaseClaim(ctx, "TASK-001", "user-alice")
+	_, _ = pdb.ClaimTaskByUser("TASK-001", "user-alice")
+	_, _ = pdb.ReleaseUserClaim("TASK-001", "user-alice")
 
 	// Second claim by bob
-	_, _ = pdb.ClaimTask(ctx, "TASK-001", "user-bob")
-	_, _ = pdb.ReleaseClaim(ctx, "TASK-001", "user-bob")
+	_, _ = pdb.ClaimTaskByUser("TASK-001", "user-bob")
+	_, _ = pdb.ReleaseUserClaim("TASK-001", "user-bob")
 
 	// Check history - should have 2 entries
-	history, err := pdb.GetTaskClaimHistoryByUser("TASK-001")
+	history, err := pdb.GetUserClaimHistory("TASK-001")
 	if err != nil {
 		t.Fatalf("get claim history: %v", err)
 	}
@@ -284,7 +279,7 @@ func TestClaimHistoryAppendOnly(t *testing.T) {
 // SC-5: Force steal updates claimed_by even when claimed by another user
 // ============================================================================
 
-// TestForceStealClaim tests that ForceClaimTask can steal a claim from another user.
+// TestForceStealClaim tests that ForceClaimTaskByUser can steal a claim from another user.
 // Covers: SC-5
 func TestForceStealClaim(t *testing.T) {
 	t.Parallel()
@@ -295,10 +290,8 @@ func TestForceStealClaim(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	ctx := context.Background()
-
 	// Alice claims first
-	_, err := pdb.ClaimTask(ctx, "TASK-001", "user-alice")
+	_, err := pdb.ClaimTaskByUser("TASK-001", "user-alice")
 	if err != nil {
 		t.Fatalf("alice claim failed: %v", err)
 	}
@@ -310,7 +303,7 @@ func TestForceStealClaim(t *testing.T) {
 	}
 
 	// Bob force-steals
-	stolenFrom, err := pdb.ForceClaimTask(ctx, "TASK-001", "user-bob")
+	stolenFrom, err := pdb.ForceClaimTaskByUser("TASK-001", "user-bob")
 	if err != nil {
 		t.Fatalf("force claim failed: %v", err)
 	}
@@ -336,10 +329,8 @@ func TestForceStealClaim_Unclaimed(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	ctx := context.Background()
-
 	// Force claim on unclaimed task - should work like normal claim
-	stolenFrom, err := pdb.ForceClaimTask(ctx, "TASK-001", "user-bob")
+	stolenFrom, err := pdb.ForceClaimTaskByUser("TASK-001", "user-bob")
 	if err != nil {
 		t.Fatalf("force claim on unclaimed failed: %v", err)
 	}
@@ -365,17 +356,15 @@ func TestForceStealClaim_OwnClaim(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	ctx := context.Background()
-
 	// Alice claims
-	_, _ = pdb.ClaimTask(ctx, "TASK-001", "user-alice")
+	_, _ = pdb.ClaimTaskByUser("TASK-001", "user-alice")
 
 	// Alice force-steals her own claim - should be no-op
-	stolenFrom, err := pdb.ForceClaimTask(ctx, "TASK-001", "user-alice")
+	stolenFrom, err := pdb.ForceClaimTaskByUser("TASK-001", "user-alice")
 	if err != nil {
 		t.Fatalf("force claim own task failed: %v", err)
 	}
-	// stolenFrom should be nil/empty since it's not actually stolen
+	// stolenFrom should be empty since it's not actually stolen
 	if stolenFrom != "" {
 		t.Errorf("stolenFrom should be empty when claiming own task, got %q", stolenFrom)
 	}
@@ -396,16 +385,14 @@ func TestForceStealHistory(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	ctx := context.Background()
-
 	// Alice claims first
-	_, _ = pdb.ClaimTask(ctx, "TASK-001", "user-alice")
+	_, _ = pdb.ClaimTaskByUser("TASK-001", "user-alice")
 
 	// Bob force-steals
-	_, _ = pdb.ForceClaimTask(ctx, "TASK-001", "user-bob")
+	_, _ = pdb.ForceClaimTaskByUser("TASK-001", "user-bob")
 
 	// Check history
-	history, err := pdb.GetTaskClaimHistoryByUser("TASK-001")
+	history, err := pdb.GetUserClaimHistory("TASK-001")
 	if err != nil {
 		t.Fatalf("get claim history: %v", err)
 	}
@@ -416,7 +403,7 @@ func TestForceStealHistory(t *testing.T) {
 	}
 
 	// Find bob's entry (the steal)
-	var bobEntry *TaskClaimHistoryEntry
+	var bobEntry *UserClaimHistoryEntry
 	for i := range history {
 		if history[i].UserID == "user-bob" {
 			bobEntry = &history[i]
@@ -441,10 +428,10 @@ func TestForceStealHistory(t *testing.T) {
 // SC-7: Release claim clears claimed_by and sets released_at in history
 // ============================================================================
 
-// TestReleaseClaim tests that releasing a claim clears claimed_by on the task
+// TestReleaseUserClaim tests that releasing a claim clears claimed_by on the task
 // and sets released_at in history.
 // Covers: SC-7
-func TestReleaseClaim(t *testing.T) {
+func TestReleaseUserClaim(t *testing.T) {
 	t.Parallel()
 	pdb := setupTestProjectDB(t)
 
@@ -453,13 +440,11 @@ func TestReleaseClaim(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	ctx := context.Background()
-
 	// Claim and then release
-	_, _ = pdb.ClaimTask(ctx, "TASK-001", "user-alice")
+	_, _ = pdb.ClaimTaskByUser("TASK-001", "user-alice")
 	beforeRelease := time.Now().Truncate(time.Second)
 
-	rowsAffected, err := pdb.ReleaseClaim(ctx, "TASK-001", "user-alice")
+	rowsAffected, err := pdb.ReleaseUserClaim("TASK-001", "user-alice")
 	if err != nil {
 		t.Fatalf("release claim failed: %v", err)
 	}
@@ -477,7 +462,7 @@ func TestReleaseClaim(t *testing.T) {
 	}
 
 	// Verify history.released_at is set
-	history, _ := pdb.GetTaskClaimHistoryByUser("TASK-001")
+	history, _ := pdb.GetUserClaimHistory("TASK-001")
 	if len(history) != 1 {
 		t.Fatalf("expected 1 history entry, got %d", len(history))
 	}
@@ -489,9 +474,9 @@ func TestReleaseClaim(t *testing.T) {
 	}
 }
 
-// TestReleaseClaim_NotOwner tests that releasing someone else's claim fails.
+// TestReleaseUserClaim_NotOwner tests that releasing someone else's claim fails.
 // Covers: SC-7 error path
-func TestReleaseClaim_NotOwner(t *testing.T) {
+func TestReleaseUserClaim_NotOwner(t *testing.T) {
 	t.Parallel()
 	pdb := setupTestProjectDB(t)
 
@@ -500,13 +485,11 @@ func TestReleaseClaim_NotOwner(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	ctx := context.Background()
-
 	// Alice claims
-	_, _ = pdb.ClaimTask(ctx, "TASK-001", "user-alice")
+	_, _ = pdb.ClaimTaskByUser("TASK-001", "user-alice")
 
 	// Bob tries to release - should fail
-	rowsAffected, err := pdb.ReleaseClaim(ctx, "TASK-001", "user-bob")
+	rowsAffected, err := pdb.ReleaseUserClaim("TASK-001", "user-bob")
 	if err != nil {
 		t.Fatalf("release should not error (just return 0 rows): %v", err)
 	}
@@ -521,9 +504,9 @@ func TestReleaseClaim_NotOwner(t *testing.T) {
 	}
 }
 
-// TestReleaseClaim_Idempotent tests that releasing an already-released claim is a no-op.
+// TestReleaseUserClaim_Idempotent tests that releasing an already-released claim is a no-op.
 // Covers: SC-7 edge case
-func TestReleaseClaim_Idempotent(t *testing.T) {
+func TestReleaseUserClaim_Idempotent(t *testing.T) {
 	t.Parallel()
 	pdb := setupTestProjectDB(t)
 
@@ -532,14 +515,12 @@ func TestReleaseClaim_Idempotent(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	ctx := context.Background()
-
 	// Claim and release
-	_, _ = pdb.ClaimTask(ctx, "TASK-001", "user-alice")
-	_, _ = pdb.ReleaseClaim(ctx, "TASK-001", "user-alice")
+	_, _ = pdb.ClaimTaskByUser("TASK-001", "user-alice")
+	_, _ = pdb.ReleaseUserClaim("TASK-001", "user-alice")
 
 	// Release again - should be no-op
-	rowsAffected, err := pdb.ReleaseClaim(ctx, "TASK-001", "user-alice")
+	rowsAffected, err := pdb.ReleaseUserClaim("TASK-001", "user-alice")
 	if err != nil {
 		t.Fatalf("idempotent release should not error: %v", err)
 	}
@@ -549,12 +530,11 @@ func TestReleaseClaim_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
-// Additional edge cases and error paths
+// Additional edge cases
 // ============================================================================
 
 // TestClaimHistoryEmpty tests that querying history for a task with no claims
 // returns an empty slice, not an error.
-// Covers: Edge case
 func TestClaimHistoryEmpty(t *testing.T) {
 	t.Parallel()
 	pdb := setupTestProjectDB(t)
@@ -564,7 +544,7 @@ func TestClaimHistoryEmpty(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	history, err := pdb.GetTaskClaimHistoryByUser("TASK-001")
+	history, err := pdb.GetUserClaimHistory("TASK-001")
 	if err != nil {
 		t.Fatalf("get empty history should not error: %v", err)
 	}
@@ -576,30 +556,9 @@ func TestClaimHistoryEmpty(t *testing.T) {
 	}
 }
 
-// TestClaimHistoryFailure_RollsBackUpdate tests that if history INSERT fails,
-// the claim UPDATE is rolled back.
-// Covers: Failure mode - transaction rollback
-func TestClaimHistoryFailure_RollsBackUpdate(t *testing.T) {
-	// This test requires a way to inject a failure in the history INSERT.
-	// For now, we document the expected behavior - implementation should
-	// wrap claim UPDATE and history INSERT in a transaction.
-	t.Skip("Requires injectable failure; behavior verified by transaction structure")
-}
-
 // ============================================================================
 // Helper functions
 // ============================================================================
-
-// TaskClaimHistoryEntry represents a row in the task_claims history table.
-// This type will be defined in task.go when implemented.
-type TaskClaimHistoryEntry struct {
-	ID         int64
-	TaskID     string
-	UserID     string
-	ClaimedAt  time.Time
-	ReleasedAt *time.Time
-	StolenFrom *string
-}
 
 // setupTestProjectDB creates a temporary ProjectDB for testing.
 func setupTestProjectDB(t *testing.T) *ProjectDB {
