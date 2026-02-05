@@ -458,3 +458,63 @@ func (d *DatabaseBackend) LoadAllInitiativesProto() ([]*orcv1.Initiative, error)
 
 	return initiatives, nil
 }
+
+// ============================================================================
+// Initiative Note Operations
+// ============================================================================
+
+// SaveInitiativeNote saves an initiative note to the database.
+func (d *DatabaseBackend) SaveInitiativeNote(n *db.InitiativeNote) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.SaveInitiativeNote(n)
+}
+
+// GetInitiativeNote retrieves an initiative note by ID.
+func (d *DatabaseBackend) GetInitiativeNote(id string) (*db.InitiativeNote, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetInitiativeNote(id)
+}
+
+// GetInitiativeNotes retrieves all notes for an initiative.
+func (d *DatabaseBackend) GetInitiativeNotes(initiativeID string) ([]db.InitiativeNote, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetInitiativeNotes(initiativeID)
+}
+
+// GetInitiativeNotesByType retrieves notes for an initiative filtered by type.
+func (d *DatabaseBackend) GetInitiativeNotesByType(initiativeID, noteType string) ([]db.InitiativeNote, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetInitiativeNotesByType(initiativeID, noteType)
+}
+
+// GetInitiativeNotesBySourceTask retrieves notes created by a specific task.
+func (d *DatabaseBackend) GetInitiativeNotesBySourceTask(taskID string) ([]db.InitiativeNote, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetInitiativeNotesBySourceTask(taskID)
+}
+
+// DeleteInitiativeNote removes an initiative note by ID.
+func (d *DatabaseBackend) DeleteInitiativeNote(noteID string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeleteInitiativeNote(noteID)
+}
+
+// GetNextNoteID generates the next note ID.
+func (d *DatabaseBackend) GetNextNoteID() (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.GetNextNoteID()
+}

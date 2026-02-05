@@ -10,6 +10,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -1297,5 +1298,470 @@ func TestReviewFindings_NotFound(t *testing.T) {
 	}
 	if findings != nil {
 		t.Error("LoadReviewFindings should return nil for missing data")
+	}
+}
+
+// =============================================================================
+// Initiative Note Tests
+// =============================================================================
+
+// TestInitiativeNote_SaveAndLoad verifies basic note save/load operations.
+func TestInitiativeNote_SaveAndLoad(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create initiative first (foreign key)
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Test Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create note
+	note := &db.InitiativeNote{
+		ID:           "NOTE-001",
+		InitiativeID: "INIT-001",
+		Author:       "alice",
+		AuthorType:   db.NoteAuthorHuman,
+		NoteType:     db.NoteTypePattern,
+		Content:      "All data access uses Repository pattern",
+		CreatedAt:    time.Now(),
+	}
+
+	// Save
+	if err := backend.SaveInitiativeNote(note); err != nil {
+		t.Fatalf("save note: %v", err)
+	}
+
+	// Load
+	loaded, err := backend.GetInitiativeNote("NOTE-001")
+	if err != nil {
+		t.Fatalf("load note: %v", err)
+	}
+	if loaded == nil {
+		t.Fatal("expected note, got nil")
+	}
+
+	if loaded.ID != "NOTE-001" {
+		t.Errorf("expected ID 'NOTE-001', got %s", loaded.ID)
+	}
+	if loaded.InitiativeID != "INIT-001" {
+		t.Errorf("expected InitiativeID 'INIT-001', got %s", loaded.InitiativeID)
+	}
+	if loaded.Author != "alice" {
+		t.Errorf("expected author 'alice', got %s", loaded.Author)
+	}
+	if loaded.AuthorType != db.NoteAuthorHuman {
+		t.Errorf("expected AuthorType 'human', got %s", loaded.AuthorType)
+	}
+	if loaded.NoteType != db.NoteTypePattern {
+		t.Errorf("expected NoteType 'pattern', got %s", loaded.NoteType)
+	}
+	if loaded.Content != "All data access uses Repository pattern" {
+		t.Errorf("unexpected content: %s", loaded.Content)
+	}
+}
+
+// TestInitiativeNote_AgentNote verifies agent-generated notes with source task.
+func TestInitiativeNote_AgentNote(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create initiative
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Test Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create agent note with source task
+	note := &db.InitiativeNote{
+		ID:            "NOTE-001",
+		InitiativeID:  "INIT-001",
+		Author:        "claude",
+		AuthorType:    db.NoteAuthorAgent,
+		SourceTask:    "TASK-001",
+		SourcePhase:   "docs",
+		NoteType:      db.NoteTypeWarning,
+		Content:       "Don't modify legacy_handler.go - implicit state",
+		RelevantFiles: []string{"internal/legacy_handler.go"},
+	}
+
+	if err := backend.SaveInitiativeNote(note); err != nil {
+		t.Fatalf("save note: %v", err)
+	}
+
+	// Load and verify
+	loaded, err := backend.GetInitiativeNote("NOTE-001")
+	if err != nil {
+		t.Fatalf("load note: %v", err)
+	}
+
+	if loaded.AuthorType != db.NoteAuthorAgent {
+		t.Errorf("expected AuthorType 'agent', got %s", loaded.AuthorType)
+	}
+	if loaded.SourceTask != "TASK-001" {
+		t.Errorf("expected SourceTask 'TASK-001', got %s", loaded.SourceTask)
+	}
+	if loaded.SourcePhase != "docs" {
+		t.Errorf("expected SourcePhase 'docs', got %s", loaded.SourcePhase)
+	}
+	if len(loaded.RelevantFiles) != 1 || loaded.RelevantFiles[0] != "internal/legacy_handler.go" {
+		t.Errorf("unexpected RelevantFiles: %v", loaded.RelevantFiles)
+	}
+}
+
+// TestInitiativeNote_GetByInitiative verifies listing notes for an initiative.
+func TestInitiativeNote_GetByInitiative(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create initiative
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Test Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create multiple notes
+	notes := []*db.InitiativeNote{
+		{ID: "NOTE-001", InitiativeID: "INIT-001", Author: "alice", AuthorType: db.NoteAuthorHuman, NoteType: db.NoteTypePattern, Content: "Pattern 1"},
+		{ID: "NOTE-002", InitiativeID: "INIT-001", Author: "bob", AuthorType: db.NoteAuthorHuman, NoteType: db.NoteTypeWarning, Content: "Warning 1"},
+		{ID: "NOTE-003", InitiativeID: "INIT-001", Author: "claude", AuthorType: db.NoteAuthorAgent, NoteType: db.NoteTypeLearning, Content: "Learning 1"},
+	}
+	for _, n := range notes {
+		if err := backend.SaveInitiativeNote(n); err != nil {
+			t.Fatalf("save note %s: %v", n.ID, err)
+		}
+	}
+
+	// Get all notes for initiative
+	list, err := backend.GetInitiativeNotes("INIT-001")
+	if err != nil {
+		t.Fatalf("get initiative notes: %v", err)
+	}
+	if len(list) != 3 {
+		t.Errorf("expected 3 notes, got %d", len(list))
+	}
+}
+
+// TestInitiativeNote_GetByType verifies filtering notes by type.
+func TestInitiativeNote_GetByType(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create initiative
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Test Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create notes of different types
+	notes := []*db.InitiativeNote{
+		{ID: "NOTE-001", InitiativeID: "INIT-001", Author: "alice", AuthorType: db.NoteAuthorHuman, NoteType: db.NoteTypePattern, Content: "Pattern 1"},
+		{ID: "NOTE-002", InitiativeID: "INIT-001", Author: "alice", AuthorType: db.NoteAuthorHuman, NoteType: db.NoteTypePattern, Content: "Pattern 2"},
+		{ID: "NOTE-003", InitiativeID: "INIT-001", Author: "bob", AuthorType: db.NoteAuthorHuman, NoteType: db.NoteTypeWarning, Content: "Warning 1"},
+		{ID: "NOTE-004", InitiativeID: "INIT-001", Author: "claude", AuthorType: db.NoteAuthorAgent, NoteType: db.NoteTypeLearning, Content: "Learning 1"},
+	}
+	for _, n := range notes {
+		if err := backend.SaveInitiativeNote(n); err != nil {
+			t.Fatalf("save note %s: %v", n.ID, err)
+		}
+	}
+
+	// Get only pattern notes
+	patterns, err := backend.GetInitiativeNotesByType("INIT-001", db.NoteTypePattern)
+	if err != nil {
+		t.Fatalf("get notes by type: %v", err)
+	}
+	if len(patterns) != 2 {
+		t.Errorf("expected 2 pattern notes, got %d", len(patterns))
+	}
+	for _, n := range patterns {
+		if n.NoteType != db.NoteTypePattern {
+			t.Errorf("expected pattern type, got %s", n.NoteType)
+		}
+	}
+
+	// Get only warning notes
+	warnings, err := backend.GetInitiativeNotesByType("INIT-001", db.NoteTypeWarning)
+	if err != nil {
+		t.Fatalf("get warning notes: %v", err)
+	}
+	if len(warnings) != 1 {
+		t.Errorf("expected 1 warning note, got %d", len(warnings))
+	}
+}
+
+// TestInitiativeNote_GetBySourceTask verifies retrieving notes by source task.
+func TestInitiativeNote_GetBySourceTask(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create initiative
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Test Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create notes from different tasks
+	notes := []*db.InitiativeNote{
+		{ID: "NOTE-001", InitiativeID: "INIT-001", Author: "claude", AuthorType: db.NoteAuthorAgent, SourceTask: "TASK-001", NoteType: db.NoteTypePattern, Content: "Pattern from TASK-001"},
+		{ID: "NOTE-002", InitiativeID: "INIT-001", Author: "claude", AuthorType: db.NoteAuthorAgent, SourceTask: "TASK-001", NoteType: db.NoteTypeWarning, Content: "Warning from TASK-001"},
+		{ID: "NOTE-003", InitiativeID: "INIT-001", Author: "claude", AuthorType: db.NoteAuthorAgent, SourceTask: "TASK-002", NoteType: db.NoteTypeLearning, Content: "Learning from TASK-002"},
+	}
+	for _, n := range notes {
+		if err := backend.SaveInitiativeNote(n); err != nil {
+			t.Fatalf("save note %s: %v", n.ID, err)
+		}
+	}
+
+	// Get notes from TASK-001
+	task1Notes, err := backend.GetInitiativeNotesBySourceTask("TASK-001")
+	if err != nil {
+		t.Fatalf("get notes by source task: %v", err)
+	}
+	if len(task1Notes) != 2 {
+		t.Errorf("expected 2 notes from TASK-001, got %d", len(task1Notes))
+	}
+
+	// Get notes from TASK-002
+	task2Notes, err := backend.GetInitiativeNotesBySourceTask("TASK-002")
+	if err != nil {
+		t.Fatalf("get notes by source task: %v", err)
+	}
+	if len(task2Notes) != 1 {
+		t.Errorf("expected 1 note from TASK-002, got %d", len(task2Notes))
+	}
+}
+
+// TestInitiativeNote_Delete verifies note deletion.
+func TestInitiativeNote_Delete(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create initiative
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Test Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create and save note
+	note := &db.InitiativeNote{
+		ID:           "NOTE-001",
+		InitiativeID: "INIT-001",
+		Author:       "alice",
+		AuthorType:   db.NoteAuthorHuman,
+		NoteType:     db.NoteTypePattern,
+		Content:      "Test pattern",
+	}
+	if err := backend.SaveInitiativeNote(note); err != nil {
+		t.Fatalf("save note: %v", err)
+	}
+
+	// Verify it exists
+	loaded, err := backend.GetInitiativeNote("NOTE-001")
+	if err != nil {
+		t.Fatalf("get note: %v", err)
+	}
+	if loaded == nil {
+		t.Fatal("note should exist before delete")
+	}
+
+	// Delete
+	if err := backend.DeleteInitiativeNote("NOTE-001"); err != nil {
+		t.Fatalf("delete note: %v", err)
+	}
+
+	// Verify deleted
+	loaded, err = backend.GetInitiativeNote("NOTE-001")
+	if err != nil {
+		t.Fatalf("get note after delete: %v", err)
+	}
+	if loaded != nil {
+		t.Error("note should be nil after delete")
+	}
+}
+
+// TestInitiativeNote_NotFound verifies behavior for non-existent note.
+func TestInitiativeNote_NotFound(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Load non-existent note
+	note, err := backend.GetInitiativeNote("NONEXISTENT")
+	if err != nil {
+		t.Fatalf("should not error for missing note: %v", err)
+	}
+	if note != nil {
+		t.Error("should return nil for missing note")
+	}
+}
+
+// TestInitiativeNote_NextID verifies ID generation.
+func TestInitiativeNote_NextID(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Generate IDs
+	id1, err := backend.GetNextNoteID()
+	if err != nil {
+		t.Fatalf("get next note ID: %v", err)
+	}
+	if id1 != "NOTE-001" {
+		t.Errorf("expected NOTE-001, got %s", id1)
+	}
+
+	id2, err := backend.GetNextNoteID()
+	if err != nil {
+		t.Fatalf("get next note ID: %v", err)
+	}
+	if id2 != "NOTE-002" {
+		t.Errorf("expected NOTE-002, got %s", id2)
+	}
+
+	id3, err := backend.GetNextNoteID()
+	if err != nil {
+		t.Fatalf("get next note ID: %v", err)
+	}
+	if id3 != "NOTE-003" {
+		t.Errorf("expected NOTE-003, got %s", id3)
+	}
+}
+
+// TestInitiativeNote_CascadeDelete verifies notes are deleted when initiative is deleted.
+func TestInitiativeNote_CascadeDelete(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create initiative with notes
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Test Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	note := &db.InitiativeNote{
+		ID:           "NOTE-001",
+		InitiativeID: "INIT-001",
+		Author:       "alice",
+		AuthorType:   db.NoteAuthorHuman,
+		NoteType:     db.NoteTypePattern,
+		Content:      "Test pattern",
+	}
+	if err := backend.SaveInitiativeNote(note); err != nil {
+		t.Fatalf("save note: %v", err)
+	}
+
+	// Delete initiative
+	if err := backend.DeleteInitiative("INIT-001"); err != nil {
+		t.Fatalf("delete initiative: %v", err)
+	}
+
+	// Notes should be cascaded
+	notes, err := backend.GetInitiativeNotes("INIT-001")
+	if err != nil {
+		t.Fatalf("get notes: %v", err)
+	}
+	if len(notes) != 0 {
+		t.Errorf("expected 0 notes after cascade delete, got %d", len(notes))
+	}
+}
+
+// TestInitiativeNote_Update verifies note upsert behavior.
+func TestInitiativeNote_Update(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create initiative
+	init := &initiative.Initiative{
+		ID:        "INIT-001",
+		Title:     "Test Initiative",
+		Status:    initiative.StatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create note
+	note := &db.InitiativeNote{
+		ID:           "NOTE-001",
+		InitiativeID: "INIT-001",
+		Author:       "alice",
+		AuthorType:   db.NoteAuthorHuman,
+		NoteType:     db.NoteTypePattern,
+		Content:      "Original content",
+	}
+	if err := backend.SaveInitiativeNote(note); err != nil {
+		t.Fatalf("save note: %v", err)
+	}
+
+	// Update note
+	note.Content = "Updated content"
+	note.Graduated = true
+	if err := backend.SaveInitiativeNote(note); err != nil {
+		t.Fatalf("update note: %v", err)
+	}
+
+	// Verify update
+	loaded, err := backend.GetInitiativeNote("NOTE-001")
+	if err != nil {
+		t.Fatalf("get note: %v", err)
+	}
+	if loaded.Content != "Updated content" {
+		t.Errorf("expected 'Updated content', got %s", loaded.Content)
+	}
+	if !loaded.Graduated {
+		t.Error("expected Graduated=true")
 	}
 }

@@ -369,6 +369,15 @@ func (b *emptyBackend) LoadAllInitiativesProto() ([]*orcv1.Initiative, error) {
 	return nil, nil
 }
 
+// Initiative note methods
+func (b *emptyBackend) SaveInitiativeNote(*db.InitiativeNote) error                 { return nil }
+func (b *emptyBackend) GetInitiativeNote(string) (*db.InitiativeNote, error)        { return nil, nil }
+func (b *emptyBackend) GetInitiativeNotes(string) ([]db.InitiativeNote, error)      { return nil, nil }
+func (b *emptyBackend) GetInitiativeNotesByType(string, string) ([]db.InitiativeNote, error) { return nil, nil }
+func (b *emptyBackend) GetInitiativeNotesBySourceTask(string) ([]db.InitiativeNote, error) { return nil, nil }
+func (b *emptyBackend) DeleteInitiativeNote(string) error                           { return nil }
+func (b *emptyBackend) GetNextNoteID() (string, error)                              { return "", nil }
+
 func TestPRPoller_StopTwice(t *testing.T) {
 	t.Parallel()
 	// Create a poller with a backend that returns no tasks
