@@ -52,6 +52,12 @@ type CreateInitiative struct {
 	Vision string `yaml:"vision,omitempty"`
 }
 
+// ManifestDecision represents a decision to record on the initiative.
+type ManifestDecision struct {
+	Text      string `yaml:"text"`
+	Rationale string `yaml:"rationale,omitempty"`
+}
+
 // Manifest represents a bulk task creation manifest.
 type Manifest struct {
 	// Version is the manifest format version (currently 1).
@@ -64,6 +70,10 @@ type Manifest struct {
 	// CreateInitiative contains details for creating a new initiative.
 	// Mutually exclusive with Initiative.
 	CreateInitiative *CreateInitiative `yaml:"create_initiative,omitempty"`
+
+	// Decisions is the list of decisions to record on the initiative.
+	// Only used when create_initiative is specified.
+	Decisions []ManifestDecision `yaml:"decisions,omitempty"`
 
 	// Tasks is the list of tasks to create.
 	Tasks []ManifestTask `yaml:"tasks"`
