@@ -354,12 +354,12 @@ func createWorkflowWithDocsPhase(t *testing.T, backend storage.Backend, workflow
 		t.Fatalf("save workflow: %v", err)
 	}
 
-	// Create docs phase template
+	// Create docs phase template with inline prompt (avoids file system dependency)
 	tmpl := &db.PhaseTemplate{
 		ID:               "docs",
 		Name:             "Documentation",
-		PromptSource:     "embedded",
-		PromptPath:       "prompts/docs.md",
+		PromptSource:     "db",
+		PromptContent:    "Test docs phase prompt for {{TASK_ID}}",
 		OutputVarName:    "DOCS_CONTENT",
 		OutputType:       "document",
 		ProducesArtifact: true,
