@@ -3,12 +3,29 @@
 package cli
 
 import (
+	"encoding/json"
 	"strings"
+
+	"github.com/spf13/cobra"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/progress"
 )
+
+// errorJSON represents an error in JSON output
+type errorJSON struct {
+	Error string `json:"error"`
+}
+
+// outputJSONError outputs an error as JSON to the command's output stream.
+// This should be called when jsonOut is true and an error occurs.
+func outputJSONError(cmd *cobra.Command, err error) {
+	output := errorJSON{Error: err.Error()}
+	encoder := json.NewEncoder(cmd.OutOrStdout())
+	encoder.SetIndent("", "  ")
+	_ = encoder.Encode(output)
+}
 
 // parseConflictFilesFromError extracts conflict file names from an error string.
 // Looks for file list in brackets: [file1 file2 file3]

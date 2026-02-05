@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -185,13 +186,27 @@ See also:
   orc initiative - Group related tasks with shared context`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := config.RequireInit(); err != nil {
+			// Silence Cobra's error output when JSON mode is enabled
+			if jsonOut {
+				cmd.SilenceUsage = true
+				cmd.SilenceErrors = true
+			}
+
+			// Helper to return errors with JSON output when needed
+			returnErr := func(err error) error {
+				if jsonOut {
+					outputJSONError(cmd, err)
+				}
 				return err
+			}
+
+			if err := config.RequireInit(); err != nil {
+				return returnErr(err)
 			}
 
 			backend, err := getBackend()
 			if err != nil {
-				return fmt.Errorf("get backend: %w", err)
+				return returnErr(fmt.Errorf("get backend: %w", err))
 			}
 			defer func() { _ = backend.Close() }()
 
@@ -223,14 +238,14 @@ See also:
 			// Validate target branch if specified
 			if targetBranch != "" {
 				if err := git.ValidateBranchName(targetBranch); err != nil {
-					return fmt.Errorf("invalid target branch: %w", err)
+					return returnErr(fmt.Errorf("invalid target branch: %w", err))
 				}
 			}
 
 			// Validate custom branch name if specified
 			if branchName != "" {
 				if err := git.ValidateBranchName(branchName); err != nil {
-					return fmt.Errorf("invalid branch name: %w", err)
+					return returnErr(fmt.Errorf("invalid branch name: %w", err))
 				}
 			}
 
@@ -240,33 +255,33 @@ See also:
 				// Need project DB for gate overrides later
 				projectRoot, rootErr := ResolveProjectPath()
 				if rootErr != nil {
-					return rootErr
+					return returnErr(rootErr)
 				}
 				pdb, err = db.OpenProject(projectRoot)
 				if err != nil {
-					return fmt.Errorf("open project database: %w", err)
+					return returnErr(fmt.Errorf("open project database: %w", err))
 				}
 				defer func() { _ = pdb.Close() }()
 
 				// Open global DB for workflows
 				gdb, err := db.OpenGlobal()
 				if err != nil {
-					return fmt.Errorf("open global database: %w", err)
+					return returnErr(fmt.Errorf("open global database: %w", err))
 				}
 				defer func() { _ = gdb.Close() }()
 
 				// Seed built-in workflows to ensure they exist (into global DB)
 				if _, err := workflow.SeedBuiltins(gdb); err != nil {
-					return fmt.Errorf("seed workflows: %w", err)
+					return returnErr(fmt.Errorf("seed workflows: %w", err))
 				}
 
 				// Verify workflow exists (in global DB)
 				wf, wfErr := gdb.GetWorkflow(workflowID)
 				if wfErr != nil {
-					return fmt.Errorf("get workflow: %w", wfErr)
+					return returnErr(fmt.Errorf("get workflow: %w", wfErr))
 				}
 				if wf == nil {
-					return fmt.Errorf("workflow not found: %s\n\nRun 'orc workflows' to see available workflows", workflowID)
+					return returnErr(fmt.Errorf("workflow not found: %s\n\nRun 'orc workflows' to see available workflows", workflowID))
 				}
 			}
 
@@ -282,7 +297,7 @@ See also:
 			// Generate next task ID
 			id, err := backend.GetNextTaskID()
 			if err != nil {
-				return fmt.Errorf("generate task ID: %w", err)
+				return returnErr(fmt.Errorf("generate task ID: %w", err))
 			}
 
 			// Create task
@@ -296,12 +311,12 @@ See also:
 			if templateName != "" {
 				tpl, err = template.Load(templateName)
 				if err != nil {
-					return fmt.Errorf("template %q not found", templateName)
+					return returnErr(fmt.Errorf("template %q not found", templateName))
 				}
 
 				// Validate required variables
 				if err := tpl.ValidateVariables(vars); err != nil {
-					return err
+					return returnErr(err)
 				}
 
 				// Render title and description with variables
@@ -322,7 +337,7 @@ See also:
 			if category != "" {
 				cat, valid := task.ParseCategoryProto(category)
 				if !valid {
-					return fmt.Errorf("invalid category: %s (valid: feature, bug, refactor, chore, docs, test)", category)
+					return returnErr(fmt.Errorf("invalid category: %s (valid: feature, bug, refactor, chore, docs, test)", category))
 				}
 				t.Category = cat
 			}
@@ -331,7 +346,7 @@ See also:
 			if priority != "" {
 				pri, valid := task.ParsePriorityProto(priority)
 				if !valid {
-					return fmt.Errorf("invalid priority: %s (valid: critical, high, normal, low)", priority)
+					return returnErr(fmt.Errorf("invalid priority: %s (valid: critical, high, normal, low)", priority))
 				}
 				t.Priority = pri
 			}
@@ -356,7 +371,7 @@ See also:
 					if resolvedWorkflow != "" {
 						workflowID = resolvedWorkflow
 						// Optional: log the resolution source for debugging
-						if source == "category_default" {
+						if source == "category_default" && !jsonOut {
 							_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Using workflow %q for %s tasks\n", workflowID, categoryStr)
 						}
 					}
@@ -364,7 +379,7 @@ See also:
 
 				if workflowID == "" {
 					// No workflow could be resolved - error with helpful message
-					return fmt.Errorf("no default workflow configured. Configure workflow defaults or specify explicitly.\n\nOptions:\n  1. Set category defaults: orc config set workflow_defaults.feature implement-medium\n  2. Set general default: orc config set workflow_defaults.default implement-medium\n  3. Specify explicitly: orc new \"My task\" --workflow implement-small\n\nRun 'orc workflows' to see available workflows")
+					return returnErr(fmt.Errorf("no default workflow configured. Configure workflow defaults or specify explicitly.\n\nOptions:\n  1. Set category defaults: orc config set workflow_defaults.feature implement-medium\n  2. Set general default: orc config set workflow_defaults.default implement-medium\n  3. Specify explicitly: orc new \"My task\" --workflow implement-small\n\nRun 'orc workflows' to see available workflows"))
 				}
 			}
 
@@ -378,10 +393,10 @@ See also:
 				// Verify initiative exists
 				exists, err := backend.InitiativeExists(initiativeID)
 				if err != nil {
-					return fmt.Errorf("check initiative: %w", err)
+					return returnErr(fmt.Errorf("check initiative: %w", err))
 				}
 				if !exists {
-					return fmt.Errorf("initiative %s not found", initiativeID)
+					return returnErr(fmt.Errorf("initiative %s not found", initiativeID))
 				}
 				task.SetInitiativeProto(t, initiativeID)
 			}
@@ -432,7 +447,7 @@ See also:
 				// Load existing tasks for validation
 				existingTasks, err := backend.LoadAllTasks()
 				if err != nil {
-					return fmt.Errorf("load existing tasks: %w", err)
+					return returnErr(fmt.Errorf("load existing tasks: %w", err))
 				}
 				existingIDs := make(map[string]bool)
 				for _, existing := range existingTasks {
@@ -441,12 +456,12 @@ See also:
 
 				// Validate blocked_by references
 				if errs := task.ValidateBlockedBy(id, blockedBy, existingIDs); len(errs) > 0 {
-					return errs[0]
+					return returnErr(errs[0])
 				}
 
 				// Validate related_to references
 				if errs := task.ValidateRelatedTo(id, relatedTo, existingIDs); len(errs) > 0 {
-					return errs[0]
+					return returnErr(errs[0])
 				}
 
 				t.BlockedBy = blockedBy
@@ -457,7 +472,7 @@ See also:
 			// Plans are created dynamically at runtime based on task weight
 			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 			if err := backend.SaveTask(t); err != nil {
-				return fmt.Errorf("save task: %w", err)
+				return returnErr(fmt.Errorf("save task: %w", err))
 			}
 
 			// Fire on_task_created lifecycle triggers if workflow was explicitly set
@@ -470,7 +485,7 @@ See also:
 			// Save pre-populated spec if provided (enables spec phase auto-skip)
 			if specContent != "" {
 				if err := backend.SaveSpecForTask(id, specContent, "brainstorm"); err != nil {
-					return fmt.Errorf("save spec content: %w", err)
+					return returnErr(fmt.Errorf("save spec content: %w", err))
 				}
 			}
 
@@ -480,11 +495,11 @@ See also:
 				if pdb == nil {
 					projectRoot, rootErr := ResolveProjectPath()
 					if rootErr != nil {
-						return fmt.Errorf("find project root for gate overrides: %w", rootErr)
+						return returnErr(fmt.Errorf("find project root for gate overrides: %w", rootErr))
 					}
 					pdb, err = db.OpenProject(projectRoot)
 					if err != nil {
-						return fmt.Errorf("open project database for gate overrides: %w", err)
+						return returnErr(fmt.Errorf("open project database for gate overrides: %w", err))
 					}
 					defer func() { _ = pdb.Close() }()
 				}
@@ -492,7 +507,7 @@ See also:
 				for _, gateSpec := range gateOverrides {
 					parts := strings.SplitN(gateSpec, ":", 2)
 					if len(parts) != 2 {
-						return fmt.Errorf("invalid gate format: %q (expected phase:type, e.g., spec:human)", gateSpec)
+						return returnErr(fmt.Errorf("invalid gate format: %q (expected phase:type, e.g., spec:human)", gateSpec))
 					}
 					phaseID, gateType := parts[0], parts[1]
 
@@ -501,7 +516,7 @@ See also:
 						"auto": true, "human": true, "ai": true, "skip": true,
 					}
 					if !validGateTypes[gateType] {
-						return fmt.Errorf("invalid gate type: %q (valid: auto, human, ai, skip)", gateType)
+						return returnErr(fmt.Errorf("invalid gate type: %q (valid: auto, human, ai, skip)", gateType))
 					}
 
 					override := &db.TaskGateOverride{
@@ -510,7 +525,7 @@ See also:
 						GateType: gateType,
 					}
 					if err := pdb.SaveTaskGateOverride(override); err != nil {
-						return fmt.Errorf("save gate override %s: %w", gateSpec, err)
+						return returnErr(fmt.Errorf("save gate override %s: %w", gateSpec, err))
 					}
 				}
 			}
@@ -521,13 +536,22 @@ See also:
 				init, err := backend.LoadInitiative(initID)
 				if err != nil {
 					// Log warning but don't fail task creation
-					fmt.Printf("Warning: failed to load initiative %s for sync: %v\n", initID, err)
+					if !jsonOut {
+						fmt.Printf("Warning: failed to load initiative %s for sync: %v\n", initID, err)
+					}
 				} else {
 					init.AddTask(t.Id, t.Title, nil)
 					if err := backend.SaveInitiative(init); err != nil {
-						fmt.Printf("Warning: failed to sync task to initiative: %v\n", err)
+						if !jsonOut {
+							fmt.Printf("Warning: failed to sync task to initiative: %v\n", err)
+						}
 					}
 				}
+			}
+
+			// JSON output mode
+			if jsonOut {
+				return outputNewTaskJSON(cmd, t)
 			}
 
 			fmt.Printf("Task created: %s\n", id)
@@ -657,4 +681,35 @@ See also:
 	cmd.Flags().StringSlice("pr-labels", nil, "PR labels to apply")
 	cmd.Flags().StringSlice("pr-reviewers", nil, "PR reviewers to request")
 	return cmd
+}
+
+// newTaskJSON represents the JSON output for new task creation
+type newTaskJSON struct {
+	TaskID     string `json:"task_id"`
+	Title      string `json:"title"`
+	WorkflowID string `json:"workflow_id,omitempty"`
+	Category   string `json:"category,omitempty"`
+	Priority   string `json:"priority,omitempty"`
+	Initiative string `json:"initiative,omitempty"`
+}
+
+// outputNewTaskJSON outputs the new task as JSON
+func outputNewTaskJSON(cmd *cobra.Command, t *orcv1.Task) error {
+	workflowID := ""
+	if t.WorkflowId != nil {
+		workflowID = *t.WorkflowId
+	}
+
+	output := newTaskJSON{
+		TaskID:     t.Id,
+		Title:      t.Title,
+		WorkflowID: workflowID,
+		Category:   strings.ToLower(strings.TrimPrefix(t.Category.String(), "TASK_CATEGORY_")),
+		Priority:   strings.ToLower(strings.TrimPrefix(t.Priority.String(), "TASK_PRIORITY_")),
+		Initiative: task.GetInitiativeIDProto(t),
+	}
+
+	encoder := json.NewEncoder(cmd.OutOrStdout())
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(output)
 }

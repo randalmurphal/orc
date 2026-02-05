@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -59,7 +60,16 @@ See also:
   orc list     - List all tasks with filters
   orc show     - Detailed view of specific task`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Silence Cobra's error output when JSON mode is enabled
+			if jsonOut {
+				cmd.SilenceUsage = true
+				cmd.SilenceErrors = true
+			}
+
 			if err := config.RequireInit(); err != nil {
+				if jsonOut {
+					outputJSONError(cmd, err)
+				}
 				return err
 			}
 
@@ -70,7 +80,11 @@ See also:
 				return watchStatus(cmd, all)
 			}
 
-			return showStatus(cmd, all)
+			err := showStatus(cmd, all)
+			if err != nil && jsonOut {
+				outputJSONError(cmd, err)
+			}
+			return err
 		},
 	}
 
@@ -244,6 +258,11 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 	sort.Slice(ready, func(i, j int) bool {
 		return task.PriorityOrderFromProto(task.GetPriorityProto(ready[i])) < task.PriorityOrderFromProto(task.GetPriorityProto(ready[j]))
 	})
+
+	// JSON output mode
+	if jsonOut {
+		return outputStatusJSON(cmd, tasks, orphaned, systemBlocked, running, depBlocked, ready, paused, recent, other)
+	}
 
 	// Print sections with priority ordering
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
@@ -502,4 +521,85 @@ func formatTimeAgo(t time.Time) string {
 		}
 		return fmt.Sprintf("%d days ago", days)
 	}
+}
+
+// statusTaskJSON represents a task in JSON output
+type statusTaskJSON struct {
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	Status     string `json:"status"`
+	Category   string `json:"category,omitempty"`
+	Priority   string `json:"priority,omitempty"`
+	Initiative string `json:"initiative,omitempty"`
+	Phase      string `json:"phase,omitempty"`
+}
+
+// statusSummaryJSON represents the summary in JSON output
+type statusSummaryJSON struct {
+	Total     int `json:"total"`
+	Orphaned  int `json:"orphaned"`
+	Attention int `json:"attention"`
+	Running   int `json:"running"`
+	Blocked   int `json:"blocked"`
+	Ready     int `json:"ready"`
+	Paused    int `json:"paused"`
+	Recent    int `json:"recent"`
+	Other     int `json:"other"`
+	Completed int `json:"completed"`
+}
+
+// statusOutputJSON represents the JSON output structure
+type statusOutputJSON struct {
+	Tasks   []statusTaskJSON  `json:"tasks"`
+	Summary statusSummaryJSON `json:"summary"`
+}
+
+// convertTaskToJSON converts a proto task to JSON representation
+func convertTaskToJSON(t *orcv1.Task) statusTaskJSON {
+	return statusTaskJSON{
+		ID:         t.Id,
+		Title:      t.Title,
+		Status:     strings.ToLower(strings.TrimPrefix(t.Status.String(), "TASK_STATUS_")),
+		Category:   strings.ToLower(strings.TrimPrefix(t.Category.String(), "TASK_CATEGORY_")),
+		Priority:   strings.ToLower(strings.TrimPrefix(t.Priority.String(), "TASK_PRIORITY_")),
+		Initiative: task.GetInitiativeIDProto(t),
+		Phase:      task.GetCurrentPhaseProto(t),
+	}
+}
+
+// outputStatusJSON outputs status as JSON
+func outputStatusJSON(cmd *cobra.Command, allTasks []*orcv1.Task, orphaned, systemBlocked, running, depBlocked, ready, paused, recent, other []*orcv1.Task) error {
+	// Convert all tasks to JSON format
+	var jsonTasks []statusTaskJSON
+	for _, t := range allTasks {
+		jsonTasks = append(jsonTasks, convertTaskToJSON(t))
+	}
+
+	// Count completed tasks
+	completed := 0
+	for _, t := range allTasks {
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
+			completed++
+		}
+	}
+
+	output := statusOutputJSON{
+		Tasks: jsonTasks,
+		Summary: statusSummaryJSON{
+			Total:     len(allTasks),
+			Orphaned:  len(orphaned),
+			Attention: len(systemBlocked),
+			Running:   len(running),
+			Blocked:   len(depBlocked),
+			Ready:     len(ready),
+			Paused:    len(paused),
+			Recent:    len(recent),
+			Other:     len(other),
+			Completed: completed,
+		},
+	}
+
+	encoder := json.NewEncoder(cmd.OutOrStdout())
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(output)
 }

@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -82,8 +83,17 @@ Examples:
   orc workflows --custom        # List only custom workflows
   orc workflows --builtin       # List only built-in workflows`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Silence Cobra's error output when JSON mode is enabled
+		if jsonOut {
+			cmd.SilenceUsage = true
+			cmd.SilenceErrors = true
+		}
+
 		projectRoot, err := ResolveProjectPath()
 		if err != nil {
+			if jsonOut {
+				outputJSONError(cmd, err)
+			}
 			return err
 		}
 
@@ -102,7 +112,11 @@ Examples:
 
 		workflows, err := resolver.ListWorkflows()
 		if err != nil {
-			return fmt.Errorf("list workflows: %w", err)
+			wfErr := fmt.Errorf("list workflows: %w", err)
+			if jsonOut {
+				outputJSONError(cmd, wfErr)
+			}
+			return wfErr
 		}
 
 		// Filter workflows
@@ -119,8 +133,18 @@ Examples:
 		}
 
 		if len(filtered) == 0 {
+			if jsonOut {
+				encoder := json.NewEncoder(cmd.OutOrStdout())
+				encoder.SetIndent("", "  ")
+				return encoder.Encode(map[string]interface{}{"workflows": []interface{}{}})
+			}
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No workflows found.")
 			return nil
+		}
+
+		// JSON output mode
+		if jsonOut {
+			return outputWorkflowsJSON(cmd, filtered, defaultWorkflowID)
 		}
 
 		// Display as table
@@ -907,4 +931,42 @@ Examples:
 
 func init() {
 	workflowSyncCmd.Flags().Bool("force", false, "Force update all workflows including embedded")
+}
+
+// workflowJSON represents a workflow in JSON output
+type workflowJSON struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	PhaseCount  int    `json:"phase_count"`
+	IsDefault   bool   `json:"is_default"`
+	Source      string `json:"source,omitempty"`
+}
+
+// workflowsOutputJSON represents the JSON output structure
+type workflowsOutputJSON struct {
+	Workflows []workflowJSON `json:"workflows"`
+}
+
+// outputWorkflowsJSON outputs workflows as JSON
+func outputWorkflowsJSON(cmd *cobra.Command, workflows []workflow.ResolvedWorkflow, defaultWorkflowID string) error {
+	var jsonWorkflows []workflowJSON
+	for _, rw := range workflows {
+		jsonWorkflows = append(jsonWorkflows, workflowJSON{
+			ID:          rw.Workflow.ID,
+			Name:        rw.Workflow.Name,
+			Description: rw.Workflow.Description,
+			PhaseCount:  len(rw.Workflow.Phases),
+			IsDefault:   rw.Workflow.ID == defaultWorkflowID,
+			Source:      workflow.SourceDisplayName(rw.Source),
+		})
+	}
+
+	output := workflowsOutputJSON{
+		Workflows: jsonWorkflows,
+	}
+
+	encoder := json.NewEncoder(cmd.OutOrStdout())
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(output)
 }
