@@ -100,20 +100,24 @@ func buildInitWizard(projectPath string) (*wizard.Wizard, *InitWizardState) {
 	// Step 4: Target branch
 	steps = append(steps, buildTargetBranchStep(projectPath))
 
-	// Step 5: MCP setup (if frontend detected)
+	// Step 5: Hosting detection
+	steps = append(steps, buildHostingStep(state))
+
+	// Step 6: MCP setup (if frontend detected)
 	steps = append(steps, buildMCPStep(state))
 
-	// Step 6: Hooks installation
+	// Step 7: Hooks installation
 	steps = append(steps, buildHooksStep())
 
-	// Step 7: Constitution (if found)
+	// Step 8: Constitution (if found)
 	steps = append(steps, buildConstitutionStep(state))
 
-	// Step 8: Summary
+	// Step 9: Summary
 	steps = append(steps, buildSummaryStep(state))
 
 	w := wizard.New(steps...).WithState(wizard.State{
-		"init_state": state,
+		"init_state":   state,
+		"project_path": projectPath,
 	})
 
 	return w, state

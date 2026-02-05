@@ -365,11 +365,50 @@ func printWizardResult(result *bootstrap.Result, state *InitWizardState) {
 		fmt.Println("  MCP:           Playwright enabled")
 	}
 
+	// Print hosting verification
+	hostingResult := buildHostingVerificationResult(state)
+	if hostingResult.GitRepoFound {
+		fmt.Println()
+		fmt.Println("  Hosting:")
+		bootstrap.PrintHostingVerification(os.Stdout, hostingResult)
+	}
+
 	fmt.Println()
 	fmt.Println("  Next steps:")
 	fmt.Println("    orc new \"task description\"  # Create a task")
 	fmt.Println("    orc serve                    # Start web UI")
 	fmt.Println()
+}
+
+// buildHostingVerificationResult creates a verification result from wizard state.
+func buildHostingVerificationResult(state *InitWizardState) *bootstrap.HostingVerificationResult {
+	result := &bootstrap.HostingVerificationResult{
+		GitRepoFound: !state.HostingSkipped,
+		RemoteFound:  !state.HostingSkipped && state.DetectedProvider != "",
+		Provider:     state.DetectedProvider,
+		IsSelfHosted: state.IsSelfHosted,
+		BaseURL:      state.DetectedBaseURL,
+	}
+
+	// Set provider name
+	switch state.DetectedProvider {
+	case "github":
+		result.ProviderName = "GitHub"
+	case "gitlab":
+		result.ProviderName = "GitLab"
+	default:
+		result.ProviderName = string(state.DetectedProvider)
+	}
+
+	// Check token
+	tokenResult := checkTokenExists(state)
+	result.TokenEnvVar = tokenResult.TokenEnvVar
+	result.TokenExists = tokenResult.TokenExists
+
+	// Check Anthropic API key
+	result.AnthropicKeySet = os.Getenv("ANTHROPIC_API_KEY") != ""
+
+	return result
 }
 
 // formatLanguages formats language list for display
