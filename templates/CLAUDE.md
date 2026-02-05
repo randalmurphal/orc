@@ -83,7 +83,7 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `breakdown.md` | Break spec into checkboxed implementation tasks |
 | `implement.md` | Implementation with TDD context, must make tests pass |
 | `review.md` | Multi-agent code review (6 reviewers incl. no-op detection) + success criteria + TDD wiring verification |
-| `docs.md` | Documentation (AI doc standards, hierarchical inheritance, doc type templates) |
+| `docs.md` | Documentation (AI doc standards, hierarchical inheritance, doc type templates, knowledge curator sub-agent for initiative notes) |
 | `qa.md` | Manual QA verification session |
 | `test.md` | Test execution template |
 | `finalize.md` | Branch sync, conflict resolution (manual command) |

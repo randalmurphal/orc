@@ -10,9 +10,10 @@ Unified notes system at the initiative level. Humans add notes directly; agents 
 
 ## Success Criteria
 
-- [ ] Initiative notes table exists with proper schema
-- [ ] Docs phase spawns knowledge curator sub-agent when task has initiative
-- [ ] Sub-agent follows strict guidelines (only captures what meets the bar)
+- [x] Initiative notes table exists with proper schema
+- [x] Docs phase spawns knowledge curator sub-agent when task has initiative (TASK-762)
+- [x] Sub-agent follows strict guidelines (only captures what meets the bar) (TASK-762)
+- [x] Notes are persisted with correct metadata (author_type, source_task, source_phase) (TASK-762)
 - [ ] Notes are injected into `{{INITIATIVE_CONTEXT}}` for all initiative tasks
 - [ ] CLI can list/add/view notes (`orc initiative notes`)
 - [ ] Web UI displays notes on initiative and task detail views
