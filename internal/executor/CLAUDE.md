@@ -39,10 +39,9 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `phase_settings.go` | Unified `ApplyPhaseSettings()` entry point: hooks + skills + hook scripts |
 | `claude_hooks.go` | `applyPhaseHooks()` - writes hooks to `.claude/settings.local.json` |
 | `hook_scripts.go` | `applyPhaseHookScripts()` - copies scripts to `.claude/hooks/` |
-| `heartbeat.go` | Periodic heartbeat updates during execution |
-| `claim.go` | `ClaimTask()`, `ReleaseTask()` - atomic task claiming via `TaskStore` to prevent concurrent execution |
+| `heartbeat.go` | `HeartbeatRunner` - periodic heartbeat updates during execution (`DefaultHeartbeatInterval=2m`) |
 | `history.go` | `StartRun()`, `CompleteRun()`, `FailRun()`, `InterruptRun()` - append-only run history tracking |
-| `idle_guard.go` | `IdleGuard` - heartbeat-based stale claim detection (30s interval, 5m timeout) |
+| `idle_guard.go` | `IdleGuard` - monitors heartbeat freshness, detects stale executors (2m interval, 15m timeout) |
 | `condition.go` | Condition evaluator: `EvaluateCondition()`, `ConditionContext` (phase skip + loop conditions) |
 | `topo_sort.go` | Phase ordering: `topologicalSort()`, `computeExecutionLevels()` (DAG execution levels for parallel phases) |
 | `phase_loop_test.go` | Phase loop integration tests (10 success criteria + failure modes) |
@@ -527,19 +526,34 @@ Commands are stored in `project_commands` table and seeded during `orc init` bas
 
 **API Error Handling:** `config.Validation.FailOnAPIError` - `true` fails task properly (resumable), `false` continues without validation.
 
-## Heartbeat Runner
+## Heartbeat and Stale Detection
 
-`heartbeat.go` provides periodic updates during long-running phases to prevent false orphan detection.
+### HeartbeatRunner (`heartbeat.go`)
 
-- **Interval:** 2 minutes between heartbeat updates
+Periodic heartbeat updates during long-running phases to prevent false orphan detection.
+
+- **Interval:** `DefaultHeartbeatInterval = 2 * time.Minute`
 - **Purpose:** Long implement phases can take hours; without heartbeats, task appears orphaned
 - **Priority:** PID check takes precedence over heartbeat staleness (live PID = healthy task)
 
-```go
-heartbeatRunner := NewHeartbeatRunner(e.Backend, state, e.Logger)
-heartbeatRunner.Start(ctx)
-defer heartbeatRunner.Stop()
-```
+### IdleGuard (`idle_guard.go`)
+
+Monitors heartbeat freshness during execution, warns when executor appears stale.
+
+- **Check Interval:** `DefaultHeartbeatInterval` (2 minutes)
+- **Stale Timeout:** `task.StaleHeartbeatThreshold` (15 minutes)
+- **OnStale callback:** Logs warning (does not auto-release)
+
+Wired into executor lifecycle via `startIdleGuard()` / `defer guard.Stop()`.
+
+### Stale Detection (`task/stale_detection.go`)
+
+| Function | Purpose |
+|----------|---------|
+| `IsClaimStale(task)` | Returns (stale bool, reason string) based on heartbeat age vs `StaleHeartbeatThreshold` |
+| `FormatHeartbeatStatus(task)` | Human-readable status: "healthy (2m ago)" or "stale (23m ago)" |
+
+**Note:** `CheckOrphanedProto` in `task/proto_helpers.go` still uses PID-based detection only. Hostname-aware detection for PostgreSQL team mode (where PID checks are meaningless across hosts) is not yet implemented.
 
 ## User Claim System
 
@@ -581,7 +595,7 @@ go test ./internal/executor/... -v
 | `parallel_execution_test.go` | Parallel phase execution: diamond pattern, failure cancellation, variable safety |
 | `dag_skip_integration_test.go` | DAG skip integration: skipped phases don't block dependents (SC-7 verification) |
 | `executor_run_test.go` | Executor.Run claim-on-run integration: claim/release lifecycle, concurrent claim rejection |
-| `claim_test.go` | ClaimTask/ReleaseTask unit tests |
+| `heartbeat_test.go` | HeartbeatRunner: update lifecycle, interval timing |
 | `history_test.go` | Run history tracking: start/complete/fail/interrupt |
 | `idle_guard_test.go` | IdleGuard heartbeat loop and stale claim detection |
 
