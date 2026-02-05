@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/randalmurphal/orc/internal/detect"
+	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/wizard"
 )
 
@@ -35,6 +36,14 @@ type InitWizardState struct {
 	UpdateGitignore  bool
 	SetConstitution  bool
 	ConstitutionPath string
+
+	// Hosting detection
+	DetectedProvider        hosting.ProviderType
+	ConfirmedProvider       hosting.ProviderType
+	IsSelfHosted            bool
+	DetectedBaseURL         string
+	HostingSkipped          bool
+	RequiresManualSelection bool
 }
 
 // PlaywrightMCPConfig holds Playwright MCP settings.
@@ -308,6 +317,15 @@ func extractWizardResults(wizardState wizard.State, state *InitWizardState) {
 	if v, ok := wizardState["set_constitution"].(bool); ok {
 		state.SetConstitution = v
 	}
+
+	// Hosting extraction
+	if v, ok := wizardState["hosting_provider"].(string); ok {
+		state.ConfirmedProvider = hosting.ProviderType(v)
+	}
+	if v, ok := wizardState["hosting_base_url"].(string); ok {
+		state.DetectedBaseURL = v
+	}
+	// Note: hosting_confirmed is just used to signal the step completed, no value extraction needed
 
 	// Always update gitignore
 	state.UpdateGitignore = true

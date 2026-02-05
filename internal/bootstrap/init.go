@@ -5,12 +5,15 @@ package bootstrap
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/detect"
+	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/project"
 )
 
@@ -103,6 +106,19 @@ func Run(opts Options) (*Result, error) {
 		if opts.Profile != "" {
 			cfg.ApplyProfile(opts.Profile)
 		}
+
+		// 2b. Detect hosting provider from git remote
+		if remoteURL, err := getGitRemoteURL(opts.WorkDir); err == nil && remoteURL != "" {
+			provider := hosting.DetectProvider(remoteURL)
+			if provider != hosting.ProviderUnknown {
+				cfg.Hosting.Provider = string(provider)
+				// Detect self-hosted base URL
+				if baseURL, isSelfHosted := hosting.ExtractBaseURL(remoteURL, provider); isSelfHosted {
+					cfg.Hosting.BaseURL = baseURL
+				}
+			}
+		}
+
 		if err := cfg.SaveTo(configPath); err != nil {
 			return nil, fmt.Errorf("write config: %w", err)
 		}
@@ -370,4 +386,15 @@ func PrintResult(r *Result) {
 	fmt.Printf("  orc new \"task description\"  # Create a new task\n")
 	fmt.Printf("  orc serve                    # Start web UI at localhost:8080\n")
 	fmt.Printf("  orc setup                    # (Optional) Configure with Claude\n")
+}
+
+// getGitRemoteURL gets the origin remote URL for the repo at the given path.
+func getGitRemoteURL(path string) (string, error) {
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	cmd.Dir = path
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
 }
