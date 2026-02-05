@@ -140,6 +140,7 @@ type WorkflowExecutor struct {
 	task         *orcv1.Task       // Task being executed (for task-based contexts)
 	wf           *workflow.Workflow // Workflow being executed (for lifecycle triggers in failRun)
 	heartbeat    *HeartbeatRunner
+	idleGuard    *IdleGuard
 	fileWatcher  *FileWatcher
 	isResuming      bool // True if resuming a paused/failed/blocked task
 	skipGates       bool // When true, bypass all gate evaluations
@@ -427,6 +428,22 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		we.heartbeat = NewHeartbeatRunner(we.backend, t.Id, we.logger)
 		we.heartbeat.Start(ctx)
 		defer we.heartbeat.Stop()
+
+		// Start idle guard to monitor for stale heartbeats
+		we.idleGuard = NewIdleGuard(IdleGuardConfig{
+			CheckInterval: DefaultHeartbeatInterval,
+			StaleTimeout:  task.StaleHeartbeatThreshold,
+			Checker:       &taskHeartbeatChecker{loader: we.backend, taskID: t.Id},
+			OnStale: func(age time.Duration) {
+				we.logger.Warn("heartbeat stale — executor may be hung",
+					"task_id", t.Id,
+					"age", age.Truncate(time.Second),
+				)
+			},
+			Logger: we.logger,
+		})
+		we.idleGuard.Start(ctx)
+		defer we.idleGuard.Stop()
 
 		// Take resource snapshot before execution (for orphan process detection)
 		if we.resourceTracker != nil {
