@@ -31,6 +31,28 @@ You audit task descriptions for agent success AND appropriate scope.
 | **File hints** | Does it mention files to modify? | Lists specific file paths |
 | **Acceptance** | Is "done" unambiguous? | Has checkbox criteria |
 | **Scope bounds** | Does it say what NOT to do? | Explicit exclusions |
+| **No hedging** | Is old code fate explicit? | DELETE or KEEP, not "deprecate or migrate" |
+
+## Completeness Criteria
+
+Check that tasks include **obvious scope from the design**. The executing agent shouldn't have to make major decisions.
+
+| Check | Question | Fail If |
+|-------|----------|---------|
+| **Removal included** | If design says "replace X with Y", does task say DELETE X? | Design says replace, task only mentions new code |
+| **All touched files listed** | Does task mention all files the design implies? | Design mentions 5 files, task only lists 2 |
+| **Major decisions locked** | Are architectural choices in the task, not left to agent? | Task says "choose between A or B" |
+| **Edge cases from design** | Does task include edge cases the design identified? | Design lists 3 edge cases, task mentions 0 |
+
+**The rule:** Fine details can be figured out during execution. Major decisions must be in the task description.
+
+| ✅ OK to leave to agent | ❌ Must be in task description |
+|-------------------------|-------------------------------|
+| Exact error message wording | Whether to use errors or panics |
+| Variable naming | Interface design |
+| Code organization within a file | Which files to create/delete |
+| Test case details | Testing strategy (unit vs integration) |
+| Implementation order | What to keep vs delete |
 
 ## Scope/Complexity Criteria
 
@@ -83,6 +105,21 @@ Acceptance Criteria:
 □ Criterion 1
 ```
 
+### Completeness Issues
+
+#### TASK-XXX (Missing scope from design)
+**Problem:** Design says "replace team.go claim system" but task only mentions new code
+**Missing:** Explicit DELETE instruction for old code
+**Add:**
+```
+**DELETE the old approach:**
+- DELETE internal/db/team.go entirely
+```
+
+#### TASK-XXX (Major decision left to agent)
+**Problem:** Task says "either use X or Y approach"
+**Fix:** Pick one. The design decided X because [reason]. Update task to state X explicitly.
+
 ### Scope Issues
 
 #### TASK-XXX (Scope: Too Ambitious)
@@ -102,6 +139,7 @@ Implementation order:
 
 ## Summary
 - Quality: Good: N, Needs Improvement: N, Poor: N
+- Completeness: Complete: N, Missing Scope: N, Decisions Left Open: N
 - Scope: Appropriate: N, Too Broad: N, Consider Splitting: N
 ```
 

@@ -370,3 +370,64 @@ If no → either merge with the task it depends on, or add the missing context t
 | No decisions recorded | Each task's Claude reinvents architectural choices | Record every decision with rationale |
 | Everything is medium | Some work needs large (breakdown) or small (light spec) | Match weight to actual complexity |
 | Wrong workflow for task type | QA task runs implement phases, wastes effort | Use `qa-e2e` for testing, `docs` for documentation, etc. |
+| **Deprecation hedging** | Creates legacy cruft, fallback paths, tech debt | See "Code Removal" section below — DELETE or KEEP, no hedging |
+
+## Code Removal vs Legacy
+
+When a task replaces existing code, be explicit about what happens to the old code.
+
+### The Rule
+
+**DELETE or KEEP. No middle ground.**
+
+| Action | When to Use | Task Description Says |
+|--------|-------------|----------------------|
+| **DELETE** | New code fully replaces old | "DELETE `old_file.go` entirely" |
+| **KEEP** | Old code needed for compatibility window | "KEEP for 2 releases, remove in v3.0" (with ticket) |
+
+### Forbidden Language
+
+Never use these in task descriptions:
+
+| ❌ Don't Write | ✅ Write Instead |
+|----------------|------------------|
+| "deprecate the old approach" | "DELETE the old approach" |
+| "either migrate or keep alongside" | Pick one. State which. |
+| "mark as legacy" | "DELETE — git has history" |
+| "add fallback to old behavior" | Only if explicitly requested |
+| "keep for backward compatibility" | Only with explicit timeline and removal ticket |
+
+### Why This Matters
+
+Each orc task runs in isolation. Hedging language like "deprecate or migrate" gives Claude permission to:
+- Keep both implementations "just in case"
+- Add fallback paths that complicate the codebase
+- Create tech debt that never gets cleaned up
+
+The executing Claude doesn't know what you actually wanted — it sees "or" and picks the safer (messier) option.
+
+### Example
+
+**Bad:**
+```yaml
+description: |
+  Refactor the claim system. The existing task_claims table in team.go
+  uses a different schema. Either migrate it or create the new one
+  alongside and deprecate the old approach.
+```
+
+**Good:**
+```yaml
+description: |
+  Refactor the claim system to use atomic operations.
+
+  **DELETE the old approach:**
+  - DELETE internal/db/team.go entirely
+  - DELETE TeamMember, TaskClaim types
+  - The new users table + atomic claim replaces ALL of this
+
+  **Do NOT:**
+  - Keep team.go "for compatibility"
+  - Add fallback logic
+  - Deprecate — just delete
+```
