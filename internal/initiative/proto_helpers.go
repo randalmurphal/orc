@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/db"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -121,5 +122,30 @@ func UpdateTimestampProto(i *orcv1.Initiative) {
 		return
 	}
 	i.UpdatedAt = timestamppb.Now()
+}
+
+// NoteToProto converts a db.InitiativeNote to a proto InitiativeNote.
+func NoteToProto(n *db.InitiativeNote) *orcv1.InitiativeNote {
+	if n == nil {
+		return nil
+	}
+	proto := &orcv1.InitiativeNote{
+		Id:            n.ID,
+		InitiativeId:  n.InitiativeID,
+		Author:        n.Author,
+		AuthorType:    n.AuthorType,
+		NoteType:      n.NoteType,
+		Content:       n.Content,
+		RelevantFiles: n.RelevantFiles,
+		Graduated:     n.Graduated,
+		CreatedAt:     timestamppb.New(n.CreatedAt),
+	}
+	if n.SourceTask != "" {
+		proto.SourceTask = &n.SourceTask
+	}
+	if n.SourcePhase != "" {
+		proto.SourcePhase = &n.SourcePhase
+	}
+	return proto
 }
 

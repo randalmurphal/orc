@@ -202,3 +202,95 @@
 	overflow-y: auto;
 	margin-top: var(--space-2);
 }
+
+/* Notes Generated Section */
+.task-detail-notes {
+	margin-top: var(--space-4);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	padding: var(--space-4);
+}
+
+.task-detail-notes__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.task-detail-notes__header h3 {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-size: var(--text-sm);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0;
+}
+
+.task-detail-notes__list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	margin-top: var(--space-3);
+}
+
+.task-detail-note {
+	padding: var(--space-3);
+	background: var(--bg-base);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+}
+
+.task-detail-note__type {
+	display: inline-block;
+	padding: var(--space-0-5) var(--space-1-5);
+	font-size: var(--text-2xs);
+	font-weight: var(--font-medium);
+	text-transform: capitalize;
+	border-radius: var(--radius-sm);
+	margin-bottom: var(--space-2);
+}
+
+.task-detail-note__type.type-pattern {
+	background: var(--blue-dim);
+	color: var(--blue);
+}
+
+.task-detail-note__type.type-warning {
+	background: var(--amber-dim);
+	color: var(--amber);
+}
+
+.task-detail-note__type.type-learning {
+	background: var(--green-dim);
+	color: var(--green);
+}
+
+.task-detail-note__type.type-handoff {
+	background: var(--violet-dim);
+	color: var(--violet);
+}
+
+.task-detail-note__content {
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	line-height: var(--leading-relaxed);
+	margin: 0;
+}
+
+.task-detail-note__files {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+	margin-top: var(--space-2);
+}
+
+.task-detail-note__files code {
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	padding: var(--space-0-5) var(--space-1-5);
+	background: var(--bg-surface);
+	border-radius: var(--radius-sm);
+	color: var(--text-muted);
+}

@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file orc/v1/initiative.proto.
  */
 export const file_orc_v1_initiative: GenFile = /*@__PURE__*/
-  fileDesc("ChdvcmMvdjEvaW5pdGlhdGl2ZS5wcm90bxIGb3JjLnYxImYKCElkZW50aXR5EhAKCGluaXRpYWxzGAEgASgJEhkKDGRpc3BsYXlfbmFtZRgCIAEoCUgAiAEBEhIKBWVtYWlsGAMgASgJSAGIAQFCDwoNX2Rpc3BsYXlfbmFtZUIICgZfZW1haWwijgEKEkluaXRpYXRpdmVEZWNpc2lvbhIKCgJpZBgBIAEoCRIoCgRkYXRlGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIKCgJieRgDIAEoCRIQCghkZWNpc2lvbhgEIAEoCRIWCglyYXRpb25hbGUYBSABKAlIAIgBAUIMCgpfcmF0aW9uYWxlIlwKB1Rhc2tSZWYSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSIgoGc3RhdHVzGAMgASgOMhIub3JjLnYxLlRhc2tTdGF0dXMSEgoKZGVwZW5kc19vbhgEIAMoCSLLBAoKSW5pdGlhdGl2ZRIPCgd2ZXJzaW9uGAEgASgFEgoKAmlkGAIgASgJEg0KBXRpdGxlGAMgASgJEigKBnN0YXR1cxgEIAEoDjIYLm9yYy52MS5Jbml0aWF0aXZlU3RhdHVzEiQKBW93bmVyGAUgASgLMhAub3JjLnYxLklkZW50aXR5SACIAQESEwoGdmlzaW9uGAYgASgJSAGIAQESLQoJZGVjaXNpb25zGAcgAygLMhoub3JjLnYxLkluaXRpYXRpdmVEZWNpc2lvbhIVCg1jb250ZXh0X2ZpbGVzGAggAygJEh4KBXRhc2tzGAkgAygLMg8ub3JjLnYxLlRhc2tSZWYSEgoKYmxvY2tlZF9ieRgKIAMoCRIYCgticmFuY2hfYmFzZRgLIAEoCUgCiAEBEhoKDWJyYW5jaF9wcmVmaXgYDCABKAlIA4gBARIpCgxtZXJnZV9zdGF0dXMYDSABKA4yEy5vcmMudjEuTWVyZ2VTdGF0dXMSGQoMbWVyZ2VfY29tbWl0GA4gASgJSASIAQESLgoKY3JlYXRlZF9hdBgPIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGYmxvY2tzGGQgAygJQggKBl9vd25lckIJCgdfdmlzaW9uQg4KDF9icmFuY2hfYmFzZUIQCg5fYnJhbmNoX3ByZWZpeEIPCg1fbWVyZ2VfY29tbWl0IkIKEkluaXRpYXRpdmVQcm9ncmVzcxIKCgJpZBgBIAEoCRIRCgljb21wbGV0ZWQYAiABKAUSDQoFdG90YWwYAyABKAUimQEKFkxpc3RJbml0aWF0aXZlc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIhCgRwYWdlGAIgASgLMhMub3JjLnYxLlBhZ2VSZXF1ZXN0Ei0KBnN0YXR1cxgDIAEoDjIYLm9yYy52MS5Jbml0aWF0aXZlU3RhdHVzSACIAQESDgoGc2hhcmVkGAQgASgIQgkKB19zdGF0dXMiZgoXTGlzdEluaXRpYXRpdmVzUmVzcG9uc2USJwoLaW5pdGlhdGl2ZXMYASADKAsyEi5vcmMudjEuSW5pdGlhdGl2ZRIiCgRwYWdlGAIgASgLMhQub3JjLnYxLlBhZ2VSZXNwb25zZSJBChRHZXRJbml0aWF0aXZlUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhUKDWluaXRpYXRpdmVfaWQYAiABKAkiPwoVR2V0SW5pdGlhdGl2ZVJlc3BvbnNlEiYKCmluaXRpYXRpdmUYASABKAsyEi5vcmMudjEuSW5pdGlhdGl2ZSKPAgoXQ3JlYXRlSW5pdGlhdGl2ZVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgZ2aXNpb24YAyABKAlIAIgBARIkCgVvd25lchgEIAEoCzIQLm9yYy52MS5JZGVudGl0eUgBiAEBEhIKCmJsb2NrZWRfYnkYBSADKAkSGAoLYnJhbmNoX2Jhc2UYBiABKAlIAogBARIaCg1icmFuY2hfcHJlZml4GAcgASgJSAOIAQESFQoNY29udGV4dF9maWxlcxgIIAMoCUIJCgdfdmlzaW9uQggKBl9vd25lckIOCgxfYnJhbmNoX2Jhc2VCEAoOX2JyYW5jaF9wcmVmaXgiQgoYQ3JlYXRlSW5pdGlhdGl2ZVJlc3BvbnNlEiYKCmluaXRpYXRpdmUYASABKAsyEi5vcmMudjEuSW5pdGlhdGl2ZSLvAgoXVXBkYXRlSW5pdGlhdGl2ZVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIVCg1pbml0aWF0aXZlX2lkGAIgASgJEhIKBXRpdGxlGAMgASgJSACIAQESEwoGdmlzaW9uGAQgASgJSAGIAQESJAoFb3duZXIYBSABKAsyEC5vcmMudjEuSWRlbnRpdHlIAogBARItCgZzdGF0dXMYBiABKA4yGC5vcmMudjEuSW5pdGlhdGl2ZVN0YXR1c0gDiAEBEhIKCmJsb2NrZWRfYnkYByADKAkSGAoLYnJhbmNoX2Jhc2UYCCABKAlIBIgBARIaCg1icmFuY2hfcHJlZml4GAkgASgJSAWIAQESFQoNY29udGV4dF9maWxlcxgKIAMoCUIICgZfdGl0bGVCCQoHX3Zpc2lvbkIICgZfb3duZXJCCQoHX3N0YXR1c0IOCgxfYnJhbmNoX2Jhc2VCEAoOX2JyYW5jaF9wcmVmaXgiQgoYVXBkYXRlSW5pdGlhdGl2ZVJlc3BvbnNlEiYKCmluaXRpYXRpdmUYASABKAsyEi5vcmMudjEuSW5pdGlhdGl2ZSJEChdEZWxldGVJbml0aWF0aXZlUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhUKDWluaXRpYXRpdmVfaWQYAiABKAkiKwoYRGVsZXRlSW5pdGlhdGl2ZVJlc3BvbnNlEg8KB21lc3NhZ2UYASABKAkiRwoaTGlzdEluaXRpYXRpdmVUYXNrc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIVCg1pbml0aWF0aXZlX2lkGAIgASgJIjoKG0xpc3RJbml0aWF0aXZlVGFza3NSZXNwb25zZRIbCgV0YXNrcxgBIAMoCzIMLm9yYy52MS5UYXNrIk8KEExpbmtUYXNrc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIVCg1pbml0aWF0aXZlX2lkGAIgASgJEhAKCHRhc2tfaWRzGAMgAygJIjsKEUxpbmtUYXNrc1Jlc3BvbnNlEiYKCmluaXRpYXRpdmUYASABKAsyEi5vcmMudjEuSW5pdGlhdGl2ZSJPChFVbmxpbmtUYXNrUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhUKDWluaXRpYXRpdmVfaWQYAiABKAkSDwoHdGFza19pZBgDIAEoCSI8ChJVbmxpbmtUYXNrUmVzcG9uc2USJgoKaW5pdGlhdGl2ZRgBIAEoCzISLm9yYy52MS5Jbml0aWF0aXZlIo8BChJBZGREZWNpc2lvblJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIVCg1pbml0aWF0aXZlX2lkGAIgASgJEhAKCGRlY2lzaW9uGAMgASgJEhYKCXJhdGlvbmFsZRgEIAEoCUgAiAEBEg8KAmJ5GAUgASgJSAGIAQFCDAoKX3JhdGlvbmFsZUIFCgNfYnkiPQoTQWRkRGVjaXNpb25SZXNwb25zZRImCgppbml0aWF0aXZlGAEgASgLMhIub3JjLnYxLkluaXRpYXRpdmUiQQoUR2V0UmVhZHlUYXNrc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIVCg1pbml0aWF0aXZlX2lkGAIgASgJIjQKFUdldFJlYWR5VGFza3NSZXNwb25zZRIbCgV0YXNrcxgBIAMoCzIMLm9yYy52MS5UYXNrIkYKGUdldERlcGVuZGVuY3lHcmFwaFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIVCg1pbml0aWF0aXZlX2lkGAIgASgJIkQKGkdldERlcGVuZGVuY3lHcmFwaFJlc3BvbnNlEiYKBWdyYXBoGAEgASgLMhcub3JjLnYxLkRlcGVuZGVuY3lHcmFwaCJ5ChRSdW5Jbml0aWF0aXZlUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhUKDWluaXRpYXRpdmVfaWQYAiABKAkSFAoHcHJvZmlsZRgDIAEoCUgAiAEBEhQKDG1heF9wYXJhbGxlbBgEIAEoBUIKCghfcHJvZmlsZSJqChVSdW5Jbml0aWF0aXZlUmVzcG9uc2USJgoKaW5pdGlhdGl2ZRgBIAEoCzISLm9yYy52MS5Jbml0aWF0aXZlEhgKEHN0YXJ0ZWRfdGFza19pZHMYAiADKAkSDwoHbWVzc2FnZRgDIAEoCSqxAQoQSW5pdGlhdGl2ZVN0YXR1cxIhCh1JTklUSUFUSVZFX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF0lOSVRJQVRJVkVfU1RBVFVTX0RSQUZUEAESHAoYSU5JVElBVElWRV9TVEFUVVNfQUNUSVZFEAISHwobSU5JVElBVElWRV9TVEFUVVNfQ09NUExFVEVEEAMSHgoaSU5JVElBVElWRV9TVEFUVVNfQVJDSElWRUQQBCqsAQoLTWVyZ2VTdGF0dXMSHAoYTUVSR0VfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFQoRTUVSR0VfU1RBVFVTX05PTkUQARIYChRNRVJHRV9TVEFUVVNfUEVORElORxACEhwKGE1FUkdFX1NUQVRVU19JTl9QUk9HUkVTUxADEhcKE01FUkdFX1NUQVRVU19NRVJHRUQQBBIXChNNRVJHRV9TVEFUVVNfRkFJTEVEEAUy4gcKEUluaXRpYXRpdmVTZXJ2aWNlElIKD0xpc3RJbml0aWF0aXZlcxIeLm9yYy52MS5MaXN0SW5pdGlhdGl2ZXNSZXF1ZXN0Gh8ub3JjLnYxLkxpc3RJbml0aWF0aXZlc1Jlc3BvbnNlEkwKDUdldEluaXRpYXRpdmUSHC5vcmMudjEuR2V0SW5pdGlhdGl2ZVJlcXVlc3QaHS5vcmMudjEuR2V0SW5pdGlhdGl2ZVJlc3BvbnNlElUKEENyZWF0ZUluaXRpYXRpdmUSHy5vcmMudjEuQ3JlYXRlSW5pdGlhdGl2ZVJlcXVlc3QaIC5vcmMudjEuQ3JlYXRlSW5pdGlhdGl2ZVJlc3BvbnNlElUKEFVwZGF0ZUluaXRpYXRpdmUSHy5vcmMudjEuVXBkYXRlSW5pdGlhdGl2ZVJlcXVlc3QaIC5vcmMudjEuVXBkYXRlSW5pdGlhdGl2ZVJlc3BvbnNlElUKEERlbGV0ZUluaXRpYXRpdmUSHy5vcmMudjEuRGVsZXRlSW5pdGlhdGl2ZVJlcXVlc3QaIC5vcmMudjEuRGVsZXRlSW5pdGlhdGl2ZVJlc3BvbnNlEl4KE0xpc3RJbml0aWF0aXZlVGFza3MSIi5vcmMudjEuTGlzdEluaXRpYXRpdmVUYXNrc1JlcXVlc3QaIy5vcmMudjEuTGlzdEluaXRpYXRpdmVUYXNrc1Jlc3BvbnNlEkAKCUxpbmtUYXNrcxIYLm9yYy52MS5MaW5rVGFza3NSZXF1ZXN0Ghkub3JjLnYxLkxpbmtUYXNrc1Jlc3BvbnNlEkMKClVubGlua1Rhc2sSGS5vcmMudjEuVW5saW5rVGFza1JlcXVlc3QaGi5vcmMudjEuVW5saW5rVGFza1Jlc3BvbnNlEkYKC0FkZERlY2lzaW9uEhoub3JjLnYxLkFkZERlY2lzaW9uUmVxdWVzdBobLm9yYy52MS5BZGREZWNpc2lvblJlc3BvbnNlEkwKDUdldFJlYWR5VGFza3MSHC5vcmMudjEuR2V0UmVhZHlUYXNrc1JlcXVlc3QaHS5vcmMudjEuR2V0UmVhZHlUYXNrc1Jlc3BvbnNlElsKEkdldERlcGVuZGVuY3lHcmFwaBIhLm9yYy52MS5HZXREZXBlbmRlbmN5R3JhcGhSZXF1ZXN0GiIub3JjLnYxLkdldERlcGVuZGVuY3lHcmFwaFJlc3BvbnNlEkwKDVJ1bkluaXRpYXRpdmUSHC5vcmMudjEuUnVuSW5pdGlhdGl2ZVJlcXVlc3QaHS5vcmMudjEuUnVuSW5pdGlhdGl2ZVJlc3BvbnNlQosBCgpjb20ub3JjLnYxQg9Jbml0aWF0aXZlUHJvdG9QAVozZ2l0aHViLmNvbS9yYW5kYWxtdXJwaGFsL29yYy9nZW4vcHJvdG8vb3JjL3YxO29yY3YxogIDT1hYqgIGT3JjLlYxygIGT3JjXFYx4gIST3JjXFYxXEdQQk1ldGFkYXRh6gIHT3JjOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_orc_v1_common, file_orc_v1_task]);
+  fileDesc("ChdvcmMvdjEvaW5pdGlhdGl2ZS5wcm90bxIGb3JjLnYxImYKCElkZW50aXR5EhAKCGluaXRpYWxzGAEgASgJEhkKDGRpc3BsYXlfbmFtZRgCIAEoCUgAiAEBEhIKBWVtYWlsGAMgASgJSAGIAQFCDwoNX2Rpc3BsYXlfbmFtZUIICgZfZW1haWwijgEKEkluaXRpYXRpdmVEZWNpc2lvbhIKCgJpZBgBIAEoCRIoCgRkYXRlGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIKCgJieRgDIAEoCRIQCghkZWNpc2lvbhgEIAEoCRIWCglyYXRpb25hbGUYBSABKAlIAIgBAUIMCgpfcmF0aW9uYWxlIlwKB1Rhc2tSZWYSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSIgoGc3RhdHVzGAMgASgOMhIub3JjLnYxLlRhc2tTdGF0dXMSEgoKZGVwZW5kc19vbhgEIAMoCSLLBAoKSW5pdGlhdGl2ZRIPCgd2ZXJzaW9uGAEgASgFEgoKAmlkGAIgASgJEg0KBXRpdGxlGAMgASgJEigKBnN0YXR1cxgEIAEoDjIYLm9yYy52MS5Jbml0aWF0aXZlU3RhdHVzEiQKBW93bmVyGAUgASgLMhAub3JjLnYxLklkZW50aXR5SACIAQESEwoGdmlzaW9uGAYgASgJSAGIAQESLQoJZGVjaXNpb25zGAcgAygLMhoub3JjLnYxLkluaXRpYXRpdmVEZWNpc2lvbhIVCg1jb250ZXh0X2ZpbGVzGAggAygJEh4KBXRhc2tzGAkgAygLMg8ub3JjLnYxLlRhc2tSZWYSEgoKYmxvY2tlZF9ieRgKIAMoCRIYCgticmFuY2hfYmFzZRgLIAEoCUgCiAEBEhoKDWJyYW5jaF9wcmVmaXgYDCABKAlIA4gBARIpCgxtZXJnZV9zdGF0dXMYDSABKA4yEy5vcmMudjEuTWVyZ2VTdGF0dXMSGQoMbWVyZ2VfY29tbWl0GA4gASgJSASIAQESLgoKY3JlYXRlZF9hdBgPIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGYmxvY2tzGGQgAygJQggKBl9vd25lckIJCgdfdmlzaW9uQg4KDF9icmFuY2hfYmFzZUIQCg5fYnJhbmNoX3ByZWZpeEIPCg1fbWVyZ2VfY29tbWl0IkIKEkluaXRpYXRpdmVQcm9ncmVzcxIKCgJpZBgBIAEoCRIRCgljb21wbGV0ZWQYAiABKAUSDQoFdG90YWwYAyABKAUirQIKDkluaXRpYXRpdmVOb3RlEgoKAmlkGAEgASgJEhUKDWluaXRpYXRpdmVfaWQYAiABKAkSDgoGYXV0aG9yGAMgASgJEhMKC2F1dGhvcl90eXBlGAQgASgJEhgKC3NvdXJjZV90YXNrGAUgASgJSACIAQESGQoMc291cmNlX3BoYXNlGAYgASgJSAGIAQESEQoJbm90ZV90eXBlGAcgASgJEg8KB2NvbnRlbnQYCCABKAkSFgoOcmVsZXZhbnRfZmlsZXMYCSADKAkSEQoJZ3JhZHVhdGVkGAogASgIEi4KCmNyZWF0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQg4KDF9zb3VyY2VfdGFza0IPCg1fc291cmNlX3BoYXNlIpkBChZMaXN0SW5pdGlhdGl2ZXNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSIQoEcGFnZRgCIAEoCzITLm9yYy52MS5QYWdlUmVxdWVzdBItCgZzdGF0dXMYAyABKA4yGC5vcmMudjEuSW5pdGlhdGl2ZVN0YXR1c0gAiAEBEg4KBnNoYXJlZBgEIAEoCEIJCgdfc3RhdHVzImYKF0xpc3RJbml0aWF0aXZlc1Jlc3BvbnNlEicKC2luaXRpYXRpdmVzGAEgAygLMhIub3JjLnYxLkluaXRpYXRpdmUSIgoEcGFnZRgCIAEoCzIULm9yYy52MS5QYWdlUmVzcG9uc2UiQQoUR2V0SW5pdGlhdGl2ZVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIVCg1pbml0aWF0aXZlX2lkGAIgASgJIj8KFUdldEluaXRpYXRpdmVSZXNwb25zZRImCgppbml0aWF0aXZlGAEgASgLMhIub3JjLnYxLkluaXRpYXRpdmUijwIKF0NyZWF0ZUluaXRpYXRpdmVSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEwoGdmlzaW9uGAMgASgJSACIAQESJAoFb3duZXIYBCABKAsyEC5vcmMudjEuSWRlbnRpdHlIAYgBARISCgpibG9ja2VkX2J5GAUgAygJEhgKC2JyYW5jaF9iYXNlGAYgASgJSAKIAQESGgoNYnJhbmNoX3ByZWZpeBgHIAEoCUgDiAEBEhUKDWNvbnRleHRfZmlsZXMYCCADKAlCCQoHX3Zpc2lvbkIICgZfb3duZXJCDgoMX2JyYW5jaF9iYXNlQhAKDl9icmFuY2hfcHJlZml4IkIKGENyZWF0ZUluaXRpYXRpdmVSZXNwb25zZRImCgppbml0aWF0aXZlGAEgASgLMhIub3JjLnYxLkluaXRpYXRpdmUi7wIKF1VwZGF0ZUluaXRpYXRpdmVSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSFQoNaW5pdGlhdGl2ZV9pZBgCIAEoCRISCgV0aXRsZRgDIAEoCUgAiAEBEhMKBnZpc2lvbhgEIAEoCUgBiAEBEiQKBW93bmVyGAUgASgLMhAub3JjLnYxLklkZW50aXR5SAKIAQESLQoGc3RhdHVzGAYgASgOMhgub3JjLnYxLkluaXRpYXRpdmVTdGF0dXNIA4gBARISCgpibG9ja2VkX2J5GAcgAygJEhgKC2JyYW5jaF9iYXNlGAggASgJSASIAQESGgoNYnJhbmNoX3ByZWZpeBgJIAEoCUgFiAEBEhUKDWNvbnRleHRfZmlsZXMYCiADKAlCCAoGX3RpdGxlQgkKB192aXNpb25CCAoGX293bmVyQgkKB19zdGF0dXNCDgoMX2JyYW5jaF9iYXNlQhAKDl9icmFuY2hfcHJlZml4IkIKGFVwZGF0ZUluaXRpYXRpdmVSZXNwb25zZRImCgppbml0aWF0aXZlGAEgASgLMhIub3JjLnYxLkluaXRpYXRpdmUiRAoXRGVsZXRlSW5pdGlhdGl2ZVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIVCg1pbml0aWF0aXZlX2lkGAIgASgJIisKGERlbGV0ZUluaXRpYXRpdmVSZXNwb25zZRIPCgdtZXNzYWdlGAEgASgJIkcKGkxpc3RJbml0aWF0aXZlVGFza3NSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSFQoNaW5pdGlhdGl2ZV9pZBgCIAEoCSI6ChtMaXN0SW5pdGlhdGl2ZVRhc2tzUmVzcG9uc2USGwoFdGFza3MYASADKAsyDC5vcmMudjEuVGFzayJPChBMaW5rVGFza3NSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSFQoNaW5pdGlhdGl2ZV9pZBgCIAEoCRIQCgh0YXNrX2lkcxgDIAMoCSI7ChFMaW5rVGFza3NSZXNwb25zZRImCgppbml0aWF0aXZlGAEgASgLMhIub3JjLnYxLkluaXRpYXRpdmUiTwoRVW5saW5rVGFza1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIVCg1pbml0aWF0aXZlX2lkGAIgASgJEg8KB3Rhc2tfaWQYAyABKAkiPAoSVW5saW5rVGFza1Jlc3BvbnNlEiYKCmluaXRpYXRpdmUYASABKAsyEi5vcmMudjEuSW5pdGlhdGl2ZSKPAQoSQWRkRGVjaXNpb25SZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSFQoNaW5pdGlhdGl2ZV9pZBgCIAEoCRIQCghkZWNpc2lvbhgDIAEoCRIWCglyYXRpb25hbGUYBCABKAlIAIgBARIPCgJieRgFIAEoCUgBiAEBQgwKCl9yYXRpb25hbGVCBQoDX2J5Ij0KE0FkZERlY2lzaW9uUmVzcG9uc2USJgoKaW5pdGlhdGl2ZRgBIAEoCzISLm9yYy52MS5Jbml0aWF0aXZlIkEKFEdldFJlYWR5VGFza3NSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSFQoNaW5pdGlhdGl2ZV9pZBgCIAEoCSI0ChVHZXRSZWFkeVRhc2tzUmVzcG9uc2USGwoFdGFza3MYASADKAsyDC5vcmMudjEuVGFzayJGChlHZXREZXBlbmRlbmN5R3JhcGhSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSFQoNaW5pdGlhdGl2ZV9pZBgCIAEoCSJEChpHZXREZXBlbmRlbmN5R3JhcGhSZXNwb25zZRImCgVncmFwaBgBIAEoCzIXLm9yYy52MS5EZXBlbmRlbmN5R3JhcGgieQoUUnVuSW5pdGlhdGl2ZVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIVCg1pbml0aWF0aXZlX2lkGAIgASgJEhQKB3Byb2ZpbGUYAyABKAlIAIgBARIUCgxtYXhfcGFyYWxsZWwYBCABKAVCCgoIX3Byb2ZpbGUiagoVUnVuSW5pdGlhdGl2ZVJlc3BvbnNlEiYKCmluaXRpYXRpdmUYASABKAsyEi5vcmMudjEuSW5pdGlhdGl2ZRIYChBzdGFydGVkX3Rhc2tfaWRzGAIgAygJEg8KB21lc3NhZ2UYAyABKAkibQoaTGlzdEluaXRpYXRpdmVOb3Rlc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIVCg1pbml0aWF0aXZlX2lkGAIgASgJEhYKCW5vdGVfdHlwZRgDIAEoCUgAiAEBQgwKCl9ub3RlX3R5cGUiRAobTGlzdEluaXRpYXRpdmVOb3Rlc1Jlc3BvbnNlEiUKBW5vdGVzGAEgAygLMhYub3JjLnYxLkluaXRpYXRpdmVOb3RlIkQKHUxpc3RUYXNrR2VuZXJhdGVkTm90ZXNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDwoHdGFza19pZBgCIAEoCSJHCh5MaXN0VGFza0dlbmVyYXRlZE5vdGVzUmVzcG9uc2USJQoFbm90ZXMYASADKAsyFi5vcmMudjEuSW5pdGlhdGl2ZU5vdGUqsQEKEEluaXRpYXRpdmVTdGF0dXMSIQodSU5JVElBVElWRV9TVEFUVVNfVU5TUEVDSUZJRUQQABIbChdJTklUSUFUSVZFX1NUQVRVU19EUkFGVBABEhwKGElOSVRJQVRJVkVfU1RBVFVTX0FDVElWRRACEh8KG0lOSVRJQVRJVkVfU1RBVFVTX0NPTVBMRVRFRBADEh4KGklOSVRJQVRJVkVfU1RBVFVTX0FSQ0hJVkVEEAQqrAEKC01lcmdlU3RhdHVzEhwKGE1FUkdFX1NUQVRVU19VTlNQRUNJRklFRBAAEhUKEU1FUkdFX1NUQVRVU19OT05FEAESGAoUTUVSR0VfU1RBVFVTX1BFTkRJTkcQAhIcChhNRVJHRV9TVEFUVVNfSU5fUFJPR1JFU1MQAxIXChNNRVJHRV9TVEFUVVNfTUVSR0VEEAQSFwoTTUVSR0VfU1RBVFVTX0ZBSUxFRBAFMqsJChFJbml0aWF0aXZlU2VydmljZRJSCg9MaXN0SW5pdGlhdGl2ZXMSHi5vcmMudjEuTGlzdEluaXRpYXRpdmVzUmVxdWVzdBofLm9yYy52MS5MaXN0SW5pdGlhdGl2ZXNSZXNwb25zZRJMCg1HZXRJbml0aWF0aXZlEhwub3JjLnYxLkdldEluaXRpYXRpdmVSZXF1ZXN0Gh0ub3JjLnYxLkdldEluaXRpYXRpdmVSZXNwb25zZRJVChBDcmVhdGVJbml0aWF0aXZlEh8ub3JjLnYxLkNyZWF0ZUluaXRpYXRpdmVSZXF1ZXN0GiAub3JjLnYxLkNyZWF0ZUluaXRpYXRpdmVSZXNwb25zZRJVChBVcGRhdGVJbml0aWF0aXZlEh8ub3JjLnYxLlVwZGF0ZUluaXRpYXRpdmVSZXF1ZXN0GiAub3JjLnYxLlVwZGF0ZUluaXRpYXRpdmVSZXNwb25zZRJVChBEZWxldGVJbml0aWF0aXZlEh8ub3JjLnYxLkRlbGV0ZUluaXRpYXRpdmVSZXF1ZXN0GiAub3JjLnYxLkRlbGV0ZUluaXRpYXRpdmVSZXNwb25zZRJeChNMaXN0SW5pdGlhdGl2ZVRhc2tzEiIub3JjLnYxLkxpc3RJbml0aWF0aXZlVGFza3NSZXF1ZXN0GiMub3JjLnYxLkxpc3RJbml0aWF0aXZlVGFza3NSZXNwb25zZRJACglMaW5rVGFza3MSGC5vcmMudjEuTGlua1Rhc2tzUmVxdWVzdBoZLm9yYy52MS5MaW5rVGFza3NSZXNwb25zZRJDCgpVbmxpbmtUYXNrEhkub3JjLnYxLlVubGlua1Rhc2tSZXF1ZXN0Ghoub3JjLnYxLlVubGlua1Rhc2tSZXNwb25zZRJGCgtBZGREZWNpc2lvbhIaLm9yYy52MS5BZGREZWNpc2lvblJlcXVlc3QaGy5vcmMudjEuQWRkRGVjaXNpb25SZXNwb25zZRJMCg1HZXRSZWFkeVRhc2tzEhwub3JjLnYxLkdldFJlYWR5VGFza3NSZXF1ZXN0Gh0ub3JjLnYxLkdldFJlYWR5VGFza3NSZXNwb25zZRJbChJHZXREZXBlbmRlbmN5R3JhcGgSIS5vcmMudjEuR2V0RGVwZW5kZW5jeUdyYXBoUmVxdWVzdBoiLm9yYy52MS5HZXREZXBlbmRlbmN5R3JhcGhSZXNwb25zZRJMCg1SdW5Jbml0aWF0aXZlEhwub3JjLnYxLlJ1bkluaXRpYXRpdmVSZXF1ZXN0Gh0ub3JjLnYxLlJ1bkluaXRpYXRpdmVSZXNwb25zZRJeChNMaXN0SW5pdGlhdGl2ZU5vdGVzEiIub3JjLnYxLkxpc3RJbml0aWF0aXZlTm90ZXNSZXF1ZXN0GiMub3JjLnYxLkxpc3RJbml0aWF0aXZlTm90ZXNSZXNwb25zZRJnChZMaXN0VGFza0dlbmVyYXRlZE5vdGVzEiUub3JjLnYxLkxpc3RUYXNrR2VuZXJhdGVkTm90ZXNSZXF1ZXN0GiYub3JjLnYxLkxpc3RUYXNrR2VuZXJhdGVkTm90ZXNSZXNwb25zZUKLAQoKY29tLm9yYy52MUIPSW5pdGlhdGl2ZVByb3RvUAFaM2dpdGh1Yi5jb20vcmFuZGFsbXVycGhhbC9vcmMvZ2VuL3Byb3RvL29yYy92MTtvcmN2MaICA09YWKoCBk9yYy5WMcoCBk9yY1xWMeICEk9yY1xWMVxHUEJNZXRhZGF0YeoCB09yYzo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_orc_v1_common, file_orc_v1_task]);
 
 /**
  * @generated from message orc.v1.Identity
@@ -239,6 +239,84 @@ export const InitiativeProgressSchema: GenMessage<InitiativeProgress> = /*@__PUR
   messageDesc(file_orc_v1_initiative, 4);
 
 /**
+ * InitiativeNote represents a note stored at the initiative level.
+ * Notes capture patterns, warnings, learnings, and handoffs for knowledge sharing.
+ *
+ * @generated from message orc.v1.InitiativeNote
+ */
+export type InitiativeNote = Message<"orc.v1.InitiativeNote"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string initiative_id = 2;
+   */
+  initiativeId: string;
+
+  /**
+   * @generated from field: string author = 3;
+   */
+  author: string;
+
+  /**
+   * 'human' | 'agent'
+   *
+   * @generated from field: string author_type = 4;
+   */
+  authorType: string;
+
+  /**
+   * TASK-XXX if agent-generated
+   *
+   * @generated from field: optional string source_task = 5;
+   */
+  sourceTask?: string;
+
+  /**
+   * 'docs' if agent-generated
+   *
+   * @generated from field: optional string source_phase = 6;
+   */
+  sourcePhase?: string;
+
+  /**
+   * 'pattern' | 'warning' | 'learning' | 'handoff'
+   *
+   * @generated from field: string note_type = 7;
+   */
+  noteType: string;
+
+  /**
+   * @generated from field: string content = 8;
+   */
+  content: string;
+
+  /**
+   * @generated from field: repeated string relevant_files = 9;
+   */
+  relevantFiles: string[];
+
+  /**
+   * @generated from field: bool graduated = 10;
+   */
+  graduated: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 11;
+   */
+  createdAt?: Timestamp;
+};
+
+/**
+ * Describes the message orc.v1.InitiativeNote.
+ * Use `create(InitiativeNoteSchema)` to create a new message.
+ */
+export const InitiativeNoteSchema: GenMessage<InitiativeNote> = /*@__PURE__*/
+  messageDesc(file_orc_v1_initiative, 5);
+
+/**
  * @generated from message orc.v1.ListInitiativesRequest
  */
 export type ListInitiativesRequest = Message<"orc.v1.ListInitiativesRequest"> & {
@@ -270,7 +348,7 @@ export type ListInitiativesRequest = Message<"orc.v1.ListInitiativesRequest"> & 
  * Use `create(ListInitiativesRequestSchema)` to create a new message.
  */
 export const ListInitiativesRequestSchema: GenMessage<ListInitiativesRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 5);
+  messageDesc(file_orc_v1_initiative, 6);
 
 /**
  * @generated from message orc.v1.ListInitiativesResponse
@@ -292,7 +370,7 @@ export type ListInitiativesResponse = Message<"orc.v1.ListInitiativesResponse"> 
  * Use `create(ListInitiativesResponseSchema)` to create a new message.
  */
 export const ListInitiativesResponseSchema: GenMessage<ListInitiativesResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 6);
+  messageDesc(file_orc_v1_initiative, 7);
 
 /**
  * @generated from message orc.v1.GetInitiativeRequest
@@ -314,7 +392,7 @@ export type GetInitiativeRequest = Message<"orc.v1.GetInitiativeRequest"> & {
  * Use `create(GetInitiativeRequestSchema)` to create a new message.
  */
 export const GetInitiativeRequestSchema: GenMessage<GetInitiativeRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 7);
+  messageDesc(file_orc_v1_initiative, 8);
 
 /**
  * @generated from message orc.v1.GetInitiativeResponse
@@ -331,7 +409,7 @@ export type GetInitiativeResponse = Message<"orc.v1.GetInitiativeResponse"> & {
  * Use `create(GetInitiativeResponseSchema)` to create a new message.
  */
 export const GetInitiativeResponseSchema: GenMessage<GetInitiativeResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 8);
+  messageDesc(file_orc_v1_initiative, 9);
 
 /**
  * @generated from message orc.v1.CreateInitiativeRequest
@@ -385,7 +463,7 @@ export type CreateInitiativeRequest = Message<"orc.v1.CreateInitiativeRequest"> 
  * Use `create(CreateInitiativeRequestSchema)` to create a new message.
  */
 export const CreateInitiativeRequestSchema: GenMessage<CreateInitiativeRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 9);
+  messageDesc(file_orc_v1_initiative, 10);
 
 /**
  * @generated from message orc.v1.CreateInitiativeResponse
@@ -402,7 +480,7 @@ export type CreateInitiativeResponse = Message<"orc.v1.CreateInitiativeResponse"
  * Use `create(CreateInitiativeResponseSchema)` to create a new message.
  */
 export const CreateInitiativeResponseSchema: GenMessage<CreateInitiativeResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 10);
+  messageDesc(file_orc_v1_initiative, 11);
 
 /**
  * @generated from message orc.v1.UpdateInitiativeRequest
@@ -464,7 +542,7 @@ export type UpdateInitiativeRequest = Message<"orc.v1.UpdateInitiativeRequest"> 
  * Use `create(UpdateInitiativeRequestSchema)` to create a new message.
  */
 export const UpdateInitiativeRequestSchema: GenMessage<UpdateInitiativeRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 11);
+  messageDesc(file_orc_v1_initiative, 12);
 
 /**
  * @generated from message orc.v1.UpdateInitiativeResponse
@@ -481,7 +559,7 @@ export type UpdateInitiativeResponse = Message<"orc.v1.UpdateInitiativeResponse"
  * Use `create(UpdateInitiativeResponseSchema)` to create a new message.
  */
 export const UpdateInitiativeResponseSchema: GenMessage<UpdateInitiativeResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 12);
+  messageDesc(file_orc_v1_initiative, 13);
 
 /**
  * @generated from message orc.v1.DeleteInitiativeRequest
@@ -503,7 +581,7 @@ export type DeleteInitiativeRequest = Message<"orc.v1.DeleteInitiativeRequest"> 
  * Use `create(DeleteInitiativeRequestSchema)` to create a new message.
  */
 export const DeleteInitiativeRequestSchema: GenMessage<DeleteInitiativeRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 13);
+  messageDesc(file_orc_v1_initiative, 14);
 
 /**
  * @generated from message orc.v1.DeleteInitiativeResponse
@@ -520,7 +598,7 @@ export type DeleteInitiativeResponse = Message<"orc.v1.DeleteInitiativeResponse"
  * Use `create(DeleteInitiativeResponseSchema)` to create a new message.
  */
 export const DeleteInitiativeResponseSchema: GenMessage<DeleteInitiativeResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 14);
+  messageDesc(file_orc_v1_initiative, 15);
 
 /**
  * @generated from message orc.v1.ListInitiativeTasksRequest
@@ -542,7 +620,7 @@ export type ListInitiativeTasksRequest = Message<"orc.v1.ListInitiativeTasksRequ
  * Use `create(ListInitiativeTasksRequestSchema)` to create a new message.
  */
 export const ListInitiativeTasksRequestSchema: GenMessage<ListInitiativeTasksRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 15);
+  messageDesc(file_orc_v1_initiative, 16);
 
 /**
  * @generated from message orc.v1.ListInitiativeTasksResponse
@@ -559,7 +637,7 @@ export type ListInitiativeTasksResponse = Message<"orc.v1.ListInitiativeTasksRes
  * Use `create(ListInitiativeTasksResponseSchema)` to create a new message.
  */
 export const ListInitiativeTasksResponseSchema: GenMessage<ListInitiativeTasksResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 16);
+  messageDesc(file_orc_v1_initiative, 17);
 
 /**
  * @generated from message orc.v1.LinkTasksRequest
@@ -586,7 +664,7 @@ export type LinkTasksRequest = Message<"orc.v1.LinkTasksRequest"> & {
  * Use `create(LinkTasksRequestSchema)` to create a new message.
  */
 export const LinkTasksRequestSchema: GenMessage<LinkTasksRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 17);
+  messageDesc(file_orc_v1_initiative, 18);
 
 /**
  * @generated from message orc.v1.LinkTasksResponse
@@ -603,7 +681,7 @@ export type LinkTasksResponse = Message<"orc.v1.LinkTasksResponse"> & {
  * Use `create(LinkTasksResponseSchema)` to create a new message.
  */
 export const LinkTasksResponseSchema: GenMessage<LinkTasksResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 18);
+  messageDesc(file_orc_v1_initiative, 19);
 
 /**
  * @generated from message orc.v1.UnlinkTaskRequest
@@ -630,7 +708,7 @@ export type UnlinkTaskRequest = Message<"orc.v1.UnlinkTaskRequest"> & {
  * Use `create(UnlinkTaskRequestSchema)` to create a new message.
  */
 export const UnlinkTaskRequestSchema: GenMessage<UnlinkTaskRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 19);
+  messageDesc(file_orc_v1_initiative, 20);
 
 /**
  * @generated from message orc.v1.UnlinkTaskResponse
@@ -647,7 +725,7 @@ export type UnlinkTaskResponse = Message<"orc.v1.UnlinkTaskResponse"> & {
  * Use `create(UnlinkTaskResponseSchema)` to create a new message.
  */
 export const UnlinkTaskResponseSchema: GenMessage<UnlinkTaskResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 20);
+  messageDesc(file_orc_v1_initiative, 21);
 
 /**
  * @generated from message orc.v1.AddDecisionRequest
@@ -684,7 +762,7 @@ export type AddDecisionRequest = Message<"orc.v1.AddDecisionRequest"> & {
  * Use `create(AddDecisionRequestSchema)` to create a new message.
  */
 export const AddDecisionRequestSchema: GenMessage<AddDecisionRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 21);
+  messageDesc(file_orc_v1_initiative, 22);
 
 /**
  * @generated from message orc.v1.AddDecisionResponse
@@ -701,7 +779,7 @@ export type AddDecisionResponse = Message<"orc.v1.AddDecisionResponse"> & {
  * Use `create(AddDecisionResponseSchema)` to create a new message.
  */
 export const AddDecisionResponseSchema: GenMessage<AddDecisionResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 22);
+  messageDesc(file_orc_v1_initiative, 23);
 
 /**
  * @generated from message orc.v1.GetReadyTasksRequest
@@ -723,7 +801,7 @@ export type GetReadyTasksRequest = Message<"orc.v1.GetReadyTasksRequest"> & {
  * Use `create(GetReadyTasksRequestSchema)` to create a new message.
  */
 export const GetReadyTasksRequestSchema: GenMessage<GetReadyTasksRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 23);
+  messageDesc(file_orc_v1_initiative, 24);
 
 /**
  * @generated from message orc.v1.GetReadyTasksResponse
@@ -740,7 +818,7 @@ export type GetReadyTasksResponse = Message<"orc.v1.GetReadyTasksResponse"> & {
  * Use `create(GetReadyTasksResponseSchema)` to create a new message.
  */
 export const GetReadyTasksResponseSchema: GenMessage<GetReadyTasksResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 24);
+  messageDesc(file_orc_v1_initiative, 25);
 
 /**
  * @generated from message orc.v1.GetDependencyGraphRequest
@@ -762,7 +840,7 @@ export type GetDependencyGraphRequest = Message<"orc.v1.GetDependencyGraphReques
  * Use `create(GetDependencyGraphRequestSchema)` to create a new message.
  */
 export const GetDependencyGraphRequestSchema: GenMessage<GetDependencyGraphRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 25);
+  messageDesc(file_orc_v1_initiative, 26);
 
 /**
  * @generated from message orc.v1.GetDependencyGraphResponse
@@ -779,7 +857,7 @@ export type GetDependencyGraphResponse = Message<"orc.v1.GetDependencyGraphRespo
  * Use `create(GetDependencyGraphResponseSchema)` to create a new message.
  */
 export const GetDependencyGraphResponseSchema: GenMessage<GetDependencyGraphResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 26);
+  messageDesc(file_orc_v1_initiative, 27);
 
 /**
  * @generated from message orc.v1.RunInitiativeRequest
@@ -811,7 +889,7 @@ export type RunInitiativeRequest = Message<"orc.v1.RunInitiativeRequest"> & {
  * Use `create(RunInitiativeRequestSchema)` to create a new message.
  */
 export const RunInitiativeRequestSchema: GenMessage<RunInitiativeRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 27);
+  messageDesc(file_orc_v1_initiative, 28);
 
 /**
  * @generated from message orc.v1.RunInitiativeResponse
@@ -838,7 +916,96 @@ export type RunInitiativeResponse = Message<"orc.v1.RunInitiativeResponse"> & {
  * Use `create(RunInitiativeResponseSchema)` to create a new message.
  */
 export const RunInitiativeResponseSchema: GenMessage<RunInitiativeResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_initiative, 28);
+  messageDesc(file_orc_v1_initiative, 29);
+
+/**
+ * Initiative Notes - Request/Response messages
+ *
+ * @generated from message orc.v1.ListInitiativeNotesRequest
+ */
+export type ListInitiativeNotesRequest = Message<"orc.v1.ListInitiativeNotesRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string initiative_id = 2;
+   */
+  initiativeId: string;
+
+  /**
+   * Filter by type: 'pattern' | 'warning' | 'learning' | 'handoff'
+   *
+   * @generated from field: optional string note_type = 3;
+   */
+  noteType?: string;
+};
+
+/**
+ * Describes the message orc.v1.ListInitiativeNotesRequest.
+ * Use `create(ListInitiativeNotesRequestSchema)` to create a new message.
+ */
+export const ListInitiativeNotesRequestSchema: GenMessage<ListInitiativeNotesRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_initiative, 30);
+
+/**
+ * @generated from message orc.v1.ListInitiativeNotesResponse
+ */
+export type ListInitiativeNotesResponse = Message<"orc.v1.ListInitiativeNotesResponse"> & {
+  /**
+   * @generated from field: repeated orc.v1.InitiativeNote notes = 1;
+   */
+  notes: InitiativeNote[];
+};
+
+/**
+ * Describes the message orc.v1.ListInitiativeNotesResponse.
+ * Use `create(ListInitiativeNotesResponseSchema)` to create a new message.
+ */
+export const ListInitiativeNotesResponseSchema: GenMessage<ListInitiativeNotesResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_initiative, 31);
+
+/**
+ * @generated from message orc.v1.ListTaskGeneratedNotesRequest
+ */
+export type ListTaskGeneratedNotesRequest = Message<"orc.v1.ListTaskGeneratedNotesRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * Get notes generated by this task
+   *
+   * @generated from field: string task_id = 2;
+   */
+  taskId: string;
+};
+
+/**
+ * Describes the message orc.v1.ListTaskGeneratedNotesRequest.
+ * Use `create(ListTaskGeneratedNotesRequestSchema)` to create a new message.
+ */
+export const ListTaskGeneratedNotesRequestSchema: GenMessage<ListTaskGeneratedNotesRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_initiative, 32);
+
+/**
+ * @generated from message orc.v1.ListTaskGeneratedNotesResponse
+ */
+export type ListTaskGeneratedNotesResponse = Message<"orc.v1.ListTaskGeneratedNotesResponse"> & {
+  /**
+   * @generated from field: repeated orc.v1.InitiativeNote notes = 1;
+   */
+  notes: InitiativeNote[];
+};
+
+/**
+ * Describes the message orc.v1.ListTaskGeneratedNotesResponse.
+ * Use `create(ListTaskGeneratedNotesResponseSchema)` to create a new message.
+ */
+export const ListTaskGeneratedNotesResponseSchema: GenMessage<ListTaskGeneratedNotesResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_initiative, 33);
 
 /**
  * @generated from enum orc.v1.InitiativeStatus
@@ -1016,6 +1183,24 @@ export const InitiativeService: GenService<{
     methodKind: "unary";
     input: typeof RunInitiativeRequestSchema;
     output: typeof RunInitiativeResponseSchema;
+  },
+  /**
+   * Initiative Notes
+   *
+   * @generated from rpc orc.v1.InitiativeService.ListInitiativeNotes
+   */
+  listInitiativeNotes: {
+    methodKind: "unary";
+    input: typeof ListInitiativeNotesRequestSchema;
+    output: typeof ListInitiativeNotesResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.InitiativeService.ListTaskGeneratedNotes
+   */
+  listTaskGeneratedNotes: {
+    methodKind: "unary";
+    input: typeof ListTaskGeneratedNotesRequestSchema;
+    output: typeof ListTaskGeneratedNotesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_orc_v1_initiative, 0);
