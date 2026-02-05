@@ -18,7 +18,7 @@ import (
 	"github.com/randalmurphal/orc/internal/db/driver"
 )
 
-//go:embed schema/*.sql
+//go:embed schema/*.sql schema/postgres/*.sql
 var schemaFS embed.FS
 
 // embedFSAdapter wraps embed.FS to implement driver.SchemaFS.

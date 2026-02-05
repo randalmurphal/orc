@@ -12,7 +12,8 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `cli/` | Command-line interface (Cobra) | Commands |
 | `claude/` | Re-exports llmkit/claudeconfig types | `Settings`, `Skill` |
 | `config/` | Configuration loading, hierarchy, env vars | `Config`, `TrackedConfig`, `ConfigSource` |
-| `db/` | SQLite persistence (global + project) | `GlobalDB`, `ProjectDB`, `Transcript` |
+| `db/` | Database persistence (SQLite + PostgreSQL) | `GlobalDB`, `ProjectDB`, `Transcript` |
+| `db/driver/` | Database driver abstraction | `Driver`, `Dialect`, `Tx`, `SchemaFS` |
 | `detect/` | Project type, framework, frontend detection | `Detection`, `Detect()` |
 | `diff/` | Git diff computation and caching for web UI | `Service`, `DiffResult`, `FileDiff`, `Cache` |
 | `enhance/` | Task enhancement via AI | `Enhancer` |
@@ -112,14 +113,14 @@ executor := NewExecutor(
 
 ### Two-Tier Database Model
 
-Orc uses two database tiers for multi-project support:
+Orc uses two database tiers for multi-project support, with driver abstraction (`db/driver/`) supporting both SQLite and PostgreSQL:
 
 | Tier | Type | Location | Contents |
 |------|------|----------|----------|
-| `GlobalDB` | `db.GlobalDB` | `~/.orc/orc.db` | Built-in workflows, agents, project registry |
-| `ProjectDB` | `db.ProjectDB` | `~/.orc/projects/<id>/orc.db` | Tasks, initiatives, transcripts, events |
+| `GlobalDB` | `db.GlobalDB` | `~/.orc/orc.db` (SQLite) or shared PG | Built-in workflows, agents, project registry |
+| `ProjectDB` | `db.ProjectDB` | `~/.orc/projects/<id>/orc.db` (SQLite) or shared PG | Tasks, initiatives, transcripts, events |
 
-All runtime state lives in `~/.orc/`, keeping project `.orc/` directories config-only (git-tracked). API services resolve the correct `ProjectDB` via `getBackend(projectID)`, which routes through `ProjectCache` (`api/project_cache.go`) -- an LRU cache of open database connections. Server startup seeds the `GlobalDB` with built-in workflows and agents.
+All runtime state lives in `~/.orc/`, keeping project `.orc/` directories config-only (git-tracked). API services resolve the correct `ProjectDB` via `getBackend(projectID)`, which routes through `ProjectCache` (`api/project_cache.go`) -- an LRU cache of open database connections. Server startup seeds the `GlobalDB` with built-in workflows and agents. Dialect configured via `database.dialect` in config (`internal/config/config_types.go`).
 
 ### Interface-Based Design
 
@@ -185,7 +186,7 @@ See package-specific CLAUDE.md files for detailed usage:
 | `automation/` | Trigger-based automation |
 | `bootstrap/` | Instant project initialization |
 | `cli/` | CLI commands |
-| `db/` | SQLite persistence layer |
+| `db/` | Database persistence (SQLite + PostgreSQL) |
 | `events/` | Real-time event publishing (WebSocket + DB persistence) |
 | `executor/` | Execution engine (error handling, phase execution) |
 | `gate/` | Quality gates (auto/human/AI/skip), resolution, pending decisions |
