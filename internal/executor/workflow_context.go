@@ -166,9 +166,13 @@ func (we *WorkflowExecutor) loadInitiativeContext(rctx *variable.ResolutionConte
 	)
 }
 
-// loadAndFormatInitiativeNotes loads initiative notes and formats them grouped by type.
-// Per DEC-003: Human notes always inject, agent notes only if graduated (met strict bar).
-// Per DEC-004: Group notes by type for easy scanning.
+// loadAndFormatInitiativeNotes loads initiative notes and returns a formatted markdown string
+// grouped by note type (patterns, warnings, learnings, handoffs). Returns an empty string if
+// no applicable notes exist or if loading fails.
+//
+// Filtering: Human notes are always included. Agent notes are only included when graduated
+// (i.e., they met the strict quality bar for injection into future task prompts).
+// Per DEC-003 and DEC-004 in the knowledge sharing initiative design.
 func (we *WorkflowExecutor) loadAndFormatInitiativeNotes(initiativeID string) string {
 	notes, err := we.backend.GetInitiativeNotes(initiativeID)
 	if err != nil {
