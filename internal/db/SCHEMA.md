@@ -23,13 +23,16 @@ Embedded via `//go:embed schema/*.sql`:
 | `schema/project_011.sql` | Initiative dependencies (blocked_by relationships) |
 | `schema/project_012.sql` | Pure SQL storage: plans, specs, gate_decisions, attachments, sync_state |
 | `schema/project_025.sql` | Constitution tables for project principles and spec validation |
+| `schema/global_010.sql` | Users table, user_id on cost_log |
+| `schema/project_057.sql` | User attribution columns on tasks, initiatives, phases, workflow_runs |
 
 ## Global Tables
 
 | Table | Columns | Purpose |
 |-------|---------|---------|
 | `projects` | id, name, path, language, created_at | Registered projects |
-| `cost_log` | project_id, task_id, phase, model, iteration, cost_usd, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_tokens, initiative_id, timestamp | Token usage with model tracking (no FK) |
+| `users` | id (UUID), name (UNIQUE), email, created_at | Global user registry |
+| `cost_log` | project_id, task_id, phase, model, iteration, cost_usd, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_tokens, initiative_id, user_id, timestamp | Token usage with model tracking (no FK) |
 | `cost_aggregates` | project_id, model, phase, date, total_cost_usd, total_input_tokens, total_output_tokens, total_cache_tokens, turn_count, task_count | Pre-computed time-series for dashboards |
 | `cost_budgets` | project_id, monthly_limit_usd, alert_threshold_percent, current_month, current_month_spent | Monthly budget tracking |
 | `templates` | id, name, phases (JSON), created_at | Shared task templates |
@@ -60,8 +63,8 @@ Embedded via `//go:embed schema/*.sql`:
 
 | Table | Key Columns | Purpose |
 |-------|-------------|---------|
-| `tasks` | id, title, description, weight, status, queue, priority, category, initiative_id, pr_number, session_id, total_tokens | Task records |
-| `phases` | task_id, phase, status, iterations, input_tokens, output_tokens, cached_tokens, commit_sha, skip_reason | Phase state |
+| `tasks` | id, title, description, weight, status, queue, priority, category, initiative_id, pr_number, session_id, total_tokens, created_by, assigned_to | Task records |
+| `phases` | task_id, phase, status, iterations, input_tokens, output_tokens, cached_tokens, commit_sha, skip_reason, executed_by | Phase state |
 | `plans` | task_id, version, weight, phases (JSON) | Phase plans |
 | `specs` | task_id, content, source, updated_at | Task specifications |
 | `transcripts` | task_id, phase, timestamp, content | Claude logs |
@@ -77,7 +80,7 @@ Embedded via `//go:embed schema/*.sql`:
 
 | Table | Columns | Purpose |
 |-------|---------|---------|
-| `initiatives` | id, title, vision, status, owner, created_at | Initiative groupings |
+| `initiatives` | id, title, vision, status, owner, created_at, created_by, owned_by | Initiative groupings |
 | `initiative_tasks` | initiative_id, task_id, sequence | Task-to-initiative mappings |
 | `initiative_decisions` | initiative_id, decision, rationale, decided_at | Decisions within initiatives |
 

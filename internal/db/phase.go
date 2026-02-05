@@ -21,6 +21,7 @@ type Phase struct {
 	CommitSHA    string
 	SkipReason   string
 	SessionID    string // Claude CLI session UUID for --resume
+	ExecutedBy   string // User who executed this phase (references users.id in GlobalDB)
 }
 
 // SavePhase creates or updates a phase.
@@ -36,8 +37,8 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 	}
 
 	_, err := p.Exec(`
-		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(task_id, phase_id) DO UPDATE SET
 			status = excluded.status,
 			iterations = excluded.iterations,
@@ -49,9 +50,10 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 			error_message = excluded.error_message,
 			commit_sha = excluded.commit_sha,
 			skip_reason = excluded.skip_reason,
-			session_id = COALESCE(excluded.session_id, phases.session_id)
+			session_id = COALESCE(excluded.session_id, phases.session_id),
+			executed_by = excluded.executed_by
 	`, ph.TaskID, ph.PhaseID, ph.Status, ph.Iterations, startedAt, completedAt,
-		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID)
+		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID, ph.ExecutedBy)
 	if err != nil {
 		return fmt.Errorf("save phase: %w", err)
 	}
@@ -61,7 +63,7 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 // GetPhases retrieves all phases for a task.
 func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 	rows, err := p.Query(`
-		SELECT task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id
+		SELECT task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by
 		FROM phases WHERE task_id = ?
 	`, taskID)
 	if err != nil {
@@ -72,9 +74,9 @@ func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 	var phases []Phase
 	for rows.Next() {
 		var ph Phase
-		var startedAt, completedAt, errorMsg, commitSHA, skipReason, sessionID sql.NullString
+		var startedAt, completedAt, errorMsg, commitSHA, skipReason, sessionID, executedBy sql.NullString
 		if err := rows.Scan(&ph.TaskID, &ph.PhaseID, &ph.Status, &ph.Iterations, &startedAt, &completedAt,
-			&ph.InputTokens, &ph.OutputTokens, &ph.CostUSD, &errorMsg, &commitSHA, &skipReason, &sessionID); err != nil {
+			&ph.InputTokens, &ph.OutputTokens, &ph.CostUSD, &errorMsg, &commitSHA, &skipReason, &sessionID, &executedBy); err != nil {
 			return nil, fmt.Errorf("scan phase: %w", err)
 		}
 		if startedAt.Valid {
@@ -98,6 +100,9 @@ func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 		}
 		if sessionID.Valid {
 			ph.SessionID = sessionID.String
+		}
+		if executedBy.Valid {
+			ph.ExecutedBy = executedBy.String
 		}
 		phases = append(phases, ph)
 	}
@@ -139,8 +144,8 @@ func SavePhaseTx(tx *TxOps, ph *Phase) error {
 	}
 
 	_, err := tx.Exec(`
-		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(task_id, phase_id) DO UPDATE SET
 			status = excluded.status,
 			iterations = excluded.iterations,
@@ -152,9 +157,10 @@ func SavePhaseTx(tx *TxOps, ph *Phase) error {
 			error_message = excluded.error_message,
 			commit_sha = excluded.commit_sha,
 			skip_reason = excluded.skip_reason,
-			session_id = COALESCE(excluded.session_id, phases.session_id)
+			session_id = COALESCE(excluded.session_id, phases.session_id),
+			executed_by = excluded.executed_by
 	`, ph.TaskID, ph.PhaseID, ph.Status, ph.Iterations, startedAt, completedAt,
-		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID)
+		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID, ph.ExecutedBy)
 	if err != nil {
 		return fmt.Errorf("save phase: %w", err)
 	}
@@ -167,7 +173,7 @@ func SavePhaseTx(tx *TxOps, ph *Phase) error {
 func (p *ProjectDB) GetAllPhasesGrouped() (map[string][]Phase, error) {
 	rows, err := p.Query(`
 		SELECT task_id, phase_id, status, iterations, started_at, completed_at,
-		       input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id
+		       input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by
 		FROM phases ORDER BY task_id
 	`)
 	if err != nil {
@@ -178,9 +184,9 @@ func (p *ProjectDB) GetAllPhasesGrouped() (map[string][]Phase, error) {
 	phases := make(map[string][]Phase)
 	for rows.Next() {
 		var ph Phase
-		var startedAt, completedAt, errorMsg, commitSHA, skipReason, sessionID sql.NullString
+		var startedAt, completedAt, errorMsg, commitSHA, skipReason, sessionID, executedBy sql.NullString
 		if err := rows.Scan(&ph.TaskID, &ph.PhaseID, &ph.Status, &ph.Iterations, &startedAt, &completedAt,
-			&ph.InputTokens, &ph.OutputTokens, &ph.CostUSD, &errorMsg, &commitSHA, &skipReason, &sessionID); err != nil {
+			&ph.InputTokens, &ph.OutputTokens, &ph.CostUSD, &errorMsg, &commitSHA, &skipReason, &sessionID, &executedBy); err != nil {
 			return nil, fmt.Errorf("scan phase: %w", err)
 		}
 		if startedAt.Valid {
@@ -204,6 +210,9 @@ func (p *ProjectDB) GetAllPhasesGrouped() (map[string][]Phase, error) {
 		}
 		if sessionID.Valid {
 			ph.SessionID = sessionID.String
+		}
+		if executedBy.Valid {
+			ph.ExecutedBy = executedBy.String
 		}
 		phases[ph.TaskID] = append(phases[ph.TaskID], ph)
 	}

@@ -442,6 +442,15 @@ type IdentityConfig struct {
 	Email string `yaml:"email,omitempty"`
 }
 
+// UserConfig holds user identity configuration for the users table.
+// Used to identify the current user for attribution on tasks, initiatives, etc.
+type UserConfig struct {
+	// Name is the unique username (required)
+	Name string `yaml:"name"`
+	// Email is the user's email address (optional)
+	Email string `yaml:"email,omitempty"`
+}
+
 // TaskIDConfig holds task ID generation configuration.
 type TaskIDConfig struct {
 	// Mode is the coordination mode (solo, p2p, team)

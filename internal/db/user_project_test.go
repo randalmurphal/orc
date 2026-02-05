@@ -304,6 +304,15 @@ func TestProjectDB_SaveWorkflowRun_WithStartedBy(t *testing.T) {
 
 	pdb := &ProjectDB{DB: db}
 
+	// First create a workflow (workflow_run references workflow)
+	workflow := &Workflow{
+		ID:   "implement-medium",
+		Name: "Implement Medium",
+	}
+	if err := pdb.SaveWorkflow(workflow); err != nil {
+		t.Fatalf("SaveWorkflow failed: %v", err)
+	}
+
 	// Save workflow run with started_by
 	run := &WorkflowRun{
 		ID:          "RUN-001",
