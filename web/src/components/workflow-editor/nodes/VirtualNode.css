@@ -15,6 +15,16 @@
 	opacity: 0.5;
 }
 
+/* Invisible handles - exist for React Flow edge connections but not visible */
+.virtual-node__handle {
+	width: 1px !important;
+	height: 1px !important;
+	min-width: 1px !important;
+	min-height: 1px !important;
+	opacity: 0;
+	pointer-events: none;
+}
+
 /* Hide in minimap */
 .react-flow__minimap .virtual-node {
 	display: none;
