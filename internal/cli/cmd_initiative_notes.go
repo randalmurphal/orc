@@ -163,6 +163,7 @@ Examples:
 
 	cmd.AddCommand(newInitiativeNoteAddCmd())
 	cmd.AddCommand(newInitiativeNoteDeleteCmd())
+	cmd.AddCommand(newInitiativeNoteGraduateCmd())
 
 	return cmd
 }
@@ -315,6 +316,81 @@ Examples:
 	}
 
 	cmd.Flags().BoolP("force", "f", false, "skip confirmation")
+
+	return cmd
+}
+
+// newInitiativeNoteGraduateCmd creates the subcommand for graduating an agent note.
+func newInitiativeNoteGraduateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "graduate <note-id>",
+		Short: "Graduate an agent note for inclusion in future tasks",
+		Long: `Graduate an agent-generated note so it gets included in future task prompts.
+
+By default, agent-generated notes (from the knowledge curator) are NOT included
+in future task prompts until they've been reviewed and graduated. This prevents
+low-quality or incorrect learnings from propagating.
+
+After graduation, the note will appear in {{INITIATIVE_CONTEXT}} for all future
+tasks in the same initiative.
+
+Examples:
+  orc initiative note graduate NOTE-001
+  orc initiative notes INIT-001  # List notes to find IDs`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := config.RequireInit(); err != nil {
+				return err
+			}
+
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer func() { _ = backend.Close() }()
+
+			noteID := args[0]
+
+			// Get the note
+			note, err := backend.GetInitiativeNote(noteID)
+			if err != nil {
+				return fmt.Errorf("get note: %w", err)
+			}
+			if note == nil {
+				return fmt.Errorf("note %s not found", noteID)
+			}
+
+			// Check if it's an agent note
+			if note.AuthorType != db.NoteAuthorAgent {
+				fmt.Printf("Note %s is not an agent note (author_type: %s)\n", noteID, note.AuthorType)
+				fmt.Println("Human notes are always included in prompts without graduation.")
+				return nil
+			}
+
+			// Check if already graduated
+			if note.Graduated {
+				fmt.Printf("Note %s is already graduated.\n", noteID)
+				return nil
+			}
+
+			// Graduate it
+			note.Graduated = true
+			if err := backend.SaveInitiativeNote(note); err != nil {
+				return fmt.Errorf("save note: %w", err)
+			}
+
+			if !quiet {
+				icon := noteTypeIcon(note.NoteType)
+				fmt.Printf("✓ Graduated note: %s\n", noteID)
+				fmt.Printf("  %s Type: %s\n", icon, note.NoteType)
+				fmt.Printf("  Content: %s\n", truncate(note.Content, 60))
+				fmt.Printf("  Initiative: %s\n", note.InitiativeID)
+				fmt.Println("\nThis note will now appear in future task prompts.")
+			}
+
+			return nil
+		},
+	}
 
 	return cmd
 }

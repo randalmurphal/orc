@@ -93,7 +93,7 @@ Run `orc new --help` for detailed guidance on creating tasks that execute well.
 | Workflow | Phases | Spec? | When to Use |
 |----------|--------|-------|-------------|
 | trivial | implement | NO | One-liner fixes, typos |
-| small | tiny_spec → implement → review | YES | Bug fixes, isolated changes |
+| small | tiny_spec → implement → review → docs | YES | Bug fixes, isolated changes |
 | medium | spec → tdd_write → implement → review → docs | YES | Features needing thought |
 | large | spec → tdd_write → breakdown → implement → review → docs | YES | Complex multi-file features |
 

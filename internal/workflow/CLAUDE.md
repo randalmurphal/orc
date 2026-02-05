@@ -111,7 +111,7 @@ Workflows resolved in order of precedence:
 | Weight | Default Workflow | Phases |
 |--------|-----------------|--------|
 | `trivial` | `implement-trivial` | implement |
-| `small` | `implement-small` | tiny_spec → implement → review |
+| `small` | `implement-small` | tiny_spec → implement → review → docs |
 | `medium` | `implement-medium` | spec → tdd_write → implement → review → docs |
 | `large` | `implement-large` | spec → tdd_write → breakdown → implement → review → docs |
 
@@ -153,7 +153,7 @@ workflow, err := resolver.ResolveWorkflow(weight, userOverride)
 |----|--------|----------|
 | `implement-large` | spec → tdd_write → breakdown → implement → review → docs | Large tasks (complex, multi-file) |
 | `implement-medium` | spec → tdd_write → implement → review → docs | Medium tasks (standard features) |
-| `implement-small` | tiny_spec → implement → review | Small changes |
+| `implement-small` | tiny_spec → implement → review → docs | Small changes |
 | `implement-trivial` | implement | Trivial fixes (no spec) |
 | `review` | review | Review existing changes |
 | `spec` | spec | Generate spec only |

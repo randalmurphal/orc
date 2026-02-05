@@ -1,6 +1,6 @@
 id: implement-small
 name: "Implement (Small)"
-description: "Lightweight workflow: tiny_spec, implement, review"
+description: "Lightweight workflow: tiny_spec, implement, review, docs"
 
 phases:
   - template: tiny_spec
@@ -26,3 +26,7 @@ phases:
       loop_schemas:
         "1": "ReviewFindingsSchema"
         default: "ReviewDecisionSchema"
+
+  - template: docs
+    sequence: 3
+    depends_on: ["review"]
