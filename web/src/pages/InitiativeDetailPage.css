@@ -268,6 +268,135 @@
 	font-style: italic;
 }
 
+/* Knowledge Section */
+.knowledge-section {
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	padding: var(--space-5);
+}
+
+.notes-by-type {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-5);
+}
+
+.note-type-group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+.note-type-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-size: var(--text-sm);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+}
+
+.note-type-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border-radius: var(--radius-sm);
+}
+
+.note-type-icon.type-pattern {
+	background: var(--blue-dim);
+	color: var(--blue);
+}
+
+.note-type-icon.type-warning {
+	background: var(--amber-dim);
+	color: var(--amber);
+}
+
+.note-type-icon.type-learning {
+	background: var(--green-dim);
+	color: var(--green);
+}
+
+.note-type-icon.type-handoff {
+	background: var(--violet-dim);
+	color: var(--violet);
+}
+
+.note-type-count {
+	font-size: var(--text-xs);
+	font-weight: var(--font-normal);
+	color: var(--text-muted);
+}
+
+.note-item {
+	padding: var(--space-3);
+	background: var(--bg-base);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+}
+
+.note-content {
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	line-height: var(--leading-relaxed);
+	margin: 0 0 var(--space-2) 0;
+}
+
+.note-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+}
+
+.note-source-task {
+	color: var(--text-link);
+	text-decoration: none;
+}
+
+.note-source-task:hover {
+	text-decoration: underline;
+}
+
+.note-author-badge {
+	display: inline-flex;
+	padding: var(--space-0-5) var(--space-1-5);
+	border-radius: var(--radius-sm);
+	font-size: var(--text-2xs);
+	font-weight: var(--font-medium);
+}
+
+.note-author-badge.author-human {
+	background: var(--blue-dim);
+	color: var(--blue);
+}
+
+.note-author-badge.author-agent {
+	background: var(--green-dim);
+	color: var(--green);
+}
+
+.note-relevant-files {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+	margin-top: var(--space-2);
+}
+
+.note-file {
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	padding: var(--space-0-5) var(--space-1-5);
+	background: var(--bg-surface);
+	border-radius: var(--radius-sm);
+	color: var(--text-muted);
+}
+
 /* Task List */
 .task-list {
 	display: flex;
