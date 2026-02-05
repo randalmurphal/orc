@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"time"
 
 	"connectrpc.com/connect"
@@ -16,13 +18,20 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // projectServer implements the ProjectServiceHandler interface.
 type projectServer struct {
 	orcv1connect.UnimplementedProjectServiceHandler
-	backend storage.Backend
-	logger  *slog.Logger
+	backend      storage.Backend
+	logger       *slog.Logger
+	projectCache *ProjectCache
+}
+
+// SetProjectCache sets the project cache for multi-project support.
+func (s *projectServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
 }
 
 // NewProjectServer creates a new ProjectService handler.
@@ -192,6 +201,114 @@ func (s *projectServer) RemoveProject(
 	return connect.NewResponse(&orcv1.RemoveProjectResponse{
 		Message: fmt.Sprintf("Project %s removed", req.Msg.Id),
 	}), nil
+}
+
+// GetAllProjectsStatus returns a unified view of tasks across all registered projects.
+func (s *projectServer) GetAllProjectsStatus(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetAllProjectsStatusRequest],
+) (*connect.Response[orcv1.GetAllProjectsStatusResponse], error) {
+	if s.projectCache == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("project cache not configured"))
+	}
+
+	projects, err := project.ListProjects()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list projects: %w", err))
+	}
+
+	now := time.Now().UTC()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
+	statuses := make([]*orcv1.ProjectStatus, 0, len(projects))
+	for _, proj := range projects {
+		// Verify project's .orc directory exists before opening DB
+		// (OpenProject auto-creates, so check explicitly)
+		orcDir := filepath.Join(proj.Path, ".orc")
+		if _, err := os.Stat(orcDir); err != nil {
+			return nil, connect.NewError(connect.CodeInternal,
+				fmt.Errorf("project %s (%s): .orc directory inaccessible: %w", proj.ID, proj.Name, err))
+		}
+
+		pdb, err := s.projectCache.Get(proj.ID)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal,
+				fmt.Errorf("open project %s (%s): %w", proj.ID, proj.Name, err))
+		}
+
+		dbTasks, _, err := pdb.ListTasks(db.ListOpts{})
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal,
+				fmt.Errorf("list tasks for project %s: %w", proj.ID, err))
+		}
+
+		activeTasks := make([]*orcv1.TaskSummary, 0)
+		var completedToday int32
+		for _, dt := range dbTasks {
+			// Count completed_today
+			if dt.CompletedAt != nil && (dt.Status == "completed" || dt.Status == "finished") {
+				if dt.CompletedAt.UTC().After(todayStart) || dt.CompletedAt.UTC().Equal(todayStart) {
+					completedToday++
+				}
+			}
+
+			// Filter active tasks
+			protoStatus := task.StatusToProto(dt.Status)
+			if !isActiveStatus(protoStatus) {
+				continue
+			}
+
+			ts := &orcv1.TaskSummary{
+				Id:            dt.ID,
+				Title:         dt.Title,
+				Status:        protoStatus,
+				ClaimedByName: dt.ClaimedBy,
+			}
+
+			// Set claimed_at if claimed
+			if dt.ClaimedAt != nil {
+				ts.ClaimedAt = timestamppb.New(*dt.ClaimedAt)
+			}
+
+			// Stale detection: build minimal proto task for CheckOrphanedProto
+			if protoStatus == orcv1.TaskStatus_TASK_STATUS_RUNNING {
+				probeTask := &orcv1.Task{
+					Status:      protoStatus,
+					ExecutorPid: int32(dt.ExecutorPID),
+				}
+				isStale, _ := task.CheckOrphanedProto(probeTask)
+				ts.IsStale = isStale
+			}
+
+			activeTasks = append(activeTasks, ts)
+		}
+
+		statuses = append(statuses, &orcv1.ProjectStatus{
+			ProjectId:      proj.ID,
+			ProjectName:    proj.Name,
+			ProjectPath:    proj.Path,
+			ActiveTasks:    activeTasks,
+			TotalTasks:     int32(len(dbTasks)),
+			CompletedToday: completedToday,
+		})
+	}
+
+	return connect.NewResponse(&orcv1.GetAllProjectsStatusResponse{
+		Projects: statuses,
+	}), nil
+}
+
+// isActiveStatus returns true for task statuses that count as "active".
+func isActiveStatus(s orcv1.TaskStatus) bool {
+	switch s {
+	case orcv1.TaskStatus_TASK_STATUS_CREATED,
+		orcv1.TaskStatus_TASK_STATUS_PLANNED,
+		orcv1.TaskStatus_TASK_STATUS_RUNNING,
+		orcv1.TaskStatus_TASK_STATUS_BLOCKED:
+		return true
+	default:
+		return false
+	}
 }
 
 // projectToProto converts a project.Project to proto.

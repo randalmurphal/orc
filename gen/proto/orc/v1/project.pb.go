@@ -1400,11 +1400,271 @@ func (x *CleanupStaleBranchesResponse) GetSkippedBranches() []string {
 	return nil
 }
 
+// GetAllProjectsStatus - unified cross-project dashboard
+type GetAllProjectsStatusRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Reserved for future user filtering
+	UserId        *string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3,oneof" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAllProjectsStatusRequest) Reset() {
+	*x = GetAllProjectsStatusRequest{}
+	mi := &file_orc_v1_project_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAllProjectsStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAllProjectsStatusRequest) ProtoMessage() {}
+
+func (x *GetAllProjectsStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_project_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAllProjectsStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetAllProjectsStatusRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_project_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *GetAllProjectsStatusRequest) GetUserId() string {
+	if x != nil && x.UserId != nil {
+		return *x.UserId
+	}
+	return ""
+}
+
+type GetAllProjectsStatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Projects      []*ProjectStatus       `protobuf:"bytes,1,rep,name=projects,proto3" json:"projects,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAllProjectsStatusResponse) Reset() {
+	*x = GetAllProjectsStatusResponse{}
+	mi := &file_orc_v1_project_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAllProjectsStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAllProjectsStatusResponse) ProtoMessage() {}
+
+func (x *GetAllProjectsStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_project_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAllProjectsStatusResponse.ProtoReflect.Descriptor instead.
+func (*GetAllProjectsStatusResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_project_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GetAllProjectsStatusResponse) GetProjects() []*ProjectStatus {
+	if x != nil {
+		return x.Projects
+	}
+	return nil
+}
+
+// Per-project status summary
+type ProjectStatus struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId      string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectName    string                 `protobuf:"bytes,2,opt,name=project_name,json=projectName,proto3" json:"project_name,omitempty"`
+	ProjectPath    string                 `protobuf:"bytes,3,opt,name=project_path,json=projectPath,proto3" json:"project_path,omitempty"`
+	ActiveTasks    []*TaskSummary         `protobuf:"bytes,4,rep,name=active_tasks,json=activeTasks,proto3" json:"active_tasks,omitempty"`
+	TotalTasks     int32                  `protobuf:"varint,5,opt,name=total_tasks,json=totalTasks,proto3" json:"total_tasks,omitempty"`
+	CompletedToday int32                  `protobuf:"varint,6,opt,name=completed_today,json=completedToday,proto3" json:"completed_today,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProjectStatus) Reset() {
+	*x = ProjectStatus{}
+	mi := &file_orc_v1_project_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectStatus) ProtoMessage() {}
+
+func (x *ProjectStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_project_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectStatus.ProtoReflect.Descriptor instead.
+func (*ProjectStatus) Descriptor() ([]byte, []int) {
+	return file_orc_v1_project_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *ProjectStatus) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ProjectStatus) GetProjectName() string {
+	if x != nil {
+		return x.ProjectName
+	}
+	return ""
+}
+
+func (x *ProjectStatus) GetProjectPath() string {
+	if x != nil {
+		return x.ProjectPath
+	}
+	return ""
+}
+
+func (x *ProjectStatus) GetActiveTasks() []*TaskSummary {
+	if x != nil {
+		return x.ActiveTasks
+	}
+	return nil
+}
+
+func (x *ProjectStatus) GetTotalTasks() int32 {
+	if x != nil {
+		return x.TotalTasks
+	}
+	return 0
+}
+
+func (x *ProjectStatus) GetCompletedToday() int32 {
+	if x != nil {
+		return x.CompletedToday
+	}
+	return 0
+}
+
+// Summary of a single task within a project
+type TaskSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Status        TaskStatus             `protobuf:"varint,3,opt,name=status,proto3,enum=orc.v1.TaskStatus" json:"status,omitempty"`
+	ClaimedByName string                 `protobuf:"bytes,4,opt,name=claimed_by_name,json=claimedByName,proto3" json:"claimed_by_name,omitempty"`
+	ClaimedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=claimed_at,json=claimedAt,proto3" json:"claimed_at,omitempty"`
+	IsStale       bool                   `protobuf:"varint,6,opt,name=is_stale,json=isStale,proto3" json:"is_stale,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TaskSummary) Reset() {
+	*x = TaskSummary{}
+	mi := &file_orc_v1_project_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskSummary) ProtoMessage() {}
+
+func (x *TaskSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_project_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskSummary.ProtoReflect.Descriptor instead.
+func (*TaskSummary) Descriptor() ([]byte, []int) {
+	return file_orc_v1_project_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *TaskSummary) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *TaskSummary) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *TaskSummary) GetStatus() TaskStatus {
+	if x != nil {
+		return x.Status
+	}
+	return TaskStatus_TASK_STATUS_UNSPECIFIED
+}
+
+func (x *TaskSummary) GetClaimedByName() string {
+	if x != nil {
+		return x.ClaimedByName
+	}
+	return ""
+}
+
+func (x *TaskSummary) GetClaimedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ClaimedAt
+	}
+	return nil
+}
+
+func (x *TaskSummary) GetIsStale() bool {
+	if x != nil {
+		return x.IsStale
+	}
+	return false
+}
+
 var File_orc_v1_project_proto protoreflect.FileDescriptor
 
 const file_orc_v1_project_proto_rawDesc = "" +
 	"\n" +
-	"\x14orc/v1/project.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\x01\n" +
+	"\x14orc/v1/project.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x11orc/v1/task.proto\"\x9b\x01\n" +
 	"\aProject\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -1492,7 +1752,30 @@ const file_orc_v1_project_proto_rawDesc = "" +
 	"project_id\x18\x03 \x01(\tR\tprojectId\"t\n" +
 	"\x1cCleanupStaleBranchesResponse\x12)\n" +
 	"\x10deleted_branches\x18\x01 \x03(\tR\x0fdeletedBranches\x12)\n" +
-	"\x10skipped_branches\x18\x02 \x03(\tR\x0fskippedBranches*t\n" +
+	"\x10skipped_branches\x18\x02 \x03(\tR\x0fskippedBranches\"G\n" +
+	"\x1bGetAllProjectsStatusRequest\x12\x1c\n" +
+	"\auser_id\x18\x01 \x01(\tH\x00R\x06userId\x88\x01\x01B\n" +
+	"\n" +
+	"\b_user_id\"Q\n" +
+	"\x1cGetAllProjectsStatusResponse\x121\n" +
+	"\bprojects\x18\x01 \x03(\v2\x15.orc.v1.ProjectStatusR\bprojects\"\xf6\x01\n" +
+	"\rProjectStatus\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12!\n" +
+	"\fproject_name\x18\x02 \x01(\tR\vprojectName\x12!\n" +
+	"\fproject_path\x18\x03 \x01(\tR\vprojectPath\x126\n" +
+	"\factive_tasks\x18\x04 \x03(\v2\x13.orc.v1.TaskSummaryR\vactiveTasks\x12\x1f\n" +
+	"\vtotal_tasks\x18\x05 \x01(\x05R\n" +
+	"totalTasks\x12'\n" +
+	"\x0fcompleted_today\x18\x06 \x01(\x05R\x0ecompletedToday\"\xdd\x01\n" +
+	"\vTaskSummary\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12*\n" +
+	"\x06status\x18\x03 \x01(\x0e2\x12.orc.v1.TaskStatusR\x06status\x12&\n" +
+	"\x0fclaimed_by_name\x18\x04 \x01(\tR\rclaimedByName\x129\n" +
+	"\n" +
+	"claimed_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tclaimedAt\x12\x19\n" +
+	"\bis_stale\x18\x06 \x01(\bR\aisStale*t\n" +
 	"\n" +
 	"BranchType\x12\x1b\n" +
 	"\x17BRANCH_TYPE_UNSPECIFIED\x10\x00\x12\x1a\n" +
@@ -1504,7 +1787,7 @@ const file_orc_v1_project_proto_rawDesc = "" +
 	"\x14BRANCH_STATUS_ACTIVE\x10\x01\x12\x18\n" +
 	"\x14BRANCH_STATUS_MERGED\x10\x02\x12\x17\n" +
 	"\x13BRANCH_STATUS_STALE\x10\x03\x12\x1a\n" +
-	"\x16BRANCH_STATUS_ORPHANED\x10\x042\xe7\x03\n" +
+	"\x16BRANCH_STATUS_ORPHANED\x10\x042\xca\x04\n" +
 	"\x0eProjectService\x12I\n" +
 	"\fListProjects\x12\x1b.orc.v1.ListProjectsRequest\x1a\x1c.orc.v1.ListProjectsResponse\x12C\n" +
 	"\n" +
@@ -1513,7 +1796,8 @@ const file_orc_v1_project_proto_rawDesc = "" +
 	"\x11SetDefaultProject\x12 .orc.v1.SetDefaultProjectRequest\x1a!.orc.v1.SetDefaultProjectResponse\x12C\n" +
 	"\n" +
 	"AddProject\x12\x19.orc.v1.AddProjectRequest\x1a\x1a.orc.v1.AddProjectResponse\x12L\n" +
-	"\rRemoveProject\x12\x1c.orc.v1.RemoveProjectRequest\x1a\x1d.orc.v1.RemoveProjectResponse2\xa7\x03\n" +
+	"\rRemoveProject\x12\x1c.orc.v1.RemoveProjectRequest\x1a\x1d.orc.v1.RemoveProjectResponse\x12a\n" +
+	"\x14GetAllProjectsStatus\x12#.orc.v1.GetAllProjectsStatusRequest\x1a$.orc.v1.GetAllProjectsStatusResponse2\xa7\x03\n" +
 	"\rBranchService\x12I\n" +
 	"\fListBranches\x12\x1b.orc.v1.ListBranchesRequest\x1a\x1c.orc.v1.ListBranchesResponse\x12@\n" +
 	"\tGetBranch\x12\x18.orc.v1.GetBranchRequest\x1a\x19.orc.v1.GetBranchResponse\x12[\n" +
@@ -1536,7 +1820,7 @@ func file_orc_v1_project_proto_rawDescGZIP() []byte {
 }
 
 var file_orc_v1_project_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_orc_v1_project_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_orc_v1_project_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_orc_v1_project_proto_goTypes = []any{
 	(BranchType)(0),                      // 0: orc.v1.BranchType
 	(BranchStatus)(0),                    // 1: orc.v1.BranchStatus
@@ -1564,13 +1848,18 @@ var file_orc_v1_project_proto_goTypes = []any{
 	(*DeleteBranchResponse)(nil),         // 23: orc.v1.DeleteBranchResponse
 	(*CleanupStaleBranchesRequest)(nil),  // 24: orc.v1.CleanupStaleBranchesRequest
 	(*CleanupStaleBranchesResponse)(nil), // 25: orc.v1.CleanupStaleBranchesResponse
-	(*timestamppb.Timestamp)(nil),        // 26: google.protobuf.Timestamp
+	(*GetAllProjectsStatusRequest)(nil),  // 26: orc.v1.GetAllProjectsStatusRequest
+	(*GetAllProjectsStatusResponse)(nil), // 27: orc.v1.GetAllProjectsStatusResponse
+	(*ProjectStatus)(nil),                // 28: orc.v1.ProjectStatus
+	(*TaskSummary)(nil),                  // 29: orc.v1.TaskSummary
+	(*timestamppb.Timestamp)(nil),        // 30: google.protobuf.Timestamp
+	(TaskStatus)(0),                      // 31: orc.v1.TaskStatus
 }
 var file_orc_v1_project_proto_depIdxs = []int32{
-	26, // 0: orc.v1.Project.created_at:type_name -> google.protobuf.Timestamp
+	30, // 0: orc.v1.Project.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 1: orc.v1.Branch.type:type_name -> orc.v1.BranchType
-	26, // 2: orc.v1.Branch.created_at:type_name -> google.protobuf.Timestamp
-	26, // 3: orc.v1.Branch.last_activity:type_name -> google.protobuf.Timestamp
+	30, // 2: orc.v1.Branch.created_at:type_name -> google.protobuf.Timestamp
+	30, // 3: orc.v1.Branch.last_activity:type_name -> google.protobuf.Timestamp
 	1,  // 4: orc.v1.Branch.status:type_name -> orc.v1.BranchStatus
 	2,  // 5: orc.v1.ListProjectsResponse.projects:type_name -> orc.v1.Project
 	2,  // 6: orc.v1.GetProjectResponse.project:type_name -> orc.v1.Project
@@ -1583,33 +1872,39 @@ var file_orc_v1_project_proto_depIdxs = []int32{
 	3,  // 13: orc.v1.GetBranchResponse.branch:type_name -> orc.v1.Branch
 	1,  // 14: orc.v1.UpdateBranchStatusRequest.status:type_name -> orc.v1.BranchStatus
 	3,  // 15: orc.v1.UpdateBranchStatusResponse.branch:type_name -> orc.v1.Branch
-	4,  // 16: orc.v1.ProjectService.ListProjects:input_type -> orc.v1.ListProjectsRequest
-	6,  // 17: orc.v1.ProjectService.GetProject:input_type -> orc.v1.GetProjectRequest
-	8,  // 18: orc.v1.ProjectService.GetDefaultProject:input_type -> orc.v1.GetDefaultProjectRequest
-	10, // 19: orc.v1.ProjectService.SetDefaultProject:input_type -> orc.v1.SetDefaultProjectRequest
-	12, // 20: orc.v1.ProjectService.AddProject:input_type -> orc.v1.AddProjectRequest
-	14, // 21: orc.v1.ProjectService.RemoveProject:input_type -> orc.v1.RemoveProjectRequest
-	16, // 22: orc.v1.BranchService.ListBranches:input_type -> orc.v1.ListBranchesRequest
-	18, // 23: orc.v1.BranchService.GetBranch:input_type -> orc.v1.GetBranchRequest
-	20, // 24: orc.v1.BranchService.UpdateBranchStatus:input_type -> orc.v1.UpdateBranchStatusRequest
-	22, // 25: orc.v1.BranchService.DeleteBranch:input_type -> orc.v1.DeleteBranchRequest
-	24, // 26: orc.v1.BranchService.CleanupStaleBranches:input_type -> orc.v1.CleanupStaleBranchesRequest
-	5,  // 27: orc.v1.ProjectService.ListProjects:output_type -> orc.v1.ListProjectsResponse
-	7,  // 28: orc.v1.ProjectService.GetProject:output_type -> orc.v1.GetProjectResponse
-	9,  // 29: orc.v1.ProjectService.GetDefaultProject:output_type -> orc.v1.GetDefaultProjectResponse
-	11, // 30: orc.v1.ProjectService.SetDefaultProject:output_type -> orc.v1.SetDefaultProjectResponse
-	13, // 31: orc.v1.ProjectService.AddProject:output_type -> orc.v1.AddProjectResponse
-	15, // 32: orc.v1.ProjectService.RemoveProject:output_type -> orc.v1.RemoveProjectResponse
-	17, // 33: orc.v1.BranchService.ListBranches:output_type -> orc.v1.ListBranchesResponse
-	19, // 34: orc.v1.BranchService.GetBranch:output_type -> orc.v1.GetBranchResponse
-	21, // 35: orc.v1.BranchService.UpdateBranchStatus:output_type -> orc.v1.UpdateBranchStatusResponse
-	23, // 36: orc.v1.BranchService.DeleteBranch:output_type -> orc.v1.DeleteBranchResponse
-	25, // 37: orc.v1.BranchService.CleanupStaleBranches:output_type -> orc.v1.CleanupStaleBranchesResponse
-	27, // [27:38] is the sub-list for method output_type
-	16, // [16:27] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	28, // 16: orc.v1.GetAllProjectsStatusResponse.projects:type_name -> orc.v1.ProjectStatus
+	29, // 17: orc.v1.ProjectStatus.active_tasks:type_name -> orc.v1.TaskSummary
+	31, // 18: orc.v1.TaskSummary.status:type_name -> orc.v1.TaskStatus
+	30, // 19: orc.v1.TaskSummary.claimed_at:type_name -> google.protobuf.Timestamp
+	4,  // 20: orc.v1.ProjectService.ListProjects:input_type -> orc.v1.ListProjectsRequest
+	6,  // 21: orc.v1.ProjectService.GetProject:input_type -> orc.v1.GetProjectRequest
+	8,  // 22: orc.v1.ProjectService.GetDefaultProject:input_type -> orc.v1.GetDefaultProjectRequest
+	10, // 23: orc.v1.ProjectService.SetDefaultProject:input_type -> orc.v1.SetDefaultProjectRequest
+	12, // 24: orc.v1.ProjectService.AddProject:input_type -> orc.v1.AddProjectRequest
+	14, // 25: orc.v1.ProjectService.RemoveProject:input_type -> orc.v1.RemoveProjectRequest
+	26, // 26: orc.v1.ProjectService.GetAllProjectsStatus:input_type -> orc.v1.GetAllProjectsStatusRequest
+	16, // 27: orc.v1.BranchService.ListBranches:input_type -> orc.v1.ListBranchesRequest
+	18, // 28: orc.v1.BranchService.GetBranch:input_type -> orc.v1.GetBranchRequest
+	20, // 29: orc.v1.BranchService.UpdateBranchStatus:input_type -> orc.v1.UpdateBranchStatusRequest
+	22, // 30: orc.v1.BranchService.DeleteBranch:input_type -> orc.v1.DeleteBranchRequest
+	24, // 31: orc.v1.BranchService.CleanupStaleBranches:input_type -> orc.v1.CleanupStaleBranchesRequest
+	5,  // 32: orc.v1.ProjectService.ListProjects:output_type -> orc.v1.ListProjectsResponse
+	7,  // 33: orc.v1.ProjectService.GetProject:output_type -> orc.v1.GetProjectResponse
+	9,  // 34: orc.v1.ProjectService.GetDefaultProject:output_type -> orc.v1.GetDefaultProjectResponse
+	11, // 35: orc.v1.ProjectService.SetDefaultProject:output_type -> orc.v1.SetDefaultProjectResponse
+	13, // 36: orc.v1.ProjectService.AddProject:output_type -> orc.v1.AddProjectResponse
+	15, // 37: orc.v1.ProjectService.RemoveProject:output_type -> orc.v1.RemoveProjectResponse
+	27, // 38: orc.v1.ProjectService.GetAllProjectsStatus:output_type -> orc.v1.GetAllProjectsStatusResponse
+	17, // 39: orc.v1.BranchService.ListBranches:output_type -> orc.v1.ListBranchesResponse
+	19, // 40: orc.v1.BranchService.GetBranch:output_type -> orc.v1.GetBranchResponse
+	21, // 41: orc.v1.BranchService.UpdateBranchStatus:output_type -> orc.v1.UpdateBranchStatusResponse
+	23, // 42: orc.v1.BranchService.DeleteBranch:output_type -> orc.v1.DeleteBranchResponse
+	25, // 43: orc.v1.BranchService.CleanupStaleBranches:output_type -> orc.v1.CleanupStaleBranchesResponse
+	32, // [32:44] is the sub-list for method output_type
+	20, // [20:32] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_project_proto_init() }
@@ -1617,16 +1912,18 @@ func file_orc_v1_project_proto_init() {
 	if File_orc_v1_project_proto != nil {
 		return
 	}
+	file_orc_v1_task_proto_init()
 	file_orc_v1_project_proto_msgTypes[1].OneofWrappers = []any{}
 	file_orc_v1_project_proto_msgTypes[7].OneofWrappers = []any{}
 	file_orc_v1_project_proto_msgTypes[14].OneofWrappers = []any{}
+	file_orc_v1_project_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_project_proto_rawDesc), len(file_orc_v1_project_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   24,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

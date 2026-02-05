@@ -105,7 +105,6 @@ func setClaimOnTask(t *testing.T, cache *ProjectCache, projectID, taskID, userID
 // TestGetAllProjectsStatus_ReturnsAllProjects verifies SC-2:
 // Every registered project appears in the response with correct id, name, and path.
 func TestGetAllProjectsStatus_ReturnsAllProjects(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 
 	proj1 := setupTestProject(t, tmpDir, "alpha")
@@ -166,7 +165,6 @@ func TestGetAllProjectsStatus_ReturnsAllProjects(t *testing.T) {
 // Only tasks with running/blocked/created/planned statuses appear in active_tasks.
 // Completed, failed, and closed tasks are excluded.
 func TestGetAllProjectsStatus_ActiveTasksFiltering(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 	proj := setupTestProject(t, tmpDir, "myproject")
 
@@ -230,7 +228,6 @@ func TestGetAllProjectsStatus_ActiveTasksFiltering(t *testing.T) {
 // TestGetAllProjectsStatus_EmptyActiveTasks verifies SC-3 edge case:
 // A project with no active tasks returns empty (not nil) active_tasks list.
 func TestGetAllProjectsStatus_EmptyActiveTasks(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 	proj := setupTestProject(t, tmpDir, "empty-project")
 
@@ -268,7 +265,6 @@ func TestGetAllProjectsStatus_EmptyActiveTasks(t *testing.T) {
 // TestGetAllProjectsStatus_ClaimInfo verifies SC-4:
 // TaskSummary.claimed_by_name and claimed_at are populated from the task's claim fields.
 func TestGetAllProjectsStatus_ClaimInfo(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 	proj := setupTestProject(t, tmpDir, "claim-project")
 
@@ -307,7 +303,6 @@ func TestGetAllProjectsStatus_ClaimInfo(t *testing.T) {
 // TestGetAllProjectsStatus_UnclaimedTask verifies SC-4 edge case:
 // Unclaimed tasks have empty claimed_by_name and nil claimed_at.
 func TestGetAllProjectsStatus_UnclaimedTask(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 	proj := setupTestProject(t, tmpDir, "unclaimed-project")
 
@@ -398,7 +393,6 @@ func TestServerConnect_WiresProjectCacheToProjectServer(t *testing.T) {
 // TestGetAllProjectsStatus_StaleDetection verifies SC-6:
 // TaskSummary.is_stale is true when the task's executor process is dead (orphaned).
 func TestGetAllProjectsStatus_StaleDetection(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 	proj := setupTestProject(t, tmpDir, "stale-project")
 
@@ -439,7 +433,6 @@ func TestGetAllProjectsStatus_StaleDetection(t *testing.T) {
 // TestGetAllProjectsStatus_NonRunningTaskNotStale verifies SC-6 edge case:
 // Non-running tasks always have is_stale=false.
 func TestGetAllProjectsStatus_NonRunningTaskNotStale(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 	proj := setupTestProject(t, tmpDir, "notstale-project")
 
@@ -473,7 +466,6 @@ func TestGetAllProjectsStatus_NonRunningTaskNotStale(t *testing.T) {
 // TestGetAllProjectsStatus_TotalTasksCount verifies SC-7:
 // total_tasks counts all tasks including completed/failed/closed.
 func TestGetAllProjectsStatus_TotalTasksCount(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 	proj := setupTestProject(t, tmpDir, "count-project")
 
@@ -518,7 +510,6 @@ func TestGetAllProjectsStatus_TotalTasksCount(t *testing.T) {
 // TestGetAllProjectsStatus_CompletedToday verifies SC-7:
 // completed_today counts tasks with CompletedAt timestamp within the current UTC day.
 func TestGetAllProjectsStatus_CompletedToday(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 	proj := setupTestProject(t, tmpDir, "today-project")
 
@@ -566,7 +557,6 @@ func TestGetAllProjectsStatus_CompletedToday(t *testing.T) {
 // TestGetAllProjectsStatus_ProjectWithZeroTasks verifies SC-7 edge case:
 // Project with zero tasks returns total_tasks=0, completed_today=0.
 func TestGetAllProjectsStatus_ProjectWithZeroTasks(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 	setupTestProject(t, tmpDir, "zero-tasks-project")
 
@@ -604,7 +594,6 @@ func TestGetAllProjectsStatus_ProjectWithZeroTasks(t *testing.T) {
 // TestGetAllProjectsStatus_NoRegisteredProjects verifies the edge case:
 // Zero registered projects returns an empty projects list.
 func TestGetAllProjectsStatus_NoRegisteredProjects(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 	// Don't register any projects - just create the global .orc dir
 	_ = tmpDir
@@ -633,7 +622,6 @@ func TestGetAllProjectsStatus_NoRegisteredProjects(t *testing.T) {
 // If a project's DB cannot be opened, the endpoint returns an error
 // (not silently skipping the project), including the project ID.
 func TestGetAllProjectsStatus_InaccessibleProjectDB(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 
 	// Register a project then make its DB inaccessible
@@ -671,7 +659,6 @@ func TestGetAllProjectsStatus_InaccessibleProjectDB(t *testing.T) {
 // TestGetAllProjectsStatus_FailedTaskExcludedFromActive verifies the edge case:
 // A task in "failed" status is NOT in active_tasks but IS counted in total_tasks.
 func TestGetAllProjectsStatus_FailedTaskExcludedFromActive(t *testing.T) {
-	t.Parallel()
 	tmpDir := setupTestHome(t)
 	proj := setupTestProject(t, tmpDir, "failed-task-project")
 

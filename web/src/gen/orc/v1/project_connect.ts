@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddProjectRequest, AddProjectResponse, CleanupStaleBranchesRequest, CleanupStaleBranchesResponse, DeleteBranchRequest, DeleteBranchResponse, GetBranchRequest, GetBranchResponse, GetDefaultProjectRequest, GetDefaultProjectResponse, GetProjectRequest, GetProjectResponse, ListBranchesRequest, ListBranchesResponse, ListProjectsRequest, ListProjectsResponse, RemoveProjectRequest, RemoveProjectResponse, SetDefaultProjectRequest, SetDefaultProjectResponse, UpdateBranchStatusRequest, UpdateBranchStatusResponse } from "./project_pb.js";
+import { AddProjectRequest, AddProjectResponse, CleanupStaleBranchesRequest, CleanupStaleBranchesResponse, DeleteBranchRequest, DeleteBranchResponse, GetAllProjectsStatusRequest, GetAllProjectsStatusResponse, GetBranchRequest, GetBranchResponse, GetDefaultProjectRequest, GetDefaultProjectResponse, GetProjectRequest, GetProjectResponse, ListBranchesRequest, ListBranchesResponse, ListProjectsRequest, ListProjectsResponse, RemoveProjectRequest, RemoveProjectResponse, SetDefaultProjectRequest, SetDefaultProjectResponse, UpdateBranchStatusRequest, UpdateBranchStatusResponse } from "./project_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -76,6 +76,17 @@ export const ProjectService = {
       name: "RemoveProject",
       I: RemoveProjectRequest,
       O: RemoveProjectResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Get status of all projects with active tasks
+     *
+     * @generated from rpc orc.v1.ProjectService.GetAllProjectsStatus
+     */
+    getAllProjectsStatus: {
+      name: "GetAllProjectsStatus",
+      I: GetAllProjectsStatusRequest,
+      O: GetAllProjectsStatusResponse,
       kind: MethodKind.Unary,
     },
   }
