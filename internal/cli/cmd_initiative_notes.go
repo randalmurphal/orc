@@ -189,12 +189,6 @@ Examples:
 	return cmd
 }
 
-// For backward compatibility, also make the parent 'note' command runnable
-// when called with args directly (without 'add' subcommand).
-func init() {
-	// This is handled by the command structure - 'note add' is the explicit form
-}
-
 func runInitiativeNoteAdd(cmd *cobra.Command, args []string) error {
 	if err := config.RequireInit(); err != nil {
 		return err
@@ -299,9 +293,10 @@ Examples:
 			}
 
 			if !force {
-				fmt.Printf("Delete note %s? [y/N]: ", noteID)
+				fmt.Printf("Delete note %s?\n", noteID)
 				fmt.Printf("  Type: %s\n", note.NoteType)
 				fmt.Printf("  Content: %s\n", truncate(note.Content, 60))
+				fmt.Printf("[y/N]: ")
 				var response string
 				_, _ = fmt.Scanln(&response)
 				if response != "y" && response != "Y" {
