@@ -55,6 +55,8 @@ Commands:
   unlink     Remove tasks from an initiative
   plan       Create tasks from a manifest.yaml file
   decide     Record a decision with optional rationale
+  notes      List notes for an initiative (knowledge sharing)
+  note       Add or delete notes (patterns, warnings, learnings, handoffs)
   activate   Set initiative status to active (ready to run)
   complete   Mark initiative as completed
   run        Run all ready tasks in dependency order
@@ -87,6 +89,8 @@ Examples:
 	cmd.AddCommand(newInitiativeRunCmd())
 	cmd.AddCommand(newInitiativeDeleteCmd())
 	cmd.AddCommand(newInitiativePlanCmd())
+	cmd.AddCommand(newInitiativeNotesCmd())
+	cmd.AddCommand(newInitiativeNoteCmd())
 
 	return cmd
 }
