@@ -53,6 +53,9 @@ const (
 	// ProjectServiceRemoveProjectProcedure is the fully-qualified name of the ProjectService's
 	// RemoveProject RPC.
 	ProjectServiceRemoveProjectProcedure = "/orc.v1.ProjectService/RemoveProject"
+	// ProjectServiceGetAllProjectsStatusProcedure is the fully-qualified name of the ProjectService's
+	// GetAllProjectsStatus RPC.
+	ProjectServiceGetAllProjectsStatusProcedure = "/orc.v1.ProjectService/GetAllProjectsStatus"
 	// BranchServiceListBranchesProcedure is the fully-qualified name of the BranchService's
 	// ListBranches RPC.
 	BranchServiceListBranchesProcedure = "/orc.v1.BranchService/ListBranches"
@@ -83,6 +86,8 @@ type ProjectServiceClient interface {
 	AddProject(context.Context, *connect.Request[v1.AddProjectRequest]) (*connect.Response[v1.AddProjectResponse], error)
 	// Remove a project
 	RemoveProject(context.Context, *connect.Request[v1.RemoveProjectRequest]) (*connect.Response[v1.RemoveProjectResponse], error)
+	// Get status of all projects with active tasks
+	GetAllProjectsStatus(context.Context, *connect.Request[v1.GetAllProjectsStatusRequest]) (*connect.Response[v1.GetAllProjectsStatusResponse], error)
 }
 
 // NewProjectServiceClient constructs a client for the orc.v1.ProjectService service. By default, it
@@ -132,17 +137,24 @@ func NewProjectServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(projectServiceMethods.ByName("RemoveProject")),
 			connect.WithClientOptions(opts...),
 		),
+		getAllProjectsStatus: connect.NewClient[v1.GetAllProjectsStatusRequest, v1.GetAllProjectsStatusResponse](
+			httpClient,
+			baseURL+ProjectServiceGetAllProjectsStatusProcedure,
+			connect.WithSchema(projectServiceMethods.ByName("GetAllProjectsStatus")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // projectServiceClient implements ProjectServiceClient.
 type projectServiceClient struct {
-	listProjects      *connect.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
-	getProject        *connect.Client[v1.GetProjectRequest, v1.GetProjectResponse]
-	getDefaultProject *connect.Client[v1.GetDefaultProjectRequest, v1.GetDefaultProjectResponse]
-	setDefaultProject *connect.Client[v1.SetDefaultProjectRequest, v1.SetDefaultProjectResponse]
-	addProject        *connect.Client[v1.AddProjectRequest, v1.AddProjectResponse]
-	removeProject     *connect.Client[v1.RemoveProjectRequest, v1.RemoveProjectResponse]
+	listProjects         *connect.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
+	getProject           *connect.Client[v1.GetProjectRequest, v1.GetProjectResponse]
+	getDefaultProject    *connect.Client[v1.GetDefaultProjectRequest, v1.GetDefaultProjectResponse]
+	setDefaultProject    *connect.Client[v1.SetDefaultProjectRequest, v1.SetDefaultProjectResponse]
+	addProject           *connect.Client[v1.AddProjectRequest, v1.AddProjectResponse]
+	removeProject        *connect.Client[v1.RemoveProjectRequest, v1.RemoveProjectResponse]
+	getAllProjectsStatus *connect.Client[v1.GetAllProjectsStatusRequest, v1.GetAllProjectsStatusResponse]
 }
 
 // ListProjects calls orc.v1.ProjectService.ListProjects.
@@ -175,6 +187,11 @@ func (c *projectServiceClient) RemoveProject(ctx context.Context, req *connect.R
 	return c.removeProject.CallUnary(ctx, req)
 }
 
+// GetAllProjectsStatus calls orc.v1.ProjectService.GetAllProjectsStatus.
+func (c *projectServiceClient) GetAllProjectsStatus(ctx context.Context, req *connect.Request[v1.GetAllProjectsStatusRequest]) (*connect.Response[v1.GetAllProjectsStatusResponse], error) {
+	return c.getAllProjectsStatus.CallUnary(ctx, req)
+}
+
 // ProjectServiceHandler is an implementation of the orc.v1.ProjectService service.
 type ProjectServiceHandler interface {
 	// List all projects
@@ -189,6 +206,8 @@ type ProjectServiceHandler interface {
 	AddProject(context.Context, *connect.Request[v1.AddProjectRequest]) (*connect.Response[v1.AddProjectResponse], error)
 	// Remove a project
 	RemoveProject(context.Context, *connect.Request[v1.RemoveProjectRequest]) (*connect.Response[v1.RemoveProjectResponse], error)
+	// Get status of all projects with active tasks
+	GetAllProjectsStatus(context.Context, *connect.Request[v1.GetAllProjectsStatusRequest]) (*connect.Response[v1.GetAllProjectsStatusResponse], error)
 }
 
 // NewProjectServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -234,6 +253,12 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 		connect.WithSchema(projectServiceMethods.ByName("RemoveProject")),
 		connect.WithHandlerOptions(opts...),
 	)
+	projectServiceGetAllProjectsStatusHandler := connect.NewUnaryHandler(
+		ProjectServiceGetAllProjectsStatusProcedure,
+		svc.GetAllProjectsStatus,
+		connect.WithSchema(projectServiceMethods.ByName("GetAllProjectsStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orc.v1.ProjectService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProjectServiceListProjectsProcedure:
@@ -248,6 +273,8 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 			projectServiceAddProjectHandler.ServeHTTP(w, r)
 		case ProjectServiceRemoveProjectProcedure:
 			projectServiceRemoveProjectHandler.ServeHTTP(w, r)
+		case ProjectServiceGetAllProjectsStatusProcedure:
+			projectServiceGetAllProjectsStatusHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -279,6 +306,10 @@ func (UnimplementedProjectServiceHandler) AddProject(context.Context, *connect.R
 
 func (UnimplementedProjectServiceHandler) RemoveProject(context.Context, *connect.Request[v1.RemoveProjectRequest]) (*connect.Response[v1.RemoveProjectResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ProjectService.RemoveProject is not implemented"))
+}
+
+func (UnimplementedProjectServiceHandler) GetAllProjectsStatus(context.Context, *connect.Request[v1.GetAllProjectsStatusRequest]) (*connect.Response[v1.GetAllProjectsStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ProjectService.GetAllProjectsStatus is not implemented"))
 }
 
 // BranchServiceClient is a client for the orc.v1.BranchService service.
