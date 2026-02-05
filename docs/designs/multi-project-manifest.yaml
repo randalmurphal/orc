@@ -1,0 +1,629 @@
+version: 1
+
+create_initiative:
+  title: "Multi-Project & Team Support"
+  vision: |
+    Enable orc to work across multiple repos (solo) and with shared team
+    visibility (PostgreSQL mode). Two clean modes based on config:
+
+    - SQLite (default): Solo developer, multiple repos, works offline
+    - PostgreSQL: Team with shared visibility, everyone connects directly
+
+    Core changes:
+    - Users table in GlobalDB with UUID PKs, all user columns are FKs
+    - Atomic claim-on-run with append-only history and steal tracking
+    - Heartbeat-based stale detection (not claim age)
+    - Budget enforcement as soft blocks (require --ignore-budget to proceed)
+    - Unified "My Work" dashboard showing tasks across all projects
+    - DSN via env var only (no plaintext passwords in config)
+    - Proper PostgreSQL FTS with tsvector (dialect-specific)
+    - pgxpool for connection pooling
+
+    See: docs/designs/MULTI_PROJECT_TEAM_SUPPORT.md
+
+tasks:
+  # ============================================================================
+  # PHASE 1: User Identity Foundation (SQLite first, then PostgreSQL)
+  # ============================================================================
+
+  - id: 1
+    title: "Add users table and user attribution schema"
+    weight: medium
+    category: feature
+    priority: critical
+    description: |
+      Add the foundational user identity system that all other features depend on.
+
+      **Users table (GlobalDB):**
+      ```sql
+      CREATE TABLE users (
+          id TEXT PRIMARY KEY,  -- UUID as text for SQLite compat
+          name TEXT UNIQUE NOT NULL,
+          email TEXT,
+          created_at TEXT DEFAULT (datetime('now'))
+      );
+      ```
+
+      **New columns on existing tables:**
+      - tasks: created_by, assigned_to (both TEXT referencing users.id)
+      - initiatives: created_by, owned_by
+      - phases: executed_by
+      - workflow_runs: started_by
+      - cost_log (GlobalDB): user_id
+
+      **Config additions (internal/config/config_types.go):**
+      ```go
+      type UserConfig struct {
+          Name  string `yaml:"name"`   // Required for postgres mode
+          Email string `yaml:"email"`  // Optional
+      }
+      ```
+
+      **Auto-create user on first use:**
+      - GetOrCreateUser(name string) returns user ID
+      - Called when user.name is set in config
+      - Idempotent - same name returns same ID
+
+      Create SQLite migrations first. PostgreSQL migrations come in a later task.
+
+      Files to modify:
+      - internal/db/schema/global_010.sql (users table)
+      - internal/db/schema/project_057.sql (user columns on tasks, initiatives, phases)
+      - internal/db/global.go (user CRUD)
+      - internal/db/task.go (add user columns to queries)
+      - internal/db/initiative.go (add user columns)
+      - internal/db/workflow.go (add started_by to workflow_runs)
+      - internal/config/config_types.go (UserConfig)
+
+  - id: 2
+    title: "Add database dialect configuration"
+    weight: small
+    category: feature
+    priority: critical
+    depends_on: [1]
+    description: |
+      Add configuration for switching between SQLite and PostgreSQL modes.
+
+      **Config schema:**
+      ```yaml
+      database:
+        dialect: sqlite          # "sqlite" (default) | "postgres"
+        dsn_env: ""              # Env var name containing PostgreSQL DSN
+      ```
+
+      **Validation rules:**
+      - dialect: postgres requires dsn_env to be set
+      - dialect: postgres requires user.name to be set
+      - If dsn_env is set, the env var must exist and be non-empty
+      - Invalid config = clear error at startup with actionable message
+
+      **No plaintext DSN allowed** - must come from environment variable.
+
+      Files to modify:
+      - internal/config/config_types.go (DatabaseConfig struct)
+      - internal/config/config.go (validation logic)
+      - internal/db/db.go (dialect selection based on config)
+
+  # ============================================================================
+  # PHASE 2: Claim System Refactor
+  # ============================================================================
+
+  - id: 3
+    title: "Implement atomic claim-on-run with history"
+    weight: large
+    category: feature
+    priority: high
+    depends_on: [1]
+    description: |
+      Refactor the claim system to use atomic operations and maintain audit history.
+
+      **Current problem:** team.go has check-then-insert race condition.
+
+      **New design:**
+
+      1. Add columns to tasks table:
+         - claimed_by TEXT (FK to users.id)
+         - claimed_at TEXT
+
+      2. Create append-only history table:
+         ```sql
+         CREATE TABLE task_claims (
+             id INTEGER PRIMARY KEY,
+             task_id TEXT NOT NULL REFERENCES tasks(id),
+             user_id TEXT NOT NULL REFERENCES users(id),
+             claimed_at TEXT DEFAULT (datetime('now')),
+             released_at TEXT,
+             stolen_from TEXT REFERENCES users(id),
+             FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+         );
+         ```
+
+      3. Atomic claim using single UPDATE:
+         ```sql
+         UPDATE tasks
+         SET claimed_by = ?, claimed_at = datetime('now')
+         WHERE id = ?
+           AND (claimed_by IS NULL OR claimed_by = ?)
+         ```
+         Returns affected rows: 1 = success, 0 = someone else has it
+
+      4. On successful claim, INSERT into task_claims history
+
+      5. Force steal (--force flag):
+         - Get current claimer first
+         - Force UPDATE regardless of current state
+         - INSERT into history with stolen_from set
+
+      6. Release claim:
+         - UPDATE tasks SET claimed_by = NULL WHERE id = ? AND claimed_by = ?
+         - UPDATE task_claims SET released_at = datetime('now') WHERE ...
+
+      **DELETE THE OLD APPROACH:**
+      - DELETE internal/db/team.go entirely (the types and functions)
+      - DELETE the old task_claims schema from team migrations
+      - DELETE TeamMember, TaskClaim types
+      - DELETE ClaimTask(), ReleaseTask(), GetTaskClaims() old implementations
+      - The new users table + atomic claim replaces ALL of this
+
+      **Do NOT:**
+      - Keep team.go "for compatibility"
+      - Add fallback logic
+      - Deprecate - just delete
+
+      Files to modify:
+      - internal/db/schema/project_058.sql (claimed_by/claimed_at on tasks)
+      - internal/db/schema/project_059.sql (task_claims history table)
+      - internal/db/task.go (new claim functions using users table)
+      - internal/executor/workflow_executor.go (call claim before execution)
+
+      Files to DELETE:
+      - internal/db/team.go (entire file)
+
+  - id: 4
+    title: "Add orc release command"
+    weight: small
+    category: feature
+    priority: normal
+    depends_on: [3]
+    description: |
+      Add CLI command to explicitly release a task claim.
+
+      **Command:** `orc release TASK-001`
+
+      **Behavior:**
+      - Verify current user owns the claim
+      - Clear claimed_by/claimed_at on tasks table
+      - Record release in task_claims history (set released_at)
+      - Error if task not claimed by you
+
+      **Output:**
+      ```
+      Released claim on TASK-001
+      ```
+
+      **Error cases:**
+      ```
+      Error: TASK-001 is not claimed by you (claimed by alice)
+      Error: TASK-001 is not claimed
+      ```
+
+      Files to create/modify:
+      - internal/cli/cmd_release.go (new command)
+      - internal/db/task.go (ReleaseTask function if not in claim task)
+
+  - id: 5
+    title: "Implement heartbeat-based stale claim detection"
+    weight: medium
+    category: feature
+    priority: normal
+    depends_on: [3]
+    description: |
+      Replace claim-age-based stale detection with heartbeat freshness.
+
+      **Current problem:** A 10-hour task with fresh heartbeats is healthy,
+      but would be marked stale by age-based detection.
+
+      **New logic:**
+      ```go
+      const StaleHeartbeatThreshold = 10 * time.Minute  // Configurable
+
+      func IsClaimStale(task *Task) bool {
+          if task.ClaimedBy == "" {
+              return false
+          }
+          return time.Since(task.LastHeartbeat) > StaleHeartbeatThreshold
+      }
+      ```
+
+      **Update orc status output:**
+      ```
+      TASK-001  Running   alice   (stale - no heartbeat for 23 minutes)
+      TASK-002  Running   bob     (healthy - heartbeat 30s ago)
+      ```
+
+      **Update claim error message:**
+      ```
+      Error: task TASK-001 is claimed by alice (last heartbeat 2 minutes ago)
+      Use --force to steal the claim
+      ```
+
+      **Fix CheckOrphaned():** Currently compares against localhost only.
+      In PostgreSQL mode, must trust the heartbeat timestamp regardless of
+      hostname since multiple hosts share the same database.
+
+      Files to modify:
+      - internal/task/orphan.go (CheckOrphaned logic)
+      - internal/cli/cmd_status.go (display stale indicator)
+      - internal/executor/workflow_executor.go (claim error messages)
+
+  # ============================================================================
+  # PHASE 3: Budget Enforcement
+  # ============================================================================
+
+  - id: 6
+    title: "Wire budget enforcement into executor"
+    weight: medium
+    category: feature
+    priority: normal
+    depends_on: [1]
+    description: |
+      Budget checking exists (GetBudgetStatus) but nothing calls it before
+      task execution. Wire it up as a soft block.
+
+      **Behavior:**
+      - Check budget before claiming task
+      - If over limit: error with message, require --ignore-budget to proceed
+      - If at 80% threshold: log warning, continue execution
+      - If no budget configured: no limit, no warning
+
+      **Error output:**
+      ```
+      Error: Budget exceeded ($2,143.00 / $2,000.00 monthly limit)
+      Use --ignore-budget to proceed anyway
+      ```
+
+      **Warning output:**
+      ```
+      Warning: Approaching budget limit (87% used: $1,740.00 / $2,000.00)
+      ```
+
+      **Add --ignore-budget flag** to `orc run` command.
+
+      **Update cost recording** to include user_id (from config user.name →
+      users table lookup).
+
+      Files to modify:
+      - internal/executor/workflow_executor.go (add budget check)
+      - internal/cli/cmd_run.go (add --ignore-budget flag)
+      - internal/db/global.go (update RecordCost to include user_id)
+      - internal/config/config_types.go (ensure BudgetConfig exists)
+
+  # ============================================================================
+  # PHASE 4: PostgreSQL Backend
+  # ============================================================================
+
+  - id: 7
+    title: "Port SQLite migrations to PostgreSQL"
+    weight: large
+    category: feature
+    priority: high
+    depends_on: [1, 2, 3]
+    description: |
+      Port all ~65 SQLite migrations to PostgreSQL syntax. This is mechanical
+      but extensive work.
+
+      **Directory structure:**
+      - SQLite: internal/db/schema/*.sql
+      - PostgreSQL: internal/db/schema/postgres/*.sql (create this)
+
+      **Key syntax differences:**
+
+      | SQLite | PostgreSQL |
+      |--------|------------|
+      | `INTEGER PRIMARY KEY AUTOINCREMENT` | `SERIAL PRIMARY KEY` |
+      | `TEXT` for timestamps | `TIMESTAMP WITH TIME ZONE` |
+      | `datetime('now')` | `NOW()` |
+      | `strftime('%Y-%m-%d', x)` | `TO_CHAR(x, 'YYYY-MM-DD')` |
+      | `INTEGER` for bool | `BOOLEAN` |
+      | `?` placeholders | `$1, $2, ...` |
+      | FTS5 virtual tables | Skip (handled separately) |
+
+      **Process:**
+      1. Create internal/db/schema/postgres/ directory
+      2. For each SQLite migration, create PostgreSQL equivalent
+      3. Use same numbering: global_001.sql, project_001.sql, etc.
+      4. Test each migration runs on PostgreSQL
+
+      **Include new migrations from this initiative:**
+      - global_010.sql (users table)
+      - project_057.sql (user columns)
+      - project_058.sql (claim columns)
+      - project_059.sql (task_claims history)
+
+      Files to create:
+      - internal/db/schema/postgres/global_*.sql (9+ files)
+      - internal/db/schema/postgres/project_*.sql (59+ files)
+
+  - id: 8
+    title: "Add pgxpool connection pooling"
+    weight: small
+    category: feature
+    priority: normal
+    depends_on: [2, 7]
+    description: |
+      Replace direct PostgreSQL connections with pgxpool for connection pooling.
+
+      **Current:** internal/db/driver/postgres.go uses sql.Open with lib/pq
+
+      **New:** Use github.com/jackc/pgx/v5/pgxpool
+
+      ```go
+      import "github.com/jackc/pgx/v5/pgxpool"
+
+      func (d *PostgresDriver) Open(dsn string) error {
+          config, err := pgxpool.ParseConfig(dsn)
+          if err != nil {
+              return fmt.Errorf("parse dsn: %w", err)
+          }
+
+          config.MaxConns = 10
+          config.MinConns = 2
+          config.MaxConnLifetime = time.Hour
+
+          pool, err := pgxpool.NewWithConfig(context.Background(), config)
+          if err != nil {
+              return fmt.Errorf("create pool: %w", err)
+          }
+
+          d.pool = pool
+          return nil
+      }
+      ```
+
+      **Note:** pgx uses a different interface than database/sql. May need to
+      adapt the Driver interface or wrap pgxpool to provide sql.DB-like methods.
+
+      Files to modify:
+      - go.mod (add pgx/v5 dependency)
+      - internal/db/driver/postgres.go (replace lib/pq with pgxpool)
+
+  - id: 9
+    title: "Fix SQLite-isms in Go code for PostgreSQL compatibility"
+    weight: medium
+    category: refactor
+    priority: normal
+    depends_on: [7]
+    description: |
+      Several Go files have SQLite-specific SQL embedded that will break on
+      PostgreSQL. Add dialect-aware helpers or branching.
+
+      **Files with SQLite-specific patterns:**
+
+      | File | Pattern | Fix |
+      |------|---------|-----|
+      | global.go:379-414 | `strftime()` | Use driver.DateFormat() helper |
+      | branch.go:197 | `strftime('%Y-%m-%dT%H:%M:%SZ', 'now')` | Use helper |
+      | phase_output.go:205,219 | `datetime('now')` | Use driver.Now() |
+      | project.go:228 | `datetime('now')` | Use driver.Now() |
+      | subtask.go:112 | `datetime('now')` | Use driver.Now() |
+
+      **Add helpers to driver interface:**
+      ```go
+      type Driver interface {
+          // ... existing methods ...
+          DateFormat(column, format string) string  // strftime vs TO_CHAR
+          DateTrunc(unit, column string) string     // date_trunc equivalent
+      }
+      ```
+
+      **Implementation:**
+      - SQLite: `strftime('%Y-%m-%d', column)`
+      - PostgreSQL: `TO_CHAR(column, 'YYYY-MM-DD')`
+
+      Files to modify:
+      - internal/db/driver/driver.go (add helper methods to interface)
+      - internal/db/driver/sqlite.go (implement helpers)
+      - internal/db/driver/postgres.go (implement helpers)
+      - internal/db/global.go (use helpers)
+      - internal/db/branch.go (use helpers)
+      - internal/db/phase_output.go (use helpers)
+      - internal/db/project.go (use helpers)
+      - internal/db/subtask.go (use helpers)
+
+  - id: 10
+    title: "Implement PostgreSQL full-text search"
+    weight: medium
+    category: feature
+    priority: normal
+    depends_on: [7]
+    description: |
+      SQLite uses FTS5 with MATCH operator. PostgreSQL needs tsvector/tsquery.
+
+      **Current SQLite query (transcript.go:424):**
+      ```sql
+      SELECT t.* FROM transcripts t
+      JOIN transcript_fts fts ON t.id = fts.rowid
+      WHERE fts.content MATCH ?
+      ```
+
+      **PostgreSQL equivalent:**
+      ```sql
+      SELECT * FROM transcripts
+      WHERE to_tsvector('english', content) @@ plainto_tsquery('english', $1)
+      ```
+
+      **Add GIN index in PostgreSQL migration:**
+      ```sql
+      CREATE INDEX idx_transcripts_fts ON transcripts
+      USING GIN(to_tsvector('english', content));
+      ```
+
+      **Dialect branching in Go:**
+      ```go
+      func (p *ProjectDB) SearchTranscripts(ctx context.Context, query string) ([]Transcript, error) {
+          var sqlQuery string
+          if p.Dialect() == driver.DialectSQLite {
+              sqlQuery = `SELECT ... WHERE content MATCH ?`
+          } else {
+              sqlQuery = `SELECT ... WHERE to_tsvector('english', content) @@ plainto_tsquery('english', $1)`
+          }
+          return p.queryTranscripts(ctx, sqlQuery, query)
+      }
+      ```
+
+      Files to modify:
+      - internal/db/schema/postgres/project_XXX.sql (GIN index)
+      - internal/db/transcript.go (dialect-specific search)
+
+  # ============================================================================
+  # PHASE 5: Unified Dashboard
+  # ============================================================================
+
+  - id: 11
+    title: "Add GetAllProjectsStatus API endpoint"
+    weight: medium
+    category: feature
+    priority: normal
+    depends_on: [1, 3]
+    description: |
+      Add API endpoint for unified cross-project dashboard.
+
+      **Proto definition:**
+      ```protobuf
+      rpc GetAllProjectsStatus(GetAllProjectsStatusRequest) returns (GetAllProjectsStatusResponse);
+
+      message GetAllProjectsStatusRequest {
+        string user_id = 1;  // Optional: filter to user's tasks
+      }
+
+      message GetAllProjectsStatusResponse {
+        repeated ProjectStatus projects = 1;
+      }
+
+      message ProjectStatus {
+        string project_id = 1;
+        string project_name = 2;
+        string project_path = 3;
+        repeated TaskSummary active_tasks = 4;
+        int32 total_tasks = 5;
+        int32 completed_today = 6;
+      }
+
+      message TaskSummary {
+        string id = 1;
+        string title = 2;
+        string status = 3;
+        string claimed_by_name = 4;
+        google.protobuf.Timestamp claimed_at = 5;
+        bool is_stale = 6;
+      }
+      ```
+
+      **Implementation:**
+      - Iterate all registered projects (from project registry)
+      - For each project, query active tasks (running, blocked, ready)
+      - Include claim info and stale status
+      - In PostgreSQL mode with shared schema, this is one efficient query
+      - In SQLite mode, iterate project DBs via ProjectCache
+
+      Files to modify:
+      - proto/orc/v1/project.proto (add messages and RPC)
+      - internal/api/project_server.go (implement endpoint)
+      - Regenerate proto (make proto)
+
+  - id: 12
+    title: "Build unified 'My Work' dashboard UI"
+    weight: medium
+    category: feature
+    priority: normal
+    depends_on: [11]
+    description: |
+      Replace project picker gate with unified "My Work" landing page.
+
+      **Design:**
+      ```
+      ┌─────────────────────────────────────────────────────────────────┐
+      │  orc                                        [randy] [settings]  │
+      ├─────────────────────────────────────────────────────────────────┤
+      │  MY WORK                                     Filter: [All ▾]    │
+      │                                                                 │
+      │  ┌─ orc ──────────────────────────────────────────────────────┐ │
+      │  │  ● TASK-042 Running    Add unified dashboard    2m         │ │
+      │  │  ○ TASK-041 Blocked    Fix GitLab auto-merge    (bob)      │ │
+      │  └────────────────────────────────────────────────────────────┘ │
+      │                                                                 │
+      │  ┌─ llmkit ───────────────────────────────────────────────────┐ │
+      │  │  ○ TASK-018 Ready      Add streaming support               │ │
+      │  └────────────────────────────────────────────────────────────┘ │
+      └─────────────────────────────────────────────────────────────────┘
+      ```
+
+      **Features:**
+      - Project cards showing active tasks, collapsed by default
+      - Task rows with status indicator, title, time/claimer info
+      - Click task → task detail (sets project context automatically)
+      - Click "view all" → full project board
+      - Filter dropdown: All / Mine / Running / Blocked / Ready
+      - Stale claim indicator (warning icon, tooltip)
+      - User indicator showing who has claims
+
+      **Navigation:**
+      - My Work is the new default landing page
+      - Project picker becomes a filter, not a gate
+      - Back from task detail returns to My Work
+
+      Files to create/modify:
+      - web/src/pages/MyWorkPage.tsx (new page)
+      - web/src/components/dashboard/ProjectCard.tsx (new component)
+      - web/src/components/dashboard/TaskRow.tsx (new component)
+      - web/src/App.tsx (route changes)
+      - web/src/stores/projectStore.ts (navigation state)
+
+  # ============================================================================
+  # PHASE 6: Init & Hosting Improvements
+  # ============================================================================
+
+  - id: 13
+    title: "Add hosting detection and token validation to orc init"
+    weight: medium
+    category: feature
+    priority: normal
+    description: |
+      Move hosting provider detection from PR-time to init-time. Validate
+      tokens exist and work.
+
+      **Current problem:** Hosting detection happens lazily during PR creation.
+      Self-hosted GitLab users get cryptic errors on first `orc run`.
+
+      **Add to init wizard:**
+      1. Detect git remote: `git remote get-url origin`
+      2. Pattern match for GitHub/GitLab
+      3. Prompt for confirmation: "Detected GitHub, correct? [Y/n]"
+      4. Store in .orc/config.yaml: `hosting.provider: github`
+      5. Check for token: GITHUB_TOKEN or GITLAB_TOKEN
+      6. Validate token works (fetch current user)
+
+      **Verification output:**
+      ```
+      ✓ Git repository detected
+      ✓ Remote 'origin' found: github.com/randalmurphal/orc
+      ✓ Hosting provider: GitHub
+      ✓ GITHUB_TOKEN found
+      ✓ Token validated (user: randalmurphal)
+      ✗ ANTHROPIC_API_KEY not set (required for orc run)
+      ```
+
+      **Add auto-merge warning for GitHub:**
+      If config has `completion.pr.auto_merge: true` and provider is GitHub,
+      warn during init and during `orc run`:
+      ```
+      Warning: auto_merge is enabled but not supported on GitHub (requires GraphQL)
+      Consider using completion.ci.merge_on_ci_pass instead
+      ```
+
+      Files to modify:
+      - internal/bootstrap/bootstrap.go (add hosting detection step)
+      - internal/bootstrap/wizard.go (hosting confirmation prompt)
+      - internal/hosting/detect.go (token validation)
+      - internal/cli/cmd_init.go (verification output)
+      - internal/executor/workflow_executor.go (auto-merge warning)
