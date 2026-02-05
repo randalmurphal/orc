@@ -131,7 +131,7 @@ func TestValidateToken_Success(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		// GitHub-style user response
-		w.Write([]byte(`{"login": "testuser", "id": 12345}`))
+		_, _ = w.Write([]byte(`{"login": "testuser", "id": 12345}`))
 	}))
 	defer server.Close()
 
@@ -151,7 +151,7 @@ func TestValidateToken_Success(t *testing.T) {
 func TestValidateToken_InvalidToken(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"message": "Bad credentials"}`))
+		_, _ = w.Write([]byte(`{"message": "Bad credentials"}`))
 	}))
 	defer server.Close()
 
@@ -185,7 +185,7 @@ func TestValidateToken_GitLabProvider(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		// GitLab-style user response
-		w.Write([]byte(`{"username": "gitlabuser", "id": 67890}`))
+		_, _ = w.Write([]byte(`{"username": "gitlabuser", "id": 67890}`))
 	}))
 	defer server.Close()
 

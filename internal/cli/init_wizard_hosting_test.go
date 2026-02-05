@@ -155,14 +155,14 @@ func TestHostingStepTokenCheck(t *testing.T) {
 	oldToken := os.Getenv("GITHUB_TOKEN")
 	defer func() {
 		if oldToken != "" {
-			os.Setenv("GITHUB_TOKEN", oldToken)
+			_ = os.Setenv("GITHUB_TOKEN", oldToken)
 		} else {
-			os.Unsetenv("GITHUB_TOKEN")
+			_ = os.Unsetenv("GITHUB_TOKEN")
 		}
 	}()
 
 	// Test with token NOT set
-	os.Unsetenv("GITHUB_TOKEN")
+	_ = os.Unsetenv("GITHUB_TOKEN")
 
 	state := &InitWizardState{
 		DetectedProvider: hosting.ProviderGitHub,
@@ -179,7 +179,7 @@ func TestHostingStepTokenCheck(t *testing.T) {
 	}
 
 	// Test with token set
-	os.Setenv("GITHUB_TOKEN", "test-token")
+	_ = os.Setenv("GITHUB_TOKEN", "test-token")
 
 	result2 := checkTokenExists(state)
 
@@ -191,7 +191,7 @@ func TestHostingStepTokenCheck(t *testing.T) {
 // TestHostingStepMissingToken tests failure mode: Token env var not set.
 func TestHostingStepMissingToken(t *testing.T) {
 	// Ensure token is not set
-	os.Unsetenv("GITHUB_TOKEN")
+	_ = os.Unsetenv("GITHUB_TOKEN")
 
 	state := &InitWizardState{
 		DetectedProvider: hosting.ProviderGitHub,
