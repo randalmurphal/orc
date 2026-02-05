@@ -83,7 +83,7 @@ Database driver abstraction supporting SQLite and PostgreSQL. All database opera
 
 ### PostgreSQL Migration Files
 
-PostgreSQL migrations live in `driver/schema/postgres/` (embedded via `//go:embed`). Each mirrors the corresponding SQLite migration with dialect-appropriate syntax:
+PostgreSQL migrations live in `schema/postgres/` (embedded via `//go:embed`). Each mirrors the corresponding SQLite migration with dialect-appropriate syntax:
 
 | PostgreSQL | Replaces | Key Differences |
 |------------|----------|-----------------|
@@ -93,7 +93,9 @@ PostgreSQL migrations live in `driver/schema/postgres/` (embedded via `//go:embe
 | `tsvector` + GIN indexes | FTS5 | Full-text search |
 | `JSONB` | JSON text columns | Structured data |
 
-**Current PostgreSQL migration coverage**: `global_001.sql`, `project_001.sql`-`project_006.sql`. Remaining SQLite migrations (global 002-010, project 007+) still need porting.
+**Current PostgreSQL migration coverage**: `global_001.sql`-`global_010.sql`. Remaining: project migrations (`project_001.sql`-`project_058.sql`) still need porting.
+
+**Table ordering**: PostgreSQL validates FK references at DDL time, so migration files may reorder tables compared to SQLite versions. The SQLite migration runner disables FK enforcement during migrations, making order irrelevant there.
 
 **Integration tests** (`postgres_integration_test.go`) require `ORC_TEST_POSTGRES_DSN` env var.
 

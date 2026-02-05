@@ -1,6 +1,33 @@
 -- Global database migration 004: Add workflow tables for cross-project sharing
 -- Workflows, phase templates, and agents are shared across all projects.
 -- Execution records (workflow_runs, workflow_run_phases) remain in project DBs.
+--
+-- NOTE: Table order differs from SQLite version. PostgreSQL validates FK targets
+-- at DDL time, so referenced tables must exist before referencing tables.
+-- SQLite only enforces FKs at DML time, making order irrelevant there.
+
+--------------------------------------------------------------------------------
+-- AGENTS: Agent definitions for multi-agent phase execution
+-- (Created first because phase_templates and workflow_phases reference it)
+--------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS agents (
+    id TEXT PRIMARY KEY,                        -- 'code-reviewer', 'silent-failure-hunter', etc.
+    name TEXT NOT NULL,                         -- Display name
+    description TEXT NOT NULL,                  -- When to use (required by Claude CLI)
+    prompt TEXT NOT NULL,                       -- Context prompt for sub-agent role
+    tools TEXT,                                 -- JSON array: ["Read", "Grep", "Edit"]
+    model TEXT,                                 -- 'opus', 'sonnet', 'haiku' (optional override)
+
+    -- Executor role fields (used when agent is main phase executor)
+    system_prompt TEXT,                         -- Role framing for executor
+    claude_config TEXT,                         -- JSON: additional claude settings
+
+    is_builtin BOOLEAN DEFAULT FALSE,           -- True for built-in agents
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agents_builtin ON agents(is_builtin);
 
 --------------------------------------------------------------------------------
 -- PHASE TEMPLATES: Reusable phase definitions (lego blocks)
@@ -144,28 +171,6 @@ CREATE TABLE IF NOT EXISTS workflow_variables (
 );
 
 CREATE INDEX IF NOT EXISTS idx_workflow_variables_workflow ON workflow_variables(workflow_id);
-
---------------------------------------------------------------------------------
--- AGENTS: Agent definitions for multi-agent phase execution
---------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS agents (
-    id TEXT PRIMARY KEY,                        -- 'code-reviewer', 'silent-failure-hunter', etc.
-    name TEXT NOT NULL,                         -- Display name
-    description TEXT NOT NULL,                  -- When to use (required by Claude CLI)
-    prompt TEXT NOT NULL,                       -- Context prompt for sub-agent role
-    tools TEXT,                                 -- JSON array: ["Read", "Grep", "Edit"]
-    model TEXT,                                 -- 'opus', 'sonnet', 'haiku' (optional override)
-
-    -- Executor role fields (used when agent is main phase executor)
-    system_prompt TEXT,                         -- Role framing for executor
-    claude_config TEXT,                         -- JSON: additional claude settings
-
-    is_builtin BOOLEAN DEFAULT FALSE,           -- True for built-in agents
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_agents_builtin ON agents(is_builtin);
 
 --------------------------------------------------------------------------------
 -- PHASE_AGENTS: Which agents run for which phases
