@@ -9,7 +9,7 @@
 // Success Criteria Coverage:
 // - SC-1: Proto RPC definition (verified by compilation)
 // - SC-2: Returns ProjectStatus for every registered project
-// - SC-3: Active tasks filtering (only running/blocked/created/planned)
+// - SC-3: Active tasks filtering (running/blocked/created/planned/paused/finalizing)
 // - SC-4: Claim info in TaskSummary
 // - SC-5: SetProjectCache wiring
 // - SC-6: Stale detection via CheckOrphanedProto
@@ -18,7 +18,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +29,6 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -688,13 +686,3 @@ func TestGetAllProjectsStatus_FailedTaskExcludedFromActive(t *testing.T) {
 	}
 }
 
-// Ensure imports are used. These are referenced by tests above but the
-// compiler may flag them unused since proto types don't exist yet.
-var (
-	_ = fmt.Sprintf
-	_ = db.ProjectDB{}
-	_ = storage.DatabaseBackend{}
-	_ = time.Now
-	_ = timestamppb.Now
-	_ = strings.Contains
-)

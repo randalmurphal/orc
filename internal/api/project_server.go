@@ -246,7 +246,7 @@ func (s *projectServer) GetAllProjectsStatus(
 		var completedToday int32
 		for _, dt := range dbTasks {
 			// Count completed_today
-			if dt.CompletedAt != nil && (dt.Status == "completed" || dt.Status == "finished") {
+			if dt.CompletedAt != nil && dt.Status == "completed" {
 				if dt.CompletedAt.UTC().After(todayStart) || dt.CompletedAt.UTC().Equal(todayStart) {
 					completedToday++
 				}
@@ -299,12 +299,15 @@ func (s *projectServer) GetAllProjectsStatus(
 }
 
 // isActiveStatus returns true for task statuses that count as "active".
+// Includes all in-flight states: created, planned, running, blocked, paused, finalizing.
 func isActiveStatus(s orcv1.TaskStatus) bool {
 	switch s {
 	case orcv1.TaskStatus_TASK_STATUS_CREATED,
 		orcv1.TaskStatus_TASK_STATUS_PLANNED,
 		orcv1.TaskStatus_TASK_STATUS_RUNNING,
-		orcv1.TaskStatus_TASK_STATUS_BLOCKED:
+		orcv1.TaskStatus_TASK_STATUS_BLOCKED,
+		orcv1.TaskStatus_TASK_STATUS_PAUSED,
+		orcv1.TaskStatus_TASK_STATUS_FINALIZING:
 		return true
 	default:
 		return false
