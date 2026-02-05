@@ -3,6 +3,7 @@ syntax = "proto3";
 package orc.v1;
 
 import "google/protobuf/timestamp.proto";
+import "orc/v1/task.proto";
 
 option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
 
@@ -89,6 +90,9 @@ service ProjectService {
 
   // Remove a project
   rpc RemoveProject(RemoveProjectRequest) returns (RemoveProjectResponse);
+
+  // Get status of all projects with active tasks
+  rpc GetAllProjectsStatus(GetAllProjectsStatusRequest) returns (GetAllProjectsStatusResponse);
 }
 
 service BranchService {
@@ -220,4 +224,34 @@ message CleanupStaleBranchesRequest {
 message CleanupStaleBranchesResponse {
   repeated string deleted_branches = 1;
   repeated string skipped_branches = 2;
+}
+
+// GetAllProjectsStatus - unified cross-project dashboard
+message GetAllProjectsStatusRequest {
+  // Reserved for future user filtering
+  optional string user_id = 1;
+}
+
+message GetAllProjectsStatusResponse {
+  repeated ProjectStatus projects = 1;
+}
+
+// Per-project status summary
+message ProjectStatus {
+  string project_id = 1;
+  string project_name = 2;
+  string project_path = 3;
+  repeated TaskSummary active_tasks = 4;
+  int32 total_tasks = 5;
+  int32 completed_today = 6;
+}
+
+// Summary of a single task within a project
+message TaskSummary {
+  string id = 1;
+  string title = 2;
+  TaskStatus status = 3;
+  string claimed_by_name = 4;
+  google.protobuf.Timestamp claimed_at = 5;
+  bool is_stale = 6;
 }

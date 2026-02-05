@@ -23,9 +23,9 @@ Per-project storage backend abstraction layer. Each `Backend` wraps a single `Pr
 Each project gets its own `Backend` instance wrapping a `ProjectDB`. The API layer routes requests to the correct backend via `ProjectCache` (`internal/api/project_cache.go`).
 
 ```
-Request (project_id) → ProjectCache (LRU) → Backend → ProjectDB → SQLite
+Request (project_id) → ProjectCache (LRU) → Backend → ProjectDB → SQLite/PostgreSQL
                                                           ↑
-                                              One per project (.orc/orc.db)
+                                              One per project (SQLite: .orc/orc.db, PG: shared)
 ```
 
 `ProjectCache` is an LRU cache of open `ProjectDB` + `Backend` pairs, keyed by project ID. Evicts least-recently-used entries when at capacity. Lives in the API layer, not in storage.
@@ -81,7 +81,7 @@ All storage operations are defined by the `Backend` interface:
 
 ## DatabaseBackend
 
-Primary implementation using SQLite via the `db` package.
+Primary implementation via the `db` package (SQLite default, PostgreSQL for team mode).
 
 ### Features
 
@@ -207,8 +207,8 @@ defer backend.Close()
 ## Data Flow
 
 ```
-CLI   → NewBackend(projectPath) → DatabaseBackend → db.ProjectDB → SQLite
-API   → ProjectCache.GetBackend(projectID) → DatabaseBackend → db.ProjectDB → SQLite
+CLI   → NewBackend(projectPath) → DatabaseBackend → db.ProjectDB → SQLite/PostgreSQL
+API   → ProjectCache.GetBackend(projectID) → DatabaseBackend → db.ProjectDB → SQLite/PostgreSQL
 ```
 
 All reads and writes go through the backend. No YAML files are created.

@@ -584,6 +584,7 @@ Multi-project support via global registry. Projects are managed through both RES
 | SetDefaultProject | Set default project by ID |
 | AddProject | Register a new project (name + path) |
 | RemoveProject | Remove a project from the registry |
+| GetAllProjectsStatus | Unified view of tasks across all projects (active tasks, counts, stale detection) |
 
 **Project object:**
 
@@ -615,6 +616,32 @@ Fallback project when no selection exists in URL or localStorage. Stored in `~/.
 ```
 
 Returns 404 if the specified project doesn't exist.
+
+### GetAllProjectsStatus
+
+Cross-project aggregation endpoint for dashboard use. Returns active tasks, counts, and stale detection for every registered project. Requires `projectCache` (returns `FailedPrecondition` if nil).
+
+**Response: `ProjectStatus[]`**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `project_id` | string | Project identifier |
+| `project_name` | string | Display name |
+| `project_path` | string | Filesystem path |
+| `active_tasks` | TaskSummary[] | Tasks with status CREATED, PLANNED, RUNNING, or BLOCKED |
+| `total_tasks` | int32 | Count of all tasks (any status) |
+| `completed_today` | int32 | Tasks completed since UTC midnight |
+
+**TaskSummary:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Task ID |
+| `title` | string | Task title |
+| `status` | TaskStatus | Current status |
+| `claimed_by_name` | string | Who claimed the task |
+| `claimed_at` | timestamp | When claimed |
+| `is_stale` | bool | True if RUNNING but executor PID is dead |
 
 ### Project Task Operations
 

@@ -63,6 +63,9 @@ func (s *Server) registerConnectHandlers() {
 		ads.SetProjectCache(s.projectCache)
 	}
 	projectSvc := NewProjectServer(s.backend, s.logger)
+	if ps, ok := projectSvc.(*projectServer); ok {
+		ps.SetProjectCache(s.projectCache)
+	}
 	branchSvc := NewBranchServer(s.backend, s.logger)
 	if bs, ok := branchSvc.(*branchServer); ok {
 		bs.SetProjectCache(s.projectCache)
