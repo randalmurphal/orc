@@ -6,13 +6,17 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
-	_ "github.com/lib/pq" // PostgreSQL driver
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 )
 
 // PostgresDriver implements the Driver interface for PostgreSQL.
+// It uses pgxpool for connection pooling with a sql.DB adapter for interface compatibility.
 type PostgresDriver struct {
-	db *sql.DB
+	db   *sql.DB
+	pool *pgxpool.Pool
 }
 
 // NewPostgres creates a new PostgreSQL driver.
@@ -20,29 +24,41 @@ func NewPostgres() *PostgresDriver {
 	return &PostgresDriver{}
 }
 
-// Open opens a PostgreSQL database connection.
+// Open opens a PostgreSQL database connection using pgxpool.
 func (d *PostgresDriver) Open(dsn string) error {
-	db, err := sql.Open("postgres", dsn)
+	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		return fmt.Errorf("open postgres: %w", err)
+		return fmt.Errorf("parse postgres config: %w", err)
+	}
+
+	config.MaxConns = 10
+	config.MinConns = 2
+	config.MaxConnLifetime = time.Hour
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
+	if err != nil {
+		return fmt.Errorf("create postgres pool: %w", err)
 	}
 
 	// Test the connection
-	if err := db.Ping(); err != nil {
-		_ = db.Close()
+	if err := pool.Ping(context.Background()); err != nil {
+		pool.Close()
 		return fmt.Errorf("ping postgres: %w", err)
 	}
 
-	d.db = db
+	d.pool = pool
+	d.db = stdlib.OpenDBFromPool(pool)
 	return nil
 }
 
-// Close closes the database connection.
+// Close closes the database connection and pool.
 func (d *PostgresDriver) Close() error {
-	if d.db == nil {
+	if d.pool == nil {
 		return nil
 	}
-	return d.db.Close()
+	err := d.db.Close()
+	d.pool.Close()
+	return err
 }
 
 // Exec executes a query without returning rows.
@@ -171,7 +187,7 @@ func (d *PostgresDriver) UpsertConflict() string {
 	return "ON CONFLICT"
 }
 
-// DB returns the underlying sql.DB for advanced operations.
+// DB returns the underlying sql.DB backed by pgxpool for advanced operations.
 func (d *PostgresDriver) DB() *sql.DB {
 	return d.db
 }
