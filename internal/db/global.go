@@ -156,7 +156,8 @@ type CostEntry struct {
 	CacheReadTokens     int
 	TotalTokens         int
 	InitiativeID        string
-	DurationMs          int64 // Phase execution duration in milliseconds
+	DurationMs          int64  // Phase execution duration in milliseconds
+	UserID              string // User who incurred this cost
 	Timestamp           time.Time
 }
 
@@ -317,13 +318,13 @@ func (g *GlobalDB) RecordCostExtended(entry CostEntry) error {
 			project_id, task_id, phase, model, iteration,
 			cost_usd, input_tokens, output_tokens,
 			cache_creation_tokens, cache_read_tokens, total_tokens,
-			initiative_id, duration_ms
+			initiative_id, duration_ms, user_id
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, entry.ProjectID, entry.TaskID, entry.Phase, entry.Model, entry.Iteration,
 		entry.CostUSD, entry.InputTokens, entry.OutputTokens,
 		entry.CacheCreationTokens, entry.CacheReadTokens, entry.TotalTokens,
-		entry.InitiativeID, entry.DurationMs)
+		entry.InitiativeID, entry.DurationMs, entry.UserID)
 	if err != nil {
 		return fmt.Errorf("record cost extended: %w", err)
 	}
