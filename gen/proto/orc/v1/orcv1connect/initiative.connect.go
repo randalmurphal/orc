@@ -69,6 +69,12 @@ const (
 	// InitiativeServiceRunInitiativeProcedure is the fully-qualified name of the InitiativeService's
 	// RunInitiative RPC.
 	InitiativeServiceRunInitiativeProcedure = "/orc.v1.InitiativeService/RunInitiative"
+	// InitiativeServiceListInitiativeNotesProcedure is the fully-qualified name of the
+	// InitiativeService's ListInitiativeNotes RPC.
+	InitiativeServiceListInitiativeNotesProcedure = "/orc.v1.InitiativeService/ListInitiativeNotes"
+	// InitiativeServiceListTaskGeneratedNotesProcedure is the fully-qualified name of the
+	// InitiativeService's ListTaskGeneratedNotes RPC.
+	InitiativeServiceListTaskGeneratedNotesProcedure = "/orc.v1.InitiativeService/ListTaskGeneratedNotes"
 )
 
 // InitiativeServiceClient is a client for the orc.v1.InitiativeService service.
@@ -85,6 +91,9 @@ type InitiativeServiceClient interface {
 	GetReadyTasks(context.Context, *connect.Request[v1.GetReadyTasksRequest]) (*connect.Response[v1.GetReadyTasksResponse], error)
 	GetDependencyGraph(context.Context, *connect.Request[v1.GetDependencyGraphRequest]) (*connect.Response[v1.GetDependencyGraphResponse], error)
 	RunInitiative(context.Context, *connect.Request[v1.RunInitiativeRequest]) (*connect.Response[v1.RunInitiativeResponse], error)
+	// Initiative Notes
+	ListInitiativeNotes(context.Context, *connect.Request[v1.ListInitiativeNotesRequest]) (*connect.Response[v1.ListInitiativeNotesResponse], error)
+	ListTaskGeneratedNotes(context.Context, *connect.Request[v1.ListTaskGeneratedNotesRequest]) (*connect.Response[v1.ListTaskGeneratedNotesResponse], error)
 }
 
 // NewInitiativeServiceClient constructs a client for the orc.v1.InitiativeService service. By
@@ -170,23 +179,37 @@ func NewInitiativeServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(initiativeServiceMethods.ByName("RunInitiative")),
 			connect.WithClientOptions(opts...),
 		),
+		listInitiativeNotes: connect.NewClient[v1.ListInitiativeNotesRequest, v1.ListInitiativeNotesResponse](
+			httpClient,
+			baseURL+InitiativeServiceListInitiativeNotesProcedure,
+			connect.WithSchema(initiativeServiceMethods.ByName("ListInitiativeNotes")),
+			connect.WithClientOptions(opts...),
+		),
+		listTaskGeneratedNotes: connect.NewClient[v1.ListTaskGeneratedNotesRequest, v1.ListTaskGeneratedNotesResponse](
+			httpClient,
+			baseURL+InitiativeServiceListTaskGeneratedNotesProcedure,
+			connect.WithSchema(initiativeServiceMethods.ByName("ListTaskGeneratedNotes")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // initiativeServiceClient implements InitiativeServiceClient.
 type initiativeServiceClient struct {
-	listInitiatives     *connect.Client[v1.ListInitiativesRequest, v1.ListInitiativesResponse]
-	getInitiative       *connect.Client[v1.GetInitiativeRequest, v1.GetInitiativeResponse]
-	createInitiative    *connect.Client[v1.CreateInitiativeRequest, v1.CreateInitiativeResponse]
-	updateInitiative    *connect.Client[v1.UpdateInitiativeRequest, v1.UpdateInitiativeResponse]
-	deleteInitiative    *connect.Client[v1.DeleteInitiativeRequest, v1.DeleteInitiativeResponse]
-	listInitiativeTasks *connect.Client[v1.ListInitiativeTasksRequest, v1.ListInitiativeTasksResponse]
-	linkTasks           *connect.Client[v1.LinkTasksRequest, v1.LinkTasksResponse]
-	unlinkTask          *connect.Client[v1.UnlinkTaskRequest, v1.UnlinkTaskResponse]
-	addDecision         *connect.Client[v1.AddDecisionRequest, v1.AddDecisionResponse]
-	getReadyTasks       *connect.Client[v1.GetReadyTasksRequest, v1.GetReadyTasksResponse]
-	getDependencyGraph  *connect.Client[v1.GetDependencyGraphRequest, v1.GetDependencyGraphResponse]
-	runInitiative       *connect.Client[v1.RunInitiativeRequest, v1.RunInitiativeResponse]
+	listInitiatives        *connect.Client[v1.ListInitiativesRequest, v1.ListInitiativesResponse]
+	getInitiative          *connect.Client[v1.GetInitiativeRequest, v1.GetInitiativeResponse]
+	createInitiative       *connect.Client[v1.CreateInitiativeRequest, v1.CreateInitiativeResponse]
+	updateInitiative       *connect.Client[v1.UpdateInitiativeRequest, v1.UpdateInitiativeResponse]
+	deleteInitiative       *connect.Client[v1.DeleteInitiativeRequest, v1.DeleteInitiativeResponse]
+	listInitiativeTasks    *connect.Client[v1.ListInitiativeTasksRequest, v1.ListInitiativeTasksResponse]
+	linkTasks              *connect.Client[v1.LinkTasksRequest, v1.LinkTasksResponse]
+	unlinkTask             *connect.Client[v1.UnlinkTaskRequest, v1.UnlinkTaskResponse]
+	addDecision            *connect.Client[v1.AddDecisionRequest, v1.AddDecisionResponse]
+	getReadyTasks          *connect.Client[v1.GetReadyTasksRequest, v1.GetReadyTasksResponse]
+	getDependencyGraph     *connect.Client[v1.GetDependencyGraphRequest, v1.GetDependencyGraphResponse]
+	runInitiative          *connect.Client[v1.RunInitiativeRequest, v1.RunInitiativeResponse]
+	listInitiativeNotes    *connect.Client[v1.ListInitiativeNotesRequest, v1.ListInitiativeNotesResponse]
+	listTaskGeneratedNotes *connect.Client[v1.ListTaskGeneratedNotesRequest, v1.ListTaskGeneratedNotesResponse]
 }
 
 // ListInitiatives calls orc.v1.InitiativeService.ListInitiatives.
@@ -249,6 +272,16 @@ func (c *initiativeServiceClient) RunInitiative(ctx context.Context, req *connec
 	return c.runInitiative.CallUnary(ctx, req)
 }
 
+// ListInitiativeNotes calls orc.v1.InitiativeService.ListInitiativeNotes.
+func (c *initiativeServiceClient) ListInitiativeNotes(ctx context.Context, req *connect.Request[v1.ListInitiativeNotesRequest]) (*connect.Response[v1.ListInitiativeNotesResponse], error) {
+	return c.listInitiativeNotes.CallUnary(ctx, req)
+}
+
+// ListTaskGeneratedNotes calls orc.v1.InitiativeService.ListTaskGeneratedNotes.
+func (c *initiativeServiceClient) ListTaskGeneratedNotes(ctx context.Context, req *connect.Request[v1.ListTaskGeneratedNotesRequest]) (*connect.Response[v1.ListTaskGeneratedNotesResponse], error) {
+	return c.listTaskGeneratedNotes.CallUnary(ctx, req)
+}
+
 // InitiativeServiceHandler is an implementation of the orc.v1.InitiativeService service.
 type InitiativeServiceHandler interface {
 	ListInitiatives(context.Context, *connect.Request[v1.ListInitiativesRequest]) (*connect.Response[v1.ListInitiativesResponse], error)
@@ -263,6 +296,9 @@ type InitiativeServiceHandler interface {
 	GetReadyTasks(context.Context, *connect.Request[v1.GetReadyTasksRequest]) (*connect.Response[v1.GetReadyTasksResponse], error)
 	GetDependencyGraph(context.Context, *connect.Request[v1.GetDependencyGraphRequest]) (*connect.Response[v1.GetDependencyGraphResponse], error)
 	RunInitiative(context.Context, *connect.Request[v1.RunInitiativeRequest]) (*connect.Response[v1.RunInitiativeResponse], error)
+	// Initiative Notes
+	ListInitiativeNotes(context.Context, *connect.Request[v1.ListInitiativeNotesRequest]) (*connect.Response[v1.ListInitiativeNotesResponse], error)
+	ListTaskGeneratedNotes(context.Context, *connect.Request[v1.ListTaskGeneratedNotesRequest]) (*connect.Response[v1.ListTaskGeneratedNotesResponse], error)
 }
 
 // NewInitiativeServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -344,6 +380,18 @@ func NewInitiativeServiceHandler(svc InitiativeServiceHandler, opts ...connect.H
 		connect.WithSchema(initiativeServiceMethods.ByName("RunInitiative")),
 		connect.WithHandlerOptions(opts...),
 	)
+	initiativeServiceListInitiativeNotesHandler := connect.NewUnaryHandler(
+		InitiativeServiceListInitiativeNotesProcedure,
+		svc.ListInitiativeNotes,
+		connect.WithSchema(initiativeServiceMethods.ByName("ListInitiativeNotes")),
+		connect.WithHandlerOptions(opts...),
+	)
+	initiativeServiceListTaskGeneratedNotesHandler := connect.NewUnaryHandler(
+		InitiativeServiceListTaskGeneratedNotesProcedure,
+		svc.ListTaskGeneratedNotes,
+		connect.WithSchema(initiativeServiceMethods.ByName("ListTaskGeneratedNotes")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orc.v1.InitiativeService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InitiativeServiceListInitiativesProcedure:
@@ -370,6 +418,10 @@ func NewInitiativeServiceHandler(svc InitiativeServiceHandler, opts ...connect.H
 			initiativeServiceGetDependencyGraphHandler.ServeHTTP(w, r)
 		case InitiativeServiceRunInitiativeProcedure:
 			initiativeServiceRunInitiativeHandler.ServeHTTP(w, r)
+		case InitiativeServiceListInitiativeNotesProcedure:
+			initiativeServiceListInitiativeNotesHandler.ServeHTTP(w, r)
+		case InitiativeServiceListTaskGeneratedNotesProcedure:
+			initiativeServiceListTaskGeneratedNotesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -425,4 +477,12 @@ func (UnimplementedInitiativeServiceHandler) GetDependencyGraph(context.Context,
 
 func (UnimplementedInitiativeServiceHandler) RunInitiative(context.Context, *connect.Request[v1.RunInitiativeRequest]) (*connect.Response[v1.RunInitiativeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.InitiativeService.RunInitiative is not implemented"))
+}
+
+func (UnimplementedInitiativeServiceHandler) ListInitiativeNotes(context.Context, *connect.Request[v1.ListInitiativeNotesRequest]) (*connect.Response[v1.ListInitiativeNotesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.InitiativeService.ListInitiativeNotes is not implemented"))
+}
+
+func (UnimplementedInitiativeServiceHandler) ListTaskGeneratedNotes(context.Context, *connect.Request[v1.ListTaskGeneratedNotesRequest]) (*connect.Response[v1.ListTaskGeneratedNotesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.InitiativeService.ListTaskGeneratedNotes is not implemented"))
 }

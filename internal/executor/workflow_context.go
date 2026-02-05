@@ -154,11 +154,88 @@ func (we *WorkflowExecutor) loadInitiativeContext(rctx *variable.ResolutionConte
 		rctx.InitiativeDecisions = strings.TrimSuffix(sb.String(), "\n")
 	}
 
+	// Load initiative notes and format grouped by type
+	// Per DEC-003: Human notes always inject, agent notes only if graduated
+	rctx.InitiativeNotes = we.loadAndFormatInitiativeNotes(initiativeID)
+
 	we.logger.Debug("initiative context loaded",
 		"initiative_id", init.ID,
 		"has_vision", init.Vision != "",
 		"decision_count", len(init.Decisions),
+		"has_notes", rctx.InitiativeNotes != "",
 	)
+}
+
+// loadAndFormatInitiativeNotes loads initiative notes and returns a formatted markdown string
+// grouped by note type (patterns, warnings, learnings, handoffs). Returns an empty string if
+// no applicable notes exist or if loading fails.
+//
+// Filtering: Human notes are always included. Agent notes are only included when graduated
+// (i.e., they met the strict quality bar for injection into future task prompts).
+// Per DEC-003 and DEC-004 in the knowledge sharing initiative design.
+func (we *WorkflowExecutor) loadAndFormatInitiativeNotes(initiativeID string) string {
+	notes, err := we.backend.GetInitiativeNotes(initiativeID)
+	if err != nil {
+		we.logger.Debug("failed to load initiative notes",
+			"initiative_id", initiativeID,
+			"error", err,
+		)
+		return ""
+	}
+
+	if len(notes) == 0 {
+		return ""
+	}
+
+	// Filter notes: human notes always, agent notes only if graduated
+	var filtered []db.InitiativeNote
+	for _, n := range notes {
+		if n.AuthorType == db.NoteAuthorHuman || (n.AuthorType == db.NoteAuthorAgent && n.Graduated) {
+			filtered = append(filtered, n)
+		}
+	}
+
+	if len(filtered) == 0 {
+		return ""
+	}
+
+	// Group notes by type (patterns, warnings, learnings, handoffs)
+	byType := make(map[string][]db.InitiativeNote)
+	for _, n := range filtered {
+		byType[n.NoteType] = append(byType[n.NoteType], n)
+	}
+
+	// Format notes grouped by type in a consistent order
+	var sb strings.Builder
+	typeOrder := []struct {
+		noteType string
+		label    string
+		emoji    string
+	}{
+		{db.NoteTypePattern, "Patterns", "📋"},
+		{db.NoteTypeWarning, "Warnings", "⚠️"},
+		{db.NoteTypeLearning, "Learnings", "💡"},
+		{db.NoteTypeHandoff, "Handoffs", "🤝"},
+	}
+
+	for _, t := range typeOrder {
+		notes := byType[t.noteType]
+		if len(notes) == 0 {
+			continue
+		}
+
+		fmt.Fprintf(&sb, "**%s %s:**\n", t.emoji, t.label)
+		for _, n := range notes {
+			fmt.Fprintf(&sb, "- %s", n.Content)
+			if n.SourceTask != "" {
+				fmt.Fprintf(&sb, " *(from %s)*", n.SourceTask)
+			}
+			sb.WriteString("\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	return strings.TrimSuffix(sb.String(), "\n")
 }
 
 // loadProjectDetectionContext loads project detection data into the resolution context.

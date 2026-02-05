@@ -483,3 +483,67 @@ func TestFormatHelpers(t *testing.T) {
 		t.Error("formatPriorities() should contain 'normal'")
 	}
 }
+
+// --- TDD Tests for TASK-749: Initiative plan command doesn't create decisions from manifest ---
+// SC-1: Manifest parsing includes decisions when `decisions:` field is present in YAML
+
+func TestParseManifestBytes_WithDecisions(t *testing.T) {
+	yaml := `
+version: 1
+create_initiative:
+  title: "Test Initiative"
+  vision: "Test vision"
+decisions:
+  - text: "Use JWT for auth"
+    rationale: "Industry standard"
+  - text: "Use PostgreSQL"
+    rationale: "ACID compliance needed"
+tasks:
+  - id: 1
+    title: "First task"
+`
+	manifest, err := ParseManifestBytes([]byte(yaml))
+	if err != nil {
+		t.Fatalf("ParseManifestBytes() error = %v", err)
+	}
+
+	// SC-1: Decisions should be parsed from manifest
+	if len(manifest.Decisions) != 2 {
+		t.Fatalf("Decisions count = %d, want 2", len(manifest.Decisions))
+	}
+
+	// Verify first decision
+	if manifest.Decisions[0].Text != "Use JWT for auth" {
+		t.Errorf("Decisions[0].Text = %q, want %q", manifest.Decisions[0].Text, "Use JWT for auth")
+	}
+	if manifest.Decisions[0].Rationale != "Industry standard" {
+		t.Errorf("Decisions[0].Rationale = %q, want %q", manifest.Decisions[0].Rationale, "Industry standard")
+	}
+
+	// Verify second decision
+	if manifest.Decisions[1].Text != "Use PostgreSQL" {
+		t.Errorf("Decisions[1].Text = %q, want %q", manifest.Decisions[1].Text, "Use PostgreSQL")
+	}
+	if manifest.Decisions[1].Rationale != "ACID compliance needed" {
+		t.Errorf("Decisions[1].Rationale = %q, want %q", manifest.Decisions[1].Rationale, "ACID compliance needed")
+	}
+}
+
+func TestParseManifestBytes_DecisionsEmpty(t *testing.T) {
+	yaml := `
+version: 1
+initiative: INIT-001
+tasks:
+  - id: 1
+    title: "First task"
+`
+	manifest, err := ParseManifestBytes([]byte(yaml))
+	if err != nil {
+		t.Fatalf("ParseManifestBytes() error = %v", err)
+	}
+
+	// Empty decisions should be nil or empty slice
+	if len(manifest.Decisions) != 0 {
+		t.Errorf("Decisions should be empty when not specified, got %d", len(manifest.Decisions))
+	}
+}

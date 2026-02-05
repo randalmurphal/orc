@@ -15,6 +15,7 @@ import { useParams, Link } from 'react-router-dom';
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import {
 	type Initiative,
+	type InitiativeNote,
 	InitiativeStatus,
 } from '@/gen/orc/v1/initiative_pb';
 import { type Task, TaskStatus, type DependencyGraph as DependencyGraphData } from '@/gen/orc/v1/task_pb';
@@ -116,6 +117,12 @@ export function InitiativeDetailPage() {
 	const [graphLoading, setGraphLoading] = useState(false);
 	const [graphError, setGraphError] = useState<string | null>(null);
 
+	// Knowledge (notes) state - collapsible and lazy loaded
+	const [knowledgeExpanded, setKnowledgeExpanded] = useState(true);
+	const [notes, setNotes] = useState<InitiativeNote[]>([]);
+	const [notesLoading, setNotesLoading] = useState(false);
+	const [notesLoaded, setNotesLoaded] = useState(false);
+
 	// Modal states
 	const [editModalOpen, setEditModalOpen] = useState(false);
 	const [linkTaskModalOpen, setLinkTaskModalOpen] = useState(false);
@@ -193,6 +200,19 @@ export function InitiativeDetailPage() {
 		return 0;
 	}, []);
 
+	// Group notes by type for display
+	const notesByType = useMemo(() => {
+		const grouped: Record<string, InitiativeNote[]> = {};
+		for (const note of notes) {
+			const noteType = note.noteType || 'other';
+			if (!grouped[noteType]) {
+				grouped[noteType] = [];
+			}
+			grouped[noteType].push(note);
+		}
+		return grouped;
+	}, [notes]);
+
 	const loadInitiative = useCallback(async () => {
 		if (!id || !projectId) return;
 		setLoading(true);
@@ -208,6 +228,23 @@ export function InitiativeDetailPage() {
 			setLoading(false);
 		}
 	}, [projectId, id]);
+
+	const loadNotes = useCallback(async () => {
+		if (!initiative || !projectId || notesLoaded) return;
+		setNotesLoading(true);
+		try {
+			const response = await initiativeClient.listInitiativeNotes({
+				projectId,
+				initiativeId: initiative.id,
+			});
+			setNotes(response.notes || []);
+			setNotesLoaded(true);
+		} catch (e) {
+			console.error('Failed to load notes:', e);
+		} finally {
+			setNotesLoading(false);
+		}
+	}, [initiative, projectId, notesLoaded]);
 
 	const loadGraphData = useCallback(async () => {
 		if (!initiative || !projectId || graphData) return; // Don't reload if already loaded
@@ -229,6 +266,13 @@ export function InitiativeDetailPage() {
 	useEffect(() => {
 		loadInitiative();
 	}, [loadInitiative]);
+
+	// Load notes when initiative is loaded
+	useEffect(() => {
+		if (initiative && !notesLoaded && !notesLoading) {
+			loadNotes();
+		}
+	}, [initiative, notesLoaded, notesLoading, loadNotes]);
 
 	// Toggle graph expansion and load data on first expand
 	const toggleGraph = useCallback(() => {
@@ -428,6 +472,36 @@ export function InitiativeDetailPage() {
 		return `$${cost.toFixed(2)}`;
 	}, []);
 
+	const getNoteTypeIcon = useCallback((noteType: string): IconName => {
+		switch (noteType) {
+			case 'pattern':
+				return 'code';
+			case 'warning':
+				return 'alert-triangle';
+			case 'learning':
+				return 'brain';
+			case 'handoff':
+				return 'chevron-right';
+			default:
+				return 'message-square';
+		}
+	}, []);
+
+	const getNoteTypeLabel = useCallback((noteType: string): string => {
+		switch (noteType) {
+			case 'pattern':
+				return 'Patterns';
+			case 'warning':
+				return 'Warnings';
+			case 'learning':
+				return 'Learnings';
+			case 'handoff':
+				return 'Handoffs';
+			default:
+				return 'Notes';
+		}
+	}, []);
+
 	if (loading) {
 		return (
 			<div className="loading-state">
@@ -611,6 +685,79 @@ export function InitiativeDetailPage() {
 						<div className="empty-state-inline">
 							<span>No decisions recorded yet</span>
 						</div>
+					)}
+				</section>
+
+				{/* Knowledge Section */}
+				<section className="knowledge-section">
+					<div className="section-header section-header-collapsible">
+						<h2>Knowledge ({notes.length})</h2>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setKnowledgeExpanded((prev) => !prev)}
+							aria-expanded={knowledgeExpanded}
+							leftIcon={<Icon name={knowledgeExpanded ? 'chevron-up' : 'chevron-down'} size={16} />}
+						>
+							{knowledgeExpanded ? 'Collapse' : 'Expand'}
+						</Button>
+					</div>
+
+					{knowledgeExpanded && (
+						<>
+							{notesLoading ? (
+								<div className="loading-inline">
+									<div className="spinner-sm"></div>
+									<span>Loading notes...</span>
+								</div>
+							) : notes.length > 0 ? (
+								<div className="notes-by-type">
+									{['pattern', 'warning', 'learning', 'handoff'].map((noteType) => {
+										const typeNotes = notesByType[noteType];
+										if (!typeNotes || typeNotes.length === 0) return null;
+										return (
+											<div key={noteType} className="note-type-group">
+												<div className="note-type-header">
+													<span className={`note-type-icon type-${noteType}`}>
+														<Icon name={getNoteTypeIcon(noteType)} size={14} />
+													</span>
+													<span>{getNoteTypeLabel(noteType)}</span>
+													<span className="note-type-count">({typeNotes.length})</span>
+												</div>
+												{typeNotes.map((note) => (
+													<div key={note.id} className="note-item">
+														<p className="note-content">{note.content}</p>
+														<div className="note-meta">
+															<span className={`note-author-badge author-${note.authorType}`}>
+																{note.authorType === 'agent' ? '🤖 Agent' : '👤 Human'}
+															</span>
+															{note.sourceTask && (
+																<Link to={`/tasks/${note.sourceTask}`} className="note-source-task">
+																	{note.sourceTask}
+																</Link>
+															)}
+															<span>{formatDate(note.createdAt)}</span>
+														</div>
+														{note.relevantFiles && note.relevantFiles.length > 0 && (
+															<div className="note-relevant-files">
+																{note.relevantFiles.map((file, idx) => (
+																	<span key={idx} className="note-file">{file}</span>
+																))}
+															</div>
+														)}
+													</div>
+												))}
+											</div>
+										);
+									})}
+								</div>
+							) : (
+								<div className="empty-state-inline">
+									<Icon name="brain" size={24} />
+									<span>No knowledge captured yet. Notes will appear as tasks share learnings.</span>
+								</div>
+							)}
+						</>
 					)}
 				</section>
 

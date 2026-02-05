@@ -9,7 +9,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | File | Lines | Key Functions | Purpose |
 |------|-------|---------------|---------|
 | `workflow_executor.go` | ~400 | `NewWorkflowExecutor()`, `Run()`, `applyPhaseContentToVars()` | Core types, options, entry point, phase loop logic, gate action dispatch |
-| `workflow_context.go` | ~196 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
+| `workflow_context.go` | ~450 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
 | `workflow_phase.go` | ~195 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
 | `workflow_completion.go` | ~380 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()`, `cleanupSyncFailure()`, `detectExistingWork()` | PR creation/reuse, merge, worktree setup/cleanup, sync, work-aware cleanup |
 | `workflow_state.go` | ~300 | `failRun()`, `failSetup()`, `interruptRun()`, `commitWIPOnInterrupt()`, `recordCostToGlobal()` | Failure/interrupt handling, work preservation, cost tracking |
@@ -43,6 +43,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `condition.go` | Condition evaluator: `EvaluateCondition()`, `ConditionContext` (phase skip + loop conditions) |
 | `topo_sort.go` | Phase ordering: `topologicalSort()`, `computeExecutionLevels()` (DAG execution levels for parallel phases) |
 | `phase_loop_test.go` | Phase loop integration tests (10 success criteria + failure modes) |
+| `docs_response.go` | Docs phase response parsing: `ParseDocsResponse()`, `PersistInitiativeNotes()` (knowledge curator integration) |
 
 ## Architecture
 
@@ -219,9 +220,9 @@ type PhaseBlockedError struct {
 
 | Function | File:Line | Purpose |
 |----------|-----------|---------|
-| `buildResolutionContext()` | `workflow_context.go:71` | Creates initial variable context |
-| `enrichContextForPhase()` | `workflow_context.go:198` | Adds phase-specific context |
-| `loadInitiativeContext()` | `workflow_context.go:135` | Loads initiative vision/decisions |
+| `buildResolutionContext()` | `workflow_context.go:43` | Creates initial variable context |
+| `enrichContextForPhase()` | `workflow_context.go:292` | Adds phase-specific context |
+| `loadInitiativeContext()` | `workflow_context.go:129` | Loads initiative vision/decisions |
 
 ### Phase Loop System (`workflow_executor.go:721-841`)
 

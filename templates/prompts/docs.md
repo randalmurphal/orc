@@ -9,7 +9,11 @@ You are updating documentation after implementation is complete for task {{TASK_
 {
   "status": "complete",
   "summary": "Documentation updated, hierarchy verified, templates followed",
-  "content": "## Documentation Summary\n\n**Task**: {{TASK_TITLE}}\n\n### Staleness Audit\n- Files searched: N\n- Stale references fixed: N\n  - file:line: old -> new\n\n### Hierarchy Check\n- Parent docs referenced: [list]\n- Duplicate content removed: yes/no/none found\n\n### Docs Created\n| Path | Type | Lines | Purpose |\n|------|------|-------|---------|\n\n### Docs Updated\n| Path | Changes |\n|------|---------|\n\n### Line Counts\n- Root CLAUDE.md: N lines\n- [other files]: N lines\n\n### Navigation\n- llms.txt: created/updated/not needed"
+  "content": "## Documentation Summary\n\n**Task**: {{TASK_TITLE}}\n\n### Staleness Audit\n- Files searched: N\n- Stale references fixed: N\n  - file:line: old -> new\n\n### Hierarchy Check\n- Parent docs referenced: [list]\n- Duplicate content removed: yes/no/none found\n\n### Docs Created\n| Path | Type | Lines | Purpose |\n|------|------|-------|---------|\n\n### Docs Updated\n| Path | Changes |\n|------|---------|\n\n### Line Counts\n- Root CLAUDE.md: N lines\n- [other files]: N lines\n\n### Navigation\n- llms.txt: created/updated/not needed"{{#if INITIATIVE_ID}},
+  "initiative_notes": [
+    {"type": "pattern|warning|learning|handoff", "content": "Concise but self-contained note", "relevant_files": ["optional/file/paths"]}
+  ],
+  "notes_rationale": "Brief explanation of why these notes were/weren't extracted"{{/if}}
 }
 ```
 
@@ -297,3 +301,58 @@ If this task established patterns, decisions, or gotchas — place them by scope
 - [ ] If bug was caused by pattern violation, invariant added
 - [ ] If new pattern established, considered for defaults
 </validation_checklist>
+
+{{#if INITIATIVE_ID}}
+<knowledge_curator>
+## Initiative Knowledge Extraction (MANDATORY)
+
+This task is part of Initiative {{INITIATIVE_ID}}. You MUST spawn a knowledge curator sub-agent to extract learnings for future tasks.
+
+**Spawn using the Task tool:**
+```
+Task tool with subagent_type="general-purpose", model="sonnet", prompt="Extract initiative knowledge from task {{TASK_ID}}: {{TASK_TITLE}}
+
+You are a knowledge curator extracting learnings from a completed task for future tasks in the same initiative.
+
+## Task Context
+- Task ID: {{TASK_ID}}
+- Title: {{TASK_TITLE}}
+- Initiative: {{INITIATIVE_ID}}
+- Category: {{CATEGORY}}
+
+## Existing Initiative Notes (for deduplication)
+{{INITIATIVE_NOTES}}
+
+## Note Types
+| Type | When to Extract | Example |
+|------|-----------------|---------|
+| pattern | Reusable approach that worked well | 'Use repository pattern for all data access - see internal/repo/' |
+| warning | Pitfall or gotcha future tasks should avoid | 'Don't modify legacy_handler.go directly - it has implicit state dependencies' |
+| learning | Non-obvious discovery about the codebase | 'The config system merges files in reverse priority order' |
+| handoff | Incomplete work or planned follow-up | 'Pagination not implemented - use TASK-XXX pattern when adding' |
+
+## Quality Guidelines
+1. **Be selective** - Only extract notes that will help future tasks. Most tasks don't produce notes.
+2. **Be concise but self-contained** - Note should make sense without reading the full task context.
+3. **Include file references** - Add relevant_files for patterns/warnings tied to specific code.
+4. **Avoid duplicates** - Check existing notes above; don't repeat what's already captured.
+5. **Think forward** - What would have helped YOU if you had this note before starting?
+
+## Output Format
+Return a JSON object:
+{
+  'initiative_notes': [
+    {'type': 'pattern|warning|learning|handoff', 'content': 'Concise note text', 'relevant_files': ['optional/paths']}
+  ],
+  'rationale': 'Brief explanation of why these notes were/were not extracted'
+}
+
+If no notes are worth extracting, return empty array with rationale explaining why (e.g., 'routine implementation with no novel patterns').
+"
+```
+
+**Wait for the sub-agent to complete.** Include its extracted notes in your final JSON output.
+
+**If the sub-agent finds no notes worth extracting**, that's valid - include the empty array and rationale in your output.
+</knowledge_curator>
+{{/if}}

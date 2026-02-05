@@ -55,6 +55,7 @@ type PhaseExecutionResult struct {
 	CacheReadTokens     int
 	CostUSD             float64
 	Content             string // Phase output content for content-producing phases
+	RawOutput           string // Full JSON output (for docs phase note extraction)
 	SessionID           string
 }
 
@@ -315,6 +316,37 @@ func (we *WorkflowExecutor) executePhase(
 				"output_var", outputVarName,
 				"error", err,
 			)
+		}
+	}
+
+	// Persist initiative notes from docs phase (SC-5: knowledge curator integration)
+	// Use execResult.RawOutput which contains the full JSON (including initiative_notes),
+	// not result.Content which only has the extracted "content" field.
+	if tmpl.ID == "docs" && execResult.RawOutput != "" && rctx != nil && rctx.InitiativeID != "" {
+		docsResp, parseErr := ParseDocsResponse(execResult.RawOutput)
+		if parseErr != nil {
+			we.logger.Warn("failed to parse docs response for initiative notes",
+				"task", t.Id,
+				"error", parseErr,
+			)
+		} else if len(docsResp.InitiativeNotes) > 0 {
+			taskID := ""
+			if t != nil {
+				taskID = t.Id
+			}
+			if persistErr := PersistInitiativeNotes(we.backend, docsResp.InitiativeNotes, taskID, rctx.InitiativeID); persistErr != nil {
+				we.logger.Warn("failed to persist initiative notes from docs phase",
+					"task", t.Id,
+					"initiative", rctx.InitiativeID,
+					"error", persistErr,
+				)
+			} else {
+				we.logger.Info("persisted initiative notes from docs phase",
+					"task", t.Id,
+					"initiative", rctx.InitiativeID,
+					"count", len(docsResp.InitiativeNotes),
+				)
+			}
 		}
 	}
 
@@ -579,6 +611,8 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 				}
 			}
 
+			// Preserve raw output for phase-specific processing (e.g., docs initiative notes)
+			result.RawOutput = turnResult.Content
 			// Extract artifact if present
 			result.Content = extractPhaseOutput(turnResult.Content)
 			return result, nil
@@ -586,6 +620,7 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		case PhaseStatusBlocked:
 			// Return PhaseBlockedError to signal gate evaluation should handle this
 			// (not a hard failure - gates decide whether to retry or block task)
+			result.RawOutput = turnResult.Content
 			result.Content = extractPhaseOutput(turnResult.Content)
 			return result, &PhaseBlockedError{
 				Phase:  cfg.PhaseID,

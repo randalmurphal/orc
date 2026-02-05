@@ -110,6 +110,10 @@ Examples:
 				if manifest.CreateInitiative.Vision != "" {
 					initToCreate.Vision = manifest.CreateInitiative.Vision
 				}
+				// Add decisions from manifest
+				for _, dec := range manifest.Decisions {
+					initToCreate.AddDecision(dec.Text, dec.Rationale, "manifest")
+				}
 			} else {
 				// Check if initiative exists
 				exists, err := backend.InitiativeExists(manifest.Initiative)
