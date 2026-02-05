@@ -39,10 +39,9 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `phase_settings.go` | Unified `ApplyPhaseSettings()` entry point: hooks + skills + hook scripts |
 | `claude_hooks.go` | `applyPhaseHooks()` - writes hooks to `.claude/settings.local.json` |
 | `hook_scripts.go` | `applyPhaseHookScripts()` - copies scripts to `.claude/hooks/` |
-| `heartbeat.go` | `HeartbeatManager` - periodic heartbeat updates for claimed tasks via `backend.UpdateHeartbeat()` |
-| `claim.go` | `ClaimManager` - heartbeat-based stale claim detection; claims, reclaims stale tasks (`DefaultHeartbeatInterval=30s`, `DefaultStaleThreshold=2m`) |
+| `heartbeat.go` | `HeartbeatRunner` - periodic heartbeat updates during execution (`DefaultHeartbeatInterval=2m`) |
 | `history.go` | `StartRun()`, `CompleteRun()`, `FailRun()`, `InterruptRun()` - append-only run history tracking |
-| `idle_guard.go` | `IdleGuard` - heartbeat-based stale claim detection (30s interval, 5m timeout) |
+| `idle_guard.go` | `IdleGuard` - monitors heartbeat freshness, detects stale executors (2m interval, 15m timeout) |
 | `condition.go` | Condition evaluator: `EvaluateCondition()`, `ConditionContext` (phase skip + loop conditions) |
 | `topo_sort.go` | Phase ordering: `topologicalSort()`, `computeExecutionLevels()` (DAG execution levels for parallel phases) |
 | `phase_loop_test.go` | Phase loop integration tests (10 success criteria + failure modes) |
@@ -527,40 +526,34 @@ Commands are stored in `project_commands` table and seeded during `orc init` bas
 
 **API Error Handling:** `config.Validation.FailOnAPIError` - `true` fails task properly (resumable), `false` continues without validation.
 
-## Heartbeat-Based Stale Claim Detection
+## Heartbeat and Stale Detection
 
-`claim.go` and `heartbeat.go` implement heartbeat-based stale claim detection to prevent orphaned task claims.
+### HeartbeatRunner (`heartbeat.go`)
 
-### Components
+Periodic heartbeat updates during long-running phases to prevent false orphan detection.
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| `ClaimManager` | `claim.go` | Orchestrates claim lifecycle: claim, heartbeat, stale detection, reclaim |
-| `HeartbeatManager` | `heartbeat.go` | Background goroutine sending periodic heartbeat updates |
+- **Interval:** `DefaultHeartbeatInterval = 2 * time.Minute`
+- **Purpose:** Long implement phases can take hours; without heartbeats, task appears orphaned
+- **Priority:** PID check takes precedence over heartbeat staleness (live PID = healthy task)
 
-### Constants
+### IdleGuard (`idle_guard.go`)
 
-| Constant | Value | Purpose |
-|----------|-------|---------|
-| `DefaultHeartbeatInterval` | 30s | How often heartbeat updates are sent |
-| `DefaultStaleThreshold` | 2m | How long since last heartbeat before claim is stale |
+Monitors heartbeat freshness during execution, warns when executor appears stale.
 
-### Flow
+- **Check Interval:** `DefaultHeartbeatInterval` (2 minutes)
+- **Stale Timeout:** `task.StaleHeartbeatThreshold` (15 minutes)
+- **OnStale callback:** Logs warning (does not auto-release)
 
-1. `ClaimManager.ClaimTask()` attempts `backend.ClaimTask()` atomically
-2. If already claimed, checks `isStale()` via `backend.GetClaimInfo()` (compares `LastHeartbeat` or `ClaimedAt` against threshold)
-3. Stale claims are reclaimed via `backend.ForceClaimTask()`
-4. `StartHeartbeat()` spawns a goroutine calling `backend.UpdateHeartbeat()` every interval
-5. Stop function (returned by `StartHeartbeat`) cancels the goroutine via context
+Wired into executor lifecycle via `startIdleGuard()` / `defer guard.Stop()`.
 
-### Backend Methods Required
+### Stale Detection (`task/stale_detection.go`)
 
-| Method | Purpose |
-|--------|---------|
-| `UpdateHeartbeat(ctx, taskID, timestamp)` | Store heartbeat timestamp |
-| `GetClaimInfo(ctx, taskID)` | Retrieve current claim info for staleness check |
-| `ForceClaimTask(ctx, taskID, claim)` | Forcefully reclaim a stale task |
-| `FindStaleClaims(threshold)` | Query tasks with heartbeat older than threshold |
+| Function | Purpose |
+|----------|---------|
+| `IsClaimStale(task)` | Returns (stale bool, reason string) based on heartbeat age vs `StaleHeartbeatThreshold` |
+| `FormatHeartbeatStatus(task)` | Human-readable status: "healthy (2m ago)" or "stale (23m ago)" |
+
+**Note:** `CheckOrphanedProto` in `task/proto_helpers.go` still uses PID-based detection only. Hostname-aware detection for PostgreSQL team mode (where PID checks are meaningless across hosts) is not yet implemented.
 
 ## User Claim System
 
@@ -602,8 +595,7 @@ go test ./internal/executor/... -v
 | `parallel_execution_test.go` | Parallel phase execution: diamond pattern, failure cancellation, variable safety |
 | `dag_skip_integration_test.go` | DAG skip integration: skipped phases don't block dependents (SC-7 verification) |
 | `executor_run_test.go` | Executor.Run claim-on-run integration: claim/release lifecycle, concurrent claim rejection |
-| `claim_test.go` | ClaimManager: claim, release, stale detection via mock backend |
-| `heartbeat_test.go` | HeartbeatManager: update success/failure, stale claim detection, multiple tasks |
+| `heartbeat_test.go` | HeartbeatRunner: update lifecycle, interval timing |
 | `history_test.go` | Run history tracking: start/complete/fail/interrupt |
 | `idle_guard_test.go` | IdleGuard heartbeat loop and stale claim detection |
 
