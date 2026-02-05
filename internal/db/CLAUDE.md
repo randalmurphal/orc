@@ -42,6 +42,7 @@ Two database types with distinct responsibilities:
 | `schema/project_055.sql` | **Sequences table**: atomic ID generation for workflow runs, tasks, initiatives, auto-tasks |
 | `schema/global_010.sql` | **Users table**: `users` (id, name, email, created_at); `user_id` column on `cost_log` |
 | `schema/project_057.sql` | **User attribution columns**: `assigned_to` on tasks, `created_by`/`owned_by` on initiatives, `executed_by` on phases, `started_by` on workflow_runs |
+| `schema/project_058.sql` | **Atomic user claims**: `claimed_by`/`claimed_at` columns on `tasks`, `task_claim_history` table (append-only with `stolen_from` tracking) |
 
 ### FK-Disabling Migrations
 
@@ -86,7 +87,8 @@ The migration runner will:
 | `review_comment.go` | Review comment CRUD |
 | `task_comment.go` | Task comment CRUD |
 | `feedback.go` | User feedback to agents CRUD |
-| `team.go` | Team members, claims, activity |
+| `team.go` | Team members, activity |
+| `task_claim.go` | User claim operations: `ClaimTaskByUser`, `ForceClaimTaskByUser`, `ReleaseUserClaim`, `GetUserClaimHistory` (append-only with steal tracking) |
 | `hook_scripts.go` | Hook script CRUD (GlobalDB): Save/Get/List/Delete, upsert pattern, built-in protection |
 | `skills.go` | Skill CRUD (GlobalDB): Save/Get/List/Delete, upsert pattern, built-in protection, JSON supporting_files |
 | `constitution.go` | Constitution CRUD, validation checks |
@@ -107,6 +109,7 @@ The migration runner will:
 | `LoopConfig` | `workflow.go:114` | Phase loop config: `LoopToPhase`, `Condition` (JSON), `EffectiveMaxLoops()` |
 | `SeqWorkflowRun`, `SeqTask`, `SeqInitiative`, `SeqAutoTask` | `sequence.go:12-17` | Sequence name constants for atomic ID generation |
 | `User` | `user.go:13` | User identity: ID (UUID), Name (unique), Email, CreatedAt |
+| `UserClaimHistoryEntry` | `task_claim.go:12` | Claim audit trail: TaskID, UserID, ClaimedAt, ReleasedAt, StolenFrom |
 
 ## Usage
 

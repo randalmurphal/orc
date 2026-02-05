@@ -61,6 +61,10 @@ type Task struct {
 	PrURL    string // URL of the created/reused PR
 	PrNumber int    // PR number
 	PrStatus string // PR status (pending_review, approved, merged, closed)
+
+	// User claim fields (atomic claim-on-run)
+	ClaimedBy string     // User ID who has claimed this task
+	ClaimedAt *time.Time // When the task was claimed
 }
 
 // SaveTask creates or updates a task.
@@ -184,7 +188,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 // GetTask retrieves a task by ID.
 func (p *ProjectDB) GetTask(id string) (*Task, error) {
 	row := p.QueryRow(`
-		SELECT id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set, pr_url, pr_number, pr_status, created_by, assigned_to
+		SELECT id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set, pr_url, pr_number, pr_status, created_by, assigned_to, claimed_by, claimed_at
 		FROM tasks WHERE id = ?
 	`, id)
 
@@ -255,7 +259,7 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 
 	// Query tasks
 	query := `
-		SELECT id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set, pr_url, pr_number, pr_status, created_by, assigned_to
+		SELECT id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set, pr_url, pr_number, pr_status, created_by, assigned_to, claimed_by, claimed_at
 		FROM tasks
 	` + whereClause + " ORDER BY created_at DESC"
 
@@ -701,12 +705,13 @@ func scanTask(row *sql.Row) (*Task, error) {
 	var prNumber sql.NullInt64
 	var prStatus sql.NullString
 	var createdBy, assignedTo sql.NullString
+	var claimedBy, claimedAt sql.NullString
 
 	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &workflowID, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
 		&queue, &priority, &category, &initiativeID, &targetBranch, &createdAt, &startedAt, &completedAt, &updatedAt, &t.TotalCostUSD, &metadata, &retryContext, &quality,
 		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat, &isAutomation,
 		&branchName, &prDraft, &prLabels, &prReviewers, &prLabelsSet, &prReviewersSet,
-		&prURL, &prNumber, &prStatus, &createdBy, &assignedTo); err != nil {
+		&prURL, &prNumber, &prStatus, &createdBy, &assignedTo, &claimedBy, &claimedAt); err != nil {
 		return nil, err
 	}
 
@@ -842,6 +847,16 @@ func scanTask(row *sql.Row) (*Task, error) {
 	}
 	if assignedTo.Valid {
 		t.AssignedTo = assignedTo.String
+	}
+
+	// User claim fields
+	if claimedBy.Valid {
+		t.ClaimedBy = claimedBy.String
+	}
+	if claimedAt.Valid {
+		if ts, err := time.Parse(time.RFC3339, claimedAt.String); err == nil {
+			t.ClaimedAt = &ts
+		}
 	}
 
 	return &t, nil
@@ -862,12 +877,13 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	var prNumber sql.NullInt64
 	var prStatus sql.NullString
 	var createdBy, assignedTo sql.NullString
+	var claimedBy, claimedAt sql.NullString
 
 	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &workflowID, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
 		&queue, &priority, &category, &initiativeID, &targetBranch, &createdAt, &startedAt, &completedAt, &updatedAt, &t.TotalCostUSD, &metadata, &retryContext, &quality,
 		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat, &isAutomation,
 		&branchName, &prDraft, &prLabels, &prReviewers, &prLabelsSet, &prReviewersSet,
-		&prURL, &prNumber, &prStatus, &createdBy, &assignedTo); err != nil {
+		&prURL, &prNumber, &prStatus, &createdBy, &assignedTo, &claimedBy, &claimedAt); err != nil {
 		return nil, err
 	}
 
@@ -1003,6 +1019,16 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	}
 	if assignedTo.Valid {
 		t.AssignedTo = assignedTo.String
+	}
+
+	// User claim fields
+	if claimedBy.Valid {
+		t.ClaimedBy = claimedBy.String
+	}
+	if claimedAt.Valid {
+		if ts, err := time.Parse(time.RFC3339, claimedAt.String); err == nil {
+			t.ClaimedAt = &ts
+		}
 	}
 
 	return &t, nil

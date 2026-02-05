@@ -379,6 +379,11 @@ type Backend interface {
 	// Task execution claim operations (for resume race condition prevention)
 	TryClaimTaskExecution(ctx context.Context, taskID string, pid int, hostname string) error
 
+	// User claim operations (atomic claim-on-run with history)
+	ClaimTaskByUser(taskID, userID string) (bool, error)
+	ForceClaimTaskByUser(taskID, userID string) (string, error)
+	ReleaseUserClaim(taskID, userID string) (bool, error)
+
 	// Project command operations (for quality checks)
 	SaveProjectCommand(cmd *db.ProjectCommand) error
 	GetProjectCommand(name string) (*db.ProjectCommand, error)

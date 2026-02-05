@@ -378,6 +378,11 @@ func (b *emptyBackend) GetInitiativeNotesBySourceTask(string) ([]db.InitiativeNo
 func (b *emptyBackend) DeleteInitiativeNote(string) error                           { return nil }
 func (b *emptyBackend) GetNextNoteID() (string, error)                              { return "", nil }
 
+// User claim methods
+func (b *emptyBackend) ClaimTaskByUser(string, string) (bool, error)      { return false, nil }
+func (b *emptyBackend) ForceClaimTaskByUser(string, string) (string, error) { return "", nil }
+func (b *emptyBackend) ReleaseUserClaim(string, string) (bool, error)     { return false, nil }
+
 func TestPRPoller_StopTwice(t *testing.T) {
 	t.Parallel()
 	// Create a poller with a backend that returns no tasks
