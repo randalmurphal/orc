@@ -7,8 +7,6 @@ import (
 	"database/sql"
 	"os"
 	"testing"
-
-	_ "github.com/lib/pq"
 )
 
 // PostgreSQL integration tests require:
