@@ -101,6 +101,9 @@ type Config struct {
 	// Identity settings for multi-user coordination
 	Identity IdentityConfig `yaml:"identity"`
 
+	// User identity for attribution (required for postgres mode)
+	User UserConfig `yaml:"user"`
+
 	// Task ID generation settings
 	TaskID TaskIDConfig `yaml:"task_id"`
 
@@ -938,6 +941,11 @@ func (c *Config) Validate() error {
 			"if you need to run without worktrees, contact maintainers to discuss your use case")
 	}
 
+	// Validate database configuration
+	if err := c.validateDatabase(); err != nil {
+		return err
+	}
+
 	// Validate storage configuration
 	if err := c.validateStorage(); err != nil {
 		return err
@@ -1033,6 +1041,39 @@ func (c *StorageConfig) ShouldExport() bool {
 	resolved := c.ResolveExportConfig()
 	return resolved.TaskDefinition || resolved.FinalState ||
 		resolved.Transcripts || resolved.ContextSummary
+}
+
+// validateDatabase validates the database dialect configuration.
+func (c *Config) validateDatabase() error {
+	dialect := c.Database.Dialect
+
+	// Empty dialect defaults to sqlite (valid)
+	if dialect == "" || dialect == "sqlite" {
+		return nil
+	}
+
+	// Check for valid dialect values
+	if dialect != "postgres" {
+		return fmt.Errorf("invalid database.dialect: %s (must be one of: sqlite, postgres)", dialect)
+	}
+
+	// postgres mode requires user.name
+	if c.User.Name == "" {
+		return fmt.Errorf("database.dialect 'postgres' requires user.name to be set for user attribution")
+	}
+
+	// postgres mode requires dsn_env
+	if c.Database.DSNEnv == "" {
+		return fmt.Errorf("database.dialect 'postgres' requires database.dsn_env to be set (environment variable containing DSN)")
+	}
+
+	// If dsn_env is set, the env var must exist and be non-empty
+	dsnValue := os.Getenv(c.Database.DSNEnv)
+	if dsnValue == "" {
+		return fmt.Errorf("environment variable %s is not set or is empty (required for postgres mode)", c.Database.DSNEnv)
+	}
+
+	return nil
 }
 
 // validateStorage validates the storage configuration.
