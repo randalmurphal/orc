@@ -66,7 +66,7 @@ make dev-full               # API (:8080) + frontend (:5173)
 | `web/` | React 19 frontend | See `web/CLAUDE.md` |
 | `docs/` | Architecture, specs, ADRs | See `docs/CLAUDE.md` |
 
-**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite + GlobalDB/ProjectDB), `project/` (multi-project registry), `gate/` (quality gates: auto/human/AI/skip), `events/` (real-time event publishing), `trigger/` (lifecycle event triggers), `jira/` (Jira Cloud import)
+**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite/PostgreSQL + GlobalDB/ProjectDB), `project/` (multi-project registry), `gate/` (quality gates: auto/human/AI/skip), `events/` (real-time event publishing), `trigger/` (lifecycle event triggers), `jira/` (Jira Cloud import)
 
 ## Task Model
 
@@ -198,14 +198,19 @@ orc constitution delete                      # Remove
 
 ## Multi-Project Support
 
-Orc supports multiple projects from a single installation. Data is split between a global database and per-project databases.
+Orc supports multiple projects from a single installation. Data is split between a global database and per-project databases. Two database dialects are supported via the driver abstraction (`internal/db/driver/`):
+
+| Mode | Dialect | DSN Source | Use Case |
+|------|---------|------------|----------|
+| Solo (default) | SQLite | File path (`~/.orc/orc.db`) | Single developer, offline |
+| Team | PostgreSQL | Env var (`database.dsn_env` config) | Shared visibility, direct connect |
 
 ### Architecture
 
 | Component | Location | Contents |
 |-----------|----------|----------|
-| **GlobalDB** | `~/.orc/orc.db` | Project registry, cost tracking, budgets, workflows, agents, phase templates |
-| **ProjectDB** | `~/.orc/projects/<id>/orc.db` | Tasks, initiatives, transcripts, phases, events, FTS |
+| **GlobalDB** | `~/.orc/orc.db` (SQLite) or shared PG | Project registry, cost tracking, budgets, workflows, agents, phase templates |
+| **ProjectDB** | `~/.orc/projects/<id>/orc.db` (SQLite) or shared PG | Tasks, initiatives, transcripts, phases, events, FTS |
 | **ProjectCache** | `internal/api/project_cache.go` | LRU cache for project DB connections (thread-safe) |
 
 ### How It Works
@@ -242,7 +247,7 @@ Orc supports multiple projects from a single installation. Data is split between
 .claude/                             # Claude Code settings, hooks, skills
 ```
 
-Task data stored in per-project SQLite (`~/.orc/projects/<id>/orc.db`). Use `orc export --all-tasks --all` for full backup.
+Task data stored in per-project database (`~/.orc/projects/<id>/orc.db` for SQLite, shared PostgreSQL for team mode). Use `orc export --all-tasks --all` for full backup.
 
 ## Commands
 
