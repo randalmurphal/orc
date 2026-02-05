@@ -333,6 +333,7 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	vars["INITIATIVE_TITLE"] = rctx.InitiativeTitle
 	vars["INITIATIVE_VISION"] = rctx.InitiativeVision
 	vars["INITIATIVE_DECISIONS"] = rctx.InitiativeDecisions
+	vars["INITIATIVE_NOTES"] = rctx.InitiativeNotes
 	vars["INITIATIVE_TASKS"] = rctx.InitiativeTasks
 	// Format full initiative context section if initiative is set
 	if rctx.InitiativeID != "" {
@@ -431,6 +432,13 @@ func formatInitiativeContext(rctx *ResolutionContext) string {
 		sb.WriteString("\n### Decisions\n\n")
 		sb.WriteString("The following decisions have been made for this initiative:\n\n")
 		sb.WriteString(rctx.InitiativeDecisions)
+		sb.WriteString("\n")
+	}
+
+	if rctx.InitiativeNotes != "" {
+		sb.WriteString("\n### Knowledge from Prior Tasks\n\n")
+		sb.WriteString("The following learnings have been captured from completed tasks in this initiative:\n\n")
+		sb.WriteString(rctx.InitiativeNotes)
 		sb.WriteString("\n")
 	}
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -777,5 +778,90 @@ func TestResolveAllRetryVariables_EmptyWhenNoRetry(t *testing.T) {
 	}
 	if val, exists := vars["RETRY_REASON"]; exists && val != "" {
 		t.Errorf("RETRY_REASON should be empty when no retry active, got %q", val)
+	}
+}
+
+func TestResolveAllInitiativeNotesVariable(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	rctx := &ResolutionContext{
+		TaskID:          "TASK-001",
+		InitiativeID:    "INIT-001",
+		InitiativeTitle: "Test Initiative",
+		InitiativeNotes: "**📋 Patterns:**\n- Use dependency injection *(from TASK-001)*\n\n**⚠️ Warnings:**\n- Avoid global state *(from TASK-002)*",
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if vars["INITIATIVE_NOTES"] != rctx.InitiativeNotes {
+		t.Errorf("INITIATIVE_NOTES: expected %q, got %q", rctx.InitiativeNotes, vars["INITIATIVE_NOTES"])
+	}
+}
+
+func TestResolveAllInitiativeNotesInContext(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	rctx := &ResolutionContext{
+		TaskID:          "TASK-001",
+		InitiativeID:    "INIT-001",
+		InitiativeTitle: "Test Initiative",
+		InitiativeVision: "Build something great",
+		InitiativeNotes: "**📋 Patterns:**\n- Use dependency injection *(from TASK-001)*",
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// INITIATIVE_CONTEXT should include the notes section
+	ctx := vars["INITIATIVE_CONTEXT"]
+	if ctx == "" {
+		t.Fatal("INITIATIVE_CONTEXT should not be empty when initiative is set")
+	}
+
+	// Check that notes are included in the context
+	if !strings.Contains(ctx, "Knowledge from Prior Tasks") {
+		t.Error("INITIATIVE_CONTEXT should contain 'Knowledge from Prior Tasks' section")
+	}
+	if !strings.Contains(ctx, "Use dependency injection") {
+		t.Error("INITIATIVE_CONTEXT should contain the note content")
+	}
+}
+
+func TestResolveAllInitiativeContextWithoutNotes(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	rctx := &ResolutionContext{
+		TaskID:          "TASK-001",
+		InitiativeID:    "INIT-001",
+		InitiativeTitle: "Test Initiative",
+		InitiativeVision: "Build something great",
+		// No notes
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// INITIATIVE_CONTEXT should not include the notes section when empty
+	ctx := vars["INITIATIVE_CONTEXT"]
+	if ctx == "" {
+		t.Fatal("INITIATIVE_CONTEXT should not be empty when initiative is set")
+	}
+
+	// Check that notes section is NOT included
+	if strings.Contains(ctx, "Knowledge from Prior Tasks") {
+		t.Error("INITIATIVE_CONTEXT should NOT contain 'Knowledge from Prior Tasks' section when no notes")
 	}
 }
