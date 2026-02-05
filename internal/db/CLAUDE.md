@@ -26,7 +26,9 @@ Two database types with distinct responsibilities:
 
 **Key insight**: GlobalDB holds data that spans projects (definitions, registry). ProjectDB holds project-specific execution data. Workflow/agent definitions live in GlobalDB so all projects share them; workflow runs live in ProjectDB since they belong to a specific project.
 
-### Schema Migrations
+### Schema Migrations (SQLite)
+
+SQLite migrations in `schema/`. PostgreSQL equivalents in `driver/schema/postgres/` (see Driver Package section).
 
 | Schema | Purpose |
 |--------|---------|
@@ -61,6 +63,39 @@ The migration runner will:
 4. Verify no FK violations were introduced (`PRAGMA foreign_key_check`)
 
 **When to use**: Renaming tables that are FK targets, recreating tables to remove FK constraints, or any DDL that would fail with FK enforcement enabled.
+
+## Driver Package (`driver/`)
+
+Database driver abstraction supporting SQLite and PostgreSQL. All database operations go through the `Driver` interface.
+
+| File | Purpose |
+|------|---------|
+| `driver.go` | `Driver` interface, `Tx` interface, `SchemaFS`, `ParseDialect()`, `New()` factory |
+| `sqlite.go` | SQLite driver: `?` placeholders, `datetime('now')`, FK-disable migration support |
+| `postgres.go` | PostgreSQL driver: `$N` placeholders, `NOW()`, `_migrations` version tracking |
+
+**Dialect helpers** (used by CRUD code for portable queries):
+
+| Method | SQLite | PostgreSQL |
+|--------|--------|------------|
+| `Placeholder(n)` | `?` | `$1`, `$2`, ... |
+| `Now()` | `datetime('now')` | `NOW()` |
+
+### PostgreSQL Migration Files
+
+PostgreSQL migrations live in `driver/schema/postgres/` (embedded via `//go:embed`). Each mirrors the corresponding SQLite migration with dialect-appropriate syntax:
+
+| PostgreSQL | Replaces | Key Differences |
+|------------|----------|-----------------|
+| `SERIAL PRIMARY KEY` | `INTEGER PRIMARY KEY AUTOINCREMENT` | Auto-increment |
+| `TIMESTAMP WITH TIME ZONE DEFAULT NOW()` | `TEXT DEFAULT (datetime('now'))` | Timestamps |
+| `$1, $2` | `?` | Placeholders |
+| `tsvector` + GIN indexes | FTS5 | Full-text search |
+| `JSONB` | JSON text columns | Structured data |
+
+**Current PostgreSQL migration coverage**: `global_001.sql`, `project_001.sql`-`project_006.sql`. Remaining SQLite migrations (global 002-010, project 007+) still need porting.
+
+**Integration tests** (`postgres_integration_test.go`) require `ORC_TEST_POSTGRES_DSN` env var.
 
 ## File Structure
 
