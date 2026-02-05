@@ -77,6 +77,7 @@ All storage operations are defined by the `Backend` interface:
 | Constitution | `SaveConstitution`, `LoadConstitution`, `ConstitutionExists`, `DeleteConstitution` |
 | Context | `MaterializeContext`, `NeedsMaterialization` |
 | User Claims | `ClaimTaskByUser`, `ForceClaimTaskByUser`, `ReleaseUserClaim` |
+| Heartbeat Claims | `UpdateHeartbeat`, `GetClaimInfo`, `ForceClaimTask`, `FindStaleClaims`, `IsTaskClaimed` |
 | Lifecycle | `Sync`, `Cleanup`, `Close` |
 
 ## DatabaseBackend
