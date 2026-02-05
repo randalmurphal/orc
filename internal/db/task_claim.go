@@ -1,8 +1,10 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -16,37 +18,58 @@ type UserClaimHistoryEntry struct {
 	StolenFrom *string
 }
 
+// isSQLiteBusy returns true if the error is a SQLite BUSY error.
+// Under concurrent contention, SQLITE_BUSY means the write lock couldn't be
+// acquired within the busy timeout — semantically "claim not acquired".
+func isSQLiteBusy(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "SQLITE_BUSY")
+}
+
 // ClaimTaskByUser atomically claims a task for a user using a single UPDATE.
 // Returns the number of rows affected: 1 if claimed successfully, 0 if already
-// claimed by another user or task doesn't exist.
+// claimed by another user, task doesn't exist, or the database was busy
+// (another claim in progress).
 // The claim is idempotent - re-claiming your own task succeeds.
 func (p *ProjectDB) ClaimTaskByUser(taskID, userID string) (int64, error) {
 	now := time.Now().Format(time.RFC3339)
 
-	// Atomic UPDATE: succeeds if unclaimed OR already claimed by the same user
-	result, err := p.Exec(`
-		UPDATE tasks
-		SET claimed_by = ?, claimed_at = ?
-		WHERE id = ? AND (claimed_by IS NULL OR claimed_by = ?)
-	`, userID, now, taskID, userID)
-	if err != nil {
-		return 0, fmt.Errorf("claim task %s: %w", taskID, err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("check claim result for task %s: %w", taskID, err)
-	}
-
-	// Insert history entry on successful claim
-	if rowsAffected == 1 {
-		_, err = p.Exec(`
-			INSERT INTO task_claim_history (task_id, user_id, claimed_at)
-			VALUES (?, ?, ?)
-		`, taskID, userID, now)
+	var rowsAffected int64
+	err := p.RunInTx(context.Background(), func(tx *TxOps) error {
+		// Atomic UPDATE: succeeds if unclaimed OR already claimed by the same user
+		result, err := tx.Exec(`
+			UPDATE tasks
+			SET claimed_by = ?, claimed_at = ?
+			WHERE id = ? AND (claimed_by IS NULL OR claimed_by = ?)
+		`, userID, now, taskID, userID)
 		if err != nil {
-			return 0, fmt.Errorf("record claim history for task %s: %w", taskID, err)
+			return fmt.Errorf("claim task %s: %w", taskID, err)
 		}
+
+		rowsAffected, err = result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("check claim result for task %s: %w", taskID, err)
+		}
+
+		// Insert history entry on successful claim
+		if rowsAffected == 1 {
+			_, err = tx.Exec(`
+				INSERT INTO task_claim_history (task_id, user_id, claimed_at)
+				VALUES (?, ?, ?)
+			`, taskID, userID, now)
+			if err != nil {
+				return fmt.Errorf("record claim history for task %s: %w", taskID, err)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		// SQLITE_BUSY under concurrent contention means the lock couldn't be
+		// acquired — treat as "claim not acquired" rather than a fatal error.
+		if isSQLiteBusy(err) {
+			return 0, nil
+		}
+		return 0, err
 	}
 
 	return rowsAffected, nil
@@ -57,59 +80,65 @@ func (p *ProjectDB) ClaimTaskByUser(taskID, userID string) (int64, error) {
 func (p *ProjectDB) ForceClaimTaskByUser(taskID, userID string) (string, error) {
 	now := time.Now().Format(time.RFC3339)
 
-	// Read current claimer
-	var currentClaimer sql.NullString
-	err := p.QueryRow(`SELECT claimed_by FROM tasks WHERE id = ?`, taskID).Scan(&currentClaimer)
-	if err != nil {
-		return "", fmt.Errorf("get current claimer for task %s: %w", taskID, err)
-	}
-
-	// If already claimed by the same user, it's a no-op
-	if currentClaimer.Valid && currentClaimer.String == userID {
-		return "", nil
-	}
-
-	// Force update claimed_by regardless of current state
-	_, err = p.Exec(`
-		UPDATE tasks
-		SET claimed_by = ?, claimed_at = ?
-		WHERE id = ?
-	`, userID, now, taskID)
-	if err != nil {
-		return "", fmt.Errorf("force claim task %s: %w", taskID, err)
-	}
-
-	// Release previous claimer's history entry if there was one
-	if currentClaimer.Valid && currentClaimer.String != "" {
-		_, err = p.Exec(`
-			UPDATE task_claim_history
-			SET released_at = ?
-			WHERE task_id = ? AND user_id = ? AND released_at IS NULL
-		`, now, taskID, currentClaimer.String)
+	var previousOwner string
+	err := p.RunInTx(context.Background(), func(tx *TxOps) error {
+		// Read current claimer
+		var currentClaimer sql.NullString
+		err := tx.QueryRow(`SELECT claimed_by FROM tasks WHERE id = ?`, taskID).Scan(&currentClaimer)
 		if err != nil {
-			return "", fmt.Errorf("release previous claim history for task %s: %w", taskID, err)
+			return fmt.Errorf("get current claimer for task %s: %w", taskID, err)
 		}
-	}
 
-	// Determine stolen_from
-	var stolenFrom *string
-	if currentClaimer.Valid && currentClaimer.String != "" {
-		stolenFrom = &currentClaimer.String
-	}
+		// If already claimed by the same user, it's a no-op
+		if currentClaimer.Valid && currentClaimer.String == userID {
+			return nil
+		}
 
-	// Insert history entry for the new claim
-	_, err = p.Exec(`
-		INSERT INTO task_claim_history (task_id, user_id, claimed_at, stolen_from)
-		VALUES (?, ?, ?, ?)
-	`, taskID, userID, now, stolenFrom)
+		// Force update claimed_by regardless of current state
+		_, err = tx.Exec(`
+			UPDATE tasks
+			SET claimed_by = ?, claimed_at = ?
+			WHERE id = ?
+		`, userID, now, taskID)
+		if err != nil {
+			return fmt.Errorf("force claim task %s: %w", taskID, err)
+		}
+
+		// Release previous claimer's history entry if there was one
+		if currentClaimer.Valid && currentClaimer.String != "" {
+			_, err = tx.Exec(`
+				UPDATE task_claim_history
+				SET released_at = ?
+				WHERE task_id = ? AND user_id = ? AND released_at IS NULL
+			`, now, taskID, currentClaimer.String)
+			if err != nil {
+				return fmt.Errorf("release previous claim history for task %s: %w", taskID, err)
+			}
+			previousOwner = currentClaimer.String
+		}
+
+		// Determine stolen_from
+		var stolenFrom *string
+		if currentClaimer.Valid && currentClaimer.String != "" {
+			stolenFrom = &currentClaimer.String
+		}
+
+		// Insert history entry for the new claim
+		_, err = tx.Exec(`
+			INSERT INTO task_claim_history (task_id, user_id, claimed_at, stolen_from)
+			VALUES (?, ?, ?, ?)
+		`, taskID, userID, now, stolenFrom)
+		if err != nil {
+			return fmt.Errorf("record force claim history for task %s: %w", taskID, err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return "", fmt.Errorf("record force claim history for task %s: %w", taskID, err)
+		return "", err
 	}
 
-	if stolenFrom != nil {
-		return *stolenFrom, nil
-	}
-	return "", nil
+	return previousOwner, nil
 }
 
 // ReleaseUserClaim releases a user's claim on a task.
@@ -117,31 +146,39 @@ func (p *ProjectDB) ForceClaimTaskByUser(taskID, userID string) (string, error) 
 func (p *ProjectDB) ReleaseUserClaim(taskID, userID string) (int64, error) {
 	now := time.Now().Format(time.RFC3339)
 
-	// Atomic UPDATE: only succeeds if claimed by the specified user
-	result, err := p.Exec(`
-		UPDATE tasks
-		SET claimed_by = NULL, claimed_at = NULL
-		WHERE id = ? AND claimed_by = ?
-	`, taskID, userID)
-	if err != nil {
-		return 0, fmt.Errorf("release claim for task %s: %w", taskID, err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("check release result for task %s: %w", taskID, err)
-	}
-
-	// Update history entry with released_at on successful release
-	if rowsAffected == 1 {
-		_, err = p.Exec(`
-			UPDATE task_claim_history
-			SET released_at = ?
-			WHERE task_id = ? AND user_id = ? AND released_at IS NULL
-		`, now, taskID, userID)
+	var rowsAffected int64
+	err := p.RunInTx(context.Background(), func(tx *TxOps) error {
+		// Atomic UPDATE: only succeeds if claimed by the specified user
+		result, err := tx.Exec(`
+			UPDATE tasks
+			SET claimed_by = NULL, claimed_at = NULL
+			WHERE id = ? AND claimed_by = ?
+		`, taskID, userID)
 		if err != nil {
-			return 0, fmt.Errorf("record release history for task %s: %w", taskID, err)
+			return fmt.Errorf("release claim for task %s: %w", taskID, err)
 		}
+
+		rowsAffected, err = result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("check release result for task %s: %w", taskID, err)
+		}
+
+		// Update history entry with released_at on successful release
+		if rowsAffected == 1 {
+			_, err = tx.Exec(`
+				UPDATE task_claim_history
+				SET released_at = ?
+				WHERE task_id = ? AND user_id = ? AND released_at IS NULL
+			`, now, taskID, userID)
+			if err != nil {
+				return fmt.Errorf("record release history for task %s: %w", taskID, err)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return 0, err
 	}
 
 	return rowsAffected, nil
