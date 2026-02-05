@@ -267,6 +267,15 @@ type Backend interface {
 	LoadInitiativeProto(id string) (*orcv1.Initiative, error)
 	LoadAllInitiativesProto() ([]*orcv1.Initiative, error)
 
+	// Initiative note operations (knowledge sharing)
+	SaveInitiativeNote(n *db.InitiativeNote) error
+	GetInitiativeNote(id string) (*db.InitiativeNote, error)
+	GetInitiativeNotes(initiativeID string) ([]db.InitiativeNote, error)
+	GetInitiativeNotesByType(initiativeID, noteType string) ([]db.InitiativeNote, error)
+	GetInitiativeNotesBySourceTask(taskID string) ([]db.InitiativeNote, error)
+	DeleteInitiativeNote(noteID string) error
+	GetNextNoteID() (string, error)
+
 	// Phase template operations
 	SavePhaseTemplate(pt *db.PhaseTemplate) error
 	GetPhaseTemplate(id string) (*db.PhaseTemplate, error)

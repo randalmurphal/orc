@@ -14,6 +14,7 @@ const (
 	SeqTask        = "task"
 	SeqInitiative  = "initiative"
 	SeqAutoTask    = "auto_task"
+	SeqNote        = "note"
 )
 
 // NextSequence atomically increments and returns the next value for a sequence.

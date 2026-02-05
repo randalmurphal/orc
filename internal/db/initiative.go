@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -670,4 +671,246 @@ func AddInitiativeDependencyTx(tx *TxOps, initiativeID, dependsOn string) error 
 		return fmt.Errorf("add initiative dependency: %w", err)
 	}
 	return nil
+}
+
+// ============================================================================
+// Initiative Note Types
+// ============================================================================
+
+// NoteType constants for initiative notes.
+const (
+	NoteTypePattern  = "pattern"
+	NoteTypeWarning  = "warning"
+	NoteTypeLearning = "learning"
+	NoteTypeHandoff  = "handoff"
+)
+
+// NoteAuthorType constants for initiative notes.
+const (
+	NoteAuthorHuman = "human"
+	NoteAuthorAgent = "agent"
+)
+
+// InitiativeNote represents a note stored at the initiative level.
+// Notes capture patterns, warnings, learnings, and handoffs for knowledge sharing.
+type InitiativeNote struct {
+	ID           string
+	InitiativeID string
+	Author       string
+	AuthorType   string // 'human' | 'agent'
+	SourceTask   string // TASK-001 (if agent-generated)
+	SourcePhase  string // 'docs' (if agent-generated)
+	NoteType     string // 'pattern' | 'warning' | 'learning' | 'handoff'
+	Content      string
+	RelevantFiles []string // JSON array of file paths
+	Graduated    bool
+	CreatedAt    time.Time
+}
+
+// ============================================================================
+// Initiative Note CRUD Operations
+// ============================================================================
+
+// SaveInitiativeNote creates or updates an initiative note.
+func (p *ProjectDB) SaveInitiativeNote(n *InitiativeNote) error {
+	if n.CreatedAt.IsZero() {
+		n.CreatedAt = time.Now()
+	}
+
+	var relevantFiles sql.NullString
+	if len(n.RelevantFiles) > 0 {
+		data, err := json.Marshal(n.RelevantFiles)
+		if err != nil {
+			return fmt.Errorf("marshal relevant_files: %w", err)
+		}
+		relevantFiles = sql.NullString{String: string(data), Valid: true}
+	}
+
+	var sourceTask, sourcePhase sql.NullString
+	if n.SourceTask != "" {
+		sourceTask = sql.NullString{String: n.SourceTask, Valid: true}
+	}
+	if n.SourcePhase != "" {
+		sourcePhase = sql.NullString{String: n.SourcePhase, Valid: true}
+	}
+
+	graduated := 0
+	if n.Graduated {
+		graduated = 1
+	}
+
+	_, err := p.Exec(`
+		INSERT INTO initiative_notes (id, initiative_id, author, author_type, source_task, source_phase, note_type, content, relevant_files, graduated, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			author = excluded.author,
+			author_type = excluded.author_type,
+			source_task = excluded.source_task,
+			source_phase = excluded.source_phase,
+			note_type = excluded.note_type,
+			content = excluded.content,
+			relevant_files = excluded.relevant_files,
+			graduated = excluded.graduated
+	`, n.ID, n.InitiativeID, n.Author, n.AuthorType, sourceTask, sourcePhase,
+		n.NoteType, n.Content, relevantFiles, graduated, n.CreatedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("save initiative note: %w", err)
+	}
+	return nil
+}
+
+// GetInitiativeNote retrieves a note by ID.
+func (p *ProjectDB) GetInitiativeNote(id string) (*InitiativeNote, error) {
+	row := p.QueryRow(`
+		SELECT id, initiative_id, author, author_type, source_task, source_phase, note_type, content, relevant_files, graduated, created_at
+		FROM initiative_notes WHERE id = ?
+	`, id)
+
+	return scanInitiativeNote(row)
+}
+
+// GetInitiativeNotes retrieves all notes for an initiative, ordered by creation time.
+func (p *ProjectDB) GetInitiativeNotes(initiativeID string) ([]InitiativeNote, error) {
+	rows, err := p.Query(`
+		SELECT id, initiative_id, author, author_type, source_task, source_phase, note_type, content, relevant_files, graduated, created_at
+		FROM initiative_notes WHERE initiative_id = ? ORDER BY created_at
+	`, initiativeID)
+	if err != nil {
+		return nil, fmt.Errorf("get initiative notes: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return scanInitiativeNotes(rows)
+}
+
+// GetInitiativeNotesByType retrieves notes for an initiative filtered by type.
+func (p *ProjectDB) GetInitiativeNotesByType(initiativeID, noteType string) ([]InitiativeNote, error) {
+	rows, err := p.Query(`
+		SELECT id, initiative_id, author, author_type, source_task, source_phase, note_type, content, relevant_files, graduated, created_at
+		FROM initiative_notes WHERE initiative_id = ? AND note_type = ? ORDER BY created_at
+	`, initiativeID, noteType)
+	if err != nil {
+		return nil, fmt.Errorf("get initiative notes by type: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return scanInitiativeNotes(rows)
+}
+
+// GetInitiativeNotesBySourceTask retrieves notes created by a specific task.
+func (p *ProjectDB) GetInitiativeNotesBySourceTask(taskID string) ([]InitiativeNote, error) {
+	rows, err := p.Query(`
+		SELECT id, initiative_id, author, author_type, source_task, source_phase, note_type, content, relevant_files, graduated, created_at
+		FROM initiative_notes WHERE source_task = ? ORDER BY created_at
+	`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get initiative notes by source task: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return scanInitiativeNotes(rows)
+}
+
+// DeleteInitiativeNote removes a note by ID.
+func (p *ProjectDB) DeleteInitiativeNote(noteID string) error {
+	_, err := p.Exec("DELETE FROM initiative_notes WHERE id = ?", noteID)
+	if err != nil {
+		return fmt.Errorf("delete initiative note: %w", err)
+	}
+	return nil
+}
+
+// GetNextNoteID generates the next note ID.
+// Uses atomic sequence to prevent race conditions.
+func (p *ProjectDB) GetNextNoteID() (string, error) {
+	num, err := p.NextSequence(context.Background(), SeqNote)
+	if err != nil {
+		return "", fmt.Errorf("get next note sequence: %w", err)
+	}
+	return fmt.Sprintf("NOTE-%03d", num), nil
+}
+
+// ============================================================================
+// Initiative Note Scan Helpers
+// ============================================================================
+
+// scanInitiativeNote scans a single initiative note from a row.
+func scanInitiativeNote(row *sql.Row) (*InitiativeNote, error) {
+	var n InitiativeNote
+	var sourceTask, sourcePhase, relevantFiles sql.NullString
+	var graduated int
+	var createdAt string
+
+	if err := row.Scan(&n.ID, &n.InitiativeID, &n.Author, &n.AuthorType,
+		&sourceTask, &sourcePhase, &n.NoteType, &n.Content,
+		&relevantFiles, &graduated, &createdAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("scan initiative note: %w", err)
+	}
+
+	if sourceTask.Valid {
+		n.SourceTask = sourceTask.String
+	}
+	if sourcePhase.Valid {
+		n.SourcePhase = sourcePhase.String
+	}
+	if relevantFiles.Valid && relevantFiles.String != "" {
+		if err := json.Unmarshal([]byte(relevantFiles.String), &n.RelevantFiles); err != nil {
+			return nil, fmt.Errorf("unmarshal relevant_files: %w", err)
+		}
+	}
+	n.Graduated = graduated == 1
+
+	if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
+		n.CreatedAt = ts
+	} else if ts, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
+		n.CreatedAt = ts
+	}
+
+	return &n, nil
+}
+
+// scanInitiativeNotes scans multiple initiative notes from rows.
+func scanInitiativeNotes(rows *sql.Rows) ([]InitiativeNote, error) {
+	var notes []InitiativeNote
+	for rows.Next() {
+		var n InitiativeNote
+		var sourceTask, sourcePhase, relevantFiles sql.NullString
+		var graduated int
+		var createdAt string
+
+		if err := rows.Scan(&n.ID, &n.InitiativeID, &n.Author, &n.AuthorType,
+			&sourceTask, &sourcePhase, &n.NoteType, &n.Content,
+			&relevantFiles, &graduated, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan initiative note: %w", err)
+		}
+
+		if sourceTask.Valid {
+			n.SourceTask = sourceTask.String
+		}
+		if sourcePhase.Valid {
+			n.SourcePhase = sourcePhase.String
+		}
+		if relevantFiles.Valid && relevantFiles.String != "" {
+			if err := json.Unmarshal([]byte(relevantFiles.String), &n.RelevantFiles); err != nil {
+				return nil, fmt.Errorf("unmarshal relevant_files: %w", err)
+			}
+		}
+		n.Graduated = graduated == 1
+
+		if ts, err := time.Parse(time.RFC3339, createdAt); err == nil {
+			n.CreatedAt = ts
+		} else if ts, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
+			n.CreatedAt = ts
+		}
+
+		notes = append(notes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate initiative notes: %w", err)
+	}
+
+	return notes, nil
 }
