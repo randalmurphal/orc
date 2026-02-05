@@ -76,6 +76,7 @@ All storage operations are defined by the `Backend` interface:
 | Feedback | `SaveFeedback`, `GetFeedback`, `ListFeedback`, `UpdateFeedback`, `DeleteFeedback`, `MarkFeedbackReceived` |
 | Constitution | `SaveConstitution`, `LoadConstitution`, `ConstitutionExists`, `DeleteConstitution` |
 | Context | `MaterializeContext`, `NeedsMaterialization` |
+| User Claims | `ClaimTaskByUser`, `ForceClaimTaskByUser`, `ReleaseUserClaim` |
 | Lifecycle | `Sync`, `Cleanup`, `Close` |
 
 ## DatabaseBackend
