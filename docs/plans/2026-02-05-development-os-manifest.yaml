@@ -1,0 +1,1042 @@
+version: 1
+
+# Development OS Initiative
+# Design doc: docs/plans/2026-02-05-development-os-design.md
+#
+# Transforms orc from a task orchestrator into a development operating system
+# with persistent knowledge, multi-type phase execution, intelligent orchestration,
+# and a self-contained web-based development environment.
+#
+# 8 migration phases, 17 tasks, designed for maximum parallelism.
+
+create_initiative:
+  title: "Development OS"
+  vision: |
+    Orc becomes the persistent memory, execution, and adaptation layer that
+    wraps around Claude Code. Claude Code is the brain. Orc is the nervous
+    system, the muscle memory, and the institutional knowledge.
+
+    Collaboration model:
+    - Claude/Orc = Tech Lead (technical decomposition, execution, quality)
+    - User = Product/Dev Manager (vision, strategic direction, decisions)
+
+    Full lifecycle: Think -> Plan -> Execute -> Learn, with seamless
+    transitions and no context loss between modes.
+
+    Design doc: docs/plans/2026-02-05-development-os-design.md
+
+decisions:
+  - text: "Knowledge layer uses Voyage-4 embedding suite exclusively"
+    rationale: "voyage-4 (default, API), voyage-4-large (quality), voyage-4-nano (local/offline, open weights). All share 1024 dims — switch without re-indexing."
+
+  - text: "Docker-managed infrastructure for Neo4j, Qdrant, Redis"
+    rationale: "orc init starts containers. External connection config available for teams with existing infrastructure."
+
+  - text: "Knowledge layer degrades gracefully when unavailable"
+    rationale: "Not all users want Docker. When disabled: queries return empty, indexing is no-op, phases skip. Core orc works exactly as today."
+
+  - text: "Hybrid context loading: deterministic injection + MCP tools"
+    rationale: "High-confidence context (file paths, decisions) injected automatically. MCP tools (search_knowledge, get_file_history) let Claude search deeper on demand. Prevents both the 'didn't check' and 'overwhelmed with context' problems."
+
+  - text: "All Claude interactions use the Claude Code CLI harness"
+    rationale: "Discussion mode and agentic mode are the same executor with different configurations. No separate Claude API integration."
+
+  - text: "Port code indexer and retrieval pipeline into internal/knowledge/"
+    rationale: "Self-contained, no external Go module dependencies. ai-devtools-admin and graphrag are reference implementations, not imports."
+
+  - text: "Thread conversations stored in ProjectDB, decisions flow to knowledge graph"
+    rationale: "Conversations are ephemeral process. Decisions extracted from conversations are persistent knowledge."
+
+  - text: "Orchestrator is event-driven with periodic safety net"
+    rationale: "Primary trigger: task completes/fails. Secondary: every 15min while tasks run. Tertiary: on-demand via CLI/UI."
+
+tasks:
+  # ========================================
+  # PHASE 1: KNOWLEDGE INFRASTRUCTURE
+  # Foundation - everything else depends on this
+  # ========================================
+
+  - id: 1
+    title: "Knowledge infrastructure: Docker management, store backends, and embedding providers"
+    weight: large
+    workflow: implement-large
+    category: feature
+    priority: critical
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 1: Knowledge Layer"
+
+      Create the `internal/knowledge/` package — the foundation for orc's
+      persistent memory. This task builds the infrastructure layer, storage
+      backends, and embedding providers.
+
+      **Infrastructure (internal/knowledge/infra/):**
+      - Docker container manager for Neo4j, Qdrant, Redis
+      - Start/stop/health check lifecycle management
+      - Support both docker-managed and external connection modes
+      - Config schema: `knowledge:` section in orc config
+      - CLI commands: `orc knowledge start`, `orc knowledge stop`, `orc knowledge status`
+      - Graceful degradation: `IsAvailable()` returns false when containers are
+        down or knowledge is disabled. All consumers must check this.
+
+      **Store backends (internal/knowledge/store/):**
+      - `graph.go` — Neo4j operations: create/query nodes and relationships,
+        Cypher query execution, node upsert, relationship creation
+      - `vector.go` — Qdrant operations: collection management, vector upsert,
+        similarity search with metadata filtering
+      - `cache.go` — Redis operations: embedding cache (key: model+content_hash,
+        TTL: 30 days), query result cache (TTL: 10 min)
+      - All stores must implement clean interfaces for testability
+
+      **Embedding providers (internal/knowledge/embed/):**
+      - `embedder.go` — Interface: `Embed(ctx, texts []string) ([][]float32, error)`
+      - `voyage.go` — Voyage AI client for voyage-4 and voyage-4-large models.
+        Batch embedding (batch size 64). Requires VOYAGE_API_KEY env var.
+      - `sidecar.go` — Local embedding via voyage-4-nano. Uses a Python FastAPI
+        sidecar (see graphrag's sidecar/ implementation for reference).
+        No API key needed. Same 1024 dimensions as API models.
+      - Config: `knowledge.indexing.embedding_model` selects provider
+
+      **Top-level API (internal/knowledge/knowledge.go):**
+      - `Service` struct with Start, Stop, Status, IsAvailable methods
+      - Wires infra, stores, and embedders together
+      - Other methods (Query, Index) will be added in later tasks
+
+      **Reference implementations to port from:**
+      - graphrag (~/repos/graphrag): pkg/graphrag/store/{neo4j,qdrant,redis}/
+        for store backend patterns, pkg/graphrag/embedding/{voyage,sidecar}/
+        for embedding providers
+      - Adapt to orc's error handling patterns (always wrap with context,
+        no silent failures)
+
+      **Config additions to internal/config/:**
+      ```yaml
+      knowledge:
+        enabled: true
+        backend: docker  # "docker" | "external"
+        docker:
+          neo4j_port: 7687
+          qdrant_port: 6334
+          redis_port: 6379
+          data_dir: ~/.orc/knowledge/
+        external:
+          neo4j_uri: bolt://localhost:7687
+          qdrant_uri: http://localhost:6334
+          redis_uri: redis://localhost:6379
+        indexing:
+          embedding_model: voyage-4
+      ```
+
+      **Do NOT build in this task:**
+      - Code indexing pipeline (Task 2)
+      - Retrieval pipeline (Task 3)
+      - Any phase integration or MCP tools
+
+  # ========================================
+  # PHASE 2 & 3: CODE INDEXING + RETRIEVAL
+  # Can run in parallel after Phase 1
+  # ========================================
+
+  - id: 2
+    title: "Code indexer: AST-aware code chunking, relationships, and pattern detection"
+    weight: large
+    workflow: implement-large
+    category: feature
+    priority: high
+    depends_on: [1]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 1: Knowledge Layer" → "Three Data Producers"
+
+      Port the code indexing pipeline from ai-devtools-admin
+      (~/repos/ai-devtools-admin/internal/) into internal/knowledge/index/code/.
+      Add Go AST support from graphrag (~/repos/graphrag/pkg/graphrag/indexing/).
+
+      **File walker (walker.go):**
+      - .gitignore-aware file discovery using doublestar glob matching
+      - Default includes: **/*.go, **/*.py, **/*.js, **/*.ts, **/*.tsx, **/*.jsx
+      - Default excludes: .git, node_modules, vendor, dist, build, __pycache__
+      - Configurable per-project via knowledge config
+
+      **AST parser (parser.go):**
+      - Go: Use native go/ast package (reference: graphrag's implementation)
+      - Python, JavaScript, TypeScript: Use tree-sitter (reference: ai-devtools-admin)
+      - Extract: functions, classes, methods, types, interfaces
+      - Extract relationships: imports, calls, extends/implements
+      - Extract: docstrings, signatures, line ranges
+
+      **Chunker (chunker.go):**
+      - AST-aware chunking: one chunk per function/class/method
+      - Hierarchical splitting for large classes (>50 methods):
+        class summary chunk + individual method chunks with context headers
+      - Context headers injected for methods: "# File: path\n# Class: Name"
+
+      **Relationship extractor (relationships.go):**
+      - Three relationship types: imports, calls, extends
+      - Source file + name → target path + name mapping
+
+      **Pattern detector (patterns.go):**
+      - Cluster files by structural similarity (>80% AST shape match)
+      - Clusters with 5+ members become named patterns
+      - Pattern chunk: description + canonical example
+      - Individual files marked with follows_pattern
+
+      **Secret detector (secrets.go):**
+      - Detect API keys, AWS keys, private keys, passwords, connection strings
+      - Redact in-place: value → "[REDACTED]"
+      - Set HasSecrets flag on chunk
+      - False positive avoidance for placeholder values
+
+      **Unified indexer (indexer.go):**
+      - Orchestrates: walk → parse → chunk → detect patterns → embed → store
+      - Incremental mode: SHA-256 file hashes stored in Neo4j, skip unchanged files
+      - Batch embedding (64 chunks per batch)
+      - Batch vector upsert (100 per batch)
+      - Store relationships in Neo4j
+
+      **CLI: `orc index`**
+      - Full index: `orc index`
+      - Incremental: `orc index --incremental`
+      - Status: `orc index --status` (show what's indexed)
+      - Integration with `orc init` (offer to index on first setup)
+
+      **Graph schema (code nodes):**
+      - :Symbol (name, kind, file_path, start_line, end_line, signature, docstring)
+      - :File (path, repo, hash, last_indexed)
+      - :Pattern (name, canonical_file, member_count)
+      - :Module (path, description)
+      - Relationships: CALLS, IMPORTS, EXTENDS, CONTAINS, IN_FILE, FOLLOWS_PATTERN
+
+      **Reference implementations:**
+      - ai-devtools-admin: internal/indexer/, internal/parser/, internal/chunk/,
+        internal/pattern/, internal/security/
+      - graphrag: pkg/graphrag/indexing/chunker/code/ (Go AST support)
+
+  - id: 3
+    title: "Retrieval pipeline: multi-signal search with presets and scoring"
+    weight: large
+    workflow: implement-large
+    category: feature
+    priority: high
+    depends_on: [1]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 1: Knowledge Layer" → "Top-Level API"
+
+      Port the retrieval pipeline from graphrag (~/repos/graphrag/pkg/graphrag/retrieval/)
+      into internal/knowledge/retrieve/. Wire into the knowledge Service API.
+
+      **Pipeline architecture (pipeline.go):**
+      - Composable stages that execute sequentially
+      - Each stage adds/modifies documents and their signal scores
+      - Query → stages → scorer → ranked results
+
+      **Built-in stages (stages.go):**
+      | Stage | Input | Output | Signal |
+      |-------|-------|--------|--------|
+      | Semantic | Query | Top-K similar docs | semantic (0-1) |
+      | Hydrate | Doc IDs | Full documents | — |
+      | GraphExpansion | Docs | + related neighbors | graph (0-1) |
+      | TemporalDecay | Docs | Scored by recency | temporal (0-1) |
+      | PageRank | Docs | Scored by centrality | pagerank (0-1) |
+      | Rerank | Docs | Reordered by relevance | rerank (0-1) |
+
+      **Presets (presets.go):**
+      - Standard: all stages, balanced weights
+      - Fast: semantic + hydrate only (no graph, no rerank)
+      - Deep: all stages with higher limits
+      - GraphFirst: emphasizes graph relationships
+      - Recency: emphasizes temporal decay
+
+      **Scorer (scorer.go):**
+      - Weighted sum of signal scores
+      - Configurable weights per preset
+      - Normalize scores to 0-1 range
+
+      **Service API additions to knowledge.go:**
+      ```go
+      func (s *Service) Query(ctx, query string, opts QueryOpts) (*QueryResult, error)
+      func (s *Service) QueryForTask(ctx, task *db.Task) (*TaskContext, error)
+      ```
+
+      **QueryOpts:**
+      - Preset selection (standard, fast, deep, graph-first, recency)
+      - MaxTokens budget for results (default: 8000)
+      - MinScore threshold
+      - MaxResults hard cap
+      - Metadata filters (file type, module, etc.)
+
+      **TaskContext (convenience result for phases):**
+      ```go
+      type TaskContext struct {
+          FileHistory  []FileInsight   // Past findings, retry rates per file
+          RelatedWork  []RelatedTask   // Past tasks on similar code
+          Decisions    []Decision      // Initiative decisions for this area
+          Patterns     []CodePattern   // Known patterns in affected code
+          Warnings     []Warning       // Risk flags
+      }
+      ```
+
+      **CLI: `orc knowledge query "how does gate evaluation work?"`**
+      - Natural language query
+      - Display results with scores, file paths, relationships
+      - --preset flag to select retrieval preset
+      - --limit flag for max results
+
+      **Reference implementation:**
+      - graphrag: pkg/graphrag/retrieval/ (pipeline, stages, presets, scorer)
+      - Adapt Document model to handle both code nodes and artifact nodes
+
+  # ========================================
+  # PHASE 4: PHASE INTEGRATION
+  # Wire knowledge into execution pipeline
+  # These 3 tasks can run in parallel
+  # ========================================
+
+  - id: 4
+    title: "PhaseExecutor interface and Knowledge phase type"
+    weight: medium
+    workflow: implement-medium
+    category: feature
+    priority: high
+    depends_on: [3]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 2: Executor Abstraction"
+
+      Extract a PhaseExecutor interface from the current ClaudeExecutor and
+      create the first non-LLM phase type: knowledge queries.
+
+      **PhaseExecutor interface (internal/executor/):**
+      ```go
+      type PhaseExecutor interface {
+          Execute(ctx context.Context, phase *WorkflowPhase, vars map[string]string) (*PhaseResult, error)
+      }
+      ```
+      - Extract this from the current execution path in workflow_phase.go
+      - ClaudeExecutor becomes the implementation for PhaseType "llm" (existing behavior)
+      - Registry maps PhaseType string → PhaseExecutor implementation
+      - The workflow executor loop dispatches to the right executor based on phase type
+
+      **PhaseType field:**
+      - Add `type` field to WorkflowPhase / phase_templates in database
+      - Default to "llm" for all existing phases (backward compatible)
+      - Supported types initially: "llm", "knowledge"
+
+      **KnowledgePhaseExecutor:**
+      - Queries the knowledge graph using knowledge.Service.Query() or QueryForTask()
+      - Stores results as a workflow variable (configurable output_var name)
+      - Supports `fallback: skip` — if knowledge unavailable, skip without error
+      - Phase definition in workflow YAML:
+        ```yaml
+        - id: gather-context
+          type: knowledge
+          knowledge:
+            action: query
+            query: "{{TASK_DESCRIPTION}}"
+            preset: standard
+            output_var: KNOWLEDGE_CONTEXT
+            fallback: skip
+        ```
+
+      **{{KNOWLEDGE_CONTEXT}} variable:**
+      - Rendered as markdown from TaskContext struct
+      - Includes file history, related work, decisions, patterns, warnings
+      - Token budget controlled by QueryOpts.MaxTokens
+
+      **Built-in workflow updates:**
+      - Add optional knowledge gather phase before spec in implement-medium and
+        implement-large workflows
+      - Phase has condition: `{"field": "knowledge.available", "op": "eq", "value": true}`
+        so it skips cleanly when knowledge is disabled
+
+      **Do NOT change:**
+      - Existing LLM phase execution behavior (must remain identical)
+      - Gate system, loop system, variable resolution (all stay the same)
+
+  - id: 5
+    title: "Knowledge MCP tools for Claude Code sessions"
+    weight: medium
+    workflow: implement-medium
+    category: feature
+    priority: normal
+    depends_on: [3]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Context Loading Strategy: Hybrid Injection + Tools"
+
+      Expose the knowledge graph as MCP tools that Claude Code can use during
+      any phase or conversation thread.
+
+      **MCP tools to implement:**
+
+      1. `search_knowledge(query, opts)` — Semantic search over the full graph.
+         Returns ranked results with scores, file paths, content snippets.
+         Opts: preset, limit, min_score, filters.
+
+      2. `get_file_history(file_path)` — Everything orc knows about a specific
+         file: past findings, retry rates, difficulty score, which tasks
+         modified it, related decisions.
+
+      3. `get_related_code(symbol_name)` — Call graph traversal. Who calls
+         this function? Who does it call? What imports it? What does it extend?
+         Returns related symbols with relationship types.
+
+      4. `get_pattern_info(pattern_name)` — Pattern description, canonical
+         example file, list of member files, usage guidance.
+
+      **Implementation:**
+      - MCP server implementation that orc manages
+      - Tools available during all Claude Code sessions (phases and threads)
+      - Falls back gracefully when knowledge is unavailable (return empty
+        results with a message, don't error)
+
+      **Integration:**
+      - Register MCP tools in the Claude Code settings when knowledge is enabled
+      - Phase settings management (ApplyPhaseSettings) should include MCP config
+
+  - id: 6
+    title: "Task artifact indexing: post-completion knowledge graph updates"
+    weight: medium
+    workflow: implement-medium
+    category: feature
+    priority: high
+    depends_on: [2, 3]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 4: Learning Loop" → "Level 1: Artifact Indexing"
+
+      After every task completes, index its artifacts into the knowledge graph.
+      This closes the feedback loop — completed tasks make the knowledge graph
+      smarter for future tasks.
+
+      **Artifact indexer (internal/knowledge/index/artifact/):**
+
+      1. `spec.go` — Index spec content. Extract target file paths and function
+         names from spec text. Create :Spec node linked to code nodes via
+         TARGETS relationship.
+
+      2. `findings.go` — Index review findings. Each finding becomes a :Finding
+         node with severity, description, file_path, line number. Link to code
+         nodes via ABOUT relationship, to reviewer agent via FOUND_BY, to task
+         via FROM_TASK.
+
+      3. `decisions.go` — Index initiative decisions. :Decision node with content
+         and rationale. Link to initiative via FROM_INITIATIVE, to affected code
+         via AFFECTS (based on task's changed files).
+
+      4. `retries.go` — Index retry context. :Retry node with attempt number,
+         reason, from_phase. Link to triggering finding via CAUSED_BY, to task
+         via FROM_TASK.
+
+      5. `metrics.go` — Index cost/duration metrics per file. Not a separate
+         node — update :File nodes with aggregated metrics (total_tasks_touching,
+         avg_retry_rate, avg_cost_per_task).
+
+      **Post-completion hook:**
+      - Wire into workflow_completion.go after completeRun() succeeds
+      - Guard with `if knowledge.IsAvailable()`
+      - Also re-index changed files: `knowledge.Reindex(ctx, changedFiles)`
+      - Load artifacts from database: spec, findings, decisions, retries, metrics
+
+      **Graph relationships created:**
+      - Task MODIFIES → File (for each changed file)
+      - Spec TARGETS → Symbol/File
+      - Finding ABOUT → Symbol/File
+      - Decision AFFECTS → Symbol/Pattern
+      - Retry CAUSED_BY → Finding
+      - Task IMPLEMENTS → Spec
+
+  # ========================================
+  # PHASE 5: EXECUTOR ABSTRACTION
+  # New phase types - can run in parallel
+  # ========================================
+
+  - id: 7
+    title: "Script and API phase executors"
+    weight: medium
+    workflow: implement-medium
+    category: feature
+    priority: normal
+    depends_on: [4]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 2: Executor Abstraction"
+
+      Implement two new phase executor types: script and API.
+
+      **ScriptPhaseExecutor:**
+      - Runs a shell command with configurable timeout
+      - Captures stdout/stderr as phase output
+      - Success detection via exit code and optional regex pattern matching
+      - Variables resolved in command and workdir
+      - Phase definition:
+        ```yaml
+        - id: run-migrations
+          type: script
+          script:
+            command: "make migrate-up"
+            workdir: "{{WORKTREE_PATH}}"
+            timeout: 60s
+            success_pattern: "migrations applied"
+        ```
+
+      **APIPhaseExecutor:**
+      - Makes HTTP request with configurable method, URL, body, headers
+      - Variables resolved in URL, body, and header values
+      - Success detection via HTTP status code matching
+      - Response body stored as phase output variable
+      - Phase definition:
+        ```yaml
+        - id: notify-deploy
+          type: api
+          api:
+            method: POST
+            url: "https://deploy.internal/api/trigger"
+            body: '{"branch": "{{TASK_BRANCH}}"}'
+            headers:
+              Authorization: "Bearer {{env.DEPLOY_TOKEN}}"
+            success_status: [200, 201]
+            output_var: DEPLOY_RESPONSE
+        ```
+
+      **Shared patterns:**
+      - Both register in the PhaseExecutor registry
+      - Both produce PhaseResult with status, summary, output
+      - Both support gates (auto/human/AI/skip) on entry and exit
+      - Both support variable resolution for all config fields
+      - Cost tracking: minimal cost (no LLM calls), record duration only
+
+  - id: 8
+    title: "Human and Subflow phase executors"
+    weight: medium
+    workflow: implement-medium
+    category: feature
+    priority: normal
+    depends_on: [4]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 2: Executor Abstraction"
+
+      Implement two new phase executor types: human input and sub-workflows.
+
+      **HumanPhaseExecutor:**
+      - Blocks execution and waits for structured human input
+      - Richer than gate approvals — supports freeform text, choices, file uploads
+      - Emits a decision_required event via WebSocket (same as gate decisions)
+      - Web UI shows input form in the context panel
+      - CLI shows prompt and waits for input
+      - Input stored as phase output variable
+      - Phase definition:
+        ```yaml
+        - id: design-review
+          type: human
+          human:
+            prompt: "Review the proposed architecture and provide feedback"
+            input_type: text  # text, choice, approval
+            choices: ["Approve", "Revise", "Reject"]  # for choice type
+            output_var: HUMAN_FEEDBACK
+            timeout: 24h  # optional timeout
+        ```
+
+      **SubflowPhaseExecutor:**
+      - Executes another workflow as a nested phase
+      - Inherits variables from parent workflow (configurable)
+      - Subflow runs in the same worktree as parent
+      - Subflow completion status propagates to parent phase result
+      - Subflow cost rolls up to parent task
+      - Phase definition:
+        ```yaml
+        - id: security-audit
+          type: subflow
+          subflow:
+            workflow_id: security-review
+            inherit_vars: true
+            pass_vars: [SPEC_CONTENT, TASK_DESCRIPTION]
+        ```
+
+      **SubflowPhaseExecutor implementation notes:**
+      - Load the target workflow from GlobalDB
+      - Create a nested WorkflowExecutor with the parent's resolution context
+      - Execute all phases of the sub-workflow
+      - Aggregate cost from sub-workflow phases
+      - Subflow failure → parent phase failure
+
+  # ========================================
+  # PHASE 6: ORCHESTRATOR
+  # The tech lead upgrade
+  # ========================================
+
+  - id: 9
+    title: "Orchestrator: assess/decide/act loop with knowledge integration"
+    weight: large
+    workflow: implement-large
+    category: feature
+    priority: high
+    depends_on: [3, 6]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 5: Orchestrator"
+
+      Build the orchestrator — a structured, knowledge-informed loop that
+      replaces the skill-based tech lead approach. Runs as `orc orchestrate`.
+
+      **The assess/decide/act loop:**
+
+      ASSESS phase — Read current project state:
+      - Recently completed tasks: load diffs, check success criteria
+      - Running tasks: check transcripts, heartbeat freshness
+      - Failed/blocked tasks: load failure context
+      - Knowledge graph query: recurring patterns in recent failures
+      - Queue: ready tasks, blocked tasks, dependencies
+
+      DECIDE phase — Priority-ordered decision making:
+      1. Verify completed work (highest priority)
+         - Read the actual diff of completed tasks
+         - Check every success criterion independently
+         - Query knowledge graph for known issues in changed files
+         - If verification fails → create fix task or reopen
+      2. Fix systemic issues
+         - Query: "recurring findings in last N tasks"
+         - If pattern found → draft constitution update or prompt change
+         - Escalate to user based on autonomy level
+      3. Unblock stuck work
+         - Check blocked tasks, pending decisions, stale claims
+         - Resolve what can be resolved autonomously
+      4. Launch new work
+         - Priority reasoning: dependency chains, risk assessment,
+           initiative priority, knowledge graph difficulty profiles
+         - Pre-flight: verify spec quality before launching
+         - Adjust workflow if knowledge graph suggests higher complexity
+      5. Proactive improvement
+         - Learning report analysis
+         - Prompt/workflow optimization suggestions
+
+      ACT phase — Execute the highest-priority action via Claude Code CLI
+
+      **Decision log storage:**
+      - New `orchestrator_cycles` table in ProjectDB
+      - Fields: cycle_number, timestamp, assessments (JSON), decisions (JSON),
+        actions_taken (JSON), escalations (JSON)
+      - Queryable via API for the web UI home page
+
+      **Autonomy configuration:**
+      ```yaml
+      orchestrator:
+        autonomy: guided  # guided | autonomous | supervised
+        triggers:
+          on_task_complete: true
+          on_task_failed: true
+          periodic_interval: 15m
+      ```
+
+      **CLI: `orc orchestrate`**
+      - Starts the orchestrator loop
+      - --initiative INIT-XXX: scope to an initiative
+      - --assess-only: just assess, don't act
+      - --once: run one cycle and exit
+      - Stateless: all state from DB + knowledge graph, can restart anytime
+
+      **Implementation notes:**
+      - The orchestrator itself is a Claude Code session
+      - Each cycle is one Claude Code invocation with a structured prompt
+      - The prompt includes: project status, knowledge graph patterns,
+        pending decisions, priority framework
+      - Claude's output is parsed as structured JSON (assess/decide/act)
+      - Actions are executed via orc CLI commands (orc run, orc new, etc.)
+
+  - id: 10
+    title: "Update orc-dev skill for orchestrator integration"
+    weight: small
+    workflow: implement-small
+    category: chore
+    priority: normal
+    depends_on: [9]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 5: Orchestrator"
+
+      Update the orc-dev skill to reference the orchestrator workflow instead
+      of ad-hoc behavioral instructions. The skill becomes thinner because
+      the intelligence moves into the orchestrator system.
+
+      **Changes:**
+      - Reference `orc orchestrate` as the primary tech lead process
+      - Remove manual instructions that the orchestrator now handles
+        (verification checklists, pattern detection, priority reasoning)
+      - Keep guidance on when to escalate vs act autonomously
+      - Add instructions for working with the knowledge graph MCP tools
+      - Update the skill to mention autonomy levels (guided/autonomous/supervised)
+
+      **Location:** .claude/skills/orc-dev (or wherever the current skill lives)
+
+      **Do NOT change:**
+      - The skill's role as an entry point for tech lead sessions
+      - Any instructions unrelated to orchestration
+
+  # ========================================
+  # PHASE 7: PLANNING AGENT
+  # Initiative auto-decomposition
+  # ========================================
+
+  - id: 11
+    title: "Planning workflow: initiative auto-decomposition with knowledge"
+    weight: medium
+    workflow: implement-medium
+    category: feature
+    priority: normal
+    depends_on: [4]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 3: Planning Agent"
+
+      Create a "plan" workflow that decomposes initiative visions into task
+      manifests, using the knowledge graph for codebase analysis.
+
+      **Workflow definition (templates/workflows/plan.yaml):**
+      ```yaml
+      id: plan
+      phases:
+        - id: gather-knowledge
+          type: knowledge
+          sequence: 0
+          knowledge:
+            action: query
+            query: "{{INITIATIVE_VISION}}"
+            preset: deep
+            output_var: CODEBASE_CONTEXT
+
+        - id: analyze-scope
+          type: llm
+          sequence: 1
+          # Claude analyzes codebase context + vision
+          # Outputs: affected systems, risk areas, open questions
+
+        - id: human-decisions
+          type: human
+          sequence: 2
+          # Present analysis and open questions to user
+          # User decisions get recorded on the initiative
+
+        - id: decompose
+          type: llm
+          sequence: 3
+          # Generate task manifest YAML
+          # Has: vision, codebase context, user decisions, scope analysis
+
+        - id: validate-plan
+          type: llm
+          sequence: 4
+          gate_type: ai
+          # Dependency validator checks manifest quality
+      ```
+
+      **Prompt templates (templates/prompts/):**
+      - plan_analyze.md — Scope analysis prompt
+      - plan_decompose.md — Task manifest generation prompt
+      - plan_validate.md — Manifest validation prompt
+
+      **Integration with existing `orc initiative plan`:**
+      - The decompose phase outputs a manifest YAML
+      - The manifest is passed to the existing initiative plan machinery
+      - User reviews the generated manifest before execution
+      - Decisions made during human-decisions phase are recorded via
+        existing `orc initiative decide` mechanism
+
+      **CLI integration:**
+      - `orc initiative plan --auto INIT-XXX` triggers the plan workflow
+      - Falls back to manual manifest if knowledge layer unavailable
+
+      **Depends on:**
+      - Task 4 (PhaseExecutor interface + knowledge phase type)
+      - Task 8 (human phase executor) — for the human-decisions phase
+      - If Task 8 isn't complete, human-decisions can use existing human
+        gate mechanism as a fallback
+
+  - id: 12
+    title: "Replanning trigger on task completion"
+    weight: small
+    workflow: implement-small
+    category: feature
+    priority: low
+    depends_on: [11]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 3: Planning Agent" → "Replanning Trigger"
+
+      Add an on_task_completed trigger that checks whether a completed task's
+      findings invalidate assumptions in remaining initiative tasks.
+
+      **Trigger definition:**
+      - Event: on_task_completed
+      - Mode: reaction (non-blocking, informational)
+      - Agent: planning-validator (new built-in agent)
+
+      **What the agent checks:**
+      - Load completed task's review findings and retry context
+      - Load remaining tasks in the same initiative
+      - Check if findings mention files or systems that remaining tasks
+        plan to modify
+      - If conflict detected: create a notification/event that the
+        orchestrator or user can act on
+
+      **Implementation:**
+      - New agent definition in templates/agents/planning-validator.md
+      - Trigger wired into the initiative's default workflow triggers
+      - Uses existing trigger.Runner infrastructure
+
+      **Output:**
+      - Event published: "initiative_replan_suggested"
+      - Includes: which findings, which tasks affected, recommended action
+      - Orchestrator picks this up in its next assess cycle
+
+  # ========================================
+  # PHASE 8: WEB UI
+  # Development OS dashboard
+  # ========================================
+
+  - id: 13
+    title: "Thread backend: conversation storage and API"
+    weight: medium
+    workflow: implement-medium
+    category: feature
+    priority: normal
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 6: Web UI" → "Thread Model" and "Resolved Design Decisions" → #4
+
+      Backend infrastructure for persistent conversation threads.
+
+      **Database schema (ProjectDB migration):**
+      ```sql
+      CREATE TABLE threads (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          task_id TEXT,
+          initiative_id TEXT,
+          file_context TEXT,   -- JSON array of file paths
+          status TEXT DEFAULT 'active',  -- active, idle, archived
+          created_by TEXT,
+          created_at TEXT,
+          updated_at TEXT
+      );
+
+      CREATE TABLE thread_messages (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id),
+          role TEXT NOT NULL,  -- user, assistant
+          content TEXT NOT NULL,
+          created_at TEXT
+      );
+      ```
+
+      **API service (internal/api/thread_server.go):**
+      - CreateThread(title, task_id?, initiative_id?, file_context?)
+      - GetThread(thread_id) — includes messages
+      - ListThreads(project_id, status?, task_id?)
+      - SendMessage(thread_id, content) — invokes Claude Code CLI,
+        streams response via WebSocket
+      - RecordDecision(thread_id, decision_text, rationale) — writes to
+        initiative_decisions table + indexes into knowledge graph
+      - ArchiveThread(thread_id)
+      - DeleteThread(thread_id)
+
+      **Claude Code integration:**
+      - SendMessage invokes Claude Code CLI via ClaudeExecutor
+      - System prompt built from: thread context (task/initiative),
+        knowledge graph query results (deterministic injection),
+        thread conversation history
+      - Streaming responses pushed to client via WebSocket events
+      - Session persistence: thread maps to a Claude Code session ID
+        for multi-turn conversation continuity
+
+      **WebSocket events:**
+      - thread_message: new message in a thread
+      - thread_status: thread status change
+      - thread_typing: Claude is generating a response
+
+  - id: 14
+    title: "Layout refactor: project sidebar, thread list, and context panel"
+    weight: large
+    workflow: implement-large
+    category: feature
+    priority: normal
+    depends_on: [13]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 6: Web UI" → "Layout" and "Thread Model"
+
+      Redesign the web UI shell from the current icon-nav + top-bar layout
+      to the Development OS layout with project sidebar, thread management,
+      and a sliding context panel.
+
+      **New layout structure:**
+      ```
+      ┌──────────┬─────────────────────────────┬──────────────────┐
+      │ PROJECT  │      MAIN CONTENT            │  CONTEXT PANEL   │
+      │ SIDEBAR  │      (current page)           │  (slides between │
+      │          │                               │   modes)         │
+      │ Projects │                               │                  │
+      │ Threads  │                               │  Discussion      │
+      │ Agents   │                               │  Diff review     │
+      │          │                               │  Terminal         │
+      │          │                               │  Knowledge        │
+      │          │                               │  Task detail      │
+      ├──────────┴───────────────────────────────┴──────────────────┤
+      │  ▸ Terminal (Cmd+J)                                         │
+      └────────────────────────────────────────────────────────────┘
+      ```
+
+      **Project sidebar (left):**
+      - Multi-project switcher (replaces current ProjectPickerPage gate)
+      - Active threads list with status indicators (running/idle/done)
+      - Running agents/tasks count
+      - [+ New Thread] button
+      - Collapsible sections
+
+      **Context panel (right):**
+      - Slides between modes: discussion, diff, terminal, knowledge, task detail
+      - Mode controlled by tabs at bottom of panel or by context actions
+      - Click "Discuss" on a task → panel switches to discussion mode
+      - Click a file in diff → panel shows knowledge graph history
+      - Resizable width (persisted to localStorage)
+
+      **Discussion mode in context panel:**
+      - Chat interface connected to thread backend (Task 13)
+      - Streaming responses from Claude Code CLI via WebSocket
+      - "Record Decision" button at bottom
+      - Toggle between discussion and agentic mode
+      - Pre-loaded context shown at top of thread
+
+      **Terminal drawer (bottom):**
+      - Cmd+J keyboard shortcut to toggle
+      - Scoped to current project/worktree
+      - Uses xterm.js or similar terminal emulator
+      - Collapsible, resizable height
+
+      **Navigation update:**
+      - Top nav: Home | Board | Knowledge | Workflows | Settings
+      - Remove: Timeline, Stats (merge into Home/Knowledge)
+      - Current Board view remains as a page, but Home becomes default
+
+      **Preserve existing functionality:**
+      - All current pages (Board, TaskDetail, Workflows, Settings) must
+        continue working in the new layout
+      - Existing keyboard shortcuts preserved
+      - Existing stores and API calls unchanged
+
+  - id: 15
+    title: "Home command center page"
+    weight: medium
+    workflow: implement-medium
+    category: feature
+    priority: normal
+    depends_on: [9, 14]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 6: Web UI" → "Home: Command Center"
+
+      New default landing page replacing Board as the entry point.
+
+      **Orchestrator panel:**
+      - Fetch latest orchestrator cycle(s) from orchestrator_cycles table
+      - Render structured decision log: assessed, systemic, launched, escalating
+      - Status indicator: running/paused/idle with last cycle timestamp
+      - Inline "Decision Needed" cards with approve/reject/discuss actions
+      - "Discuss" button opens context panel in discussion mode with
+        orchestrator context pre-loaded
+
+      **Active work section:**
+      - Compact task cards for running and blocked tasks
+      - Phase progress bar on each card
+      - Duration ticker
+      - Click → navigate to task detail page
+
+      **Recent section:**
+      - Completed and reopened tasks
+      - Orchestrator verification status (verified ✓ / issue found ⚠)
+      - Time-relative timestamps
+
+      **Responsive design:**
+      - Orchestrator panel takes full width on narrow screens
+      - Active work and recent stack vertically on mobile
+
+  - id: 16
+    title: "Knowledge exploration page"
+    weight: medium
+    workflow: implement-medium
+    category: feature
+    priority: normal
+    depends_on: [3, 14]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 6: Web UI" → "Knowledge Page"
+
+      New top-level page for exploring what orc knows about the codebase.
+
+      **Search:**
+      - Natural language search input
+      - Calls knowledge.Service.Query() via API
+      - Preset selector (standard, fast, deep, graph-first, recency)
+
+      **Results rendering:**
+      - Mixed result types: code nodes, findings, decisions, patterns
+      - Each result shows: type icon, file path, content snippet, score
+      - Code results: syntax highlighted, line numbers, last modified by task
+      - Finding results: severity badge, status (fixed/open), reviewer agent
+      - Decision results: initiative link, rationale
+      - Pattern results: member count, canonical example link
+      - "Discuss" action on every result → opens thread with that context
+
+      **Insights panel:**
+      - Hot files: files with highest retry rates (bar chart or list)
+      - Recurring patterns: recent patterns detected by orchestrator
+      - Constitution updates: recent changes with source (orchestrator/manual)
+      - Link to full learning report (orc learn output)
+
+      **Empty state:**
+      - When knowledge layer is not enabled or not indexed
+      - Guide: "Run `orc knowledge start && orc index` to get started"
+
+  - id: 17
+    title: "Workflow editor: new phase type node visuals and inspectors"
+    weight: medium
+    workflow: implement-medium
+    category: feature
+    priority: low
+    depends_on: [7, 8, 14]
+    description: |
+      Design doc: docs/plans/2026-02-05-development-os-design.md
+      Section: "Component 6: Web UI" → "Changes to Existing Pages"
+
+      Update the React Flow workflow editor to support all new phase types
+      with distinct visual treatment and type-specific inspector panels.
+
+      **New node type visuals:**
+      | Type | Color Accent | Icon | Badge |
+      |------|-------------|------|-------|
+      | llm | Green (existing) | Brain/AI | Model name |
+      | knowledge | Purple | Search/Graph | Preset name |
+      | script | Orange | Terminal | Command preview |
+      | api | Blue | Globe/API | Method + URL |
+      | human | Yellow | User | Input type |
+      | subflow | Teal | Workflow | Subflow name |
+
+      **Type-specific inspector panels (right panel when node selected):**
+      - LLM: Existing PhaseInspector (prompt, vars, claude_config)
+      - Knowledge: Query input, preset selector, output variable name,
+        fallback behavior
+      - Script: Command input, workdir, timeout, success pattern
+      - API: Method, URL, headers, body, success status codes
+      - Human: Prompt text, input type selector, choices editor, timeout
+      - Subflow: Workflow picker, variable inheritance toggle, pass_vars list
+
+      **Phase palette updates (left panel):**
+      - Group phase templates by type
+      - Each type has a section with description
+      - Drag any type to canvas
+
+      **Existing behavior preserved:**
+      - All existing LLM nodes render identically
+      - Edge types (sequential, loop, gate, dependency) unchanged
+      - MiniMap color coding extended for new types
