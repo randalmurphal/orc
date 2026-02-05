@@ -108,7 +108,7 @@ Category changes how the spec phase analyzes the work:
 | Workflow | Use For | Phases |
 |----------|---------|--------|
 | `implement-trivial` | One-liner fixes, typos | implement |
-| `implement-small` | Bug fixes, isolated changes | tiny_spec → implement → review |
+| `implement-small` | Bug fixes, isolated changes | tiny_spec → implement → review → docs |
 | `implement-medium` | Features needing design | spec → tdd → implement → review → docs |
 | `implement-large` | Complex multi-file features | spec → tdd → breakdown → implement → review → docs |
 | `qa-e2e` | E2E testing, QA verification | test → fix loop |

@@ -25,7 +25,7 @@ Built-in workflows are defined as YAML in `templates/workflows/` and synced to G
 | Workflow ID | Phases | Use Case |
 |-------------|--------|----------|
 | `implement-trivial` | implement | One-liner fixes, typos |
-| `implement-small` | tiny_spec → implement → review | Bug fixes, isolated changes |
+| `implement-small` | tiny_spec → implement → review → docs | Bug fixes, isolated changes |
 | `implement-medium` | spec → tdd_write → implement → review → docs | Standard features |
 | `implement-large` | spec → tdd_write → breakdown → implement → review → docs | Complex multi-file features |
 | `review` | review | Review existing changes |

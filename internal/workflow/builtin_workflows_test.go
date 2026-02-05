@@ -178,7 +178,7 @@ func TestBuiltinWorkflows_CorrectPhaseSequences(t *testing.T) {
 	expectedPhases := map[string][]string{
 		"implement-large":   {"spec", "tdd_write", "breakdown", "implement", "review", "docs"},
 		"implement-medium":  {"spec", "tdd_write", "implement", "review", "docs"},
-		"implement-small":   {"tiny_spec", "implement", "review"},
+		"implement-small":   {"tiny_spec", "implement", "review", "docs"},
 		"implement-trivial": {"implement"},
 		"review":            {"review"},
 		"qa-e2e":            {}, // Variable based on loop config

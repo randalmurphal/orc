@@ -42,7 +42,7 @@ WORKFLOW EXECUTION (primary pattern):
 
   Built-in workflows:
     implement         Full workflow: spec, TDD, breakdown, implement, review, docs
-    implement-small   Lightweight: tiny_spec, implement, review
+    implement-small   Lightweight: tiny_spec, implement, review, docs
     implement-trivial Minimal: tiny_spec, implement
     review            Code review only
     spec              Generate specification only
