@@ -114,6 +114,45 @@ func (d *DatabaseBackend) LoadAutomationTasks() ([]*orcv1.Task, error) {
 	return tasks, nil
 }
 
+// ============================================================================
+// User Claim Operations (atomic claim-on-run with history)
+// ============================================================================
+
+// ClaimTaskByUser atomically claims a task for a user.
+// Returns true if claimed successfully, false if already claimed by another user.
+func (d *DatabaseBackend) ClaimTaskByUser(taskID, userID string) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	rowsAffected, err := d.db.ClaimTaskByUser(taskID, userID)
+	if err != nil {
+		return false, err
+	}
+	return rowsAffected == 1, nil
+}
+
+// ForceClaimTaskByUser forcefully claims a task, stealing it from any current owner.
+// Returns the previous owner's user ID (empty if unclaimed or self-claim).
+func (d *DatabaseBackend) ForceClaimTaskByUser(taskID, userID string) (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.ForceClaimTaskByUser(taskID, userID)
+}
+
+// ReleaseUserClaim releases a user's claim on a task.
+// Returns true if released successfully, false if not the owner or already released.
+func (d *DatabaseBackend) ReleaseUserClaim(taskID, userID string) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	rowsAffected, err := d.db.ReleaseUserClaim(taskID, userID)
+	if err != nil {
+		return false, err
+	}
+	return rowsAffected == 1, nil
+}
+
 // GetAutomationTaskStats returns counts of automation tasks by status.
 func (d *DatabaseBackend) GetAutomationTaskStats() (*db.AutomationTaskStats, error) {
 	d.mu.RLock()

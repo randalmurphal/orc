@@ -40,6 +40,9 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `claude_hooks.go` | `applyPhaseHooks()` - writes hooks to `.claude/settings.local.json` |
 | `hook_scripts.go` | `applyPhaseHookScripts()` - copies scripts to `.claude/hooks/` |
 | `heartbeat.go` | Periodic heartbeat updates during execution |
+| `claim.go` | `ClaimTask()`, `ReleaseTask()` - atomic task claiming via `TaskStore` to prevent concurrent execution |
+| `history.go` | `StartRun()`, `CompleteRun()`, `FailRun()`, `InterruptRun()` - append-only run history tracking |
+| `idle_guard.go` | `IdleGuard` - heartbeat-based stale claim detection (30s interval, 5m timeout) |
 | `condition.go` | Condition evaluator: `EvaluateCondition()`, `ConditionContext` (phase skip + loop conditions) |
 | `topo_sort.go` | Phase ordering: `topologicalSort()`, `computeExecutionLevels()` (DAG execution levels for parallel phases) |
 | `phase_loop_test.go` | Phase loop integration tests (10 success criteria + failure modes) |
@@ -538,6 +541,21 @@ heartbeatRunner.Start(ctx)
 defer heartbeatRunner.Stop()
 ```
 
+## User Claim System
+
+`WorkflowExecutor.Run()` calls `backend.ClaimTaskByUser()` before execution to prevent concurrent runs. Claims are user-based (via `UserIDFromContext(ctx)`), separate from PID-based `TryClaimTaskExecution`.
+
+| Operation | Method | Behavior |
+|-----------|--------|----------|
+| Claim | `ClaimTaskByUser(taskID, userID)` | Atomic UPDATE; idempotent (re-claiming own task succeeds) |
+| Force Claim | `ForceClaimTaskByUser(taskID, userID)` | Steals from current owner; records `stolen_from` in history |
+| Release | `ReleaseUserClaim(taskID, userID)` | Releases if owned; via `defer` in executor |
+| History | `GetUserClaimHistory(taskID)` | Append-only audit trail with steal tracking |
+
+**SQLITE_BUSY handling:** Treated as "claim not acquired" (returns 0 rows, not error). See `db/task_claim.go:isSQLiteBusy()`.
+
+**DB schema:** `claimed_by` and `claimed_at` columns on `tasks` table + `task_claim_history` table (`project_058.sql`).
+
 ## Testing
 
 ```bash
@@ -562,6 +580,10 @@ go test ./internal/executor/... -v
 | `topo_sort_test.go` | Topological sort and execution levels: cycle detection, level grouping, sequence tiebreakers |
 | `parallel_execution_test.go` | Parallel phase execution: diamond pattern, failure cancellation, variable safety |
 | `dag_skip_integration_test.go` | DAG skip integration: skipped phases don't block dependents (SC-7 verification) |
+| `executor_run_test.go` | Executor.Run claim-on-run integration: claim/release lifecycle, concurrent claim rejection |
+| `claim_test.go` | ClaimTask/ReleaseTask unit tests |
+| `history_test.go` | Run history tracking: start/complete/fail/interrupt |
+| `idle_guard_test.go` | IdleGuard heartbeat loop and stale claim detection |
 
 **Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `hostingProvider` field for PR tests
 

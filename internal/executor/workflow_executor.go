@@ -30,6 +30,29 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// userClaimContextKeyType is the context key type for passing user IDs through context.
+type userClaimContextKeyType string
+
+// userClaimContextKey is the context key for the current user ID.
+// Used by WorkflowExecutor.Run to extract the user for claim-on-run.
+const userClaimContextKey userClaimContextKeyType = "userID"
+
+// ContextWithUserID returns a new context with the given user ID set.
+func ContextWithUserID(ctx context.Context, userID string) context.Context {
+	return context.WithValue(ctx, userClaimContextKey, userID)
+}
+
+// UserIDFromContext extracts the user ID from the context.
+// Returns the user ID and true if found, or empty string and false if not set.
+func UserIDFromContext(ctx context.Context) (string, bool) {
+	val := ctx.Value(userClaimContextKey)
+	if val == nil {
+		return "", false
+	}
+	id, ok := val.(string)
+	return id, ok
+}
+
 // ContextType determines how the workflow is executed.
 type ContextType string
 
@@ -376,6 +399,23 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	if t != nil {
 		// Store task reference - execution state is in t.Execution
 		we.task = t
+
+		// Claim task for current user before any execution starts
+		if userID, ok := UserIDFromContext(ctx); ok && userID != "" {
+			claimed, claimErr := we.backend.ClaimTaskByUser(t.Id, userID)
+			if claimErr != nil {
+				return nil, fmt.Errorf("claim task %s: %w", t.Id, claimErr)
+			}
+			if !claimed {
+				return nil, fmt.Errorf("claim task %s: already claimed by another user", t.Id)
+			}
+			// Defer release so it runs on completion, failure, or panic
+			defer func() {
+				if _, releaseErr := we.backend.ReleaseUserClaim(t.Id, userID); releaseErr != nil {
+					we.logger.Warn("failed to release user claim", "task_id", t.Id, "error", releaseErr)
+				}
+			}()
+		}
 
 		// Set execution info (PID, hostname, heartbeat) on task
 		hostname, _ := os.Hostname()
