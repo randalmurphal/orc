@@ -29,6 +29,10 @@ type Initiative struct {
 	MergeCommit      string // SHA of merge commit when merged
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+
+	// User attribution (references users.id in GlobalDB)
+	CreatedBy string // User who created this initiative
+	OwnedBy   string // User who owns this initiative
 }
 
 // InitiativeDecision represents a decision within an initiative.
@@ -62,8 +66,8 @@ func (p *ProjectDB) SaveInitiative(i *Initiative) error {
 	}
 
 	_, err := p.Exec(`
-		INSERT INTO initiatives (id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO initiatives (id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at, created_by, owned_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			status = excluded.status,
@@ -75,10 +79,12 @@ func (p *ProjectDB) SaveInitiative(i *Initiative) error {
 			branch_prefix = excluded.branch_prefix,
 			merge_status = excluded.merge_status,
 			merge_commit = excluded.merge_commit,
-			updated_at = excluded.updated_at
+			updated_at = excluded.updated_at,
+			created_by = excluded.created_by,
+			owned_by = excluded.owned_by
 	`, i.ID, i.Title, i.Status, i.OwnerInitials, i.OwnerDisplayName, i.OwnerEmail, i.Vision,
 		i.BranchBase, i.BranchPrefix, i.MergeStatus, i.MergeCommit,
-		i.CreatedAt.Format(time.RFC3339), now)
+		i.CreatedAt.Format(time.RFC3339), now, i.CreatedBy, i.OwnedBy)
 	if err != nil {
 		return fmt.Errorf("save initiative: %w", err)
 	}
@@ -88,7 +94,7 @@ func (p *ProjectDB) SaveInitiative(i *Initiative) error {
 // GetInitiative retrieves an initiative by ID.
 func (p *ProjectDB) GetInitiative(id string) (*Initiative, error) {
 	row := p.QueryRow(`
-		SELECT id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at
+		SELECT id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at, created_by, owned_by
 		FROM initiatives WHERE id = ?
 	`, id)
 
@@ -96,8 +102,9 @@ func (p *ProjectDB) GetInitiative(id string) (*Initiative, error) {
 	var ownerInitials, ownerDisplayName, ownerEmail, vision sql.NullString
 	var branchBase, branchPrefix, mergeStatus, mergeCommit sql.NullString
 	var createdAt, updatedAt string
+	var createdBy, ownedBy sql.NullString
 
-	if err := row.Scan(&i.ID, &i.Title, &i.Status, &ownerInitials, &ownerDisplayName, &ownerEmail, &vision, &branchBase, &branchPrefix, &mergeStatus, &mergeCommit, &createdAt, &updatedAt); err != nil {
+	if err := row.Scan(&i.ID, &i.Title, &i.Status, &ownerInitials, &ownerDisplayName, &ownerEmail, &vision, &branchBase, &branchPrefix, &mergeStatus, &mergeCommit, &createdAt, &updatedAt, &createdBy, &ownedBy); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -138,13 +145,19 @@ func (p *ProjectDB) GetInitiative(id string) (*Initiative, error) {
 	} else if ts, err := time.Parse("2006-01-02 15:04:05", updatedAt); err == nil {
 		i.UpdatedAt = ts
 	}
+	if createdBy.Valid {
+		i.CreatedBy = createdBy.String
+	}
+	if ownedBy.Valid {
+		i.OwnedBy = ownedBy.String
+	}
 
 	return &i, nil
 }
 
 // ListInitiatives returns initiatives matching the given options.
 func (p *ProjectDB) ListInitiatives(opts ListOpts) ([]Initiative, error) {
-	query := `SELECT id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at FROM initiatives`
+	query := `SELECT id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at, created_by, owned_by FROM initiatives`
 	args := []any{}
 
 	if opts.Status != "" {
@@ -174,8 +187,9 @@ func (p *ProjectDB) ListInitiatives(opts ListOpts) ([]Initiative, error) {
 		var ownerInitials, ownerDisplayName, ownerEmail, vision sql.NullString
 		var branchBase, branchPrefix, mergeStatus, mergeCommit sql.NullString
 		var createdAt, updatedAt string
+		var createdBy, ownedBy sql.NullString
 
-		if err := rows.Scan(&i.ID, &i.Title, &i.Status, &ownerInitials, &ownerDisplayName, &ownerEmail, &vision, &branchBase, &branchPrefix, &mergeStatus, &mergeCommit, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&i.ID, &i.Title, &i.Status, &ownerInitials, &ownerDisplayName, &ownerEmail, &vision, &branchBase, &branchPrefix, &mergeStatus, &mergeCommit, &createdAt, &updatedAt, &createdBy, &ownedBy); err != nil {
 			return nil, fmt.Errorf("scan initiative: %w", err)
 		}
 
@@ -212,6 +226,12 @@ func (p *ProjectDB) ListInitiatives(opts ListOpts) ([]Initiative, error) {
 			i.UpdatedAt = ts
 		} else if ts, err := time.Parse("2006-01-02 15:04:05", updatedAt); err == nil {
 			i.UpdatedAt = ts
+		}
+		if createdBy.Valid {
+			i.CreatedBy = createdBy.String
+		}
+		if ownedBy.Valid {
+			i.OwnedBy = ownedBy.String
 		}
 
 		initiatives = append(initiatives, i)
@@ -582,8 +602,8 @@ func SaveInitiativeTx(tx *TxOps, i *Initiative) error {
 	}
 
 	_, err := tx.Exec(`
-		INSERT INTO initiatives (id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO initiatives (id, title, status, owner_initials, owner_display_name, owner_email, vision, branch_base, branch_prefix, merge_status, merge_commit, created_at, updated_at, created_by, owned_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			status = excluded.status,
@@ -595,10 +615,12 @@ func SaveInitiativeTx(tx *TxOps, i *Initiative) error {
 			branch_prefix = excluded.branch_prefix,
 			merge_status = excluded.merge_status,
 			merge_commit = excluded.merge_commit,
-			updated_at = excluded.updated_at
+			updated_at = excluded.updated_at,
+			created_by = excluded.created_by,
+			owned_by = excluded.owned_by
 	`, i.ID, i.Title, i.Status, i.OwnerInitials, i.OwnerDisplayName, i.OwnerEmail, i.Vision,
 		i.BranchBase, i.BranchPrefix, i.MergeStatus, i.MergeCommit,
-		i.CreatedAt.Format(time.RFC3339), now)
+		i.CreatedAt.Format(time.RFC3339), now, i.CreatedBy, i.OwnedBy)
 	if err != nil {
 		return fmt.Errorf("save initiative: %w", err)
 	}

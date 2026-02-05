@@ -13,14 +13,15 @@ Two database types with distinct responsibilities:
 
 ### Data Split
 
-| GlobalDB (`global.go`) | ProjectDB (`project.go`) |
-|-------------------------|--------------------------|
+| GlobalDB (`global.go`, `user.go`) | ProjectDB (`project.go`) |
+|-----------------------------------|--------------------------|
 | Project registry (id, name, path) | Tasks, phases, gate decisions |
-| Cost tracking and budgets | Initiatives, decisions |
-| Workflow definitions (shared) | Transcripts, FTS search |
-| Phase templates (shared) | Event log, timeline |
-| Agent definitions (shared) | Workflow runs (execution records) |
-| Hook scripts (shared) | Attachments, comments, branches |
+| Users (global registry) | Initiatives, decisions |
+| Cost tracking and budgets | Transcripts, FTS search |
+| Workflow definitions (shared) | Event log, timeline |
+| Phase templates (shared) | Workflow runs (execution records) |
+| Agent definitions (shared) | Attachments, comments, branches |
+| Hook scripts (shared) | |
 | Skills (shared) | |
 
 **Key insight**: GlobalDB holds data that spans projects (definitions, registry). ProjectDB holds project-specific execution data. Workflow/agent definitions live in GlobalDB so all projects share them; workflow runs live in ProjectDB since they belong to a specific project.
@@ -39,6 +40,8 @@ Two database types with distinct responsibilities:
 | `schema/project_052.sql` | **VIEW-based agent filtering** (orc:disable_fk migration) |
 | `schema/project_053.sql` | **Feedback table**: real-time user feedback to agents (type, timing, file/line for inline comments) |
 | `schema/project_055.sql` | **Sequences table**: atomic ID generation for workflow runs, tasks, initiatives, auto-tasks |
+| `schema/global_010.sql` | **Users table**: `users` (id, name, email, created_at); `user_id` column on `cost_log` |
+| `schema/project_057.sql` | **User attribution columns**: `assigned_to` on tasks, `created_by`/`owned_by` on initiatives, `executed_by` on phases, `started_by` on workflow_runs |
 
 ### FK-Disabling Migrations
 
@@ -89,6 +92,7 @@ The migration runner will:
 | `constitution.go` | Constitution CRUD, validation checks |
 | `dashboard.go` | Dashboard SQL aggregates (status counts, cost by date, initiative stats) |
 | `sequence.go` | Atomic ID generation: `NextSequence()`, `GetSequence()`, `SetSequence()` |
+| `user.go` | User CRUD (GlobalDB): GetOrCreateUser, GetUser, GetUserByName, ListUsers |
 
 ## Key Types
 
@@ -102,6 +106,7 @@ The migration runner will:
 | `driver.Driver` | `driver/` | SQLite/PostgreSQL backend interface |
 | `LoopConfig` | `workflow.go:114` | Phase loop config: `LoopToPhase`, `Condition` (JSON), `EffectiveMaxLoops()` |
 | `SeqWorkflowRun`, `SeqTask`, `SeqInitiative`, `SeqAutoTask` | `sequence.go:12-17` | Sequence name constants for atomic ID generation |
+| `User` | `user.go:13` | User identity: ID (UUID), Name (unique), Email, CreatedAt |
 
 ## Usage
 
@@ -220,6 +225,28 @@ Persisted executor events for timeline reconstruction. `event_log.go`
 | Time series | `GetCostTimeseries(projectID, since, granularity)` |
 | Budget | `SetBudget()`, `GetBudget()`, `GetBudgetStatus()` |
 | Model detect | `DetectModel(modelID)` returns "opus", "sonnet", "haiku", "unknown" |
+
+## User Management (GlobalDB)
+
+Users are stored globally and referenced by ID in project tables. `user.go`
+
+| Function | Purpose |
+|----------|---------|
+| `GetOrCreateUser(name)` | Idempotent user lookup/create (returns ID) |
+| `GetOrCreateUserWithEmail(name, email)` | Same, with email on create |
+| `GetUser(id)` | Get by ID (returns nil, nil if not found) |
+| `GetUserByName(name)` | Get by unique name |
+| `ListUsers()` | All users, newest first |
+
+**User attribution columns** (ProjectDB, reference `users.id`):
+
+| Table | Columns | Purpose |
+|-------|---------|---------|
+| `tasks` | `created_by`, `assigned_to` | Task creation and assignment |
+| `initiatives` | `created_by`, `owned_by` | Initiative ownership |
+| `phases` | `executed_by` | Who ran the phase |
+| `workflow_runs` | `started_by` | Who started the run |
+| `cost_log` (GlobalDB) | `user_id` | Cost attribution |
 
 ## Workflow System
 

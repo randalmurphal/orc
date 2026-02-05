@@ -344,6 +344,9 @@ type WorkflowRun struct {
 	// Error
 	Error string `json:"error,omitempty"`
 
+	// User attribution (references users.id in GlobalDB)
+	StartedBy string `json:"started_by,omitempty"` // User who started this workflow run
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -764,8 +767,8 @@ func (p *ProjectDB) SaveWorkflowRun(wr *WorkflowRun) error {
 		INSERT INTO workflow_runs (id, workflow_id, context_type, context_data, task_id,
 			prompt, instructions, status, current_phase, started_at, completed_at,
 			variables_snapshot, total_cost_usd, total_input_tokens, total_output_tokens,
-			error, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			error, created_at, updated_at, started_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			workflow_id = excluded.workflow_id,
 			context_type = excluded.context_type,
@@ -782,11 +785,12 @@ func (p *ProjectDB) SaveWorkflowRun(wr *WorkflowRun) error {
 			total_input_tokens = excluded.total_input_tokens,
 			total_output_tokens = excluded.total_output_tokens,
 			error = excluded.error,
-			updated_at = excluded.updated_at
+			updated_at = excluded.updated_at,
+			started_by = excluded.started_by
 	`, wr.ID, wr.WorkflowID, wr.ContextType, wr.ContextData, wr.TaskID,
 		wr.Prompt, wr.Instructions, wr.Status, wr.CurrentPhase, startedAt, completedAt,
 		wr.VariablesSnapshot, wr.TotalCostUSD, wr.TotalInputTokens, wr.TotalOutputTokens,
-		wr.Error, wr.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
+		wr.Error, wr.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339), wr.StartedBy)
 	if err != nil {
 		return fmt.Errorf("save workflow run: %w", err)
 	}
@@ -799,7 +803,7 @@ func (p *ProjectDB) GetWorkflowRun(id string) (*WorkflowRun, error) {
 		SELECT id, workflow_id, context_type, context_data, task_id,
 			prompt, instructions, status, current_phase, started_at, completed_at,
 			variables_snapshot, total_cost_usd, total_input_tokens, total_output_tokens,
-			error, created_at, updated_at
+			error, created_at, updated_at, started_by
 		FROM workflow_runs WHERE id = ?
 	`, id)
 
@@ -828,7 +832,7 @@ func (p *ProjectDB) ListWorkflowRuns(opts WorkflowRunListOpts) ([]*WorkflowRun, 
 		SELECT id, workflow_id, context_type, context_data, task_id,
 			prompt, instructions, status, current_phase, started_at, completed_at,
 			variables_snapshot, total_cost_usd, total_input_tokens, total_output_tokens,
-			error, created_at, updated_at
+			error, created_at, updated_at, started_by
 		FROM workflow_runs
 		WHERE 1=1
 	`
@@ -1192,13 +1196,13 @@ func scanWorkflowRun(row rowScanner) (*WorkflowRun, error) {
 	wr := &WorkflowRun{}
 	var createdAt, updatedAt string
 	var startedAt, completedAt sql.NullString
-	var taskID, instructions, currentPhase, variablesSnapshot, runError sql.NullString
+	var taskID, instructions, currentPhase, variablesSnapshot, runError, startedBy sql.NullString
 
 	err := row.Scan(
 		&wr.ID, &wr.WorkflowID, &wr.ContextType, &wr.ContextData, &taskID,
 		&wr.Prompt, &instructions, &wr.Status, &currentPhase, &startedAt, &completedAt,
 		&variablesSnapshot, &wr.TotalCostUSD, &wr.TotalInputTokens, &wr.TotalOutputTokens,
-		&runError, &createdAt, &updatedAt,
+		&runError, &createdAt, &updatedAt, &startedBy,
 	)
 	if err != nil {
 		return nil, err
@@ -1221,6 +1225,9 @@ func scanWorkflowRun(row rowScanner) (*WorkflowRun, error) {
 	if completedAt.Valid {
 		t, _ := time.Parse(time.RFC3339, completedAt.String)
 		wr.CompletedAt = &t
+	}
+	if startedBy.Valid {
+		wr.StartedBy = startedBy.String
 	}
 
 	return wr, nil
