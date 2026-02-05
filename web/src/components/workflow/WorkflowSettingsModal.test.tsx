@@ -154,7 +154,7 @@ describe('WorkflowSettingsModal', () => {
 
 		it('calls onClose when clicking outside the modal', async () => {
 			const onClose = vi.fn();
-			render(
+			const { container } = render(
 				<WorkflowSettingsModal
 					open={true}
 					workflow={mockWorkflow}
@@ -163,8 +163,8 @@ describe('WorkflowSettingsModal', () => {
 				/>
 			);
 
-			// Click on the overlay/backdrop (outside the modal content)
-			const overlay = screen.getByRole('dialog').parentElement;
+			// Click on the overlay/backdrop (the modal-backdrop element with onClick handler)
+			const overlay = container.ownerDocument.querySelector('.modal-backdrop');
 			if (overlay) {
 				fireEvent.click(overlay);
 			}

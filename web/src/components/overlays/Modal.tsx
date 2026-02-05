@@ -5,11 +5,11 @@
  * - Portal rendering to document.body
  * - Focus trap (Tab/Shift+Tab cycles within modal)
  * - Escape to close
- * - Click outside to close
+ * - Click outside to close (via overlay click)
  * - Body scroll lock when open
  */
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Icon } from '@/components/ui/Icon';
@@ -47,50 +47,32 @@ export function Modal({
 	children,
 	'data-testid': dataTestId,
 }: ModalProps) {
-	const contentRef = useRef<HTMLDivElement>(null);
-
-	// Handle document-level clicks for JSDOM compatibility
-	// This complements Radix's onPointerDownOutside which doesn't fire for fireEvent.click
-	useEffect(() => {
-		if (!open) return;
-
-		// Track when the modal opened to ignore the click that triggered the open.
-		// In production, the opening click is still bubbling when this effect runs.
-		// We ignore clicks that happen within 10ms of opening (same event loop tick).
-		const openTime = performance.now();
-
-		const handleDocumentClick = (e: MouseEvent) => {
-			// Ignore clicks that happen immediately after opening (the opening click itself)
-			// e.timeStamp uses the same time origin as performance.now() in modern browsers
-			if (e.timeStamp - openTime < 10) {
-				return;
-			}
-			// Check if click is outside the modal content
-			if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
-				onClose();
-			}
-		};
-
-		document.addEventListener('click', handleDocumentClick);
-		return () => document.removeEventListener('click', handleDocumentClick);
-	}, [open, onClose]);
-
 	return (
 		<Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
 			<Dialog.Portal>
+				{/* Overlay handles click-outside-to-close explicitly */}
 				<Dialog.Overlay className="modal-backdrop" onClick={onClose} />
 				<Dialog.Content
-					ref={contentRef}
 					className={`modal-content ${sizeClasses[size]}`}
 					aria-describedby={undefined}
 					data-testid={dataTestId}
 					onPointerDownOutside={(e) => {
+						// Prevent Radix's default close behavior.
+						// We handle click-outside via the Overlay's onClick instead.
+						// This prevents false closes during React state transitions
+						// (e.g., when a button unmounts during re-render).
 						e.preventDefault();
-						onClose();
+					}}
+					onFocusOutside={(e) => {
+						// Prevent focus-escape from closing the modal.
+						// Focus can escape temporarily when React unmounts elements during re-render
+						// (e.g., clicking a button that changes state, removing the button from DOM).
+						e.preventDefault();
 					}}
 					onInteractOutside={(e) => {
+						// Prevent Radix's default dismissal on any outside interaction.
+						// We handle click-outside explicitly via Overlay onClick.
 						e.preventDefault();
-						onClose();
 					}}
 				>
 					{/* Always provide a title for screen readers */}
