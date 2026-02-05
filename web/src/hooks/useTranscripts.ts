@@ -102,7 +102,7 @@ function flattenEntry(
 ): FlatTranscriptEntry {
 	return {
 		// Generate unique ID from phase/iteration/index
-		id: hashCode(`${transcript.phase}-${transcript.iteration}-${index}`),
+		id: generateEntryId(transcript.phase, transcript.iteration, index),
 		task_id: transcript.taskId,
 		phase: transcript.phase,
 		iteration: transcript.iteration,
@@ -117,16 +117,25 @@ function flattenEntry(
 }
 
 /**
- * Simple hash function for generating stable IDs
+ * Generate stable unique ID from phase/iteration/index
+ * Uses a combination approach to avoid hash collisions
  */
-function hashCode(str: string): number {
-	let hash = 0;
-	for (let i = 0; i < str.length; i++) {
-		const char = str.charCodeAt(i);
-		hash = ((hash << 5) - hash) + char;
-		hash = hash & hash; // Convert to 32bit integer
+function generateEntryId(phase: string, iteration: number, index: number): number {
+	// Simple hash of phase name (reduced to 16 bits)
+	let phaseHash = 0;
+	for (let i = 0; i < phase.length; i++) {
+		const char = phase.charCodeAt(i);
+		phaseHash = ((phaseHash << 5) - phaseHash) + char;
+		phaseHash = phaseHash & 0xFFFF; // Keep only 16 bits
 	}
-	return Math.abs(hash);
+	// Combine: phaseHash (16 bits) + iteration (8 bits) + index (8 bits)
+	// This gives unique IDs as long as iteration < 256 and index < 256
+	// For larger values, we extend the scheme
+	if (iteration < 256 && index < 256) {
+		return (phaseHash << 16) | (iteration << 8) | index;
+	}
+	// Fallback for larger values: include more bits
+	return Math.abs((phaseHash * 100000) + (iteration * 1000) + index);
 }
 
 /**
