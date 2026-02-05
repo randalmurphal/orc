@@ -235,6 +235,7 @@ type ResolutionContext struct {
 	InitiativeTitle     string
 	InitiativeVision    string
 	InitiativeDecisions string // Formatted decision list
+	InitiativeNotes     string // Formatted notes grouped by type (patterns, warnings, learnings, handoffs)
 	InitiativeTasks     string // Formatted task list for automation
 
 	// Review context
