@@ -157,10 +157,69 @@ const ImplementCompletionSchema = `{
 	"required": ["status"]
 }`
 
+// DocsCompletionSchema is the JSON schema for docs phase.
+// Extends ContentProducingPhaseSchema with initiative_notes for knowledge extraction.
+const DocsCompletionSchema = `{
+	"type": "object",
+	"properties": {
+		"status": {
+			"type": "string",
+			"enum": ["complete", "blocked", "continue"],
+			"description": "Phase status: complete (work done), blocked (cannot proceed), continue (more work needed)"
+		},
+		"reason": {
+			"type": "string",
+			"description": "Explanation for blocked status, or progress summary for continue"
+		},
+		"summary": {
+			"type": "string",
+			"description": "Work summary for complete status"
+		},
+		"content": {
+			"type": "string",
+			"description": "The documentation summary content. REQUIRED when status is complete."
+		},
+		"initiative_notes": {
+			"type": "array",
+			"description": "Knowledge notes extracted for the initiative. Optional - include when task is part of an initiative.",
+			"items": {
+				"type": "object",
+				"properties": {
+					"type": {
+						"type": "string",
+						"enum": ["pattern", "warning", "learning", "handoff"],
+						"description": "Note type: pattern (reusable approach), warning (gotcha to avoid), learning (non-obvious discovery), handoff (incomplete work)"
+					},
+					"content": {
+						"type": "string",
+						"description": "The note content - concise but self-contained"
+					},
+					"relevant_files": {
+						"type": "array",
+						"items": {"type": "string"},
+						"description": "Optional file paths related to this note"
+					}
+				},
+				"required": ["type", "content"]
+			}
+		},
+		"notes_rationale": {
+			"type": "string",
+			"description": "Brief explanation of why notes were/weren't extracted"
+		}
+	},
+	"required": ["status"]
+}`
+
 // GetSchemaForPhaseWithRound returns the appropriate JSON schema for a phase,
 // with support for round-specific schemas (e.g., review round 1 vs round 2).
 // producesArtifact comes from the phase template's ProducesArtifact field.
 func GetSchemaForPhaseWithRound(phaseID string, round int, producesArtifact bool) string {
+	// Docs phase uses specialized schema with initiative_notes support
+	if phaseID == "docs" {
+		return DocsCompletionSchema
+	}
+
 	// Content-producing phases get schema with content field
 	if producesArtifact {
 		return ContentProducingPhaseSchema
@@ -219,6 +278,11 @@ func GetSchemaForIteration(loopCfg *db.LoopConfig, iteration int, phaseID string
 //   - Empty identifier uses phase default
 //   - Unknown identifier falls back to PhaseCompletionSchema
 func MapSchemaIdentifierToSchema(identifier string, phaseID string, producesArtifact bool) string {
+	// Docs phase uses specialized schema (overrides producesArtifact check)
+	if phaseID == "docs" {
+		return DocsCompletionSchema
+	}
+
 	// Content-producing phases always use ContentProducingPhaseSchema
 	if producesArtifact {
 		return ContentProducingPhaseSchema
