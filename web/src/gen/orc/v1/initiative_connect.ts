@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddDecisionRequest, AddDecisionResponse, CreateInitiativeRequest, CreateInitiativeResponse, DeleteInitiativeRequest, DeleteInitiativeResponse, GetDependencyGraphRequest, GetDependencyGraphResponse, GetInitiativeRequest, GetInitiativeResponse, GetReadyTasksRequest, GetReadyTasksResponse, LinkTasksRequest, LinkTasksResponse, ListInitiativesRequest, ListInitiativesResponse, ListInitiativeTasksRequest, ListInitiativeTasksResponse, RunInitiativeRequest, RunInitiativeResponse, UnlinkTaskRequest, UnlinkTaskResponse, UpdateInitiativeRequest, UpdateInitiativeResponse } from "./initiative_pb.js";
+import { AddDecisionRequest, AddDecisionResponse, CreateInitiativeRequest, CreateInitiativeResponse, DeleteInitiativeRequest, DeleteInitiativeResponse, GetDependencyGraphRequest, GetDependencyGraphResponse, GetInitiativeRequest, GetInitiativeResponse, GetReadyTasksRequest, GetReadyTasksResponse, LinkTasksRequest, LinkTasksResponse, ListInitiativeNotesRequest, ListInitiativeNotesResponse, ListInitiativesRequest, ListInitiativesResponse, ListInitiativeTasksRequest, ListInitiativeTasksResponse, ListTaskGeneratedNotesRequest, ListTaskGeneratedNotesResponse, RunInitiativeRequest, RunInitiativeResponse, UnlinkTaskRequest, UnlinkTaskResponse, UpdateInitiativeRequest, UpdateInitiativeResponse } from "./initiative_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -118,6 +118,26 @@ export const InitiativeService = {
       name: "RunInitiative",
       I: RunInitiativeRequest,
       O: RunInitiativeResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Initiative Notes
+     *
+     * @generated from rpc orc.v1.InitiativeService.ListInitiativeNotes
+     */
+    listInitiativeNotes: {
+      name: "ListInitiativeNotes",
+      I: ListInitiativeNotesRequest,
+      O: ListInitiativeNotesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.InitiativeService.ListTaskGeneratedNotes
+     */
+    listTaskGeneratedNotes: {
+      name: "ListTaskGeneratedNotes",
+      I: ListTaskGeneratedNotesRequest,
+      O: ListTaskGeneratedNotesResponse,
       kind: MethodKind.Unary,
     },
   }
