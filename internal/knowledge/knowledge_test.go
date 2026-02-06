@@ -302,10 +302,6 @@ func (m *mockComponents) IsHealthy() (neo4j, qdrant, redis bool) {
 	return m.neo4jHealthy, m.qdrantHealthy, m.redisHealthy
 }
 
-func (m *mockComponents) HealthCheckCalled() bool {
-	return m.healthCheckCalled
-}
-
 func containsStr(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {

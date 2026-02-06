@@ -28,8 +28,7 @@ func newKnowledgeStartCmd() *cobra.Command {
 		Use:   "start",
 		Short: "Start knowledge infrastructure containers",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Starting knowledge infrastructure...")
-			return nil
+			return fmt.Errorf("knowledge start: not yet implemented")
 		},
 	}
 }
@@ -39,8 +38,7 @@ func newKnowledgeStopCmd() *cobra.Command {
 		Use:   "stop",
 		Short: "Stop knowledge infrastructure containers",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Stopping knowledge infrastructure...")
-			return nil
+			return fmt.Errorf("knowledge stop: not yet implemented")
 		},
 	}
 }
@@ -50,8 +48,7 @@ func newKnowledgeStatusCmd() *cobra.Command {
 		Use:   "status",
 		Short: "Show knowledge infrastructure health status",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Knowledge infrastructure status:")
-			return nil
+			return fmt.Errorf("knowledge status: not yet implemented")
 		},
 	}
 }
