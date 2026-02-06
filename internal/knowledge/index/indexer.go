@@ -287,14 +287,20 @@ func (idx *Indexer) Index(ctx context.Context, root string, opts IndexOptions) (
 			}
 		} else if sourceID != "" {
 			// Create relationship with target as external reference
-			extID, _ := idx.graph.CreateNode(ctx, store.Node{
+			extID, extErr := idx.graph.CreateNode(ctx, store.Node{
 				Labels: []string{"Module"},
 				Properties: map[string]interface{}{
 					"path": rel.TargetName,
 				},
 			})
-			if extID != "" {
-				_ = idx.graph.CreateRelationship(ctx, sourceID, extID, relType, nil)
+			if extErr != nil {
+				result.ErrorsEncountered = append(result.ErrorsEncountered,
+					fmt.Errorf("create Module node for %s: %w", rel.TargetName, extErr))
+			} else if extID != "" {
+				if relErr := idx.graph.CreateRelationship(ctx, sourceID, extID, relType, nil); relErr != nil {
+					result.ErrorsEncountered = append(result.ErrorsEncountered,
+						fmt.Errorf("create %s relationship to external %s: %w", relType, rel.TargetName, relErr))
+				}
 			}
 		}
 	}
@@ -315,7 +321,10 @@ func (idx *Indexer) Index(ctx context.Context, root string, opts IndexOptions) (
 
 		for _, member := range pat.Members {
 			if fileID, ok := fileNodeIDs[member]; ok {
-				_ = idx.graph.CreateRelationship(ctx, fileID, patID, "FOLLOWS_PATTERN", nil)
+				if relErr := idx.graph.CreateRelationship(ctx, fileID, patID, "FOLLOWS_PATTERN", nil); relErr != nil {
+					result.ErrorsEncountered = append(result.ErrorsEncountered,
+						fmt.Errorf("create FOLLOWS_PATTERN relationship for %s: %w", member, relErr))
+				}
 			}
 		}
 	}
@@ -389,6 +398,8 @@ func (idx *Indexer) filterChangedFiles(ctx context.Context, files []code.FileInf
 			if rel, relErr := filepath.Rel(root, storedPath); relErr == nil {
 				delPath = rel
 			}
+			// Best-effort cleanup: deleted file nodes are non-critical and will
+			// be overwritten on the next full index if this fails.
 			_ = idx.graph.DeleteNodesByProperty(ctx, "File", "path", delPath)
 		}
 	}

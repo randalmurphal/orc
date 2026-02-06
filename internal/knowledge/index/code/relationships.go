@@ -90,9 +90,8 @@ func extractGoRelationships(filePath, content string, symbolsByName map[string]S
 		rels = append(rels, callRels...)
 	}
 
-	// Extract interface implementations (uses symbol data, not AST)
-	implRels := extractGoImplementsRelationships(symbolsByName, filePath)
-	rels = append(rels, implRels...)
+	// TODO: Go interface implementation detection requires interface method set
+	// extraction for correct implementation. Removed due to false positives.
 
 	return rels
 }
@@ -138,47 +137,6 @@ func extractGoCallRelationships(file *ast.File, filePath string, symbolsByName m
 		})
 		return true
 	})
-
-	return rels
-}
-
-func extractGoImplementsRelationships(symbolsByName map[string]Symbol, filePath string) []Relationship {
-	var rels []Relationship
-
-	// Collect interfaces and their methods
-	interfaces := make(map[string][]string) // interfaceName -> method names
-	types := make(map[string][]string)      // typeName -> method names
-
-	for _, s := range symbolsByName {
-		if s.Kind == SymbolInterface {
-			// We can't easily get interface methods from just Symbol
-			// but we can track by name
-			interfaces[s.Name] = nil
-		}
-		if s.Kind == SymbolMethod && s.Receiver != "" {
-			types[s.Receiver] = append(types[s.Receiver], s.Name)
-		}
-	}
-
-	// Simple heuristic: if a type has methods matching an interface's methods,
-	// it likely implements that interface
-	for typeName, typeMethods := range types {
-		for ifaceName := range interfaces {
-			if typeName == ifaceName {
-				continue
-			}
-			// Check if type has at least one method that matches interface name patterns
-			if len(typeMethods) > 0 {
-				rels = append(rels, Relationship{
-					Kind:       RelImplements,
-					SourceName: typeName,
-					SourceFile: filePath,
-					TargetName: ifaceName,
-					TargetFile: filePath,
-				})
-			}
-		}
-	}
 
 	return rels
 }

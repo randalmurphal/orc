@@ -40,6 +40,8 @@ func (p *GoParser) Parse(_ context.Context, filename string, src []byte) ([]Symb
 		}
 	}
 
+	populateChildren(symbols)
+
 	return symbols, parseErr
 }
 

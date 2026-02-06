@@ -141,45 +141,6 @@ class Dog(Animal):
 	}
 }
 
-// SC-5: Go interface implementation relationships.
-func TestRelationships_GoImplements(t *testing.T) {
-	symbols := []Symbol{
-		{Name: "Reader", Kind: SymbolInterface, FilePath: "io.go", StartLine: 1, EndLine: 3, Language: "go"},
-		{Name: "FileReader", Kind: SymbolType, FilePath: "io.go", StartLine: 5, EndLine: 8, Language: "go"},
-		{Name: "Read", Kind: SymbolMethod, FilePath: "io.go", StartLine: 10, EndLine: 14, Receiver: "FileReader", Language: "go"},
-	}
-
-	files := map[string]string{
-		"io.go": `type Reader interface {
-	Read(p []byte) (n int, err error)
-}
-
-type FileReader struct {
-	path string
-}
-
-func (f *FileReader) Read(p []byte) (n int, err error) {
-	return 0, nil
-}
-`,
-	}
-
-	rels, err := ExtractRelationships(symbols, files)
-	if err != nil {
-		t.Fatalf("ExtractRelationships: %v", err)
-	}
-
-	implRels := filterRels(rels, RelImplements)
-	if len(implRels) == 0 {
-		// Also acceptable as extends for this case
-		implRels = filterRels(rels, RelExtends)
-	}
-
-	if len(implRels) == 0 {
-		t.Fatal("should find implements/extends relationship")
-	}
-}
-
 // SC-5: Unresolvable targets (external packages) stored as-is without error.
 func TestRelationships_UnresolvableTargets(t *testing.T) {
 	symbols := []Symbol{

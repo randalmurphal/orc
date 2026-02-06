@@ -79,3 +79,26 @@ type Pattern struct {
 	CanonicalFile string
 	Members       []string
 }
+
+// populateChildren fills in the Children slice for parent symbols
+// based on the Parent field of child symbols. Must be called after
+// all symbols have been collected.
+func populateChildren(symbols []Symbol) {
+	// Build index of parent name -> position in symbols slice.
+	parentIdx := make(map[string]int)
+	for i, s := range symbols {
+		switch s.Kind {
+		case SymbolType, SymbolClass, SymbolInterface:
+			parentIdx[s.Name] = i
+		}
+	}
+
+	for _, s := range symbols {
+		if s.Parent == "" {
+			continue
+		}
+		if idx, ok := parentIdx[s.Parent]; ok {
+			symbols[idx].Children = append(symbols[idx].Children, s)
+		}
+	}
+}

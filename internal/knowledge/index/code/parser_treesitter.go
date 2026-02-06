@@ -2,6 +2,7 @@ package code
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -24,7 +25,7 @@ func (p *TreeSitterParser) Parse(_ context.Context, filename string, src []byte)
 	lang := detectLangFromFilename(filename)
 	sitterLang := langToSitter(lang)
 	if sitterLang == nil {
-		return nil, nil
+		return nil, fmt.Errorf("treesitter: unsupported language for %s", filename)
 	}
 
 	parser := sitter.NewParser()
@@ -32,7 +33,7 @@ func (p *TreeSitterParser) Parse(_ context.Context, filename string, src []byte)
 
 	tree, err := parser.ParseCtx(context.Background(), nil, src)
 	if err != nil {
-		return nil, nil // graceful fallback
+		return nil, fmt.Errorf("treesitter parse %s: %w", filename, err)
 	}
 	if tree == nil {
 		return nil, nil
@@ -41,6 +42,8 @@ func (p *TreeSitterParser) Parse(_ context.Context, filename string, src []byte)
 	root := tree.RootNode()
 	var symbols []Symbol
 	extractTreeSitterSymbols(root, src, filename, lang, "", &symbols)
+
+	populateChildren(symbols)
 
 	return symbols, nil
 }
