@@ -1,6 +1,6 @@
 id: implement-medium
 name: "Implement (Medium)"
-description: "Standard implementation workflow: spec, TDD, implement, review, docs"
+description: "Standard implementation workflow: spec, TDD, integration tests, implement, review, docs"
 
 phases:
   - template: spec
@@ -10,12 +10,16 @@ phases:
     sequence: 1
     depends_on: ["spec"]
 
-  - template: implement
+  - template: tdd_integrate
     sequence: 2
     depends_on: ["tdd_write"]
 
-  - template: review
+  - template: implement
     sequence: 3
+    depends_on: ["tdd_integrate"]
+
+  - template: review
+    sequence: 4
     depends_on: ["implement"]
     loop_config:
       loop_to_phase: implement
@@ -32,7 +36,7 @@ phases:
         default: "ReviewDecisionSchema"
 
   - template: docs
-    sequence: 4
+    sequence: 5
     depends_on: ["review"]
 
 triggers:

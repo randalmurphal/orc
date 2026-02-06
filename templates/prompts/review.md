@@ -129,6 +129,18 @@ The TDD phase produced the following tests and wiring requirements. Use this to 
 </tdd_requirements>
 {{/if}}
 
+{{#if TDD_INTEGRATION_CONTENT}}
+<integration_requirements>
+## Integration Test Wiring Declarations
+
+The integration test phase produced these wiring verifications. Use this to verify:
+1. All integration tests pass (new code is reachable from production paths)
+2. Wiring declarations were followed (new code is imported/called by the declared production files)
+
+{{TDD_INTEGRATION_CONTENT}}
+</integration_requirements>
+{{/if}}
+
 {{#if RETRY_ATTEMPT}}
 <retry_context>
 ## Re-Review Context
@@ -241,21 +253,21 @@ If success criteria are vague or untestable, this is a blocking finding — the 
 - New interfaces have implementations wired into the system
 - If the task adds hooks/callbacks/triggers, they are registered
 
-**Verify TDD Wiring Declarations (if `<tdd_requirements>` section exists above):**
+**Verify integration test wiring declarations (if `<integration_requirements>` or `<tdd_requirements>` sections exist above):**
 
-If the TDD phase declared wiring requirements (in the `wiring` field), verify EACH declaration:
-1. `new_component_path` — Was the component created at this exact path?
-2. `imported_by` — Does this file actually import the new component?
-3. `integration_test_file` — Does this test import the parent file and verify the wiring?
+If the integration test phase declared wiring verifications, verify EACH declaration:
+1. Was the new code created at the declared path?
+2. Does the declared production file actually import/call the new code?
+3. Do the integration tests pass — proving the wiring works end-to-end?
 
 ```bash
 # Example verification for wiring declaration:
-# "new_component_path": "@/components/Panel.tsx"
-# "imported_by": "@/pages/Dashboard.tsx"
-grep -n "Panel" src/pages/Dashboard.tsx  # Must find an import
+# "new_code": "internal/handler/new.go"
+# "called_from": "internal/server/router.go"
+grep -rn "new_handler\|NewHandler" internal/server/router.go  # Must find a reference
 ```
 
-**If the implementation created the component at a DIFFERENT path than declared, or the declared importer doesn't actually import it, this is a HIGH-SEVERITY finding.**
+**If the implementation created the new code at a DIFFERENT path than declared, or the declared caller doesn't actually call it, this is a HIGH-SEVERITY finding.**
 
 **For bug fixes:** The fix may be correct where applied but incomplete across the codebase.
 

@@ -94,14 +94,15 @@ Run `orc new --help` for detailed guidance on creating tasks that execute well.
 |----------|--------|-------|-------------|
 | trivial | implement | NO | One-liner fixes, typos |
 | small | tiny_spec → implement → review → docs | YES | Bug fixes, isolated changes |
-| medium | spec → tdd_write → implement → review → docs | YES | Features needing thought |
-| large | spec → tdd_write → breakdown → implement → review → docs | YES | Complex multi-file features |
+| medium | spec → tdd_write → tdd_integrate → implement → review → docs | YES | Features needing thought |
+| large | spec → tdd_write → tdd_integrate → breakdown → implement → review → docs | YES | Complex multi-file features |
 
 **Key phases:**
 - **spec/tiny_spec**: Generates Success Criteria + Testing requirements (foundation for quality)
-- **tdd_write**: Writes failing tests BEFORE implementation (context isolation)
+- **tdd_write**: Writes failing unit/sociable tests BEFORE implementation (behavioral correctness)
+- **tdd_integrate**: Writes failing integration tests verifying new code is wired into production paths (dead code prevention)
 - **breakdown**: Decomposes large tasks into checkboxed implementation steps
-- **review**: Multi-agent code review with 6 specialized reviewers + no-op detection + success criteria verification
+- **review**: Multi-agent code review with specialized reviewers + no-op detection + success criteria verification
 
 **UI workflow:** Step 1 (select workflow) → Step 2 (task details). See `web/src/components/overlays/NewTaskWorkflowModal.tsx`.
 
