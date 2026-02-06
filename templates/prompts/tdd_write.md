@@ -152,7 +152,29 @@ Classify each test you write into one of two types:
 
 **Sociable tests**: Test a unit with its real collaborators. Preferred when collaborators are fast, deterministic, and side-effect free. Gives higher confidence that units work together correctly.
 
-**Note:** Integration tests verifying production wiring are written in the separate `tdd_integrate` phase. Focus here on testing behavioral correctness of the new code.
+**Integration tests**: Verify that new code is actually wired into production code paths. If your task creates a new function or new interface implementation, you MUST write an integration test proving it gets called from existing code. This ensures new interfaces are properly registered and wired into the system.
+
+**Note:** The `tdd_integrate` phase handles comprehensive production wiring verification. In this phase, include at least one integration test when creating new functions or interfaces that should be called from existing code paths.
+
+### Wiring Verification Pattern
+
+When your task introduces a new function or new interface, include a wiring verification test using a "called" flag:
+
+```go
+func TestNewProcessor_IsWiredIntoDispatcher(t *testing.T) {
+	called := false
+	processor := &MockProcessor{
+		ProcessFunc: func(e Event) { called = true },
+	}
+	dispatcher := NewDispatcher(processor)
+	dispatcher.Dispatch(Event{Type: "test"})
+	if !called {
+		t.Fatal("processor was not called - new interface is not wired into dispatcher")
+	}
+}
+```
+
+This pattern proves the implementation is registered and invoked through existing code paths.
 </test_classification>
 
 <context>
