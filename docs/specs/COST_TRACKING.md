@@ -1,8 +1,8 @@
 # Cost Tracking
 
-**Status**: Database Layer + Executor Integration Implemented (TASK-406)
+**Status**: Database Layer + Executor Integration Implemented (TASK-406), Budget Enforcement (TASK-787)
 **Priority**: P1
-**Last Updated**: 2026-01-21
+**Last Updated**: 2026-02-05
 
 ---
 
@@ -37,7 +37,7 @@
 | API endpoints (`/api/cost/*`) | TASK-406 complete |
 | CLI command (`orc cost`) | TASK-406 complete |
 | Web dashboard cost widget | API endpoints |
-| Budget alerting logic | Budget infrastructure |
+| Budget alerting logic | Budget enforcement (TASK-787 done, see `docs/specs/BUDGET_ENFORCEMENT.md`) |
 
 ---
 
@@ -703,11 +703,20 @@ Cache usage reduces costs significantly:
 - [x] Historical data available (`GetCostTimeseries()`, `GetCostByModel()`)
 - [x] Test coverage exists (`internal/db/global_test.go`)
 
+### Budget Enforcement (Completed - TASK-787)
+- [x] `Enforcer` with `CostStore`/`BudgetStore` interfaces (`internal/budgets/enforcement.go`)
+- [x] Daily/weekly/monthly period checks
+- [x] Executor integration (once-per-run pre-execution check)
+- [x] Cost user ID fallback to OS username
+- [x] Test coverage (14 tests: `internal/budgets/enforcement_test.go`, `internal/executor/executor_test.go`)
+
 ### Pending (Future Tasks)
 - [ ] Costs displayed on task cards and details
 - [ ] `orc cost` shows summary by period
 - [ ] API endpoints implemented (`/api/cost/*`)
 - [ ] Web UI shows token widget on dashboard
 - [ ] Budget alerting logic triggers notifications
+- [ ] Wire `BudgetStore`/`CostStore` to real GlobalDB queries
+- [ ] CLI `--ignore-budget` flag
 - [ ] Cache savings highlighted in UI
 - [ ] E2E tests for cost display
