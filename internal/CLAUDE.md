@@ -26,7 +26,8 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `hosting/` | Multi-provider git hosting (GitHub, GitLab), PR lifecycle (create/find/update/merge) | `Provider`, `PR`, `PRStatusSummary`, `ErrNoPRFound` |
 | `initiative/` | Initiative/feature grouping, acceptance criteria | `Initiative`, `Criterion`, `CoverageReport`, `Store`, `Manifest` |
 | `jira/` | Jira Cloud import (API client, issue mapping, ADF conversion) | `Client`, `Importer`, `Mapper`, `Issue`, `ImportResult` |
-| `knowledge/` | Knowledge layer: Docker infra, graph/vector/cache stores, embeddings | `Service`, `Components`, `ServiceConfig` |
+| `knowledge/` | Knowledge layer: Docker infra, stores, embeddings, retrieval | `Service`, `Components`, `QueryComponents`, `TaskContext` |
+| `knowledge/retrieve/` | Multi-signal search pipeline with presets and scoring | `Pipeline`, `Stage`, `Scorer`, `PresetDeps` |
 | `knowledge/infra/` | Docker container lifecycle management | `Manager`, `DockerClient`, `Config` |
 | `knowledge/store/` | Graph (Neo4j), vector (Qdrant), cache (Redis) stores | `GraphStore`, `VectorStore`, `CacheStore` |
 | `knowledge/embed/` | Text embedding providers (Voyage AI, local sidecar) | `Embedder`, `VoyageEmbedder`, `SidecarEmbedder` |
@@ -76,6 +77,7 @@ cmd/orc
         ├── jira/
         │   └── storage/
         ├── knowledge/
+        │   ├── retrieve/
         │   ├── infra/
         │   ├── store/
         │   └── embed/
