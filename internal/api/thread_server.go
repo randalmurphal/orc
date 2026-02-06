@@ -22,9 +22,10 @@ import (
 // threadServer implements the ThreadService Connect RPC handler.
 type threadServer struct {
 	orcv1connect.UnimplementedThreadServiceHandler
-	backend   storage.Backend
-	publisher events.Publisher
-	logger    *slog.Logger
+	backend      storage.Backend
+	projectCache *ProjectCache
+	publisher    events.Publisher
+	logger       *slog.Logger
 
 	// TurnExecutor factory creates executors for Claude conversations.
 	// The factory receives the session ID (empty for new conversations).
@@ -42,6 +43,25 @@ func NewThreadServer(backend storage.Backend, publisher events.Publisher, logger
 		publisher: publisher,
 		logger:    logger,
 	}
+}
+
+// SetProjectCache sets the project cache for multi-project support.
+func (s *threadServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
+// getBackend returns the appropriate backend for a project ID.
+func (s *threadServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
 }
 
 // SetTurnExecutorFactory sets the factory used to create TurnExecutors for conversations.
@@ -66,6 +86,11 @@ func (s *threadServer) CreateThread(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("title is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
 	thread := &db.Thread{
 		Title: req.Msg.Title,
 	}
@@ -79,7 +104,7 @@ func (s *threadServer) CreateThread(
 		thread.FileContext = *req.Msg.FileContext
 	}
 
-	if err := s.backend.DB().CreateThread(thread); err != nil {
+	if err := backend.DB().CreateThread(thread); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("create thread: %w", err))
 	}
 
@@ -93,7 +118,12 @@ func (s *threadServer) GetThread(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetThreadRequest],
 ) (*connect.Response[orcv1.GetThreadResponse], error) {
-	thread, err := s.backend.DB().GetThread(req.Msg.ThreadId)
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
+	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get thread: %w", err))
 	}
@@ -111,12 +141,17 @@ func (s *threadServer) ListThreads(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListThreadsRequest],
 ) (*connect.Response[orcv1.ListThreadsResponse], error) {
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
 	opts := db.ThreadListOpts{
 		Status: req.Msg.Status,
 		TaskID: req.Msg.TaskId,
 	}
 
-	threads, err := s.backend.DB().ListThreads(opts)
+	threads, err := backend.DB().ListThreads(opts)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list threads: %w", err))
 	}
@@ -140,8 +175,13 @@ func (s *threadServer) SendMessage(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("content is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
 	// Verify thread exists
-	thread, err := s.backend.DB().GetThread(req.Msg.ThreadId)
+	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get thread: %w", err))
 	}
@@ -161,7 +201,7 @@ func (s *threadServer) SendMessage(
 		Role:     "user",
 		Content:  req.Msg.Content,
 	}
-	if err := s.backend.DB().AddThreadMessage(userMsg); err != nil {
+	if err := backend.DB().AddThreadMessage(userMsg); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("store user message: %w", err))
 	}
 
@@ -174,7 +214,7 @@ func (s *threadServer) SendMessage(
 	}))
 
 	// Build system prompt with task/initiative context
-	systemPrompt := s.buildSystemPrompt(thread)
+	systemPrompt := s.buildSystemPrompt(backend, thread)
 
 	// Publish typing event before Claude invocation
 	s.publisher.Publish(events.NewEvent(events.EventThreadTyping, thread.ID, events.ThreadTypingData{
@@ -191,13 +231,20 @@ func (s *threadServer) SendMessage(
 	te := factory(thread.SessionID)
 	prompt := systemPrompt + "\n\nUser message: " + req.Msg.Content
 	result, err := te.ExecuteTurnWithoutSchema(ctx, prompt)
+
+	// Clear typing indicator regardless of success or failure
+	s.publisher.Publish(events.NewEvent(events.EventThreadTyping, thread.ID, events.ThreadTypingData{
+		ThreadID: thread.ID,
+		IsTyping: false,
+	}))
+
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("claude invocation failed: %w", err))
 	}
 
 	// Store session ID from response (for multi-turn continuity)
 	if result.SessionID != "" && result.SessionID != thread.SessionID {
-		if updateErr := s.backend.DB().UpdateThreadSessionID(thread.ID, result.SessionID); updateErr != nil {
+		if updateErr := backend.DB().UpdateThreadSessionID(thread.ID, result.SessionID); updateErr != nil {
 			s.logger.Warn("failed to update thread session ID", "thread_id", thread.ID, "error", updateErr)
 		}
 	}
@@ -208,7 +255,7 @@ func (s *threadServer) SendMessage(
 		Role:     "assistant",
 		Content:  result.Content,
 	}
-	if err := s.backend.DB().AddThreadMessage(assistantMsg); err != nil {
+	if err := backend.DB().AddThreadMessage(assistantMsg); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("store assistant message: %w", err))
 	}
 
@@ -231,7 +278,12 @@ func (s *threadServer) ArchiveThread(
 	ctx context.Context,
 	req *connect.Request[orcv1.ArchiveThreadRequest],
 ) (*connect.Response[orcv1.ArchiveThreadResponse], error) {
-	if err := s.backend.DB().ArchiveThread(req.Msg.ThreadId); err != nil {
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
+	if err := backend.DB().ArchiveThread(req.Msg.ThreadId); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
@@ -245,7 +297,7 @@ func (s *threadServer) ArchiveThread(
 		NewStatus: "archived",
 	}))
 
-	thread, err := s.backend.DB().GetThread(req.Msg.ThreadId)
+	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get archived thread: %w", err))
 	}
@@ -260,7 +312,12 @@ func (s *threadServer) DeleteThread(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeleteThreadRequest],
 ) (*connect.Response[orcv1.DeleteThreadResponse], error) {
-	if err := s.backend.DB().DeleteThread(req.Msg.ThreadId); err != nil {
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
+	if err := backend.DB().DeleteThread(req.Msg.ThreadId); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
@@ -275,7 +332,12 @@ func (s *threadServer) RecordDecision(
 	ctx context.Context,
 	req *connect.Request[orcv1.RecordThreadDecisionRequest],
 ) (*connect.Response[orcv1.RecordThreadDecisionResponse], error) {
-	thread, err := s.backend.DB().GetThread(req.Msg.ThreadId)
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
+	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get thread: %w", err))
 	}
@@ -299,7 +361,7 @@ func (s *threadServer) RecordDecision(
 		DecidedAt:    time.Now(),
 	}
 
-	if err := s.backend.DB().AddInitiativeDecision(decision); err != nil {
+	if err := backend.DB().AddInitiativeDecision(decision); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("record decision: %w", err))
 	}
 
@@ -309,12 +371,12 @@ func (s *threadServer) RecordDecision(
 }
 
 // buildSystemPrompt constructs context-rich system prompt for Claude.
-func (s *threadServer) buildSystemPrompt(thread *db.Thread) string {
+func (s *threadServer) buildSystemPrompt(backend storage.Backend, thread *db.Thread) string {
 	var parts []string
 	parts = append(parts, "You are a helpful assistant in a conversation thread.")
 
 	if thread.TaskID != "" {
-		task, err := s.backend.LoadTask(thread.TaskID)
+		task, err := backend.LoadTask(thread.TaskID)
 		if err == nil && task != nil {
 			parts = append(parts, fmt.Sprintf("\nTask: %s", task.Title))
 			if task.Description != nil && *task.Description != "" {
@@ -324,14 +386,14 @@ func (s *threadServer) buildSystemPrompt(thread *db.Thread) string {
 	}
 
 	if thread.InitiativeID != "" {
-		initiative, err := s.backend.DB().GetInitiative(thread.InitiativeID)
+		initiative, err := backend.DB().GetInitiative(thread.InitiativeID)
 		if err == nil && initiative != nil {
 			parts = append(parts, fmt.Sprintf("\nInitiative: %s", initiative.Title))
 			if initiative.Vision != "" {
 				parts = append(parts, fmt.Sprintf("Vision: %s", initiative.Vision))
 			}
 
-			decisions, decErr := s.backend.DB().GetInitiativeDecisions(thread.InitiativeID)
+			decisions, decErr := backend.DB().GetInitiativeDecisions(thread.InitiativeID)
 			if decErr == nil && len(decisions) > 0 {
 				parts = append(parts, "\nDecisions:")
 				for _, d := range decisions {

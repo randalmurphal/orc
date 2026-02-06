@@ -66,10 +66,11 @@ service ThreadService {
 
 // CreateThread
 message CreateThreadRequest {
-  string title = 1;
-  optional string task_id = 2;
-  optional string initiative_id = 3;
-  optional string file_context = 4;
+  string project_id = 1;
+  string title = 2;
+  optional string task_id = 3;
+  optional string initiative_id = 4;
+  optional string file_context = 5;
 }
 
 message CreateThreadResponse {
@@ -78,7 +79,8 @@ message CreateThreadResponse {
 
 // GetThread
 message GetThreadRequest {
-  string thread_id = 1;
+  string project_id = 1;
+  string thread_id = 2;
 }
 
 message GetThreadResponse {
@@ -87,8 +89,9 @@ message GetThreadResponse {
 
 // ListThreads
 message ListThreadsRequest {
-  string status = 1;
-  string task_id = 2;
+  string project_id = 1;
+  string status = 2;
+  string task_id = 3;
 }
 
 message ListThreadsResponse {
@@ -97,8 +100,9 @@ message ListThreadsResponse {
 
 // SendMessage
 message SendThreadMessageRequest {
-  string thread_id = 1;
-  string content = 2;
+  string project_id = 1;
+  string thread_id = 2;
+  string content = 3;
 }
 
 message SendThreadMessageResponse {
@@ -108,7 +112,8 @@ message SendThreadMessageResponse {
 
 // ArchiveThread
 message ArchiveThreadRequest {
-  string thread_id = 1;
+  string project_id = 1;
+  string thread_id = 2;
 }
 
 message ArchiveThreadResponse {
@@ -117,16 +122,18 @@ message ArchiveThreadResponse {
 
 // DeleteThread
 message DeleteThreadRequest {
-  string thread_id = 1;
+  string project_id = 1;
+  string thread_id = 2;
 }
 
 message DeleteThreadResponse {}
 
 // RecordDecision
 message RecordThreadDecisionRequest {
-  string thread_id = 1;
-  string decision = 2;
-  string rationale = 3;
+  string project_id = 1;
+  string thread_id = 2;
+  string decision = 3;
+  string rationale = 4;
 }
 
 message RecordThreadDecisionResponse {

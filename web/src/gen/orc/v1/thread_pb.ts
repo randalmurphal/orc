@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file orc/v1/thread.proto.
  */
 export const file_orc_v1_thread: GenFile = /*@__PURE__*/
-  fileDesc("ChNvcmMvdjEvdGhyZWFkLnByb3RvEgZvcmMudjEijgIKBlRocmVhZBIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIOCgZzdGF0dXMYAyABKAkSDwoHdGFza19pZBgEIAEoCRIVCg1pbml0aWF0aXZlX2lkGAUgASgJEhIKCnNlc3Npb25faWQYBiABKAkSFAoMZmlsZV9jb250ZXh0GAcgASgJEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEicKCG1lc3NhZ2VzGAogAygLMhUub3JjLnYxLlRocmVhZE1lc3NhZ2UifQoNVGhyZWFkTWVzc2FnZRIKCgJpZBgBIAEoAxIRCgl0aHJlYWRfaWQYAiABKAkSDAoEcm9sZRgDIAEoCRIPCgdjb250ZW50GAQgASgJEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIqABChNDcmVhdGVUaHJlYWRSZXF1ZXN0Eg0KBXRpdGxlGAEgASgJEhQKB3Rhc2tfaWQYAiABKAlIAIgBARIaCg1pbml0aWF0aXZlX2lkGAMgASgJSAGIAQESGQoMZmlsZV9jb250ZXh0GAQgASgJSAKIAQFCCgoIX3Rhc2tfaWRCEAoOX2luaXRpYXRpdmVfaWRCDwoNX2ZpbGVfY29udGV4dCI2ChRDcmVhdGVUaHJlYWRSZXNwb25zZRIeCgZ0aHJlYWQYASABKAsyDi5vcmMudjEuVGhyZWFkIiUKEEdldFRocmVhZFJlcXVlc3QSEQoJdGhyZWFkX2lkGAEgASgJIjMKEUdldFRocmVhZFJlc3BvbnNlEh4KBnRocmVhZBgBIAEoCzIOLm9yYy52MS5UaHJlYWQiNQoSTGlzdFRocmVhZHNSZXF1ZXN0Eg4KBnN0YXR1cxgBIAEoCRIPCgd0YXNrX2lkGAIgASgJIjYKE0xpc3RUaHJlYWRzUmVzcG9uc2USHwoHdGhyZWFkcxgBIAMoCzIOLm9yYy52MS5UaHJlYWQiPgoYU2VuZFRocmVhZE1lc3NhZ2VSZXF1ZXN0EhEKCXRocmVhZF9pZBgBIAEoCRIPCgdjb250ZW50GAIgASgJInoKGVNlbmRUaHJlYWRNZXNzYWdlUmVzcG9uc2USKwoMdXNlcl9tZXNzYWdlGAEgASgLMhUub3JjLnYxLlRocmVhZE1lc3NhZ2USMAoRYXNzaXN0YW50X21lc3NhZ2UYAiABKAsyFS5vcmMudjEuVGhyZWFkTWVzc2FnZSIpChRBcmNoaXZlVGhyZWFkUmVxdWVzdBIRCgl0aHJlYWRfaWQYASABKAkiNwoVQXJjaGl2ZVRocmVhZFJlc3BvbnNlEh4KBnRocmVhZBgBIAEoCzIOLm9yYy52MS5UaHJlYWQiKAoTRGVsZXRlVGhyZWFkUmVxdWVzdBIRCgl0aHJlYWRfaWQYASABKAkiFgoURGVsZXRlVGhyZWFkUmVzcG9uc2UiVQobUmVjb3JkVGhyZWFkRGVjaXNpb25SZXF1ZXN0EhEKCXRocmVhZF9pZBgBIAEoCRIQCghkZWNpc2lvbhgCIAEoCRIRCglyYXRpb25hbGUYAyABKAkiMwocUmVjb3JkVGhyZWFkRGVjaXNpb25SZXNwb25zZRITCgtkZWNpc2lvbl9pZBgBIAEoCTKuBAoNVGhyZWFkU2VydmljZRJJCgxDcmVhdGVUaHJlYWQSGy5vcmMudjEuQ3JlYXRlVGhyZWFkUmVxdWVzdBocLm9yYy52MS5DcmVhdGVUaHJlYWRSZXNwb25zZRJACglHZXRUaHJlYWQSGC5vcmMudjEuR2V0VGhyZWFkUmVxdWVzdBoZLm9yYy52MS5HZXRUaHJlYWRSZXNwb25zZRJGCgtMaXN0VGhyZWFkcxIaLm9yYy52MS5MaXN0VGhyZWFkc1JlcXVlc3QaGy5vcmMudjEuTGlzdFRocmVhZHNSZXNwb25zZRJSCgtTZW5kTWVzc2FnZRIgLm9yYy52MS5TZW5kVGhyZWFkTWVzc2FnZVJlcXVlc3QaIS5vcmMudjEuU2VuZFRocmVhZE1lc3NhZ2VSZXNwb25zZRJMCg1BcmNoaXZlVGhyZWFkEhwub3JjLnYxLkFyY2hpdmVUaHJlYWRSZXF1ZXN0Gh0ub3JjLnYxLkFyY2hpdmVUaHJlYWRSZXNwb25zZRJJCgxEZWxldGVUaHJlYWQSGy5vcmMudjEuRGVsZXRlVGhyZWFkUmVxdWVzdBocLm9yYy52MS5EZWxldGVUaHJlYWRSZXNwb25zZRJbCg5SZWNvcmREZWNpc2lvbhIjLm9yYy52MS5SZWNvcmRUaHJlYWREZWNpc2lvblJlcXVlc3QaJC5vcmMudjEuUmVjb3JkVGhyZWFkRGVjaXNpb25SZXNwb25zZUKHAQoKY29tLm9yYy52MUILVGhyZWFkUHJvdG9QAVozZ2l0aHViLmNvbS9yYW5kYWxtdXJwaGFsL29yYy9nZW4vcHJvdG8vb3JjL3YxO29yY3YxogIDT1hYqgIGT3JjLlYxygIGT3JjXFYx4gIST3JjXFYxXEdQQk1ldGFkYXRh6gIHT3JjOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("ChNvcmMvdjEvdGhyZWFkLnByb3RvEgZvcmMudjEijgIKBlRocmVhZBIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIOCgZzdGF0dXMYAyABKAkSDwoHdGFza19pZBgEIAEoCRIVCg1pbml0aWF0aXZlX2lkGAUgASgJEhIKCnNlc3Npb25faWQYBiABKAkSFAoMZmlsZV9jb250ZXh0GAcgASgJEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEicKCG1lc3NhZ2VzGAogAygLMhUub3JjLnYxLlRocmVhZE1lc3NhZ2UifQoNVGhyZWFkTWVzc2FnZRIKCgJpZBgBIAEoAxIRCgl0aHJlYWRfaWQYAiABKAkSDAoEcm9sZRgDIAEoCRIPCgdjb250ZW50GAQgASgJEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIrQBChNDcmVhdGVUaHJlYWRSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSFAoHdGFza19pZBgDIAEoCUgAiAEBEhoKDWluaXRpYXRpdmVfaWQYBCABKAlIAYgBARIZCgxmaWxlX2NvbnRleHQYBSABKAlIAogBAUIKCghfdGFza19pZEIQCg5faW5pdGlhdGl2ZV9pZEIPCg1fZmlsZV9jb250ZXh0IjYKFENyZWF0ZVRocmVhZFJlc3BvbnNlEh4KBnRocmVhZBgBIAEoCzIOLm9yYy52MS5UaHJlYWQiOQoQR2V0VGhyZWFkUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhEKCXRocmVhZF9pZBgCIAEoCSIzChFHZXRUaHJlYWRSZXNwb25zZRIeCgZ0aHJlYWQYASABKAsyDi5vcmMudjEuVGhyZWFkIkkKEkxpc3RUaHJlYWRzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgd0YXNrX2lkGAMgASgJIjYKE0xpc3RUaHJlYWRzUmVzcG9uc2USHwoHdGhyZWFkcxgBIAMoCzIOLm9yYy52MS5UaHJlYWQiUgoYU2VuZFRocmVhZE1lc3NhZ2VSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJdGhyZWFkX2lkGAIgASgJEg8KB2NvbnRlbnQYAyABKAkiegoZU2VuZFRocmVhZE1lc3NhZ2VSZXNwb25zZRIrCgx1c2VyX21lc3NhZ2UYASABKAsyFS5vcmMudjEuVGhyZWFkTWVzc2FnZRIwChFhc3Npc3RhbnRfbWVzc2FnZRgCIAEoCzIVLm9yYy52MS5UaHJlYWRNZXNzYWdlIj0KFEFyY2hpdmVUaHJlYWRSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJdGhyZWFkX2lkGAIgASgJIjcKFUFyY2hpdmVUaHJlYWRSZXNwb25zZRIeCgZ0aHJlYWQYASABKAsyDi5vcmMudjEuVGhyZWFkIjwKE0RlbGV0ZVRocmVhZFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIRCgl0aHJlYWRfaWQYAiABKAkiFgoURGVsZXRlVGhyZWFkUmVzcG9uc2UiaQobUmVjb3JkVGhyZWFkRGVjaXNpb25SZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJdGhyZWFkX2lkGAIgASgJEhAKCGRlY2lzaW9uGAMgASgJEhEKCXJhdGlvbmFsZRgEIAEoCSIzChxSZWNvcmRUaHJlYWREZWNpc2lvblJlc3BvbnNlEhMKC2RlY2lzaW9uX2lkGAEgASgJMq4ECg1UaHJlYWRTZXJ2aWNlEkkKDENyZWF0ZVRocmVhZBIbLm9yYy52MS5DcmVhdGVUaHJlYWRSZXF1ZXN0Ghwub3JjLnYxLkNyZWF0ZVRocmVhZFJlc3BvbnNlEkAKCUdldFRocmVhZBIYLm9yYy52MS5HZXRUaHJlYWRSZXF1ZXN0Ghkub3JjLnYxLkdldFRocmVhZFJlc3BvbnNlEkYKC0xpc3RUaHJlYWRzEhoub3JjLnYxLkxpc3RUaHJlYWRzUmVxdWVzdBobLm9yYy52MS5MaXN0VGhyZWFkc1Jlc3BvbnNlElIKC1NlbmRNZXNzYWdlEiAub3JjLnYxLlNlbmRUaHJlYWRNZXNzYWdlUmVxdWVzdBohLm9yYy52MS5TZW5kVGhyZWFkTWVzc2FnZVJlc3BvbnNlEkwKDUFyY2hpdmVUaHJlYWQSHC5vcmMudjEuQXJjaGl2ZVRocmVhZFJlcXVlc3QaHS5vcmMudjEuQXJjaGl2ZVRocmVhZFJlc3BvbnNlEkkKDERlbGV0ZVRocmVhZBIbLm9yYy52MS5EZWxldGVUaHJlYWRSZXF1ZXN0Ghwub3JjLnYxLkRlbGV0ZVRocmVhZFJlc3BvbnNlElsKDlJlY29yZERlY2lzaW9uEiMub3JjLnYxLlJlY29yZFRocmVhZERlY2lzaW9uUmVxdWVzdBokLm9yYy52MS5SZWNvcmRUaHJlYWREZWNpc2lvblJlc3BvbnNlQocBCgpjb20ub3JjLnYxQgtUaHJlYWRQcm90b1ABWjNnaXRodWIuY29tL3JhbmRhbG11cnBoYWwvb3JjL2dlbi9wcm90by9vcmMvdjE7b3JjdjGiAgNPWFiqAgZPcmMuVjHKAgZPcmNcVjHiAhJPcmNcVjFcR1BCTWV0YWRhdGHqAgdPcmM6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * Thread represents a conversation thread.
@@ -124,22 +124,27 @@ export const ThreadMessageSchema: GenMessage<ThreadMessage> = /*@__PURE__*/
  */
 export type CreateThreadRequest = Message<"orc.v1.CreateThreadRequest"> & {
   /**
-   * @generated from field: string title = 1;
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string title = 2;
    */
   title: string;
 
   /**
-   * @generated from field: optional string task_id = 2;
+   * @generated from field: optional string task_id = 3;
    */
   taskId?: string;
 
   /**
-   * @generated from field: optional string initiative_id = 3;
+   * @generated from field: optional string initiative_id = 4;
    */
   initiativeId?: string;
 
   /**
-   * @generated from field: optional string file_context = 4;
+   * @generated from field: optional string file_context = 5;
    */
   fileContext?: string;
 };
@@ -175,7 +180,12 @@ export const CreateThreadResponseSchema: GenMessage<CreateThreadResponse> = /*@_
  */
 export type GetThreadRequest = Message<"orc.v1.GetThreadRequest"> & {
   /**
-   * @generated from field: string thread_id = 1;
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
    */
   threadId: string;
 };
@@ -211,12 +221,17 @@ export const GetThreadResponseSchema: GenMessage<GetThreadResponse> = /*@__PURE_
  */
 export type ListThreadsRequest = Message<"orc.v1.ListThreadsRequest"> & {
   /**
-   * @generated from field: string status = 1;
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string status = 2;
    */
   status: string;
 
   /**
-   * @generated from field: string task_id = 2;
+   * @generated from field: string task_id = 3;
    */
   taskId: string;
 };
@@ -252,12 +267,17 @@ export const ListThreadsResponseSchema: GenMessage<ListThreadsResponse> = /*@__P
  */
 export type SendThreadMessageRequest = Message<"orc.v1.SendThreadMessageRequest"> & {
   /**
-   * @generated from field: string thread_id = 1;
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
    */
   threadId: string;
 
   /**
-   * @generated from field: string content = 2;
+   * @generated from field: string content = 3;
    */
   content: string;
 };
@@ -298,7 +318,12 @@ export const SendThreadMessageResponseSchema: GenMessage<SendThreadMessageRespon
  */
 export type ArchiveThreadRequest = Message<"orc.v1.ArchiveThreadRequest"> & {
   /**
-   * @generated from field: string thread_id = 1;
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
    */
   threadId: string;
 };
@@ -334,7 +359,12 @@ export const ArchiveThreadResponseSchema: GenMessage<ArchiveThreadResponse> = /*
  */
 export type DeleteThreadRequest = Message<"orc.v1.DeleteThreadRequest"> & {
   /**
-   * @generated from field: string thread_id = 1;
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
    */
   threadId: string;
 };
@@ -366,17 +396,22 @@ export const DeleteThreadResponseSchema: GenMessage<DeleteThreadResponse> = /*@_
  */
 export type RecordThreadDecisionRequest = Message<"orc.v1.RecordThreadDecisionRequest"> & {
   /**
-   * @generated from field: string thread_id = 1;
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
    */
   threadId: string;
 
   /**
-   * @generated from field: string decision = 2;
+   * @generated from field: string decision = 3;
    */
   decision: string;
 
   /**
-   * @generated from field: string rationale = 3;
+   * @generated from field: string rationale = 4;
    */
   rationale: string;
 };

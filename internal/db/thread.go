@@ -211,6 +211,13 @@ func (p *ProjectDB) AddThreadMessage(msg *ThreadMessage) error {
 	if err == nil {
 		msg.ID = id
 	}
+
+	// Update the thread's updated_at timestamp so ListThreads ordering reflects new messages
+	if _, err := p.Exec(`UPDATE threads SET updated_at = ? WHERE id = ?`,
+		now.Format(time.RFC3339), msg.ThreadID); err != nil {
+		return fmt.Errorf("update thread updated_at: %w", err)
+	}
+
 	return nil
 }
 

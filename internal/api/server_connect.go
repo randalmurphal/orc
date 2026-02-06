@@ -86,6 +86,7 @@ func (s *Server) registerConnectHandlers() {
 	}
 	briefSvc := NewBriefServer(s.backend, s.projectCache)
 	threadSvc := NewThreadServer(s.backend, s.publisher, s.logger)
+	threadSvc.SetProjectCache(s.projectCache)
 
 	// Create and register Connect handlers with CORS support
 	// Each NewXxxServiceHandler returns (path string, handler http.Handler)

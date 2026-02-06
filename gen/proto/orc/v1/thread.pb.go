@@ -219,10 +219,11 @@ func (x *ThreadMessage) GetCreatedAt() *timestamppb.Timestamp {
 // CreateThread
 type CreateThreadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Title         string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
-	TaskId        *string                `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
-	InitiativeId  *string                `protobuf:"bytes,3,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
-	FileContext   *string                `protobuf:"bytes,4,opt,name=file_context,json=fileContext,proto3,oneof" json:"file_context,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	TaskId        *string                `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
+	InitiativeId  *string                `protobuf:"bytes,4,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
+	FileContext   *string                `protobuf:"bytes,5,opt,name=file_context,json=fileContext,proto3,oneof" json:"file_context,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -255,6 +256,13 @@ func (x *CreateThreadRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateThreadRequest.ProtoReflect.Descriptor instead.
 func (*CreateThreadRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_thread_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CreateThreadRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *CreateThreadRequest) GetTitle() string {
@@ -332,7 +340,8 @@ func (x *CreateThreadResponse) GetThread() *Thread {
 // GetThread
 type GetThreadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ThreadId      string                 `protobuf:"bytes,1,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ThreadId      string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -365,6 +374,13 @@ func (x *GetThreadRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetThreadRequest.ProtoReflect.Descriptor instead.
 func (*GetThreadRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_thread_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetThreadRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetThreadRequest) GetThreadId() string {
@@ -421,8 +437,9 @@ func (x *GetThreadResponse) GetThread() *Thread {
 // ListThreads
 type ListThreadsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	TaskId        string                 `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -455,6 +472,13 @@ func (x *ListThreadsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListThreadsRequest.ProtoReflect.Descriptor instead.
 func (*ListThreadsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_thread_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListThreadsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *ListThreadsRequest) GetStatus() string {
@@ -518,8 +542,9 @@ func (x *ListThreadsResponse) GetThreads() []*Thread {
 // SendMessage
 type SendThreadMessageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ThreadId      string                 `protobuf:"bytes,1,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ThreadId      string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -552,6 +577,13 @@ func (x *SendThreadMessageRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SendThreadMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendThreadMessageRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_thread_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SendThreadMessageRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *SendThreadMessageRequest) GetThreadId() string {
@@ -623,7 +655,8 @@ func (x *SendThreadMessageResponse) GetAssistantMessage() *ThreadMessage {
 // ArchiveThread
 type ArchiveThreadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ThreadId      string                 `protobuf:"bytes,1,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ThreadId      string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -656,6 +689,13 @@ func (x *ArchiveThreadRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ArchiveThreadRequest.ProtoReflect.Descriptor instead.
 func (*ArchiveThreadRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_thread_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ArchiveThreadRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *ArchiveThreadRequest) GetThreadId() string {
@@ -712,7 +752,8 @@ func (x *ArchiveThreadResponse) GetThread() *Thread {
 // DeleteThread
 type DeleteThreadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ThreadId      string                 `protobuf:"bytes,1,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ThreadId      string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -745,6 +786,13 @@ func (x *DeleteThreadRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteThreadRequest.ProtoReflect.Descriptor instead.
 func (*DeleteThreadRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_thread_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *DeleteThreadRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *DeleteThreadRequest) GetThreadId() string {
@@ -793,9 +841,10 @@ func (*DeleteThreadResponse) Descriptor() ([]byte, []int) {
 // RecordDecision
 type RecordThreadDecisionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ThreadId      string                 `protobuf:"bytes,1,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
-	Decision      string                 `protobuf:"bytes,2,opt,name=decision,proto3" json:"decision,omitempty"`
-	Rationale     string                 `protobuf:"bytes,3,opt,name=rationale,proto3" json:"rationale,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ThreadId      string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	Decision      string                 `protobuf:"bytes,3,opt,name=decision,proto3" json:"decision,omitempty"`
+	Rationale     string                 `protobuf:"bytes,4,opt,name=rationale,proto3" json:"rationale,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -828,6 +877,13 @@ func (x *RecordThreadDecisionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RecordThreadDecisionRequest.ProtoReflect.Descriptor instead.
 func (*RecordThreadDecisionRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_thread_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RecordThreadDecisionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *RecordThreadDecisionRequest) GetThreadId() string {
@@ -921,44 +977,58 @@ const file_orc_v1_thread_proto_rawDesc = "" +
 	"\x04role\x18\x03 \x01(\tR\x04role\x12\x18\n" +
 	"\acontent\x18\x04 \x01(\tR\acontent\x129\n" +
 	"\n" +
-	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xca\x01\n" +
-	"\x13CreateThreadRequest\x12\x14\n" +
-	"\x05title\x18\x01 \x01(\tR\x05title\x12\x1c\n" +
-	"\atask_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12(\n" +
-	"\rinitiative_id\x18\x03 \x01(\tH\x01R\finitiativeId\x88\x01\x01\x12&\n" +
-	"\ffile_context\x18\x04 \x01(\tH\x02R\vfileContext\x88\x01\x01B\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xe9\x01\n" +
+	"\x13CreateThreadRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1c\n" +
+	"\atask_id\x18\x03 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12(\n" +
+	"\rinitiative_id\x18\x04 \x01(\tH\x01R\finitiativeId\x88\x01\x01\x12&\n" +
+	"\ffile_context\x18\x05 \x01(\tH\x02R\vfileContext\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\x10\n" +
 	"\x0e_initiative_idB\x0f\n" +
 	"\r_file_context\">\n" +
 	"\x14CreateThreadResponse\x12&\n" +
-	"\x06thread\x18\x01 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"/\n" +
-	"\x10GetThreadRequest\x12\x1b\n" +
-	"\tthread_id\x18\x01 \x01(\tR\bthreadId\";\n" +
+	"\x06thread\x18\x01 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"N\n" +
+	"\x10GetThreadRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\";\n" +
 	"\x11GetThreadResponse\x12&\n" +
-	"\x06thread\x18\x01 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"E\n" +
-	"\x12ListThreadsRequest\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\x12\x17\n" +
-	"\atask_id\x18\x02 \x01(\tR\x06taskId\"?\n" +
+	"\x06thread\x18\x01 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"d\n" +
+	"\x12ListThreadsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x17\n" +
+	"\atask_id\x18\x03 \x01(\tR\x06taskId\"?\n" +
 	"\x13ListThreadsResponse\x12(\n" +
-	"\athreads\x18\x01 \x03(\v2\x0e.orc.v1.ThreadR\athreads\"Q\n" +
-	"\x18SendThreadMessageRequest\x12\x1b\n" +
-	"\tthread_id\x18\x01 \x01(\tR\bthreadId\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\"\x99\x01\n" +
+	"\athreads\x18\x01 \x03(\v2\x0e.orc.v1.ThreadR\athreads\"p\n" +
+	"\x18SendThreadMessageRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\"\x99\x01\n" +
 	"\x19SendThreadMessageResponse\x128\n" +
 	"\fuser_message\x18\x01 \x01(\v2\x15.orc.v1.ThreadMessageR\vuserMessage\x12B\n" +
-	"\x11assistant_message\x18\x02 \x01(\v2\x15.orc.v1.ThreadMessageR\x10assistantMessage\"3\n" +
-	"\x14ArchiveThreadRequest\x12\x1b\n" +
-	"\tthread_id\x18\x01 \x01(\tR\bthreadId\"?\n" +
+	"\x11assistant_message\x18\x02 \x01(\v2\x15.orc.v1.ThreadMessageR\x10assistantMessage\"R\n" +
+	"\x14ArchiveThreadRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\"?\n" +
 	"\x15ArchiveThreadResponse\x12&\n" +
-	"\x06thread\x18\x01 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"2\n" +
-	"\x13DeleteThreadRequest\x12\x1b\n" +
-	"\tthread_id\x18\x01 \x01(\tR\bthreadId\"\x16\n" +
-	"\x14DeleteThreadResponse\"t\n" +
-	"\x1bRecordThreadDecisionRequest\x12\x1b\n" +
-	"\tthread_id\x18\x01 \x01(\tR\bthreadId\x12\x1a\n" +
-	"\bdecision\x18\x02 \x01(\tR\bdecision\x12\x1c\n" +
-	"\trationale\x18\x03 \x01(\tR\trationale\"?\n" +
+	"\x06thread\x18\x01 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"Q\n" +
+	"\x13DeleteThreadRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\"\x16\n" +
+	"\x14DeleteThreadResponse\"\x93\x01\n" +
+	"\x1bRecordThreadDecisionRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x12\x1a\n" +
+	"\bdecision\x18\x03 \x01(\tR\bdecision\x12\x1c\n" +
+	"\trationale\x18\x04 \x01(\tR\trationale\"?\n" +
 	"\x1cRecordThreadDecisionResponse\x12\x1f\n" +
 	"\vdecision_id\x18\x01 \x01(\tR\n" +
 	"decisionId2\xae\x04\n" +

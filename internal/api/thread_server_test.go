@@ -612,8 +612,8 @@ func TestThreadServer_MessageEvents(t *testing.T) {
 		case evt := <-eventCh:
 			receivedEvents = append(receivedEvents, evt)
 			// We expect at least 2 thread_message events (user + assistant)
-			// plus 1 thread_typing event
-			if len(receivedEvents) >= 3 {
+			// plus 2 thread_typing events (typing=true + typing=false)
+			if len(receivedEvents) >= 4 {
 				goto done
 			}
 		case <-timeout:
