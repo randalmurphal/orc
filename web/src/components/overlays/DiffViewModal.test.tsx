@@ -546,12 +546,25 @@ describe('TASK-774: DiffViewModal Component', () => {
 				expect(screen.getByText('src/components/Button.tsx')).toBeInTheDocument();
 			});
 
-			// Open search and type
+			// Open search
 			fireEvent.keyDown(document, { key: '/' });
+
+			await waitFor(() => {
+				expect(screen.getByTestId('search-input')).toBeInTheDocument();
+			});
+
+			// Type search query (userEvent.type focuses the input)
 			await user.type(screen.getByTestId('search-input'), 'Button');
 
-			// Press Escape to clear
-			fireEvent.keyDown(screen.getByTestId('search-input'), { key: 'Escape' });
+			// Verify filter is active before clearing
+			await waitFor(() => {
+				expect(screen.queryByText('src/utils/helpers.ts')).not.toBeInTheDocument();
+			});
+
+			// Press Escape to clear search - userEvent.keyboard dispatches on the
+			// focused element (search input), so the component's activeElement check
+			// in the capture handler reliably passes
+			await user.keyboard('{Escape}');
 
 			await waitFor(() => {
 				// All files should be visible again
