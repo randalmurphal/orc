@@ -58,6 +58,7 @@ func Execute() error {
 
 func init() {
 	cobra.OnInitialize(initConfig)
+	cobra.OnFinalize(resetGlobalFlags)
 
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is .orc/config.yaml)")
@@ -147,6 +148,16 @@ func init() {
 func addCmd(cmd *cobra.Command, groupID string) {
 	cmd.GroupID = groupID
 	rootCmd.AddCommand(cmd)
+}
+
+// resetGlobalFlags resets persistent flag variables to their defaults.
+// Registered via cobra.OnFinalize so it runs after each Execute() call,
+// ensuring flags don't carry stale values between invocations (e.g. in tests).
+func resetGlobalFlags() {
+	jsonOut = false
+	verbose = false
+	quiet = false
+	plain = false
 }
 
 // initConfig reads in config file and ENV variables if set.
