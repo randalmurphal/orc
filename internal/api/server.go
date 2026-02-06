@@ -729,6 +729,7 @@ func (s *Server) resumeTask(id string, projectID string) (map[string]any, error)
 		we := executor.NewWorkflowExecutor(
 			backend,
 			backend.DB(),
+			s.globalDB,
 			s.orcConfig,
 			workDir,
 			executor.WithWorkflowPublisher(s.publisher),
@@ -816,6 +817,7 @@ func (s *Server) startTask(id string, projectID string) error {
 		we := executor.NewWorkflowExecutor(
 			backend,
 			backend.DB(),
+			s.globalDB,
 			s.orcConfig,
 			workDir,
 			executor.WithWorkflowPublisher(s.publisher),

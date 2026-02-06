@@ -55,6 +55,7 @@ func TestWorkflowExecutor_ClaimsTaskBeforeExecution(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		projectDB,
+		&db.GlobalDB{DB: projectDB.DB},
 		&config.Config{
 			Model: "sonnet",
 		},
@@ -131,6 +132,7 @@ func TestWorkflowExecutor_ClaimFailure_StopsExecution(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		projectDB,
+		&db.GlobalDB{DB: projectDB.DB},
 		&config.Config{
 			Model: "sonnet",
 		},
@@ -211,6 +213,7 @@ func TestWorkflowExecutor_ReleasesClaimOnCompletion(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		projectDB,
+		&db.GlobalDB{DB: projectDB.DB},
 		&config.Config{
 			Model: "sonnet",
 		},
@@ -282,6 +285,7 @@ func TestWorkflowExecutor_ReleasesClaimOnFailure(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		projectDB,
+		&db.GlobalDB{DB: projectDB.DB},
 		&config.Config{
 			Model: "sonnet",
 		},

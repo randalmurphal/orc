@@ -116,7 +116,7 @@ func TestDAG_SkippedPhaseDependentsStillRun(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, pdb, &config.Config{}, t.TempDir(),
+		backend, pdb, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -247,7 +247,7 @@ func TestDAG_MultipleSkippedPhasesInParallel(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, pdb, &config.Config{}, t.TempDir(),
+		backend, pdb, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -361,7 +361,7 @@ func TestDAG_AllPredecessorsSkipped(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, pdb, &config.Config{}, t.TempDir(),
+		backend, pdb, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),

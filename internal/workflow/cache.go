@@ -427,6 +427,8 @@ func workflowPhaseToDBPhase(pt *PhaseTemplate, source Source) *db.PhaseTemplate 
 		OutputVarName:    pt.OutputVarName,
 		ProducesArtifact: pt.ProducesArtifact,
 		ArtifactType:     pt.ArtifactType,
+		OutputType:       pt.OutputType,
+		QualityChecks:    pt.QualityChecks,
 		ThinkingEnabled:  pt.ThinkingEnabled,
 		GateType:         string(pt.GateType),
 		Checkpoint:       pt.Checkpoint,

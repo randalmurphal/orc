@@ -250,8 +250,8 @@ func (we *WorkflowExecutor) executeParallelPhase(
 		}, ctx.Err()
 	}
 
-	// Load phase template
-	tmpl, err := we.projectDB.GetPhaseTemplate(phase.PhaseTemplateID)
+	// Load phase template from GlobalDB (definitions are seeded there, not ProjectDB)
+	tmpl, err := we.globalDB.GetPhaseTemplate(phase.PhaseTemplateID)
 	if err != nil {
 		return PhaseResult{
 			PhaseID: phase.PhaseTemplateID,

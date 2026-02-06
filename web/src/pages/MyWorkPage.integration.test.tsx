@@ -20,10 +20,11 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter, useNavigate } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { MyWorkPage } from './MyWorkPage';
 import { projectClient } from '@/lib/client';
 import {
+	createMockGetAllProjectsStatusResponse,
 	createMockProjectStatus,
 	createMockTaskSummary,
 } from '@/test/factories';
@@ -123,9 +124,9 @@ function renderMyWorkPage() {
 describe('MyWorkPage Integration - Task Click Wiring', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue({
-			projects: mockProjects,
-		});
+		vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+			createMockGetAllProjectsStatusResponse(mockProjects)
+		);
 	});
 
 	describe('SC-3 & SC-4: clicking task row sets project context and navigates', () => {

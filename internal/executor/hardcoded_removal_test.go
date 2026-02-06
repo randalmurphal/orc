@@ -29,7 +29,7 @@ func TestEnrichContextForPhase_DoesNotSetReviewRoundDirectly(t *testing.T) {
 
 	// Setup
 	backend := storage.NewTestBackend(t)
-	we := NewWorkflowExecutor(backend, backend.DB(), nil, t.TempDir())
+	we := NewWorkflowExecutor(backend, backend.DB(), testGlobalDBFrom(backend), nil, t.TempDir())
 
 	// Create a task with no retry context (fresh review)
 	tsk := task.NewProtoTask("TASK-TEST-758", "Test task")
@@ -66,7 +66,7 @@ func TestEnrichContextForPhase_DoesNotSetReviewFindingsDirectly(t *testing.T) {
 
 	// Setup
 	backend := storage.NewTestBackend(t)
-	we := NewWorkflowExecutor(backend, backend.DB(), nil, t.TempDir())
+	we := NewWorkflowExecutor(backend, backend.DB(), testGlobalDBFrom(backend), nil, t.TempDir())
 
 	// Create a task with retry state that would trigger round 2 in old code
 	tsk := task.NewProtoTask("TASK-TEST-758-2", "Test task with retry")

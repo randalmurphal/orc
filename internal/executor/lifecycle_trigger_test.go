@@ -29,7 +29,7 @@ func TestLifecycleTrigger_TaskCompleted(t *testing.T) {
 	mockRunner := &mockTriggerRunner{}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -75,7 +75,7 @@ func TestLifecycleTrigger_TaskFailed(t *testing.T) {
 	mockRunner := &mockTriggerRunner{}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -124,7 +124,7 @@ func TestLifecycleTrigger_GateBlocks(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -178,7 +178,7 @@ func TestLifecycleTrigger_FailedTriggerOnFail(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -225,7 +225,7 @@ func TestLifecycleTrigger_NoWorkflowTriggers(t *testing.T) {
 	mockRunner := &mockTriggerRunner{}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -259,7 +259,7 @@ func TestLifecycleTrigger_NilWorkflow(t *testing.T) {
 	mockRunner := &mockTriggerRunner{}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -298,7 +298,7 @@ func TestWorkflowWithTriggers_Integration(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
