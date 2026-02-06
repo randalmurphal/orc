@@ -41,6 +41,9 @@ type ManifestTask struct {
 	// DependsOn lists local IDs of tasks that must complete before this task.
 	DependsOn []int `yaml:"depends_on,omitempty"`
 
+	// Criteria lists indices into the initiative's acceptance_criteria that this task covers.
+	Criteria []int `yaml:"criteria,omitempty"`
+
 	// Spec is the inline specification content.
 	// If provided, the task will skip the spec phase during execution.
 	Spec string `yaml:"spec,omitempty"`
@@ -48,8 +51,9 @@ type ManifestTask struct {
 
 // CreateInitiative contains details for creating a new initiative.
 type CreateInitiative struct {
-	Title  string `yaml:"title"`
-	Vision string `yaml:"vision,omitempty"`
+	Title              string   `yaml:"title"`
+	Vision             string   `yaml:"vision,omitempty"`
+	AcceptanceCriteria []string `yaml:"acceptance_criteria,omitempty"`
 }
 
 // ManifestDecision represents a decision to record on the initiative.
@@ -149,6 +153,16 @@ func ValidateManifest(m *Manifest) []error {
 				Message: "title is required",
 			})
 		}
+
+		// Validate acceptance criteria
+		for idx, ac := range m.CreateInitiative.AcceptanceCriteria {
+			if strings.TrimSpace(ac) == "" {
+				errs = append(errs, &ValidationError{
+					Field:   fmt.Sprintf("create_initiative.acceptance_criteria[%d]", idx),
+					Message: "acceptance criterion cannot be empty",
+				})
+			}
+		}
 	}
 
 	// Check for at least one task
@@ -224,6 +238,28 @@ func ValidateManifest(m *Manifest) []error {
 					Field:   taskPrefix + ".depends_on",
 					Message: "task cannot depend on itself",
 				})
+			}
+		}
+	}
+
+	// Validate task criteria references
+	for i, t := range m.Tasks {
+		if len(t.Criteria) > 0 {
+			taskPrefix := fmt.Sprintf("tasks[%d]", i)
+			if m.CreateInitiative == nil {
+				errs = append(errs, &ValidationError{
+					Field:   taskPrefix + ".criteria",
+					Message: "cannot reference criteria without create_initiative",
+				})
+			} else {
+				for _, idx := range t.Criteria {
+					if idx < 0 || idx >= len(m.CreateInitiative.AcceptanceCriteria) {
+						errs = append(errs, &ValidationError{
+							Field:   taskPrefix + ".criteria",
+							Message: fmt.Sprintf("criteria index %d out of bounds (have %d acceptance_criteria)", idx, len(m.CreateInitiative.AcceptanceCriteria)),
+						})
+					}
+				}
 			}
 		}
 	}

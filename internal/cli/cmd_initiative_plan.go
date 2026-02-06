@@ -204,6 +204,12 @@ Examples:
 
 			// Create initiative if needed
 			if initToCreate != nil {
+				// Add acceptance criteria from manifest
+				if manifest.CreateInitiative != nil {
+					for _, ac := range manifest.CreateInitiative.AcceptanceCriteria {
+						initToCreate.AddCriterion(ac)
+					}
+				}
 				if err := backend.SaveInitiative(initToCreate); err != nil {
 					return fmt.Errorf("create initiative: %w", err)
 				}
@@ -312,6 +318,24 @@ Examples:
 					specNote = " (spec stored)"
 				}
 				fmt.Printf("Created task: %s - %s [%s]%s\n", taskID, t.Title, task.GetWorkflowIDProto(t), specNote)
+			}
+
+			// Map task criteria references from manifest
+			if manifest.CreateInitiative != nil && len(manifest.CreateInitiative.AcceptanceCriteria) > 0 {
+				for _, idx := range order {
+					mt := manifest.Tasks[idx]
+					if len(mt.Criteria) == 0 {
+						continue
+					}
+					taskID := localToTaskID[mt.ID]
+					for _, criteriaIdx := range mt.Criteria {
+						// Criteria IDs are AC-001, AC-002, etc. (1-indexed from AddCriterion)
+						criterionID := fmt.Sprintf("AC-%03d", criteriaIdx+1)
+						if err := init.MapCriterionToTask(criterionID, taskID); err != nil {
+							return fmt.Errorf("map criterion %s to task %s: %w", criterionID, taskID, err)
+						}
+					}
+				}
 			}
 
 			// Save initiative with updated task list
