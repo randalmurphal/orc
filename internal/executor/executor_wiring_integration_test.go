@@ -90,7 +90,7 @@ func TestEvaluatePhaseGate_PassesOptions(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{
+		backend, nil, testGlobalDBFrom(backend), &config.Config{
 			Gates: config.GateConfig{AutoApproveOnSuccess: true},
 		}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
@@ -211,7 +211,7 @@ func TestEvaluatePhaseGate_NoAIConfig(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{
+		backend, nil, testGlobalDBFrom(backend), &config.Config{
 			Gates: config.GateConfig{AutoApproveOnSuccess: true},
 		}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
@@ -273,7 +273,7 @@ func TestEvaluatePhaseGate_MalformedInputConfig(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 	)
@@ -338,7 +338,7 @@ func TestEvaluatePhaseGate_MalformedOutputConfig(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 	)
@@ -400,7 +400,7 @@ func TestEvaluatePhaseGate_PhaseOutputsPopulated(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 	)
@@ -468,7 +468,7 @@ func TestGateOutputScript_ScriptInvokedOnApproval(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 	)
@@ -536,7 +536,7 @@ func TestGateOutputScript_ScriptOverridesDecision(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, scriptDir,
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, scriptDir,
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 	)
@@ -594,7 +594,7 @@ func TestGateOutputScript_NoScriptConfigured(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 	)
@@ -642,7 +642,7 @@ func TestFailRun_FiresLifecycleTriggers(t *testing.T) {
 	mockRunner := &mockTriggerRunner{}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -716,7 +716,7 @@ func TestFailRun_LifecycleTriggerError_DoesNotAffectStatus(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -872,7 +872,7 @@ func TestBeforePhaseTrigger_BlocksPhaseExecution(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -927,7 +927,7 @@ func TestCompletionTrigger_GateRejectsBlocksTask(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -985,7 +985,7 @@ func TestCompletionTrigger_NonGateError_DoesNotBlock(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)

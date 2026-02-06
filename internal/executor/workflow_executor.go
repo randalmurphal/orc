@@ -237,16 +237,16 @@ func (we *WorkflowExecutor) setWorkflow(wf *workflow.Workflow) {
 }
 
 // NewWorkflowExecutor creates a new workflow executor.
+// globalDB is required — workflow definitions (phases, templates, variables) are
+// only seeded to GlobalDB. ProjectDB has the same tables but they contain stale data.
 func NewWorkflowExecutor(
 	backend storage.Backend,
 	projectDB *db.ProjectDB,
+	globalDB *db.GlobalDB,
 	orcConfig *config.Config,
 	workingDir string,
 	opts ...WorkflowExecutorOption,
 ) *WorkflowExecutor {
-	// Try to open global DB for cost tracking (best-effort)
-	globalDB, _ := db.OpenGlobal()
-
 	we := &WorkflowExecutor{
 		backend:       backend,
 		projectDB:     projectDB,
@@ -319,7 +319,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	}
 
 	// Load workflow from database
-	wf, err := we.projectDB.GetWorkflow(workflowID)
+	wf, err := we.globalDB.GetWorkflow(workflowID)
 	if err != nil {
 		return nil, fmt.Errorf("load workflow %s: %w", workflowID, err)
 	}
@@ -340,7 +340,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	}
 
 	// Load workflow phases
-	phases, err := we.projectDB.GetWorkflowPhases(workflowID)
+	phases, err := we.globalDB.GetWorkflowPhases(workflowID)
 	if err != nil {
 		return nil, fmt.Errorf("load workflow phases: %w", err)
 	}
@@ -352,7 +352,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	}
 
 	// Load workflow variables
-	workflowVars, err := we.projectDB.GetWorkflowVariables(workflowID)
+	workflowVars, err := we.globalDB.GetWorkflowVariables(workflowID)
 	if err != nil {
 		return nil, fmt.Errorf("load workflow variables: %w", err)
 	}
@@ -633,8 +633,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			}
 		}
 
-		// Load phase template
-		tmpl, err := we.projectDB.GetPhaseTemplate(phase.PhaseTemplateID)
+		// Load phase template from GlobalDB (definitions are seeded there, not ProjectDB)
+		tmpl, err := we.globalDB.GetPhaseTemplate(phase.PhaseTemplateID)
 		if err != nil {
 			we.failRun(run, t, fmt.Errorf("load phase template %s: %w", phase.PhaseTemplateID, err))
 			return result, err

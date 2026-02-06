@@ -276,6 +276,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	we := executor.NewWorkflowExecutor(
 		backend,
 		pdb,
+		gdb,
 		orcConfig,
 		projectRoot,
 		execOpts...,

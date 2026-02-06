@@ -35,7 +35,7 @@ func TestBeforePhaseTrigger_GateMode(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -93,7 +93,7 @@ func TestBeforePhaseTrigger_ReactionMode(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -144,7 +144,7 @@ func TestBeforePhaseTrigger_OutputVariable(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -201,7 +201,7 @@ func TestBeforePhaseTrigger_NoneConfigured(t *testing.T) {
 	mockRunner := &mockTriggerRunner{}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)
@@ -246,7 +246,7 @@ func TestBeforePhaseTrigger_SkippedOnResume(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTriggerRunner(mockRunner),
 	)

@@ -170,6 +170,10 @@ type PhaseTemplate struct {
 	GateInputConfig  *GateInputConfig  `json:"gate_input_config,omitempty"`
 	GateOutputConfig *GateOutputConfig `json:"gate_output_config,omitempty"`
 
+	// Quality checks
+	OutputType    string `json:"output_type,omitempty" db:"output_type"`    // 'code', 'tests', 'document', 'data', 'research', 'none'
+	QualityChecks string `json:"quality_checks,omitempty" db:"quality_checks"` // JSON array of QualityCheck
+
 	// Retry configuration
 	RetryFromPhase  string `json:"retry_from_phase,omitempty" db:"retry_from_phase"`
 	RetryPromptPath string `json:"retry_prompt_path,omitempty" db:"retry_prompt_path"`

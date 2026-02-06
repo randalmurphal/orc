@@ -102,8 +102,10 @@ import {
 	FeedbackTiming,
 } from '@/gen/orc/v1/feedback_pb';
 import {
+	GetAllProjectsStatusResponseSchema,
 	ProjectStatusSchema,
 	TaskSummarySchema,
+	type GetAllProjectsStatusResponse,
 	type ProjectStatus,
 	type TaskSummary,
 } from '@/gen/orc/v1/project_pb';
@@ -574,4 +576,13 @@ export function createMockProjectStatus(overrides: Partial<Omit<ProjectStatus, '
 		completedToday: 0,
 	});
 	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock GetAllProjectsStatusResponse with proto-compatible types
+ */
+export function createMockGetAllProjectsStatusResponse(
+	projects: ProjectStatus[] = []
+): GetAllProjectsStatusResponse {
+	return create(GetAllProjectsStatusResponseSchema, { projects });
 }

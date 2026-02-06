@@ -40,6 +40,7 @@ func TestBudgetCheck_BlocksWhenOverBudget(t *testing.T) {
 	// Create workflow with a single phase
 	workflowID := "test-workflow"
 	setupMinimalWorkflow(t, backend, workflowID)
+	setupMinimalWorkflowGlobal(t, globalDB, workflowID)
 
 	// Create task
 	tk := task.NewProtoTask("TASK-001", "Test Task")
@@ -55,11 +56,11 @@ func TestBudgetCheck_BlocksWhenOverBudget(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		globalDB,
 		&config.Config{Model: "sonnet"},
 		projectID,
 		WithWorkflowTurnExecutor(mockTurn),
 	)
-	we.globalDB = globalDB
 
 	// Run WITHOUT --ignore-budget
 	_, err = we.Run(context.Background(), workflowID, WorkflowRunOptions{
@@ -116,6 +117,7 @@ func TestBudgetCheck_ProceedsWithIgnoreBudget(t *testing.T) {
 
 	workflowID := "test-workflow"
 	setupMinimalWorkflow(t, backend, workflowID)
+	setupMinimalWorkflowGlobal(t, globalDB, workflowID)
 
 	tk := task.NewProtoTask("TASK-001", "Test Task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
@@ -129,11 +131,11 @@ func TestBudgetCheck_ProceedsWithIgnoreBudget(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		globalDB,
 		&config.Config{Model: "sonnet"},
 		projectID,
 		WithWorkflowTurnExecutor(mockTurn),
 	)
-	we.globalDB = globalDB
 
 	// Run WITH --ignore-budget
 	_, err = we.Run(context.Background(), workflowID, WorkflowRunOptions{
@@ -178,6 +180,7 @@ func TestBudgetCheck_WarnsAtAlertThreshold(t *testing.T) {
 
 	workflowID := "test-workflow"
 	setupMinimalWorkflow(t, backend, workflowID)
+	setupMinimalWorkflowGlobal(t, globalDB, workflowID)
 
 	tk := task.NewProtoTask("TASK-001", "Test Task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
@@ -197,12 +200,12 @@ func TestBudgetCheck_WarnsAtAlertThreshold(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		globalDB,
 		&config.Config{Model: "sonnet"},
 		projectID,
 		WithWorkflowTurnExecutor(mockTurn),
 		WithWorkflowLogger(logger),
 	)
-	we.globalDB = globalDB
 
 	_, err = we.Run(context.Background(), workflowID, WorkflowRunOptions{
 		ContextType: ContextTask,
@@ -241,6 +244,7 @@ func TestBudgetCheck_NoBudgetConfigured(t *testing.T) {
 
 	workflowID := "test-workflow"
 	setupMinimalWorkflow(t, backend, workflowID)
+	setupMinimalWorkflowGlobal(t, globalDB, workflowID)
 
 	tk := task.NewProtoTask("TASK-001", "Test Task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
@@ -260,12 +264,12 @@ func TestBudgetCheck_NoBudgetConfigured(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		globalDB,
 		&config.Config{Model: "sonnet"},
 		projectID,
 		WithWorkflowTurnExecutor(mockTurn),
 		WithWorkflowLogger(logger),
 	)
-	we.globalDB = globalDB
 
 	_, err := we.Run(context.Background(), workflowID, WorkflowRunOptions{
 		ContextType: ContextTask,
@@ -335,6 +339,7 @@ func TestBudgetCheck_GlobalDBNil(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		testGlobalDBFrom(backend),
 		&config.Config{Model: "sonnet"},
 		t.TempDir(),
 		WithWorkflowTurnExecutor(mockTurn),
@@ -370,6 +375,7 @@ func TestBudgetCheck_DBErrorProceeds(t *testing.T) {
 
 	workflowID := "test-workflow"
 	setupMinimalWorkflow(t, backend, workflowID)
+	setupMinimalWorkflowGlobal(t, globalDB, workflowID)
 
 	tk := task.NewProtoTask("TASK-001", "Test Task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
@@ -389,12 +395,12 @@ func TestBudgetCheck_DBErrorProceeds(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		globalDB,
 		&config.Config{Model: "sonnet"},
 		projectID,
 		WithWorkflowTurnExecutor(mockTurn),
 		WithWorkflowLogger(logger),
 	)
-	we.globalDB = globalDB
 
 	// Close the globalDB to force a DB error on GetBudgetStatus
 	_ = globalDB.Close()
@@ -435,6 +441,7 @@ func TestBudgetCheck_SpentEqualsLimit_NotOverBudget(t *testing.T) {
 
 	workflowID := "test-workflow"
 	setupMinimalWorkflow(t, backend, workflowID)
+	setupMinimalWorkflowGlobal(t, globalDB, workflowID)
 
 	tk := task.NewProtoTask("TASK-001", "Test Task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
@@ -448,11 +455,11 @@ func TestBudgetCheck_SpentEqualsLimit_NotOverBudget(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		globalDB,
 		&config.Config{Model: "sonnet"},
 		projectID,
 		WithWorkflowTurnExecutor(mockTurn),
 	)
-	we.globalDB = globalDB
 
 	_, err = we.Run(context.Background(), workflowID, WorkflowRunOptions{
 		ContextType: ContextTask,
@@ -491,6 +498,7 @@ func TestBudgetCheck_LimitZero_NoEnforcement(t *testing.T) {
 
 	workflowID := "test-workflow"
 	setupMinimalWorkflow(t, backend, workflowID)
+	setupMinimalWorkflowGlobal(t, globalDB, workflowID)
 
 	tk := task.NewProtoTask("TASK-001", "Test Task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
@@ -504,11 +512,11 @@ func TestBudgetCheck_LimitZero_NoEnforcement(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		globalDB,
 		&config.Config{Model: "sonnet"},
 		projectID,
 		WithWorkflowTurnExecutor(mockTurn),
 	)
-	we.globalDB = globalDB
 
 	_, err = we.Run(context.Background(), workflowID, WorkflowRunOptions{
 		ContextType: ContextTask,
@@ -546,6 +554,7 @@ func TestBudgetCheck_ExactlyAtAlertThreshold(t *testing.T) {
 
 	workflowID := "test-workflow"
 	setupMinimalWorkflow(t, backend, workflowID)
+	setupMinimalWorkflowGlobal(t, globalDB, workflowID)
 
 	tk := task.NewProtoTask("TASK-001", "Test Task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
@@ -564,12 +573,12 @@ func TestBudgetCheck_ExactlyAtAlertThreshold(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		globalDB,
 		&config.Config{Model: "sonnet"},
 		projectID,
 		WithWorkflowTurnExecutor(mockTurn),
 		WithWorkflowLogger(logger),
 	)
-	we.globalDB = globalDB
 
 	_, err = we.Run(context.Background(), workflowID, WorkflowRunOptions{
 		ContextType: ContextTask,
@@ -603,6 +612,7 @@ func TestBudgetCheck_IgnoreBudgetWithNoBudget(t *testing.T) {
 
 	workflowID := "test-workflow"
 	setupMinimalWorkflow(t, backend, workflowID)
+	setupMinimalWorkflowGlobal(t, globalDB, workflowID)
 
 	tk := task.NewProtoTask("TASK-001", "Test Task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
@@ -616,11 +626,11 @@ func TestBudgetCheck_IgnoreBudgetWithNoBudget(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		globalDB,
 		&config.Config{Model: "sonnet"},
 		projectID,
 		WithWorkflowTurnExecutor(mockTurn),
 	)
-	we.globalDB = globalDB
 
 	_, err := we.Run(context.Background(), workflowID, WorkflowRunOptions{
 		ContextType:  ContextTask,
