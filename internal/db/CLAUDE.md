@@ -98,7 +98,7 @@ PostgreSQL migrations live in `schema/postgres/` (embedded via `//go:embed`). Ea
 | `tsvector` + GIN indexes | FTS5 | Full-text search |
 | `JSONB` | JSON text columns | Structured data |
 
-**Current PostgreSQL migration coverage**: `global_001.sql`-`global_010.sql`, `project_001.sql`-`project_040.sql`. Remaining: project migrations `project_041.sql`-`project_058.sql` still need porting.
+**Current PostgreSQL migration coverage**: `global_001.sql`-`global_010.sql`, `project_001.sql`-`project_041.sql`. Remaining: project migrations `project_042.sql`-`project_058.sql` still need porting.
 
 **Table ordering**: PostgreSQL validates FK references at DDL time, so migration files may reorder tables compared to SQLite versions. The SQLite migration runner disables FK enforcement during migrations, making order irrelevant there.
 
@@ -248,7 +248,7 @@ Transcripts store Claude Code session messages. `transcript.go`
 | Token aggregation | `GetTaskTokenUsage()`, `GetPhaseTokenUsage()` |
 | Todo snapshots | `AddTodoSnapshot()`, `GetLatestTodos()`, `GetTodoHistory()` |
 | Metrics | `GetMetricsSummary()`, `GetDailyMetrics()`, `GetTaskMetrics()` |
-| FTS | `SearchTranscripts()` (SQLite: FTS5 MATCH, PostgreSQL: ILIKE) |
+| FTS | `SearchTranscripts()` (SQLite: FTS5 MATCH, PostgreSQL: tsvector/tsquery) |
 
 ## Event Log System
 
