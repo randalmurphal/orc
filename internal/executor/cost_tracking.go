@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -39,5 +40,53 @@ func RecordCostEntry(globalDB *db.GlobalDB, entry db.CostEntry, logger *slog.Log
 			"output_tokens", entry.OutputTokens,
 		)
 	}
+}
+
+// checkBudget checks budget status and returns an error if over budget.
+// Returns nil if budget check passes or should be skipped.
+// Budget enforcement is best-effort: DB errors log a warning and allow execution.
+func (we *WorkflowExecutor) checkBudget(ignoreBudget bool) error {
+	if we.globalDB == nil {
+		return nil // No global DB → no budget check
+	}
+
+	status, err := we.globalDB.GetBudgetStatus(we.workingDir)
+	if err != nil {
+		we.logger.Warn("budget check failed, proceeding anyway",
+			"error", err,
+		)
+		return nil // Best-effort: don't block on DB errors
+	}
+	if status == nil {
+		return nil // No budget configured for this project
+	}
+	if status.MonthlyLimitUSD == 0 {
+		return nil // Limit=0 means enforcement is disabled
+	}
+
+	if status.OverBudget {
+		if ignoreBudget {
+			we.logger.Warn("budget exceeded, proceeding with --ignore-budget",
+				"spent", status.CurrentMonthSpent,
+				"limit", status.MonthlyLimitUSD,
+			)
+			return nil
+		}
+		return fmt.Errorf(
+			"budget exceeded: $%.0f spent of $%.0f limit for %s — use --ignore-budget to proceed",
+			status.CurrentMonthSpent, status.MonthlyLimitUSD, status.CurrentMonth,
+		)
+	}
+
+	if status.AtAlertThreshold {
+		we.logger.Warn("budget alert: approaching monthly limit",
+			"spent", status.CurrentMonthSpent,
+			"limit", status.MonthlyLimitUSD,
+			"percent_used", status.PercentUsed,
+			"threshold", status.AlertThreshold,
+		)
+	}
+
+	return nil
 }
 
