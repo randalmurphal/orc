@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS initiative_notes (
     relevant_files TEXT,            -- JSON array, optional
 
     -- Lifecycle
-    graduated INTEGER DEFAULT 0,
+    graduated BOOLEAN DEFAULT FALSE,
 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
