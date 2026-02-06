@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/randalmurphal/orc/internal/knowledge/store"
 )
@@ -808,12 +809,8 @@ func (m *mockStores) Embed(ctx context.Context, texts []string) ([][]float32, er
 		return nil, m.embedErr
 	}
 	if m.embedDelay {
-		// Simulate slow embedding for concurrency test
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
+		// Simulate slow embedding so concurrent call sees busy=true
+		time.Sleep(50 * time.Millisecond)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
