@@ -4,5 +4,6 @@ export { DashboardQuickActions } from './DashboardQuickActions';
 export { DashboardRecentActivity } from './DashboardRecentActivity';
 export { DashboardInitiatives } from './DashboardInitiatives';
 export { DashboardSummary } from './DashboardSummary';
+export { DashboardCostSummary } from './DashboardCostSummary';
 export { TaskRow } from './TaskRow';
 export { ProjectCard } from './ProjectCard';

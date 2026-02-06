@@ -412,6 +412,10 @@ type TranscriptMatch struct {
 
 // SearchTranscripts performs full-text search on transcript content.
 func (p *ProjectDB) SearchTranscripts(query string) ([]TranscriptMatch, error) {
+	if strings.TrimSpace(query) == "" {
+		return []TranscriptMatch{}, nil
+	}
+
 	var rows *sql.Rows
 	var err error
 
@@ -426,16 +430,16 @@ func (p *ProjectDB) SearchTranscripts(query string) ([]TranscriptMatch, error) {
 			LIMIT 50
 		`, sanitized)
 	} else {
-		likePattern := "%" + query + "%"
 		rows, err = p.Query(`
-			SELECT task_id, phase, session_id,
-				SUBSTRING(content FROM GREATEST(1, POSITION($1 IN content) - 20) FOR 64) as snippet,
-				0.0 as rank
-			FROM transcripts
-			WHERE content ILIKE $2
-			ORDER BY id DESC
+			SELECT t.task_id, t.phase, t.session_id,
+				ts_headline('english', t.content, plainto_tsquery('english', $1),
+					'StartSel=<mark>, StopSel=</mark>, MaxFragments=1, MaxWords=32, MinWords=8') as snippet,
+				ts_rank(t.search_vector, plainto_tsquery('english', $1)) as rank
+			FROM transcripts t
+			WHERE t.search_vector @@ plainto_tsquery('english', $1)
+			ORDER BY rank DESC
 			LIMIT 50
-		`, query, likePattern)
+		`, query)
 	}
 
 	if err != nil {

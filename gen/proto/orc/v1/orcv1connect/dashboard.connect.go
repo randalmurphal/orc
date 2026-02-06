@@ -66,6 +66,9 @@ const (
 	// DashboardServiceGetTaskMetricsProcedure is the fully-qualified name of the DashboardService's
 	// GetTaskMetrics RPC.
 	DashboardServiceGetTaskMetricsProcedure = "/orc.v1.DashboardService/GetTaskMetrics"
+	// DashboardServiceGetCostReportProcedure is the fully-qualified name of the DashboardService's
+	// GetCostReport RPC.
+	DashboardServiceGetCostReportProcedure = "/orc.v1.DashboardService/GetCostReport"
 )
 
 // DashboardServiceClient is a client for the orc.v1.DashboardService service.
@@ -92,6 +95,8 @@ type DashboardServiceClient interface {
 	GetComparison(context.Context, *connect.Request[v1.GetComparisonRequest]) (*connect.Response[v1.GetComparisonResponse], error)
 	// Get task-specific metrics
 	GetTaskMetrics(context.Context, *connect.Request[v1.GetTaskMetricsRequest]) (*connect.Response[v1.GetTaskMetricsResponse], error)
+	// Get cost report with filtering and grouping (queries GlobalDB)
+	GetCostReport(context.Context, *connect.Request[v1.GetCostReportRequest]) (*connect.Response[v1.GetCostReportResponse], error)
 }
 
 // NewDashboardServiceClient constructs a client for the orc.v1.DashboardService service. By
@@ -171,6 +176,12 @@ func NewDashboardServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(dashboardServiceMethods.ByName("GetTaskMetrics")),
 			connect.WithClientOptions(opts...),
 		),
+		getCostReport: connect.NewClient[v1.GetCostReportRequest, v1.GetCostReportResponse](
+			httpClient,
+			baseURL+DashboardServiceGetCostReportProcedure,
+			connect.WithSchema(dashboardServiceMethods.ByName("GetCostReport")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -187,6 +198,7 @@ type dashboardServiceClient struct {
 	getTopFiles        *connect.Client[v1.GetTopFilesRequest, v1.GetTopFilesResponse]
 	getComparison      *connect.Client[v1.GetComparisonRequest, v1.GetComparisonResponse]
 	getTaskMetrics     *connect.Client[v1.GetTaskMetricsRequest, v1.GetTaskMetricsResponse]
+	getCostReport      *connect.Client[v1.GetCostReportRequest, v1.GetCostReportResponse]
 }
 
 // GetStats calls orc.v1.DashboardService.GetStats.
@@ -244,6 +256,11 @@ func (c *dashboardServiceClient) GetTaskMetrics(ctx context.Context, req *connec
 	return c.getTaskMetrics.CallUnary(ctx, req)
 }
 
+// GetCostReport calls orc.v1.DashboardService.GetCostReport.
+func (c *dashboardServiceClient) GetCostReport(ctx context.Context, req *connect.Request[v1.GetCostReportRequest]) (*connect.Response[v1.GetCostReportResponse], error) {
+	return c.getCostReport.CallUnary(ctx, req)
+}
+
 // DashboardServiceHandler is an implementation of the orc.v1.DashboardService service.
 type DashboardServiceHandler interface {
 	// Get dashboard statistics
@@ -268,6 +285,8 @@ type DashboardServiceHandler interface {
 	GetComparison(context.Context, *connect.Request[v1.GetComparisonRequest]) (*connect.Response[v1.GetComparisonResponse], error)
 	// Get task-specific metrics
 	GetTaskMetrics(context.Context, *connect.Request[v1.GetTaskMetricsRequest]) (*connect.Response[v1.GetTaskMetricsResponse], error)
+	// Get cost report with filtering and grouping (queries GlobalDB)
+	GetCostReport(context.Context, *connect.Request[v1.GetCostReportRequest]) (*connect.Response[v1.GetCostReportResponse], error)
 }
 
 // NewDashboardServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -343,6 +362,12 @@ func NewDashboardServiceHandler(svc DashboardServiceHandler, opts ...connect.Han
 		connect.WithSchema(dashboardServiceMethods.ByName("GetTaskMetrics")),
 		connect.WithHandlerOptions(opts...),
 	)
+	dashboardServiceGetCostReportHandler := connect.NewUnaryHandler(
+		DashboardServiceGetCostReportProcedure,
+		svc.GetCostReport,
+		connect.WithSchema(dashboardServiceMethods.ByName("GetCostReport")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orc.v1.DashboardService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DashboardServiceGetStatsProcedure:
@@ -367,6 +392,8 @@ func NewDashboardServiceHandler(svc DashboardServiceHandler, opts ...connect.Han
 			dashboardServiceGetComparisonHandler.ServeHTTP(w, r)
 		case DashboardServiceGetTaskMetricsProcedure:
 			dashboardServiceGetTaskMetricsHandler.ServeHTTP(w, r)
+		case DashboardServiceGetCostReportProcedure:
+			dashboardServiceGetCostReportHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -418,4 +445,8 @@ func (UnimplementedDashboardServiceHandler) GetComparison(context.Context, *conn
 
 func (UnimplementedDashboardServiceHandler) GetTaskMetrics(context.Context, *connect.Request[v1.GetTaskMetricsRequest]) (*connect.Response[v1.GetTaskMetricsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.DashboardService.GetTaskMetrics is not implemented"))
+}
+
+func (UnimplementedDashboardServiceHandler) GetCostReport(context.Context, *connect.Request[v1.GetCostReportRequest]) (*connect.Response[v1.GetCostReportResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.DashboardService.GetCostReport is not implemented"))
 }

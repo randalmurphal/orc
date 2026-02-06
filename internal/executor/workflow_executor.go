@@ -106,6 +106,10 @@ type WorkflowRunOptions struct {
 	// IsResume indicates this is resuming an interrupted/paused task.
 	// Set this when the original task status was paused/failed/blocked before TryClaimTaskExecution changed it to running.
 	IsResume bool
+
+	// IgnoreBudget bypasses budget enforcement when true.
+	// Maps to the --ignore-budget CLI flag.
+	IgnoreBudget bool
 }
 
 // GateEvaluatorInterface abstracts gate evaluation for testability.
@@ -312,6 +316,11 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			runErr = panicErr
 		}
 	}()
+
+	// Budget enforcement: check before any work starts
+	if err := we.checkBudget(opts.IgnoreBudget); err != nil {
+		return nil, err
+	}
 
 	// Load workflow from database
 	wf, err := we.projectDB.GetWorkflow(workflowID)

@@ -88,6 +88,7 @@ See also:
 	cmd.Flags().Bool("stream", false, "Stream Claude output in real-time")
 	cmd.Flags().Bool("force", false, "Run despite incomplete dependencies")
 	cmd.Flags().Bool("skip-gates", false, "Skip all gate evaluations during execution")
+	cmd.Flags().Bool("ignore-budget", false, "Proceed even if monthly budget is exceeded")
 
 	return cmd
 }
@@ -121,6 +122,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	stream, _ := cmd.Flags().GetBool("stream")
 	force, _ := cmd.Flags().GetBool("force")
 	skipGates, _ := cmd.Flags().GetBool("skip-gates")
+	ignoreBudget, _ := cmd.Flags().GetBool("ignore-budget")
 
 	// Handle --task flag
 	if taskFlag != "" {
@@ -289,6 +291,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		PRID:         prNum,
 		Category:     category,
 		Stream:       stream,
+		IgnoreBudget: ignoreBudget,
 	}
 
 	// Setup signal handling

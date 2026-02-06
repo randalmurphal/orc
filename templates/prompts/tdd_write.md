@@ -3,20 +3,21 @@
 <common_failure_modes>
 ## CRITICAL: Most Common Failure Modes
 
-**Failure #1: Test location mismatch causes dead code**
-- You create unit tests at `components/feature/NewComponent.test.tsx`
-- Tests import `./NewComponent` (from same directory)
-- But production code imports from a DIFFERENT path
-- Implement phase creates TWO components to satisfy both → dead code
+**Failure #1: Tests that pass with empty stubs**
+- You write a test that checks a function returns a result
+- An empty function returning a default value passes the test
+- The test doesn't actually verify the behavior described in the spec
 
-**Prevention:** Always declare the `wiring` field. Integration tests MUST import from the EXISTING production file, not the new component.
+**Prevention:** Tests must assert on specific behavioral outcomes, not just "no error." A test that passes with `return nil` or `return ""` is testing nothing.
 
-**Failure #2: Missing integration test for wiring**
-- You write excellent unit tests for the new component
-- But no test verifies the new component is actually used by production code
-- New component works perfectly in isolation but is never called
+**Failure #2: Testing mocks instead of behavior**
+- You mock every dependency and only verify mock interactions
+- The test passes even if the real implementation is completely wrong
+- You're testing your test setup, not the code
 
-**Prevention:** Every new component/function MUST have an integration test that renders/calls the EXISTING parent and verifies the new code is present.
+**Prevention:** Prefer sociable tests with real collaborators. Use mocks only when collaborators are slow, nondeterministic, or have side effects.
+
+**Note:** Integration tests verifying production wiring (that new code is actually called from existing code paths) are written in the separate `tdd_integrate` phase. This phase focuses on unit and sociable tests for behavioral correctness.
 </common_failure_modes>
 
 <output_format>
@@ -50,12 +51,6 @@ Output a JSON object with test information and **explicit coverage mapping**:
         "steps": ["1. Open /settings", "2. Toggle dark mode", "3. Verify readability"]
       }
     ]
-  },
-  "wiring": {
-    "new_component_path": "@/components/feature/NewComponent.tsx",
-    "imported_by": "@/pages/ExistingPage.tsx",
-    "integration_test_file": "ExistingPage.integration.test.tsx",
-    "integration_test_verifies": "ExistingPage renders NewComponent"
   }
 }
 ```
@@ -64,11 +59,8 @@ Output a JSON object with test information and **explicit coverage mapping**:
 - `tests[].covers` - Array of SC-X IDs this test covers
 - `coverage.covered` - All criteria with automated tests
 - `coverage.manual_verification` - Criteria that can't be automated (with justification)
-- `wiring` - **MANDATORY** if task creates new components/functions to be used by existing code
 
 **Validation:** All SC-X from spec must appear in either `covered` or `manual_verification`.
-
-**Wiring validation:** If your task creates new code that should be called from existing production paths, the `wiring` field is REQUIRED. Omitting it when wiring is needed will cause the implement phase to create dead code.
 
 The `content` field MUST contain:
 1. Coverage summary table showing each criterion and its test
@@ -105,15 +97,6 @@ Before outputting the final JSON, STOP and verify:
 4. **Confirm tests will fail**
    - Run `{{TEST_COMMAND}}` mentally - tests should fail or not compile
    - If tests would pass, they're testing existing behavior, not new work
-
-5. **Verify wiring declaration (CRITICAL - prevents dead code)**
-   - If this task creates ANY new component, function, or interface:
-     - You MUST specify `wiring.new_component_path` - exact path where new code will live
-     - You MUST specify `wiring.imported_by` - which EXISTING file will import it
-     - You MUST write an integration test that imports the EXISTING file and verifies the new component is rendered/called
-   - The integration test MUST be in a location that imports the EXISTING parent, NOT just the new component
-   - **WRONG**: Unit test at `NewComponent.test.tsx` imports `./NewComponent`
-   - **RIGHT**: Integration test at `ExistingPage.integration.test.tsx` imports `./ExistingPage`, renders it, verifies `NewComponent` appears
 
 **Only after completing this verification, output the StructuredOutput.**
 </pre_output_verification>
@@ -163,128 +146,14 @@ Every error path in the spec's Failure Modes table MUST have a corresponding tes
 <test_classification>
 ## Test Classification
 
-Classify each test you write into one of three types:
+Classify each test you write into one of two types:
 
 **Solitary tests**: Test a single unit in isolation with all collaborators replaced by test doubles (mocks, stubs, fakes). Use when the unit under test has complex logic that needs focused verification.
 
 **Sociable tests**: Test a unit with its real collaborators. Preferred when collaborators are fast, deterministic, and side-effect free. Gives higher confidence that units work together correctly.
 
-**Integration tests**: Test that new code is properly wired into existing code paths. **MANDATORY** when your task creates new functions or interfaces that should be called from production code. Verifies the connection exists, not just that individual pieces work.
+**Note:** Integration tests verifying production wiring are written in the separate `tdd_integrate` phase. Focus here on testing behavioral correctness of the new code.
 </test_classification>
-
-<integration_test_mandate>
-## Integration Tests: MANDATORY for New Code Paths
-
-**This is not optional.** If your task creates ANY of these:
-- New functions that should be called from existing code
-- New interfaces or implementations
-- New handlers, hooks, or callbacks
-- New code branches in existing functions
-- New configuration options that affect behavior
-
-You MUST write integration tests that:
-1. **FAIL if the wiring is missing** - The test must exercise the production code path that should call your new code
-2. **Verify the call actually happens** - Use a flag, counter, or observable side effect
-3. **Test through the real entry point** - Not just the new code in isolation
-
-### Integration Test Pattern
-
-```go
-// GOOD: Integration test that FAILS without wiring
-func TestPipeline_CallsNewProcessor(t *testing.T) {
-    called := atomic.Bool{}
-    processor := func(input string) error {
-        called.Store(true)
-        return nil
-    }
-
-    // Call through PRODUCTION entry point
-    pipeline := NewPipeline(WithProcessor(processor))
-    pipeline.Run("test-input")  // <-- Real code path
-
-    if !called.Load() {
-        t.Fatal("NewProcessor was never called - wiring is MISSING")
-    }
-}
-
-// BAD: Unit test that passes even without wiring
-func TestNewProcessor(t *testing.T) {
-    err := NewProcessor("input")  // <-- Tests function directly
-    assert.NoError(t, err)        // Passes! But is it ever called?
-}
-```
-
-### Common Wiring Failures This Catches
-
-| Failure Mode | What Happens | Integration Test Detects |
-|--------------|--------------|-------------------------|
-| Function defined but never called | Dead code ships | Test fails: "never called" |
-| Condition prevents execution | Code skipped at runtime | Test fails: path not taken |
-| Registration forgotten | Hook/callback never fires | Test fails: no effect observed |
-| Config option has no effect | Feature silently disabled | Test fails: behavior unchanged |
-
-**If you cannot write an integration test for new code, STOP and ask: "How will this code ever be executed?"** If there's no production path to it, you're writing dead code.
-
-### Integration Test File Location (CRITICAL)
-
-The integration test MUST be placed where it imports the EXISTING production file:
-
-| New Code Location | Integration Test Location | Test Imports |
-|-------------------|--------------------------|--------------|
-| `components/feature/Panel.tsx` | `pages/Dashboard.integration.test.tsx` | `import { Dashboard } from './Dashboard'` |
-| `internal/handler/new.go` | `internal/server/server_test.go` | Tests the real server setup |
-| `lib/utils/helper.ts` | Tests for the file that calls helper | Not the helper directly |
-
-**WRONG pattern:**
-```
-components/feature/Panel.tsx        <- New component
-components/feature/Panel.test.tsx   <- Unit test imports ./Panel
-```
-This passes but doesn't verify Panel is used!
-
-**RIGHT pattern:**
-```
-components/feature/Panel.tsx           <- New component
-pages/Dashboard.integration.test.tsx   <- Integration test imports ./Dashboard
-                                          Dashboard should render Panel
-```
-This FAILS if Dashboard doesn't import Panel.
-
-### UI Behavior SCs REQUIRE Parent-Level Integration Tests
-
-**CRITICAL:** If the spec's success criteria describe UI behavior like "clicking X does Y":
-
-1. There is ALWAYS a parent component that must pass the handler
-2. Unit tests that mock the handler DO NOT verify the wiring exists
-3. You MUST write an integration test at the PARENT level
-
-**Example - SC says "Clicking agent shows details in inspector":**
-
-| Test Type | What It Tests | Catches Wiring Bug? |
-|-----------|---------------|---------------------|
-| Unit test: `AgentsPalette.test.tsx` | onAgentClick is called when clicked | ❌ No - uses mock handler |
-| Integration test: `WorkflowEditorPage.test.tsx` | Clicking agent in rendered page shows inspector | ✅ Yes - fails if handler not passed |
-
-**The pattern for UI behavior integration tests:**
-
-```tsx
-// INTEGRATION TEST - tests the full wiring
-it('clicking agent shows details in inspector', async () => {
-  render(<WorkflowEditorPage />);
-
-  // Find and click an agent in AgentsPalette (rendered by WorkflowEditorPage)
-  const agent = screen.getByText('code-reviewer');
-  fireEvent.click(agent);
-
-  // Verify the inspector shows agent details
-  expect(screen.getByTestId('inspector')).toHaveTextContent('code-reviewer');
-});
-```
-
-This test FAILS if WorkflowEditorPage doesn't pass `onAgentClick` to its children. That's the point.
-
-**If the spec has UI behavior SCs but you only write unit tests for the child component, you have NOT satisfied the integration requirement.**
-</integration_test_mandate>
 
 <context>
 <task>
@@ -330,9 +199,8 @@ Test error paths per the spec's Failure Modes table. Every error path in the spe
 
 For each success criterion in the spec:
 1. Identify what behavior needs testing
-2. Determine test type (solitary, sociable, or integration)
-3. Identify which criteria require integration tests (new code wired into existing paths)
-4. List edge cases and error paths
+2. Determine test type (solitary or sociable)
+3. List edge cases and error paths
 
 ## Step 2: Write Tests
 
@@ -371,7 +239,7 @@ The implement phase will execute this via Playwright MCP browser tools.
 {{/if}}
 
 For each success criterion:
-1. Choose the appropriate test type (solitary, sociable, or integration)
+1. Choose the appropriate test type (solitary or sociable)
 2. Write test that exercises the expected behavior
 3. Include edge cases from the spec's Edge Cases table
 4. Include error paths from the spec's Failure Modes table
@@ -390,28 +258,6 @@ If the task produces **executable code that lives in the repo** (scripts, hooks,
 | Templates | Render with known data, assert output structure | `tmpl.Execute(data); assert output contains expected` |
 
 **Anti-pattern:** Writing tests that only verify "script file exists on disk" or "script content was seeded to DB." These are infrastructure tests — necessary but NOT sufficient. The script's actual behavior (what it does when executed) must also be tested.
-
-### Wiring Verification Pattern
-
-If your task creates new functions or interfaces that should be called from existing code paths, you MUST write integration tests verifying the wiring is complete.
-
-```go
-// Integration test: verify ProcessPipeline calls the new Processor
-func TestProcessPipeline_CallsNewProcessor(t *testing.T) {
-    called := false
-    mock := func(input string) error {
-        called = true
-        return nil
-    }
-    pipeline := NewPipeline(WithProcessor(mock))
-    pipeline.Run("test-input")
-    if !called {
-        t.Fatal("NewProcessor was not called from ProcessPipeline - wiring is missing")
-    }
-}
-```
-
-The pattern: (1) create a mock that sets a flag, (2) inject it into the caller, (3) run the caller, (4) assert the mock was called. If the assertion fails, the new code exists but is never invoked — dead code.
 
 ## Step 3: Verify Tests Fail
 

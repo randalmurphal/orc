@@ -177,6 +177,19 @@ If the TDD tests include a `wiring` section, you MUST follow it exactly:
 </tdd_tests>
 {{/if}}
 
+{{#if TDD_INTEGRATION_CONTENT}}
+<integration_tests>
+## Integration Tests to Make Pass
+
+{{TDD_INTEGRATION_CONTENT}}
+
+These tests verify your new code is wired into existing production paths.
+They MUST pass — if they don't, your new code is dead code that nothing calls.
+
+**Wiring requirements:** If the integration tests specify that an existing file must import your new code, you MUST update that existing file. Don't create the new code in isolation.
+</integration_tests>
+{{/if}}
+
 {{#if TDD_TEST_PLAN}}
 <manual_ui_testing>
 ## Manual UI Testing Required

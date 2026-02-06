@@ -1,8 +1,8 @@
 # Cost Tracking
 
-**Status**: Database Layer + Executor Integration Implemented (TASK-406)
+**Status**: Database Layer + Executor Integration Implemented (TASK-406), Budget Enforcement (TASK-787)
 **Priority**: P1
-**Last Updated**: 2026-01-21
+**Last Updated**: 2026-02-05
 
 ---
 
@@ -37,7 +37,7 @@
 | API endpoints (`/api/cost/*`) | TASK-406 complete |
 | CLI command (`orc cost`) | TASK-406 complete |
 | Web dashboard cost widget | API endpoints |
-| Budget alerting logic | Budget infrastructure |
+| Budget alerting logic | Budget enforcement (TASK-787 done, see `docs/specs/BUDGET_ENFORCEMENT.md`) |
 
 ---
 
@@ -702,6 +702,15 @@ Cache usage reduces costs significantly:
 - [x] Budget infrastructure (`GetBudget()`, `SetBudget()`, `GetBudgetStatus()`)
 - [x] Historical data available (`GetCostTimeseries()`, `GetCostByModel()`)
 - [x] Test coverage exists (`internal/db/global_test.go`)
+
+### Budget Enforcement (Completed - TASK-787)
+- [x] Pre-execution budget check via `GlobalDB.GetBudgetStatus()` (`internal/executor/cost_tracking.go`)
+- [x] Executor integration (once-per-run check before first phase)
+- [x] `--ignore-budget` CLI flag on `orc run` and `orc resume`
+- [x] Alert threshold warning when approaching limit
+- [x] Cost user ID from context with OS username fallback
+- [x] Test coverage (15 tests: `internal/executor/budget_enforcement_test.go`, `cost_user_id_test.go`)
+- See `docs/specs/BUDGET_ENFORCEMENT.md` for full details
 
 ### Pending (Future Tasks)
 - [ ] Costs displayed on task cards and details

@@ -187,6 +187,31 @@ func (d *PostgresDriver) UpsertConflict() string {
 	return "ON CONFLICT"
 }
 
+// DateFormat returns a PostgreSQL TO_CHAR() expression for date formatting.
+// Supported formats: day, week, month, rfc3339.
+func (d *PostgresDriver) DateFormat(column, format string) string {
+	var pgFmt string
+	switch format {
+	case "day":
+		pgFmt = "'YYYY-MM-DD'"
+	case "week":
+		pgFmt = "'IYYY-\"W\"IW'"
+	case "month":
+		pgFmt = "'YYYY-MM'"
+	case "rfc3339":
+		pgFmt = "'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'"
+	default:
+		pgFmt = "'YYYY-MM-DD'"
+	}
+	return fmt.Sprintf("TO_CHAR(%s, %s)", column, pgFmt)
+}
+
+// DateTrunc returns a PostgreSQL date_trunc() expression for date truncation.
+// Supported units: day, month, year, week.
+func (d *PostgresDriver) DateTrunc(unit, column string) string {
+	return fmt.Sprintf("date_trunc('%s', %s)", unit, column)
+}
+
 // DB returns the underlying sql.DB backed by pgxpool for advanced operations.
 func (d *PostgresDriver) DB() *sql.DB {
 	return d.db

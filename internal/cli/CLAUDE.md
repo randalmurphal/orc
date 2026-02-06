@@ -20,6 +20,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_phases.go` | Phase template CRUD (`orc phase new/show/config`) |
 | `cmd_workflows.go` | Workflow management (`orc workflow add-phase`) |
 | `cmd_show.go` | Task display with workflow-aware phase listing |
+| `cmd_costs.go` | Cost reporting (`orc costs`) with filtering and grouping |
 | `cmd_gates.go` | Gate inspection (`orc gates list/show`) |
 | `cmd_gates_test.go` | Gate command tests |
 | `cmd_show_gates_test.go` | Gate display in `orc show` tests |
@@ -136,6 +137,10 @@ Displays task details including phases from actual workflow (not weight-derived)
 `--gates` flag shows gate decision history (type, approved/rejected, reason) per phase. `--full` includes gates alongside session, cost, and review info.
 
 **Worktree path:** Displayed for running/in-progress tasks when worktree exists on disk.
+
+### `orc costs`
+
+View cost report across projects. Queries GlobalDB `cost_log` table. Flags: `--user`, `--project`, `--since YYYY-MM-DD`, `--by user|project|model`. Default: current month, grouped by project and model.
 
 ### Gate Commands
 

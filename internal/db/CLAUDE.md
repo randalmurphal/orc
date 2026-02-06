@@ -28,7 +28,7 @@ Two database types with distinct responsibilities:
 
 ### Schema Migrations (SQLite)
 
-SQLite migrations in `schema/`. PostgreSQL equivalents in `driver/schema/postgres/` (see Driver Package section).
+SQLite migrations in `schema/`. PostgreSQL equivalents in `schema/postgres/` (embedded via `db.go`, see Driver Package section).
 
 | Schema | Purpose |
 |--------|---------|
@@ -71,8 +71,9 @@ Database driver abstraction supporting SQLite and PostgreSQL. All database opera
 | File | Purpose |
 |------|---------|
 | `driver.go` | `Driver` interface, `Tx` interface, `SchemaFS`, `ParseDialect()`, `New()` factory |
-| `sqlite.go` | SQLite driver: `?` placeholders, `datetime('now')`, FK-disable migration support |
-| `postgres.go` | PostgreSQL driver: `$N` placeholders, `NOW()`, `_migrations` version tracking |
+| `sqlite.go` | SQLite driver: `?` placeholders, `datetime('now')`, `strftime()` date helpers, FK-disable migration support |
+| `postgresql.go` | PostgreSQL driver: `$N` placeholders, `NOW()`, `TO_CHAR()`/`date_trunc()` helpers, `_migrations` version tracking |
+| `migrations.go` | Shared migration runner for both dialects |
 
 **Dialect helpers** (used by CRUD code for portable queries):
 
@@ -80,6 +81,10 @@ Database driver abstraction supporting SQLite and PostgreSQL. All database opera
 |--------|--------|------------|
 | `Placeholder(n)` | `?` | `$1`, `$2`, ... |
 | `Now()` | `datetime('now')` | `NOW()` |
+| `DateFormat(col, fmt)` | `strftime(fmt, col)` | `TO_CHAR(col, fmt)` |
+| `DateTrunc(unit, col)` | strftime workaround | `date_trunc(unit, col)` |
+
+Supported `DateFormat` formats: `day`, `week`, `month`, `rfc3339`. Supported `DateTrunc` units: `day`, `week`, `month`, `year`. Adding new formats requires updating both driver implementations + tests.
 
 ### PostgreSQL Migration Files
 
@@ -93,7 +98,7 @@ PostgreSQL migrations live in `schema/postgres/` (embedded via `//go:embed`). Ea
 | `tsvector` + GIN indexes | FTS5 | Full-text search |
 | `JSONB` | JSON text columns | Structured data |
 
-**Current PostgreSQL migration coverage**: `global_001.sql`-`global_010.sql`. Remaining: project migrations (`project_001.sql`-`project_058.sql`) still need porting.
+**Current PostgreSQL migration coverage**: `global_001.sql`-`global_010.sql`, `project_001.sql`-`project_056.sql`. Remaining: project migrations `project_057.sql`-`project_058.sql` still need porting.
 
 **Table ordering**: PostgreSQL validates FK references at DDL time, so migration files may reorder tables compared to SQLite versions. The SQLite migration runner disables FK enforcement during migrations, making order irrelevant there.
 
@@ -243,7 +248,7 @@ Transcripts store Claude Code session messages. `transcript.go`
 | Token aggregation | `GetTaskTokenUsage()`, `GetPhaseTokenUsage()` |
 | Todo snapshots | `AddTodoSnapshot()`, `GetLatestTodos()`, `GetTodoHistory()` |
 | Metrics | `GetMetricsSummary()`, `GetDailyMetrics()`, `GetTaskMetrics()` |
-| FTS | `SearchTranscripts()` (SQLite: FTS5 MATCH, PostgreSQL: ILIKE) |
+| FTS | `SearchTranscripts()` (SQLite: FTS5 MATCH, PostgreSQL: tsvector/tsquery) |
 
 ## Event Log System
 
@@ -263,6 +268,7 @@ Persisted executor events for timeline reconstruction. `event_log.go`
 | Record | `RecordCostExtended(CostEntry)` (model, cache, duration tracking) |
 | Query by model | `GetCostByModel(projectID, since)` |
 | Time series | `GetCostTimeseries(projectID, since, granularity)` |
+| Cost report | `GetCostReport(CostReportFilter)` — aggregated costs with group-by (user/project/model) |
 | Budget | `SetBudget()`, `GetBudget()`, `GetBudgetStatus()` |
 | Model detect | `DetectModel(modelID)` returns "opus", "sonnet", "haiku", "unknown" |
 

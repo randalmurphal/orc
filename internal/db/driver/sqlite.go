@@ -267,6 +267,42 @@ func (d *SQLiteDriver) UpsertConflict() string {
 	return "ON CONFLICT"
 }
 
+// DateFormat returns a SQLite strftime() expression for date formatting.
+// Supported formats: day, week, month, rfc3339.
+func (d *SQLiteDriver) DateFormat(column, format string) string {
+	var fmtStr string
+	switch format {
+	case "day":
+		fmtStr = "%Y-%m-%d"
+	case "week":
+		fmtStr = "%Y-W%W"
+	case "month":
+		fmtStr = "%Y-%m"
+	case "rfc3339":
+		fmtStr = "%Y-%m-%dT%H:%M:%SZ"
+	default:
+		fmtStr = "%Y-%m-%d"
+	}
+	return fmt.Sprintf("strftime('%s', %s)", fmtStr, column)
+}
+
+// DateTrunc returns a SQLite strftime() expression for date truncation.
+// Supported units: day, month, year.
+func (d *SQLiteDriver) DateTrunc(unit, column string) string {
+	var fmtStr string
+	switch unit {
+	case "day":
+		fmtStr = "%Y-%m-%d"
+	case "month":
+		fmtStr = "%Y-%m-01"
+	case "year":
+		fmtStr = "%Y-01-01"
+	default:
+		fmtStr = "%Y-%m-%d"
+	}
+	return fmt.Sprintf("strftime('%s', %s)", fmtStr, column)
+}
+
 // DB returns the underlying sql.DB for advanced operations.
 func (d *SQLiteDriver) DB() *sql.DB {
 	return d.db

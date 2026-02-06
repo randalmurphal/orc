@@ -220,17 +220,18 @@ func (p *ProjectDB) StoreDetection(d *Detection) error {
 		hasTests = 1
 	}
 
-	// Use dialect-aware upsert
+	// Use dialect-aware upsert with driver's Now() for timestamps
+	now := p.Driver().Now()
 	var query string
 	if p.Dialect() == driver.DialectSQLite {
-		query = `
+		query = fmt.Sprintf(`
 			INSERT OR REPLACE INTO detection (id, language, frameworks, build_tools, has_tests, test_command, lint_command, detected_at)
-			VALUES (1, ?, ?, ?, ?, ?, ?, datetime('now'))
-		`
+			VALUES (1, ?, ?, ?, ?, ?, ?, %s)
+		`, now)
 	} else {
-		query = `
+		query = fmt.Sprintf(`
 			INSERT INTO detection (id, language, frameworks, build_tools, has_tests, test_command, lint_command, detected_at)
-			VALUES (1, $1, $2, $3, $4, $5, $6, NOW())
+			VALUES (1, $1, $2, $3, $4, $5, $6, %s)
 			ON CONFLICT (id) DO UPDATE SET
 				language = EXCLUDED.language,
 				frameworks = EXCLUDED.frameworks,
@@ -238,8 +239,8 @@ func (p *ProjectDB) StoreDetection(d *Detection) error {
 				has_tests = EXCLUDED.has_tests,
 				test_command = EXCLUDED.test_command,
 				lint_command = EXCLUDED.lint_command,
-				detected_at = NOW()
-		`
+				detected_at = %s
+		`, now, now)
 	}
 
 	_, err = p.Exec(query, d.Language, string(frameworks), string(buildTools), hasTests, d.TestCommand, d.LintCommand)
