@@ -17,12 +17,13 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_initiative_plan.go` | Bulk task creation from YAML manifest (`orc initiative plan`) |
 | `cmd_migrate.go` | Plan migration commands (`orc migrate plans`) |
 | `cmd_run.go` | Task execution with auto-migration |
-| `cmd_phases.go` | Phase template CRUD (`orc phase new/show/config`) |
+| `cmd_phases.go` | Phase template CRUD + execution history (`orc phase new/show/config`, `orc phases TASK-ID`) |
 | `cmd_workflows.go` | Workflow management (`orc workflow add-phase`) |
 | `cmd_show.go` | Task display with workflow-aware phase listing |
 | `cmd_costs.go` | Cost reporting (`orc costs`) with filtering and grouping |
 | `cmd_gates.go` | Gate inspection (`orc gates list/show`) |
 | `cmd_gates_test.go` | Gate command tests |
+| `cmd_phases_history_test.go` | Phase execution history tests |
 | `cmd_show_gates_test.go` | Gate display in `orc show` tests |
 | `cmd_run_skipgates_test.go` | `--skip-gates` flag tests |
 | `git_helpers.go` | `NewGitOpsFromConfig()` — ONE way to create `git.Git` |
@@ -155,9 +156,13 @@ Gate inspection uses `gate.Resolver` to show effective gate types after resoluti
 
 | Command | Purpose | Key Flags |
 |---------|---------|-----------|
+| `orc phases TASK-ID` | Phase execution history (timing, cost, iterations) | `--json` |
+| `orc phases` | List all phase templates | `--sources`, `--custom`, `--builtin` |
 | `orc phase new ID` | Create phase template | `--agent`, `--max-iterations`, `--gate` |
 | `orc phase show ID` | View phase template details | - |
 | `orc phase config ID` | Update phase template | `--agent`, `--max-iterations`, `--thinking` |
+
+**Phase history:** Table output shows 7 columns (PHASE, STATUS, STARTED, COMPLETED, DURATION, ITERATIONS, COST) with TOTAL row. Phases ordered by workflow sequence. Uses `backend.GetWorkflowPhases()` for ordering, `backend.DB().GetPhases()` for execution data.
 
 **`--agent` flag:** Sets the executor agent for the phase. Validates agent exists before saving.
 
