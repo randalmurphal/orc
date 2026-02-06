@@ -1,0 +1,302 @@
+/* =============================================================================
+   ProjectSidebar Styles
+   240px project navigation sidebar with thread management
+   ============================================================================= */
+
+/* =============================================================================
+   SIDEBAR CONTAINER
+   ============================================================================= */
+
+.project-sidebar {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 0;
+	background: var(--bg-surface);
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+/* =============================================================================
+   EMPTY STATE (no project selected)
+   ============================================================================= */
+
+.project-sidebar__empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+/* =============================================================================
+   HEADER (project selector)
+   ============================================================================= */
+
+.project-sidebar__header {
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--border-light);
+}
+
+.project-sidebar__project-button {
+	width: 100%;
+	padding: 8px 12px;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border-light);
+	border-radius: 6px;
+	color: var(--text-primary);
+	font-size: 13px;
+	font-weight: 600;
+	text-align: left;
+	cursor: pointer;
+	transition: background-color 0.15s, border-color 0.15s;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.project-sidebar__project-button:hover {
+	background: var(--bg-surface-hover, var(--bg-surface));
+	border-color: var(--border);
+}
+
+.project-sidebar__project-button:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: 2px;
+}
+
+/* =============================================================================
+   RUNNING TASKS
+   ============================================================================= */
+
+.project-sidebar__running-tasks {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 16px;
+	font-size: 12px;
+	border-bottom: 1px solid var(--border-light);
+}
+
+.project-sidebar__running-label {
+	color: var(--text-muted);
+}
+
+.project-sidebar__running-count {
+	color: var(--text-primary);
+	font-weight: 600;
+	background: var(--bg-elevated);
+	padding: 1px 8px;
+	border-radius: 10px;
+	font-size: 11px;
+	min-width: 20px;
+	text-align: center;
+}
+
+/* =============================================================================
+   SECTION (thread list area)
+   ============================================================================= */
+
+.project-sidebar__section {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	overflow-y: auto;
+}
+
+/* =============================================================================
+   THREADS HEADER
+   ============================================================================= */
+
+.project-sidebar__threads-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 16px 6px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+}
+
+/* =============================================================================
+   NEW THREAD BUTTON
+   ============================================================================= */
+
+.project-sidebar__new-thread {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 16px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background-color 0.15s, color 0.15s;
+}
+
+.project-sidebar__new-thread:hover {
+	background: var(--bg-elevated);
+	color: var(--text-primary);
+}
+
+.project-sidebar__new-thread:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: 1px;
+}
+
+/* =============================================================================
+   ERROR STATE
+   ============================================================================= */
+
+.project-sidebar__error {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 16px;
+	margin: 4px 12px;
+	background: var(--bg-error, rgba(239, 68, 68, 0.1));
+	border-radius: 6px;
+	font-size: 12px;
+	color: var(--text-error, #ef4444);
+}
+
+.project-sidebar__retry {
+	border: none;
+	background: transparent;
+	color: var(--primary-bright);
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.project-sidebar__retry:hover {
+	text-decoration: underline;
+}
+
+/* =============================================================================
+   EMPTY THREADS STATE
+   ============================================================================= */
+
+.project-sidebar__empty-threads {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding: 24px 16px;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+/* =============================================================================
+   THREAD LIST
+   ============================================================================= */
+
+.project-sidebar__thread-list {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	padding: 4px 8px;
+}
+
+/* =============================================================================
+   THREAD ITEM
+   ============================================================================= */
+
+.project-sidebar__thread-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background-color 0.15s;
+	font-size: 13px;
+	color: var(--text-secondary);
+}
+
+.project-sidebar__thread-item:hover {
+	background: var(--bg-elevated);
+}
+
+.project-sidebar__thread-item--active {
+	background: var(--primary-dim);
+	color: var(--text-primary);
+}
+
+.project-sidebar__thread-item:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: -2px;
+}
+
+.project-sidebar__thread-item:focus {
+	outline: none;
+}
+
+/* =============================================================================
+   STATUS DOT
+   ============================================================================= */
+
+.project-sidebar__status-dot {
+	flex-shrink: 0;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--text-muted);
+}
+
+.project-sidebar__thread-item--active .project-sidebar__status-dot {
+	background: var(--primary-bright);
+}
+
+/* =============================================================================
+   ITEM LABEL
+   ============================================================================= */
+
+.project-sidebar__item-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* =============================================================================
+   SCROLLBAR
+   ============================================================================= */
+
+.project-sidebar::-webkit-scrollbar {
+	width: 4px;
+}
+
+.project-sidebar::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.project-sidebar::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 2px;
+}
+
+.project-sidebar {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-light) transparent;
+}
+
+/* =============================================================================
+   REDUCED MOTION
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+	.project-sidebar__project-button,
+	.project-sidebar__new-thread,
+	.project-sidebar__thread-item {
+		transition: none;
+	}
+}

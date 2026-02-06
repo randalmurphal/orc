@@ -37,7 +37,7 @@ web/src/
 │   ├── ui/               # Base primitives (Button, Input, Tooltip, Icon, etc.)
 │   ├── core/             # Shared primitives (Badge, Card, Select, Slider, Toggle, etc.)
 │   ├── board/            # Board view (TaskCard, RunningCard, Swimlane, BoardCommandPanel)
-│   ├── layout/           # Shell (AppShell, TopBar, IconNav, RightPanel, AppShellContext)
+│   ├── layout/           # Shell (AppShell, TopBar, ProjectSidebar, ContextPanel, DiscussionPanel, TerminalDrawer, IconNav, RightPanel)
 │   ├── agents/           # Agent config (AgentsView, AgentCard, ExecutionSettings)
 │   ├── overlays/         # Modal components (NewTaskWorkflowModal, TaskDetailsModal, WorkflowPickerModal, DiffViewModal, ProjectSwitcher)
 │   ├── task-detail/      # Task detail tabs (Overview, Transcript, TestResults, etc.)
@@ -48,7 +48,7 @@ web/src/
 │   ├── workflows/        # Workflow management (WorkflowsView, WorkflowCreationWizard, PhaseListEditor)
 │   ├── dashboard/        # My Work components (MyWorkDashboard, ProjectCard, TaskRow, DashboardCostSummary)
 │   └── [5 more dirs]     # settings/, stats/, initiatives/, etc.
-├── stores/               # Zustand stores (10 stores — see State Management)
+├── stores/               # Zustand stores (11 stores — see State Management)
 ├── hooks/                # Custom hooks (useShortcuts, useEvents, useDocumentTitle, etc.)
 ├── pages/                # Route pages
 ├── lib/                  # Utilities (client.ts, time.ts, format.ts, claudeConfigUtils.ts)
@@ -91,6 +91,7 @@ Zustand stores in `stores/`. Each exports the base store hook + granular selecto
 | `workflowEditorStore` | `useEditorNodes`, `useEditorEdges`, `useEditorActiveRun`, `useSelectedEdge` | React Flow state, execution tracking, edge selection (for GateInspector) |
 | `dependencyStore` | `useDependencyFilter` | URL + localStorage persisted dependency status filter |
 | `statsStore` | `useStats`, `useCostSummary` | Dashboard statistics, cost summaries, daily metrics |
+| `threadStore` | `useThreads`, `useSelectedThread`, `useThreadLoading` | Thread state for discussion panel; uses `threadClient` |
 
 **Pattern — `useShallow` for derived selectors:**
 ```tsx
@@ -112,9 +113,14 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `MyWorkPage` | `pages/` | Project landing page: task sections (attention/running/ready/completed), initiative progress cards, stat cards |
 | `MyWorkDashboard` | `dashboard/` | Tabbed task view (Active/Needs Attention/Recently Completed) with summary cards, priority sort, initiative grouping |
 | `DashboardCostSummary` | `dashboard/` | Cost report widget: fetches `GetCostReport` RPC, shows total, model breakdown, budget usage |
-| `AppShell` | `layout/` | Main layout shell. Route-aware panel rendering via `useLocation` |
-| `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
-| `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
+| `AppShell` | `layout/` | CSS Grid layout shell: ProjectSidebar (left) + TopBar (top) + content (center) + ContextPanel (right) + TerminalDrawer (bottom) |
+| `ProjectSidebar` | `layout/` | Left sidebar: project name, running task count, thread list with selection |
+| `ContextPanel` | `layout/` | Resizable right panel with tabbed modes (Discussion/Diff/Terminal/Knowledge/Task), localStorage width persistence |
+| `DiscussionPanel` | `layout/` | Thread messaging: optimistic send, auto-scroll, error recovery. Uses `threadClient` |
+| `TerminalDrawer` | `layout/` | Collapsible bottom drawer with Cmd+J toggle, localStorage persistence. Terminal content is placeholder |
+| `TopBar` | `layout/` | Navigation tabs (Home/Board/Knowledge/Workflows/Settings), search (Cmd+K), session metrics, pause/resume, New Task |
+| `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body). Used by board and workflow views |
+| `IconNav` | `layout/` | Icon-based navigation bar. Used alongside RightPanel in non-shell contexts |
 | `TaskEditModal` | `task-detail/` | Edit task properties + branch/PR settings (`branchName`, `targetBranch`, `prDraft`, `prLabels`, `prReviewers`) |
 | `NewTaskWorkflowModal` | `overlays/` | Orchestrates 2-step workflow-first task creation: Step 1 (workflow picker) → Step 2 (task details) |
 | `WorkflowPickerModal` | `overlays/` | Step 1: Select workflow from grid (built-in + custom), shows phase count and description, keyboard navigation |
@@ -194,13 +200,29 @@ Layout generation: `utils/layoutWorkflow.ts:getEffectiveGateType()` resolves gat
 
 **TaskCard memo-friendly props:** `onTaskClick(task)` and `onTaskContextMenu(task, e)` accept the task as argument, allowing parents to pass a single stable callback for all items in a list.
 
-### Right Panel Architecture
+### AppShell Layout Architecture
 
-AppShell renders route-specific panel content:
-- `/board` → `<BoardCommandPanel />` (reads stores directly, no props needed)
-- Other routes → `defaultPanelContent` prop
+AppShell uses CSS Grid with five regions:
 
-**No JSX through context.** Panel content components read from stores. AppShellContext only manages: `isRightPanelOpen`, `toggleRightPanel`, `isMobileNavMode`.
+```
++---------+---------------------------+--------------+
+| Project |         TopBar            | ContextPanel |
+| Sidebar +---------------------------+   (resizable)|
+|         |      Main Content         |              |
+|         |        (scroll)           |              |
+|         +---------------------------+              |
+|         |    Terminal Drawer        |              |
++---------+---------------------------+--------------+
+```
+
+- **ProjectSidebar**: Project name + thread list from `threadStore`
+- **ContextPanel**: Mode-switched (Discussion/Diff/Terminal/Knowledge/Task), width persisted to localStorage
+- **TerminalDrawer**: Toggle via button or Cmd+J shortcut
+- **TopBar**: Nav tabs, search, session stats
+
+Thread selection in sidebar drives ContextPanel to discussion mode via `useThreadStore.selectedThreadId`.
+
+**Legacy `RightPanel` + `IconNav`** still exist for board and workflow views but are not used by AppShell directly.
 
 ### Async Effects
 

@@ -138,8 +138,8 @@ describe('App', () => {
 	it('renders MyWorkPage at root route', async () => {
 		renderApp('/');
 		await waitFor(() => {
-			// Root route renders MyWorkPage which shows "My Work" heading
-			expect(screen.getByText('My Work')).toBeInTheDocument();
+			// Root route renders MyWorkPage - with no projects, it shows empty state
+			expect(screen.getByText('No projects found')).toBeInTheDocument();
 		});
 	});
 
