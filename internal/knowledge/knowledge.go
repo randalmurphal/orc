@@ -23,7 +23,6 @@ type Components interface {
 	CacheConnect(ctx context.Context) error
 	CacheClose() error
 	IsHealthy() (neo4j, qdrant, redis bool)
-	HealthCheckCalled() bool
 }
 
 // Service orchestrates knowledge infrastructure.
@@ -71,6 +70,9 @@ type startStep struct {
 // Start starts infrastructure then connects stores.
 // Order: infra.Start → graph.Connect → vector.Connect → cache.Connect
 func (s *Service) Start(ctx context.Context) error {
+	if s.comps == nil {
+		return fmt.Errorf("knowledge service: components not configured")
+	}
 	steps := []startStep{
 		{"infra.Start", s.comps.InfraStart},
 		{"graph.Connect", s.comps.GraphConnect},
@@ -106,6 +108,9 @@ func (s *Service) cleanupFrom(ctx context.Context, steps []startStep, lastComple
 // Stop disconnects stores then stops infrastructure.
 // Order: cache.Close → vector.Close → graph.Close → infra.Stop
 func (s *Service) Stop(ctx context.Context) error {
+	if s.comps == nil {
+		return fmt.Errorf("knowledge service: components not configured")
+	}
 	var firstErr error
 	if err := s.comps.CacheClose(); err != nil && firstErr == nil {
 		firstErr = fmt.Errorf("cache.Close: %w", err)
@@ -122,7 +127,22 @@ func (s *Service) Stop(ctx context.Context) error {
 	return firstErr
 }
 
+// ServiceStatus holds the health status of the knowledge service.
+type ServiceStatus struct {
+	Enabled bool `json:"enabled"`
+	Running bool `json:"running"`
+	Neo4j   bool `json:"neo4j"`
+	Qdrant  bool `json:"qdrant"`
+	Redis   bool `json:"redis"`
+}
+
 // Status returns infrastructure health.
-func (s *Service) Status(ctx context.Context) (interface{}, error) {
-	return nil, fmt.Errorf("not implemented")
+func (s *Service) Status(_ context.Context) (*ServiceStatus, error) {
+	st := &ServiceStatus{Enabled: s.cfg.Enabled}
+	if !s.cfg.Enabled || s.comps == nil {
+		return st, nil
+	}
+	st.Neo4j, st.Qdrant, st.Redis = s.comps.IsHealthy()
+	st.Running = st.Neo4j && st.Qdrant && st.Redis
+	return st, nil
 }
