@@ -805,7 +805,13 @@ func TestPostgresMigrations_ProjectUsesCorrectSyntax(t *testing.T) {
 // PostgreSQL uses ALTER TABLE RENAME COLUMN instead, so these tables don't
 // need PostgreSQL equivalents.
 var tempTableNames = map[string]bool{
+	// 021-040 range
 	"review_findings_new": true,
+	// 041-056 range: SQLite table-recreation patterns replaced by ALTER TABLE in PG
+	"project_commands_new": true, // 041: recreated to add scope column + new PK
+	"workflow_phases_new":  true, // 042, 052: recreated for position cols / FK removal
+	"phase_agents_new":     true, // 052: recreated to remove agents FK
+	"phase_templates_new":  true, // 052: recreated to remove agents FK
 }
 
 // TestPostgresMigrations_ProjectFilesExist_021_040 verifies all 20 project
@@ -1054,4 +1060,296 @@ func extractViewNamesFromFiles(t *testing.T, files []string) map[string]bool {
 	}
 
 	return views
+}
+
+// ============================================================================
+// Project Migration Tests (SC-1 through SC-5 for project_041 - project_056)
+// ============================================================================
+
+// TestPostgresMigrations_ProjectFilesExist_041_056 verifies all 16 project
+// migration files exist in the PostgreSQL directory (project_041.sql - project_056.sql).
+// Covers SC-5: All migration files project_041.sql through project_056.sql exist
+// with correct numbering.
+func TestPostgresMigrations_ProjectFilesExist_041_056(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+	postgresDir := filepath.Join(schemaDir, "postgres")
+
+	for i := 41; i <= 56; i++ {
+		file := fmt.Sprintf("project_%03d.sql", i)
+		path := filepath.Join(postgresDir, file)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			t.Errorf("missing PostgreSQL project migration file: %s", file)
+		}
+	}
+}
+
+// TestPostgresMigrations_ProjectNoSQLiteisms_041_056 verifies project migrations
+// 041-056 contain no SQLite-specific syntax. Checks for datetime('now'),
+// AUTOINCREMENT, strftime, ? placeholders, randomblob, lower(hex()),
+// INSERT OR IGNORE, FTS5, 'unixepoch', and CREATE VIRTUAL TABLE.
+// Covers SC-1.
+func TestPostgresMigrations_ProjectNoSQLiteisms_041_056(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+	postgresDir := filepath.Join(schemaDir, "postgres")
+
+	sqlitePatterns := []struct {
+		pattern *regexp.Regexp
+		desc    string
+	}{
+		{regexp.MustCompile(`datetime\s*\(\s*'now'\s*\)`), "datetime('now') - use NOW() instead"},
+		{regexp.MustCompile(`\bAUTOINCREMENT\b`), "AUTOINCREMENT - use SERIAL instead"},
+		{regexp.MustCompile(`strftime\s*\(`), "strftime() - use PostgreSQL date functions"},
+		{regexp.MustCompile(`(?m)^[^'-]*\?[^'-]*$`), "? placeholder - use $1, $2, etc."},
+		{regexp.MustCompile(`\brandomblob\s*\(`), "randomblob() - use gen_random_bytes() instead"},
+		{regexp.MustCompile(`\blower\s*\(\s*hex\s*\(`), "lower(hex()) - use encode(..., 'hex') instead"},
+		{regexp.MustCompile(`\bINSERT\s+OR\s+IGNORE\b`), "INSERT OR IGNORE - use ON CONFLICT DO NOTHING"},
+		{regexp.MustCompile(`(?i)\bUSING\s+fts5\b`), "USING fts5 - PostgreSQL FTS handled separately"},
+		{regexp.MustCompile(`'unixepoch'`), "'unixepoch' - use PostgreSQL timestamp functions"},
+		{regexp.MustCompile(`(?i)\bCREATE\s+VIRTUAL\s+TABLE\b`), "CREATE VIRTUAL TABLE - not supported in PostgreSQL"},
+		{regexp.MustCompile(`-- orc:disable_fk`), "-- orc:disable_fk - SQLite-only directive, not needed in PostgreSQL"},
+	}
+
+	files := projectMigrationFiles(postgresDir, 41, 56)
+	foundAny := false
+
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			t.Errorf("cannot read %s: %v", filepath.Base(file), err)
+			continue
+		}
+		foundAny = true
+
+		contentStr := string(content)
+		for _, pat := range sqlitePatterns {
+			if pat.pattern.MatchString(contentStr) {
+				t.Errorf("%s contains SQLite-ism: %s", filepath.Base(file), pat.desc)
+			}
+		}
+	}
+
+	if !foundAny {
+		t.Fatal("no PostgreSQL project migration files 041-056 could be read")
+	}
+}
+
+// TestPostgresMigrations_ProjectSameTableCount_041_056 verifies PostgreSQL project
+// migrations 041-056 create the same non-FTS tables as SQLite equivalents.
+// Excludes FTS5 virtual tables and temporary rename tables used in SQLite
+// table-recreation patterns (project_commands_new, workflow_phases_new,
+// phase_agents_new, phase_templates_new).
+// Covers SC-2.
+func TestPostgresMigrations_ProjectSameTableCount_041_056(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+
+	sqliteTables := extractTableNamesFromFiles(t, projectMigrationFiles(schemaDir, 41, 56))
+	postgresTables := extractTableNamesFromFiles(t, projectMigrationFiles(filepath.Join(schemaDir, "postgres"), 41, 56))
+
+	if len(sqliteTables) == 0 {
+		t.Fatal("no SQLite project tables found in 041-056")
+	}
+
+	if len(postgresTables) == 0 {
+		t.Fatal("no PostgreSQL project tables found in 041-056 - migrations likely don't exist yet")
+	}
+
+	for table := range sqliteTables {
+		if ftsTableNames[table] || tempTableNames[table] {
+			continue
+		}
+		if !postgresTables[table] {
+			t.Errorf("table %s exists in SQLite project migrations 041-056 but not in PostgreSQL", table)
+		}
+	}
+
+	for table := range postgresTables {
+		if ftsTableNames[table] || tempTableNames[table] {
+			continue
+		}
+		if !sqliteTables[table] {
+			t.Errorf("table %s exists in PostgreSQL project migrations 041-056 but not in SQLite", table)
+		}
+	}
+}
+
+// TestPostgresMigrations_ProjectColumnsMatch_041_056 verifies all tables created
+// or altered in project migrations 041-056 have matching columns between SQLite
+// and PostgreSQL.
+//
+// Tables with CREATE TABLE in this range (both dialects):
+//   - project_languages, phase_gates, task_gate_overrides (041)
+//   - feedback (053), sequences (055), initiative_notes (056)
+//
+// Tables with ALTER TABLE ADD COLUMN (both dialects):
+//   - agents (045), phase_templates (045, 048), workflow_variables (046)
+//   - tasks (047), workflows (048, 049, 050, 051)
+//
+// Note: Tables recreated via SQLite _new pattern (project_commands, workflow_phases,
+// phase_agents, phase_templates in 052) are partially covered — only ALTER TABLE
+// columns are compared, since the SQLite recreation pattern uses a different table
+// name that the column extractor doesn't match against the final table.
+//
+// Covers SC-3.
+func TestPostgresMigrations_ProjectColumnsMatch_041_056(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+
+	// Tables with CREATE TABLE in this range (present in both dialects)
+	// plus tables with ALTER TABLE ADD COLUMN statements.
+	tablesToCheck := []string{
+		// CREATE TABLE in 041
+		"project_languages",
+		"phase_gates",
+		"task_gate_overrides",
+		// CREATE TABLE in 053
+		"feedback",
+		// CREATE TABLE in 055
+		"sequences",
+		// CREATE TABLE in 056
+		"initiative_notes",
+		// ALTER TABLE ADD COLUMN only (CREATE TABLE in earlier migrations)
+		"agents",             // 045: system_prompt, claude_config
+		"phase_templates",    // 045: agent_id, sub_agents; 048: gate_input_config, gate_output_config, gate_mode, gate_agent_id
+		"workflow_variables", // 046: extract
+		"tasks",              // 047: branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set
+		"workflows",          // 048: triggers; 049: default_max_iterations; 050: completion_action; 051: target_branch
+	}
+
+	sqliteFiles := projectMigrationFiles(schemaDir, 41, 56)
+	pgFiles := projectMigrationFiles(filepath.Join(schemaDir, "postgres"), 41, 56)
+
+	for _, table := range tablesToCheck {
+		t.Run(table, func(t *testing.T) {
+			sqliteCols := extractTableColumnsFromFiles(t, sqliteFiles, table)
+			postgresCols := extractTableColumnsFromFiles(t, pgFiles, table)
+
+			if len(sqliteCols) == 0 {
+				t.Skipf("no columns found for table %s in SQLite 041-056", table)
+			}
+
+			if len(postgresCols) == 0 {
+				t.Fatalf("no columns found for table %s in PostgreSQL 041-056 - migrations likely don't exist yet", table)
+			}
+
+			for col := range sqliteCols {
+				if !postgresCols[col] {
+					t.Errorf("column %s.%s exists in SQLite but not in PostgreSQL", table, col)
+				}
+			}
+
+			for col := range postgresCols {
+				if !sqliteCols[col] {
+					t.Errorf("column %s.%s exists in PostgreSQL but not in SQLite", table, col)
+				}
+			}
+		})
+	}
+}
+
+// TestPostgresMigrations_ProjectSameIndexes_041_056 verifies all indexes from
+// SQLite project migrations 041-056 exist in PostgreSQL versions.
+// Covers SC-4.
+func TestPostgresMigrations_ProjectSameIndexes_041_056(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+
+	sqliteIndexes := extractIndexNamesFromFiles(t, projectMigrationFiles(schemaDir, 41, 56))
+	postgresIndexes := extractIndexNamesFromFiles(t, projectMigrationFiles(filepath.Join(schemaDir, "postgres"), 41, 56))
+
+	if len(sqliteIndexes) == 0 {
+		t.Fatal("no SQLite project indexes found in 041-056")
+	}
+
+	if len(postgresIndexes) == 0 {
+		t.Fatal("no PostgreSQL project indexes found in 041-056 - migrations likely don't exist yet")
+	}
+
+	for idx := range sqliteIndexes {
+		if !postgresIndexes[idx] {
+			t.Errorf("index %s exists in SQLite project migrations 041-056 but not in PostgreSQL", idx)
+		}
+	}
+}
+
+// TestPostgresMigrations_ProjectSameViews_041_056 verifies PostgreSQL project
+// migrations 041-056 create the same views as SQLite versions.
+// Migration 052 creates the `agents` VIEW (backed by _agents_storage table)
+// which must exist in both dialects.
+// Covers SC-2 (supplementary).
+func TestPostgresMigrations_ProjectSameViews_041_056(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+
+	sqliteViews := extractViewNamesFromFiles(t, projectMigrationFiles(schemaDir, 41, 56))
+	postgresViews := extractViewNamesFromFiles(t, projectMigrationFiles(filepath.Join(schemaDir, "postgres"), 41, 56))
+
+	if len(sqliteViews) == 0 {
+		t.Fatal("no SQLite project views found in 041-056")
+	}
+
+	if len(postgresViews) == 0 {
+		t.Fatal("no PostgreSQL project views found in 041-056 - migrations likely don't exist yet")
+	}
+
+	for view := range sqliteViews {
+		if !postgresViews[view] {
+			t.Errorf("view %s exists in SQLite project migrations 041-056 but not in PostgreSQL", view)
+		}
+	}
+}
+
+// TestPostgresMigrations_ProjectNumberingMatches_041_056 verifies project migration
+// file numbering is identical between SQLite and PostgreSQL (files 041-056).
+// Covers SC-5.
+func TestPostgresMigrations_ProjectNumberingMatches_041_056(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+
+	sqliteFiles, err := filepath.Glob(filepath.Join(schemaDir, "project_*.sql"))
+	if err != nil {
+		t.Fatalf("failed to glob SQLite project migrations: %v", err)
+	}
+
+	postgresFiles, err := filepath.Glob(filepath.Join(schemaDir, "postgres", "project_*.sql"))
+	if err != nil {
+		t.Fatalf("failed to glob PostgreSQL project migrations: %v", err)
+	}
+
+	if len(postgresFiles) == 0 {
+		t.Fatal("no PostgreSQL project migration files found")
+	}
+
+	// Extract numbers from SQLite project files (only 041-056 scope)
+	sqliteNums := make(map[string]bool)
+	for _, f := range sqliteFiles {
+		base := filepath.Base(f)
+		if num := extractMigrationNumber(base); num != "" {
+			var v int
+			_, _ = fmt.Sscanf(num, "%d", &v)
+			if v >= 41 && v <= 56 {
+				sqliteNums[num] = true
+			}
+		}
+	}
+
+	postgresNums := make(map[string]bool)
+	for _, f := range postgresFiles {
+		base := filepath.Base(f)
+		if num := extractMigrationNumber(base); num != "" {
+			var v int
+			_, _ = fmt.Sscanf(num, "%d", &v)
+			if v >= 41 && v <= 56 {
+				postgresNums[num] = true
+			}
+		}
+	}
+
+	// Verify all SQLite project numbers 041-056 exist in PostgreSQL
+	var missingNums []string
+	for num := range sqliteNums {
+		if !postgresNums[num] {
+			missingNums = append(missingNums, num)
+		}
+	}
+
+	if len(missingNums) > 0 {
+		sort.Strings(missingNums)
+		t.Errorf("PostgreSQL project migrations missing numbers: %v", missingNums)
+	}
 }
