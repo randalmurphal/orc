@@ -46,6 +46,7 @@ SQLite migrations in `schema/`. PostgreSQL equivalents in `schema/postgres/` (em
 | `schema/project_057.sql` | **User attribution columns**: `assigned_to` on tasks, `created_by`/`owned_by` on initiatives, `executed_by` on phases, `started_by` on workflow_runs |
 | `schema/project_058.sql` | **Atomic user claims**: `claimed_by`/`claimed_at` columns on `tasks`, `task_claim_history` table (append-only with `stolen_from` tracking) |
 | `schema/global_011.sql` | **Phase type columns**: `phase_templates.type` (executor type, default `"llm"`), `workflow_phases.type_override` (per-workflow override) |
+| `schema/project_063.sql` | **Phase scratchpad table**: `phase_scratchpad` (task_id, phase_id, category, content, attempt) for persistent note-taking |
 
 ### FK-Disabling Migrations
 
@@ -134,6 +135,7 @@ PostgreSQL migrations live in `schema/postgres/` (embedded via `//go:embed`). Ea
 | `task_claim.go` | User claim operations: `ClaimTaskByUser`, `ForceClaimTaskByUser`, `ReleaseUserClaim`, `GetUserClaimHistory` (append-only with steal tracking) |
 | `hook_scripts.go` | Hook script CRUD (GlobalDB): Save/Get/List/Delete, upsert pattern, built-in protection |
 | `skills.go` | Skill CRUD (GlobalDB): Save/Get/List/Delete, upsert pattern, built-in protection, JSON supporting_files |
+| `scratchpad.go` | Phase scratchpad CRUD: `SaveScratchpadEntry`, `GetScratchpadEntries`, `GetScratchpadEntriesByPhase`, `GetScratchpadEntriesByAttempt` |
 | `constitution.go` | Constitution CRUD, validation checks |
 | `dashboard.go` | Dashboard SQL aggregates (status counts, cost by date, initiative stats) |
 | `sequence.go` | Atomic ID generation: `NextSequence()`, `GetSequence()`, `SetSequence()` |

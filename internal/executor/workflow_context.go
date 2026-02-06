@@ -311,6 +311,9 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 	// Generate project brief from task history
 	we.populateProjectBrief(rctx)
 
+	// Load scratchpad entries from prior phases for PREV_SCRATCHPAD
+	we.populateScratchpadContext(rctx, t.Id, phaseID)
+
 	// Load automation context for automation tasks
 	if t.IsAutomation {
 		we.loadAutomationContextProto(rctx, t)

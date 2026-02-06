@@ -269,6 +269,10 @@ type ResolutionContext struct {
 	ChangelogContent     string // Current CHANGELOG.md content
 	ClaudeMDContent      string // Current CLAUDE.md content
 
+	// Scratchpad context (persistent notes from phase execution)
+	PrevScratchpad  string // Formatted markdown from prior phases
+	RetryScratchpad string // Formatted markdown from prior attempt of current phase
+
 	// Project brief (auto-generated context from task history)
 	ProjectBrief string
 

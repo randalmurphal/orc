@@ -47,6 +47,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `condition.go` | Condition evaluator: `EvaluateCondition()`, `ConditionContext` (phase skip + loop conditions) |
 | `topo_sort.go` | Phase ordering: `topologicalSort()`, `computeExecutionLevels()` (DAG execution levels for parallel phases) |
 | `phase_loop_test.go` | Phase loop integration tests (10 success criteria + failure modes) |
+| `scratchpad.go` | Scratchpad extraction, formatting, persistence, and context population |
 | `docs_response.go` | Docs phase response parsing: `ParseDocsResponse()`, `PersistInitiativeNotes()` (knowledge curator integration) |
 
 ## Two-Tier Database Access
@@ -74,7 +75,7 @@ WorkflowExecutor.Run()
 ├── buildResolutionContext()   # Create variable context
 ├── for each phase:
 │   ├── shouldSkipPhase()             # Evaluate phase condition (condition.go)
-│   ├── enrichContextForPhase()       # Add phase-specific context
+│   ├── enrichContextForPhase()       # Add phase-specific context (incl. scratchpad)
 │   ├── resolver.ResolveAll()         # Resolve all variables
 │   ├── evaluateBeforePhaseTriggers() # Run before-phase triggers (gate/reaction)
 │   ├── evaluatePhaseGate()            # Gate evaluation (auto/human/AI via gate.Evaluator)
@@ -87,6 +88,7 @@ WorkflowExecutor.Run()
 │   │   │   ├── non-LLM → phaseTypeRegistry.Get(type).ExecutePhase()
 │   │   │   └── "llm" → fall through to Claude path
 │   │   └── executeWithClaude()       # ClaudeExecutor (LLM path only)
+│   ├── persistScratchpadEntries()     # Save scratchpad notes from phase output
 │   ├── applyPhaseContentToVars()     # Store output for subsequent phases
 │   ├── evaluateLoopConfig()          # Check loop_config: condition + max_loops → jump back
 │   └── recordCostToGlobal()          # Track costs
@@ -314,6 +316,7 @@ All template variables resolved via `internal/variable/Resolver`. Resolution con
 | Review | REVIEW_ROUND, REVIEW_FINDINGS |
 | Project | LANGUAGE, HAS_FRONTEND, HAS_TESTS, TEST_COMMAND, FRAMEWORKS, ERROR_PATTERNS |
 | QA E2E | QA_ITERATION, QA_MAX_ITERATIONS, BEFORE_IMAGES, PREVIOUS_FINDINGS, QA_FINDINGS |
+| Scratchpad | PREV_SCRATCHPAD (prior phases' notes), RETRY_SCRATCHPAD (prior attempt's notes) |
 | Gate Outputs | Custom variable names via `GateOutputConfig.variable_name` (JSON-serialized) |
 | Phase Outputs | Data-driven from phase template `output_var_name`. Built-ins: SPEC_CONTENT, RESEARCH_CONTENT, TDD_TESTS_CONTENT, BREAKDOWN_CONTENT, QA_FINDINGS. Generic: OUTPUT_{PHASE_ID} |
 
