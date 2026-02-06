@@ -20,12 +20,12 @@ function renderWithProviders(ui: React.ReactElement, { route = '/' } = {}) {
 }
 
 describe('IconNav - Navigation Items (TASK-722)', () => {
-	it('SC-1: should render exactly 7 nav items (Board, Initiatives, Timeline, Stats, Workflows, Settings, Help)', () => {
+	it('SC-1: should render exactly 8 nav items (My Work, Board, Initiatives, Timeline, Stats, Workflows, Settings, Help)', () => {
 		renderWithProviders(<IconNav />);
 
 		const links = screen.getAllByRole('link');
-		// After removing Agents and Environ, should be 7 items (was 9)
-		expect(links.length).toBe(7);
+		// After removing Agents and Environ and adding My Work, should be 8 items
+		expect(links.length).toBe(8);
 	});
 
 	it('SC-2a: should NOT render Agents nav item', () => {

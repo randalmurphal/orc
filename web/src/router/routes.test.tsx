@@ -99,6 +99,10 @@ vi.mock('@/lib/client', () => ({
 			files: [],
 		}),
 	},
+	projectClient: {
+		listProjects: vi.fn().mockResolvedValue({ projects: [] }),
+		getAllProjectsStatus: vi.fn().mockResolvedValue({ projects: [] }),
+	},
 	decisionClient: {
 		resolveDecision: vi.fn().mockResolvedValue({}),
 	},
@@ -288,28 +292,11 @@ describe('Routes', () => {
 	});
 
 	describe('Root route (/)', () => {
-		it('redirects to /board', async () => {
-			// Set project to see the board (not empty state)
-			useProjectStore.setState({
-				projects: [
-					{
-						id: 'test-project',
-						path: '/test/project',
-						name: 'Test Project',
-						createdAt: createTimestamp('2024-01-01T00:00:00Z'),
-					} as Project,
-				],
-				currentProjectId: 'test-project',
-				loading: false,
-				error: null,
-				_isHandlingPopState: false,
-			});
-
+		it('renders MyWorkPage at /', async () => {
 			renderWithRouter('/');
 			await waitFor(() => {
-				// After redirect, should show BoardView
-				const boardView = document.querySelector('.board-view');
-				expect(boardView).toBeInTheDocument();
+				// Root route renders MyWorkPage, which shows "My Work" heading
+				expect(screen.getByText('My Work')).toBeInTheDocument();
 			});
 		});
 
