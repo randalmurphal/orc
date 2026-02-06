@@ -39,7 +39,7 @@ func TestBriefCmd_ShowsBriefContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Seed initiative with decisions
 	init := initiative.New("INIT-001", "Auth System")
@@ -124,7 +124,7 @@ func TestBriefCmd_Regenerate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	init := initiative.New("INIT-001", "Test")
 	init.Status = initiative.StatusActive
@@ -222,7 +222,7 @@ func TestBriefCmd_StatsOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	tsk := task.NewProtoTask("TASK-001", "Test task")
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED

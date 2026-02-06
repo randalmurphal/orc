@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+
+// BriefEntry is a single piece of context within a brief section.
+message BriefEntry {
+  string content = 1;
+  string source = 2;
+  double impact = 3;
+}
+
+// BriefSection groups entries by category.
+message BriefSection {
+  string category = 1;
+  repeated BriefEntry entries = 2;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+// BriefService provides access to auto-generated project briefs.
+service BriefService {
+  // GetProjectBrief returns the current project brief.
+  rpc GetProjectBrief(GetProjectBriefRequest) returns (GetProjectBriefResponse);
+
+  // RegenerateProjectBrief forces regeneration and returns the new brief.
+  rpc RegenerateProjectBrief(RegenerateProjectBriefRequest) returns (RegenerateProjectBriefResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+message GetProjectBriefRequest {
+  string project_id = 1;
+}
+
+message GetProjectBriefResponse {
+  repeated BriefSection sections = 1;
+  google.protobuf.Timestamp generated_at = 2;
+  int32 token_count = 3;
+  int32 task_count = 4;
+}
+
+message RegenerateProjectBriefRequest {
+  string project_id = 1;
+}
+
+message RegenerateProjectBriefResponse {
+  repeated BriefSection sections = 1;
+  google.protobuf.Timestamp generated_at = 2;
+  int32 token_count = 3;
+  int32 task_count = 4;
+}

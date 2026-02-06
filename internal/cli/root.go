@@ -101,6 +101,7 @@ func init() {
 	addCmd(newDiffCmd(), groupInspection)
 	addCmd(newDepsCmd(), groupInspection)
 	addCmd(newSearchCmd(), groupInspection)
+	addCmd(newBriefCmd(), groupInspection)
 
 	// Phase Control
 	addCmd(newRewindCmd(), groupPhaseControl)

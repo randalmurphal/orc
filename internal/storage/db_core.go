@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"sync"
@@ -45,6 +46,22 @@ func NewDatabaseBackend(projectPath string, cfg *config.StorageConfig) (*Databas
 		db:          pdb,
 		cfg:         cfg,
 		logger:      logger,
+	}, nil
+}
+
+// OpenDatabaseBackend opens a DatabaseBackend at the given database path.
+// This is a convenience function for CLI commands that need direct access
+// to a project database without the full NewDatabaseBackend setup.
+func OpenDatabaseBackend(dbPath string) (*DatabaseBackend, error) {
+	pdb, err := db.OpenProject(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("open project database: %w", err)
+	}
+	return &DatabaseBackend{
+		projectPath: dbPath,
+		db:          pdb,
+		cfg:         nil,
+		logger:      log.New(io.Discard, "", 0),
 	}, nil
 }
 

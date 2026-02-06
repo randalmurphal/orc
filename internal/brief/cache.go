@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 )
 
 // Cache manages brief caching to avoid regeneration on every phase.
@@ -20,6 +21,9 @@ func NewCache(path string) *Cache {
 func (c *Cache) Store(b *Brief) error {
 	data, err := json.Marshal(b)
 	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(c.path), 0755); err != nil {
 		return err
 	}
 	return os.WriteFile(c.path, data, 0644)
