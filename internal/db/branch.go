@@ -184,7 +184,9 @@ func (p *ProjectDB) ListBranches(opts BranchListOpts) ([]*Branch, error) {
 
 // UpdateBranchStatus updates a branch's status.
 func (p *ProjectDB) UpdateBranchStatus(name string, status BranchStatus) error {
-	_, err := p.Exec(`UPDATE branches SET status = ?, last_activity = datetime('now') WHERE name = ?`, string(status), name)
+	// Use RFC3339 format for last_activity to match GetBranch's time.Parse(time.RFC3339, ...)
+	nowExpr := p.Driver().DateFormat(p.Driver().Now(), "rfc3339")
+	_, err := p.Exec(fmt.Sprintf(`UPDATE branches SET status = ?, last_activity = %s WHERE name = ?`, nowExpr), string(status), name)
 	if err != nil {
 		return fmt.Errorf("update branch status: %w", err)
 	}
@@ -193,8 +195,9 @@ func (p *ProjectDB) UpdateBranchStatus(name string, status BranchStatus) error {
 
 // UpdateBranchActivity updates a branch's last_activity timestamp.
 func (p *ProjectDB) UpdateBranchActivity(name string) error {
-	// Use RFC3339 format to match time.Parse in GetBranch
-	_, err := p.Exec(`UPDATE branches SET last_activity = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE name = ?`, name)
+	// Use driver's DateFormat with rfc3339 to produce RFC3339-parseable timestamps
+	nowExpr := p.Driver().DateFormat(p.Driver().Now(), "rfc3339")
+	_, err := p.Exec(fmt.Sprintf(`UPDATE branches SET last_activity = %s WHERE name = ?`, nowExpr), name)
 	if err != nil {
 		return fmt.Errorf("update branch activity: %w", err)
 	}

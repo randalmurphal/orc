@@ -24,6 +24,12 @@ When rules conflict, higher priority wins:
 | **Per-Phase Sessions** | Each phase gets fresh Claude session, not resumed | Shared sessions contaminate context | TDD context leaks to implement, wrong decisions |
 | **State Matches Task** | On failure: update BOTH `task.Status` AND `state.Error` | Out-of-sync causes orphaned tasks | Tasks stuck in "running" forever, invisible errors |
 
+### Dialect Portability
+
+| Invariant | Rule | Why | Consequence |
+|-----------|------|-----|-------------|
+| **No Hardcoded SQLite SQL** | Use `driver.Now()`, `driver.DateFormat()`, `driver.DateTrunc()` instead of `datetime('now')`, `strftime()`, `julianday()` (TASK-790) | Hardcoded SQLite functions break PostgreSQL mode | Silent query failures in team mode |
+
 ### Error Handling
 
 | Invariant | Rule | Why | Consequence |
@@ -126,6 +132,10 @@ client.Complete(ctx, CompletionRequest{
 // ❌ File-based spec in worktree
 os.WriteFile(filepath.Join(worktree, ".orc", "spec.md"), content, 0644)  // BUG: use database
 
+// ❌ Hardcoded SQLite date functions
+query := fmt.Sprintf("SELECT strftime('%%Y-%%m-%%d', timestamp) FROM ...")  // BUG: breaks PostgreSQL
+query := "UPDATE t SET updated_at = datetime('now')"  // BUG: use driver.Now()
+
 // ❌ Return stale object after save
 task.BlockedBy = append(task.BlockedBy, blockerID)
 backend.UpdateTask(ctx, task)
@@ -157,6 +167,10 @@ client := claude.NewClient(claude.WithModel(model))
 backend.SaveSpec(taskID, content, "spec")
 content, _ := backend.LoadSpec(taskID)
 
+// ✅ Dialect-portable date SQL
+dateExpr := drv.DateFormat("timestamp", "day")  // strftime or TO_CHAR
+now := p.Driver().Now()                          // datetime('now') or NOW()
+
 // ✅ Reload after write for API response
 task.BlockedBy = append(task.BlockedBy, blockerID)
 backend.UpdateTask(ctx, task)
@@ -169,6 +183,7 @@ respondJSON(w, http.StatusOK, updated)
 Run `make test` to verify invariants aren't violated. Key test files:
 - `internal/executor/executor_test.go` - Error handling paths
 - `internal/storage/database_backend_test.go` - DB operations
+- `internal/db/sqlite_isms_test.go` - No hardcoded SQLite date functions
 
 ## Adding New Invariants
 

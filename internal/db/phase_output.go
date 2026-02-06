@@ -200,10 +200,11 @@ func (p *ProjectDB) SaveSpecForTask(taskID, content, source string) error {
 		err = p.QueryRow(`SELECT id FROM workflows ORDER BY id LIMIT 1`).Scan(&workflowID)
 		if err == sql.ErrNoRows {
 			// No workflows exist - create a minimal 'import' workflow
-			_, err = p.Exec(`
+			now := p.Driver().Now()
+			_, err = p.Exec(fmt.Sprintf(`
 				INSERT OR IGNORE INTO workflows (id, name, description, created_at, updated_at)
-				VALUES ('import', 'Import', 'Workflow for imported specs', datetime('now'), datetime('now'))
-			`)
+				VALUES ('import', 'Import', 'Workflow for imported specs', %s, %s)
+			`, now, now))
 			if err != nil {
 				return fmt.Errorf("create import workflow: %w", err)
 			}
@@ -213,11 +214,12 @@ func (p *ProjectDB) SaveSpecForTask(taskID, content, source string) error {
 		}
 
 		// Create a new workflow run for import
+		now := p.Driver().Now()
 		runID = fmt.Sprintf("IMPORT-%s-%d", taskID, time.Now().Unix())
-		_, err = p.Exec(`
+		_, err = p.Exec(fmt.Sprintf(`
 			INSERT INTO workflow_runs (id, workflow_id, context_type, context_data, task_id, prompt, status, created_at, updated_at)
-			VALUES (?, ?, 'task', '{}', ?, '', 'completed', datetime('now'), datetime('now'))
-		`, runID, workflowID, taskID)
+			VALUES (?, ?, 'task', '{}', ?, '', 'completed', %s, %s)
+		`, now, now), runID, workflowID, taskID)
 		if err != nil {
 			return fmt.Errorf("create workflow run for spec import: %w", err)
 		}
