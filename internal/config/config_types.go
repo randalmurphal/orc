@@ -1251,6 +1251,61 @@ func ParseRiskLevel(s string) RiskLevel {
 	}
 }
 
+// KnowledgeConfig defines knowledge layer configuration.
+type KnowledgeConfig struct {
+	// Enabled enables the knowledge layer (default: false)
+	Enabled bool `yaml:"enabled"`
+
+	// Backend is the infrastructure backend: "docker" or "external" (default: "docker")
+	Backend string `yaml:"backend"`
+
+	// Docker contains Docker-managed infrastructure settings
+	Docker KnowledgeDockerConfig `yaml:"docker"`
+
+	// External contains external service connection settings
+	External KnowledgeExternalConfig `yaml:"external"`
+
+	// Indexing contains indexing and embedding settings
+	Indexing KnowledgeIndexingConfig `yaml:"indexing"`
+}
+
+// KnowledgeDockerConfig defines Docker-managed infrastructure settings.
+type KnowledgeDockerConfig struct {
+	// Neo4jPort is the Neo4j Bolt protocol port (default: 7687)
+	Neo4jPort int `yaml:"neo4j_port"`
+
+	// QdrantPort is the Qdrant gRPC port (default: 6334)
+	QdrantPort int `yaml:"qdrant_port"`
+
+	// RedisPort is the Redis port (default: 6379)
+	RedisPort int `yaml:"redis_port"`
+
+	// DataDir is the directory for persistent data (default: "~/.orc/knowledge/")
+	DataDir string `yaml:"data_dir"`
+}
+
+// KnowledgeExternalConfig defines external service connection settings.
+type KnowledgeExternalConfig struct {
+	// Neo4jURI is the Neo4j connection URI (e.g., "bolt://host:7687")
+	Neo4jURI string `yaml:"neo4j_uri"`
+
+	// QdrantURI is the Qdrant connection URI (e.g., "http://host:6334")
+	QdrantURI string `yaml:"qdrant_uri"`
+
+	// RedisURI is the Redis connection URI (e.g., "redis://host:6379")
+	RedisURI string `yaml:"redis_uri"`
+}
+
+// KnowledgeIndexingConfig defines indexing and embedding settings.
+type KnowledgeIndexingConfig struct {
+	// EmbeddingModel is the model for text embedding (default: "voyage-4")
+	// Valid values: voyage-4, voyage-4-large, voyage-4-nano
+	EmbeddingModel string `yaml:"embedding_model"`
+}
+
+// ValidEmbeddingModels are the allowed values for knowledge.indexing.embedding_model
+var ValidEmbeddingModels = []string{"voyage-4", "voyage-4-large", "voyage-4-nano"}
+
 // Valid values for validation
 var (
 	// ValidVisibilities are the allowed values for team.visibility
