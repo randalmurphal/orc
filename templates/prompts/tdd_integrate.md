@@ -97,6 +97,11 @@ Before outputting the final JSON, STOP and verify:
    - No new production-path code is left unverified
    - No test comments say "structure only" or "full test requires X" — these are red flags for incomplete coverage
 
+6. **No deferrals**
+   - Search your test files and output for "TBD", "to be determined", "not integration-tested", "not yet", "later phase"
+   - Every wiring point MUST have a corresponding test — if any lacks one, write it now
+   - "Source TBD in implement" is NEVER acceptable — write the failing test, let implement make it pass
+
 **Only after completing this verification, output the StructuredOutput.**
 </pre_output_verification>
 
@@ -145,6 +150,30 @@ assert result.ok
 | Put integration test next to new code | Associates with wrong module | Put next to the caller/existing code |
 | Assert only on return values | May miss wiring gaps | Assert the new code was actually invoked |
 | Test registration/structure only | Proves wiring exists, not that it's invoked | Test that the handler/callback actually executes |
+
+### No Deferrals — Every Wiring Point Gets a Test
+
+NEVER mark a wiring point as "TBD in implement", "source to be determined", "not integration-tested", or any variant that defers test writing. Every wiring point identified in Step 1 MUST have a failing integration test — no exceptions.
+
+If the data source isn't clear yet:
+- **Write the test anyway**, asserting the output contains the expected data
+- The test will fail during this phase — that's the **POINT** of TDD
+- The implement phase MUST make it pass by wiring the data source
+- If you can't determine the exact production caller, write the test against the most likely integration point and document your assumption
+
+Deferring integration tests to the implement phase defeats the entire purpose of TDD. The implement phase has no obligation to write integration tests — deferred tests become forgotten tests become dead code in production.
+
+**Example of what NOT to do:**
+```
+# wiring_verification output:
+{"new_code": "retries.go", "integration_test": "N/A - source TBD in implement"}
+
+# This is WRONG. Instead, write a failing test:
+test "executor populates retry data for indexing":
+    executor = create_executor(task_with_retries)
+    executor.run_indexing()
+    assert params.Retries != nil   # FAILS — forces implement to wire it up
+```
 
 ### Registration vs Invocation — A Critical Distinction
 
