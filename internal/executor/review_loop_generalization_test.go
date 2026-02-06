@@ -439,7 +439,7 @@ func TestReviewLoop_ApprovesFirstPass(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowPublisher(mockPub),
 		WithWorkflowTurnExecutor(mock),
@@ -518,7 +518,7 @@ func TestReviewLoop_RejectsAndRetriesThenApproves(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowPublisher(mockPub),
 		WithWorkflowTurnExecutor(mock),
@@ -598,7 +598,7 @@ func TestReviewLoop_MaxIterationsExceeded(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),

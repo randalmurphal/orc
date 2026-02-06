@@ -47,12 +47,27 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `phase_loop_test.go` | Phase loop integration tests (10 success criteria + failure modes) |
 | `docs_response.go` | Docs phase response parsing: `ParseDocsResponse()`, `PersistInitiativeNotes()` (knowledge curator integration) |
 
+## Two-Tier Database Access
+
+`WorkflowExecutor` requires both `ProjectDB` and `GlobalDB`:
+
+```go
+we := NewWorkflowExecutor(backend, projectDB, globalDB, orcConfig, workingDir, opts...)
+```
+
+| Database | Used For |
+|----------|----------|
+| `globalDB` | Workflow definitions: `GetWorkflow()`, `GetWorkflowPhases()`, `GetWorkflowVariables()`, `GetPhaseTemplate()` |
+| `projectDB` | Execution records: workflow runs, phases, transcripts, events |
+
+**Why both?** Workflow definitions are seeded to GlobalDB (shared across projects). ProjectDB holds per-project execution data. Reading definitions from ProjectDB returns stale/empty data.
+
 ## Architecture
 
 ```
 WorkflowExecutor.Run()
 ├── setupForContext()          # Task/branch/standalone setup
-├── loadWorkflow()             # Get phases from database
+├── loadWorkflow()             # Get workflow + phases from GlobalDB
 ├── checkSpecRequirements()    # Validate spec exists for non-trivial weights
 ├── buildResolutionContext()   # Create variable context
 ├── for each phase:

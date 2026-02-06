@@ -23,6 +23,7 @@ func TestCostEntry_IncludesUserID(t *testing.T) {
 
 	workflowID := "test-workflow"
 	setupMinimalWorkflow(t, backend, workflowID)
+	setupMinimalWorkflowGlobal(t, globalDB, workflowID)
 
 	tk := task.NewProtoTask("TASK-001", "Test Cost UserID")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
@@ -36,11 +37,11 @@ func TestCostEntry_IncludesUserID(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		globalDB,
 		&config.Config{Model: "sonnet"},
 		t.TempDir(),
 		WithWorkflowTurnExecutor(mockTurn),
 	)
-	we.globalDB = globalDB
 
 	// Set user ID in context
 	ctx := ContextWithUserID(context.Background(), "user-alice")
@@ -76,6 +77,7 @@ func TestCostEntry_EmptyUserIDWhenNoContext(t *testing.T) {
 
 	workflowID := "test-workflow"
 	setupMinimalWorkflow(t, backend, workflowID)
+	setupMinimalWorkflowGlobal(t, globalDB, workflowID)
 
 	tk := task.NewProtoTask("TASK-002", "Test Cost No UserID")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
@@ -89,11 +91,11 @@ func TestCostEntry_EmptyUserIDWhenNoContext(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		globalDB,
 		&config.Config{Model: "sonnet"},
 		t.TempDir(),
 		WithWorkflowTurnExecutor(mockTurn),
 	)
-	we.globalDB = globalDB
 
 	// Run WITHOUT user ID in context
 	ctx := context.Background()

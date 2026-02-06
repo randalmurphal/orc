@@ -55,7 +55,7 @@ func TestWorkflowExecutor_ConditionSkip(t *testing.T) {
 	mockPub := newConditionTestPublisher()
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowPublisher(mockPub),
 	)

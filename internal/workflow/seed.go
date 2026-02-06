@@ -8,10 +8,6 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 )
 
-// DefaultCodeQualityChecks is the JSON for standard code quality checks.
-// Applied to the implement phase to run tests, lint, build, and typecheck after code changes.
-const DefaultCodeQualityChecks = `[{"type":"code","name":"tests","enabled":true,"on_failure":"block"},{"type":"code","name":"lint","enabled":true,"on_failure":"block"},{"type":"code","name":"build","enabled":true,"on_failure":"block"},{"type":"code","name":"typecheck","enabled":true,"on_failure":"block"}]`
-
 // SeedBuiltins populates the database with built-in phase templates and workflows.
 // This uses YAML files as the source of truth (embedded in the binary).
 // Returns the number of items seeded (templates + workflows).

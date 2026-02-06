@@ -294,7 +294,7 @@ func TestParallelExecution_DiamondPattern(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -358,7 +358,7 @@ func TestParallelExecution_DependentWaitsForPredecessors(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -424,7 +424,7 @@ func TestParallelExecution_FailureCancelsSiblings(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -477,7 +477,7 @@ func TestParallelExecution_FirstErrorReported(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -521,7 +521,7 @@ func TestParallelExecution_LinearChainSequential(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -568,7 +568,7 @@ func TestParallelExecution_NoDepsPreservesSequence(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -700,7 +700,7 @@ func TestParallelExecution_PanicRecovery(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -738,7 +738,7 @@ func TestParallelExecution_ContextCancel(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -787,7 +787,7 @@ func TestParallelExecution_AllFail(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -830,7 +830,7 @@ func TestParallelExecution_SinglePhaseLevel(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(countingMock),
 		WithSkipGates(true),
@@ -880,7 +880,7 @@ func TestParallelExecution_ResumePartial(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),

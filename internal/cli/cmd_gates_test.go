@@ -22,11 +22,20 @@ import (
 // =============================================================================
 
 // withGatesTestDir creates a temp dir with .orc subdirectory, chdir to it, and returns cleanup.
+// Also isolates HOME so db.OpenGlobal() creates a test-only global DB.
 func withGatesTestDir(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
 
-	orcDir := filepath.Join(tmpDir, ".orc")
+	// Isolate HOME so db.OpenGlobal() doesn't touch the real ~/.orc/orc.db
+	homeDir := filepath.Join(tmpDir, "home")
+	if err := os.MkdirAll(filepath.Join(homeDir, ".orc"), 0755); err != nil {
+		t.Fatalf("create home .orc directory: %v", err)
+	}
+	t.Setenv("HOME", homeDir)
+
+	projectDir := filepath.Join(tmpDir, "project")
+	orcDir := filepath.Join(projectDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc directory: %v", err)
 	}
@@ -38,7 +47,7 @@ func withGatesTestDir(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("get working directory: %v", err)
 	}
-	if err := os.Chdir(tmpDir); err != nil {
+	if err := os.Chdir(projectDir); err != nil {
 		t.Fatalf("chdir to temp dir: %v", err)
 	}
 	t.Cleanup(func() {
@@ -46,7 +55,7 @@ func withGatesTestDir(t *testing.T) string {
 			t.Errorf("restore working directory: %v", err)
 		}
 	})
-	return tmpDir
+	return projectDir
 }
 
 // createGatesTestBackend creates a database backend at the given directory.
@@ -59,14 +68,17 @@ func createGatesTestBackend(t *testing.T, dir string) storage.Backend {
 	return backend
 }
 
-// seedWorkflow creates a workflow with phases in the project DB for testing.
+// seedWorkflow creates a workflow with phases in the global DB for testing.
+// Workflow definitions live in GlobalDB (the gates command reads from there).
 func seedWorkflow(t *testing.T, dir string) {
 	t.Helper()
-	pdb, err := db.OpenProject(dir)
+
+	// Seed to GlobalDB (where loadGatesContext reads from)
+	gdb, err := db.OpenGlobal()
 	if err != nil {
-		t.Fatalf("open project DB: %v", err)
+		t.Fatalf("open global DB: %v", err)
 	}
-	defer func() { _ = pdb.Close() }()
+	defer func() { _ = gdb.Close() }()
 
 	// Create phase templates
 	templates := []*db.PhaseTemplate{
@@ -88,18 +100,17 @@ func seedWorkflow(t *testing.T, dir string) {
 		},
 	}
 	for _, tmpl := range templates {
-		if err := pdb.SavePhaseTemplate(tmpl); err != nil {
+		if err := gdb.SavePhaseTemplate(tmpl); err != nil {
 			t.Fatalf("save phase template %s: %v", tmpl.ID, err)
 		}
 	}
 
 	// Create workflow
 	wf := &db.Workflow{
-		ID:           "wf-default",
-		Name:         "Default",
-
+		ID:   "wf-default",
+		Name: "Default",
 	}
-	if err := pdb.SaveWorkflow(wf); err != nil {
+	if err := gdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("save workflow: %v", err)
 	}
 
@@ -110,7 +121,7 @@ func seedWorkflow(t *testing.T, dir string) {
 		{WorkflowID: "wf-default", PhaseTemplateID: "review", Sequence: 3},
 	}
 	for _, ph := range phases {
-		if err := pdb.SaveWorkflowPhase(ph); err != nil {
+		if err := gdb.SaveWorkflowPhase(ph); err != nil {
 			t.Fatalf("save workflow phase %s: %v", ph.PhaseTemplateID, err)
 		}
 	}
@@ -359,32 +370,30 @@ func TestGatesShow_JSONOutput(t *testing.T) {
 
 func TestGatesList_AllSkip(t *testing.T) {
 	dir := withGatesTestDir(t)
-	backend := createGatesTestBackend(t, dir)
-	_ = backend.Close()
 
-	pdb, err := db.OpenProject(dir)
+	gdb, err := db.OpenGlobal()
 	if err != nil {
-		t.Fatalf("open project DB: %v", err)
+		t.Fatalf("open global DB: %v", err)
 	}
 
 	// Create templates with skip gate type
 	for _, id := range []string{"phase1", "phase2"} {
 		tmpl := &db.PhaseTemplate{ID: id, Name: id, GateType: "skip"}
-		if err := pdb.SavePhaseTemplate(tmpl); err != nil {
+		if err := gdb.SavePhaseTemplate(tmpl); err != nil {
 			t.Fatalf("save template: %v", err)
 		}
 	}
 	wf := &db.Workflow{ID: "wf-skip", Name: "Skip Workflow"}
-	if err := pdb.SaveWorkflow(wf); err != nil {
+	if err := gdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("save workflow: %v", err)
 	}
 	for i, id := range []string{"phase1", "phase2"} {
 		ph := &db.WorkflowPhase{WorkflowID: "wf-skip", PhaseTemplateID: id, Sequence: i + 1}
-		if err := pdb.SaveWorkflowPhase(ph); err != nil {
+		if err := gdb.SaveWorkflowPhase(ph); err != nil {
 			t.Fatalf("save phase: %v", err)
 		}
 	}
-	_ = pdb.Close()
+	_ = gdb.Close()
 
 	cfgPath := filepath.Join(dir, ".orc", "config.yaml")
 	if err := os.WriteFile(cfgPath, []byte("workflow: wf-skip\n"), 0644); err != nil {

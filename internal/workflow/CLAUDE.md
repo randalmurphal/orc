@@ -19,7 +19,19 @@ Reusable phase definitions with:
 - Prompt configuration (embedded, DB, or file)
 - Input/output contract (what variables it needs/produces)
 - Execution config (iterations, model, gate type)
+- Quality checks (JSON array of check definitions)
 - Retry configuration
+
+### YAML→DB Sync Pipeline
+
+Phase templates defined in `templates/phases/*.yaml` flow through three layers:
+
+```
+phaseYAML (resolver.go) → workflow.PhaseTemplate (types.go) → db.PhaseTemplate (db/workflow.go)
+         parsePhaseYAML()                     workflowPhaseToDBPhase()
+```
+
+**All YAML fields must be mapped in both conversion functions.** Missing mappings silently drop data (the field exists in YAML and DB but the intermediate domain type doesn't carry it). Fields currently synced: ID, Name, Description, AgentID, SubAgents, PromptSource/Path/Content, InputVariables, OutputSchema, OutputVarName, OutputType, ProducesArtifact, ArtifactType, QualityChecks, ThinkingEnabled, GateType, Checkpoint, RetryFromPhase, RetryPromptPath, ClaudeConfig.
 
 ### Workflows
 

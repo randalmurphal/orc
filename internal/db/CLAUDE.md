@@ -24,7 +24,7 @@ Two database types with distinct responsibilities:
 | Hook scripts (shared) | |
 | Skills (shared) | |
 
-**Key insight**: GlobalDB holds data that spans projects (definitions, registry). ProjectDB holds project-specific execution data. Workflow/agent definitions live in GlobalDB so all projects share them; workflow runs live in ProjectDB since they belong to a specific project.
+**Key insight**: GlobalDB holds data that spans projects (definitions, registry). ProjectDB holds project-specific execution data. Workflow/agent definitions live in GlobalDB so all projects share them; workflow runs live in ProjectDB since they belong to a specific project. The executor reads definitions (workflows, phases, phase templates) from GlobalDB and writes execution records (runs, phase results) to ProjectDB.
 
 ### Schema Migrations (SQLite)
 

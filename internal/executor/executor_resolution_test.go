@@ -37,6 +37,7 @@ func setupTestExecutor(t *testing.T, cfg *config.Config) *testExecutorEnv {
 	// Create executor with minimal config
 	executor := &WorkflowExecutor{
 		projectDB:  projectDB,
+		globalDB:   &db.GlobalDB{DB: projectDB.DB},
 		orcConfig:  cfg,
 		logger:     slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn})),
 		workingDir: tmpDir,
