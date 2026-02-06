@@ -285,6 +285,9 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 	if rawDatabase, ok := raw["database"].(map[string]interface{}); ok {
 		mergeDatabaseConfigWithPath(cfg, fileCfg, rawDatabase, tc, source, path)
 	}
+	if rawBrief, ok := raw["brief"].(map[string]interface{}); ok {
+		mergeBriefConfigWithPath(cfg, fileCfg, rawBrief, tc, source, path)
+	}
 }
 
 func mergeGatesConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
@@ -610,6 +613,17 @@ func mergeDatabaseConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]in
 	}
 }
 
+func mergeBriefConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
+	if _, ok := raw["max_tokens"]; ok {
+		cfg.Brief.MaxTokens = fileCfg.Brief.MaxTokens
+		tc.SetSourceWithPath("brief.max_tokens", source, path)
+	}
+	if _, ok := raw["stale_threshold"]; ok {
+		cfg.Brief.StaleThreshold = fileCfg.Brief.StaleThreshold
+		tc.SetSourceWithPath("brief.stale_threshold", source, path)
+	}
+}
+
 // markDefaults marks all config paths as having SourceDefault.
 func markDefaults(tc *TrackedConfig) {
 	paths := []string{
@@ -638,6 +652,7 @@ func markDefaults(tc *TrackedConfig) {
 		"database.postgres.host", "database.postgres.port", "database.postgres.database",
 		"database.postgres.user", "database.postgres.password", "database.postgres.ssl_mode",
 		"database.postgres.pool_max",
+		"brief.max_tokens", "brief.stale_threshold",
 	}
 
 	for _, path := range paths {

@@ -196,6 +196,10 @@ func Default() *Config {
 				FilterSystemProcesses: true, // Filter system processes to avoid false positives
 			},
 		},
+		Brief: BriefConfig{
+			MaxTokens:      3000,
+			StaleThreshold: 3,
+		},
 		MCP: MCPConfig{
 			Playwright: PlaywrightConfig{
 				Enabled:           true,       // Auto-configure for UI tasks
