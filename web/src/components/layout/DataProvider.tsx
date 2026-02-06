@@ -15,6 +15,7 @@ import {
 	useInitiativeStore,
 	useDependencyStore,
 } from '@/stores';
+import { useThreadStore } from '@/stores/threadStore';
 import { create } from '@bufbuild/protobuf';
 import { projectClient, taskClient, initiativeClient } from '@/lib/client';
 import { ListProjectsRequestSchema } from '@/gen/orc/v1/project_pb';
@@ -54,8 +55,12 @@ export function DataProvider({ children }: DataProviderProps) {
 	const initializeDependencyFromUrl = useDependencyStore((state) => state.initializeFromUrl);
 	const handleDependencyPopState = useDependencyStore((state) => state.handlePopState);
 
+	const loadThreads = useThreadStore((state) => state.loadThreads);
+	const resetThreads = useThreadStore((state) => state.reset);
+
 	// Track previous project ID to detect changes
-	const prevProjectIdRef = useRef<string | null>(null);
+	// Starts as undefined to distinguish "not yet initialized" from "null project"
+	const prevProjectIdRef = useRef<string | null | undefined>(undefined);
 	// Track if initial load has happened
 	const initialLoadDone = useRef(false);
 
@@ -148,10 +153,11 @@ export function DataProvider({ children }: DataProviderProps) {
 			if (projectId) {
 				await loadTasks(projectId);
 				await loadInitiatives(projectId);
+				await loadThreads(projectId);
 			}
 		};
 		init();
-	}, [loadProjects, loadInitiatives, loadTasks, initializeProjectFromUrl, initializeInitiativeFromUrl, initializeDependencyFromUrl]);
+	}, [loadProjects, loadInitiatives, loadTasks, loadThreads, initializeProjectFromUrl, initializeInitiativeFromUrl, initializeDependencyFromUrl]);
 
 	// Reload tasks and initiatives when project changes
 	useEffect(() => {
@@ -168,12 +174,16 @@ export function DataProvider({ children }: DataProviderProps) {
 			// Clear existing data first
 			resetTasks();
 			initiativeReset();
+			resetThreads();
 
 			// Load new data
 			loadTasks(currentProjectId);
 			loadInitiatives(currentProjectId);
+			if (currentProjectId) {
+				loadThreads(currentProjectId);
+			}
 		}
-	}, [currentProjectId, loadTasks, loadInitiatives, resetTasks, initiativeReset]);
+	}, [currentProjectId, loadTasks, loadInitiatives, loadThreads, resetTasks, initiativeReset, resetThreads]);
 
 	// Handle browser back/forward navigation
 	useEffect(() => {

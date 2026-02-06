@@ -2,39 +2,34 @@
  * AppShell component - Main application shell with CSS Grid layout.
  *
  * Provides the overall application structure:
- * - IconNav (56px) in left column, spanning full height
+ * - ProjectSidebar in left column
  * - TopBar (48px) in top row
  * - Main content area (scrollable) in center
- * - RightPanel (300px, collapsible) in right column
+ * - ContextPanel (resizable) in right column
+ * - TerminalDrawer at bottom
  *
  * Grid Layout:
  * ```
- * +-------+---------------------------+------------+
- * | Icon  |         TopBar            | RightPanel |
- * | Nav   +---------------------------+   (opt)    |
- * | (56px)|      Main Content         |  (300px)   |
- * |       |        (scroll)           |            |
- * +-------+---------------------------+------------+
+ * +---------+---------------------------+--------------+
+ * | Project |         TopBar            | ContextPanel |
+ * | Sidebar +---------------------------+              |
+ * |         |      Main Content         |              |
+ * |         |        (scroll)           |              |
+ * |         +---------------------------+              |
+ * |         |    Terminal Drawer        |              |
+ * +---------+---------------------------+--------------+
  * ```
- *
- * The right panel renders route-specific content:
- * - /board: BoardCommandPanel (reads from stores directly)
- * - Other routes: defaultPanelContent prop (if provided)
  */
 
-import { type ReactNode, lazy, Suspense, useState, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
-import { IconNav } from './IconNav';
+import { type ReactNode, useState, useCallback, useEffect } from 'react';
+import { ProjectSidebar } from './ProjectSidebar';
 import { TopBar } from './TopBar';
-import { RightPanel } from './RightPanel';
+import { ContextPanel, type ContextPanelMode } from './ContextPanel';
+import { TerminalDrawer } from './TerminalDrawer';
 import { UrlParamSync } from './UrlParamSync';
-import { AppShellProvider, useAppShell } from './AppShellContext';
+import { AppShellProvider } from './AppShellContext';
+import { useThreadStore } from '@/stores/threadStore';
 import './AppShell.css';
-
-// Lazy-load BoardCommandPanel — only needed on /board route
-const BoardCommandPanel = lazy(() =>
-	import('@/components/board/BoardCommandPanel').then(m => ({ default: m.BoardCommandPanel }))
-);
 
 // =============================================================================
 // TYPES
@@ -49,68 +44,33 @@ export interface AppShellProps {
 	onNewTask?: () => void;
 	/** Callback when project selector is clicked */
 	onProjectChange?: () => void;
-	/** Default right panel content (when no route-specific content applies) */
-	defaultPanelContent?: ReactNode;
 }
 
 // =============================================================================
-// INNER COMPONENT (uses context)
+// INNER COMPONENT (uses context and manages state)
 // =============================================================================
-
-interface AppShellInnerProps extends AppShellProps {
-	/** Whether mobile nav is open (hamburger menu) */
-	mobileNavOpen: boolean;
-	/** Toggle mobile nav */
-	onToggleMobileNav: () => void;
-}
 
 function AppShellInner({
 	children,
 	className = '',
 	onNewTask,
 	onProjectChange,
-	defaultPanelContent,
-	mobileNavOpen,
-	onToggleMobileNav,
-}: AppShellInnerProps) {
-	const {
-		isRightPanelOpen,
-		toggleRightPanel,
-		isMobileNavMode,
-	} = useAppShell();
+}: AppShellProps) {
+	const [contextPanelMode, setContextPanelMode] = useState<ContextPanelMode | undefined>(undefined);
+	const selectedThreadId = useThreadStore((state) => state.selectedThreadId);
 
-	const location = useLocation();
-
-	// Only show RightPanel for routes that have panel content
-	// Currently only /board has panel content (BoardCommandPanel)
-	// /workflows/:id has its own inspector panel built into the page
-	const isBoard = location.pathname === '/board';
-	const hasPanelContent = isBoard || Boolean(defaultPanelContent);
-
-	const shellClasses = ['app-shell', isRightPanelOpen && hasPanelContent && 'app-shell--panel-open', mobileNavOpen && 'app-shell--mobile-nav-open', className].filter(Boolean).join(' ');
-
-	// Route-aware panel content: board gets its own panel, others use default
-	const panelContent = isBoard ? (
-		<Suspense fallback={null}>
-			<BoardCommandPanel />
-		</Suspense>
-	) : defaultPanelContent;
-
-	// Handle closing panel
-	const handlePanelClose = useCallback(() => {
-		if (isRightPanelOpen) {
-			toggleRightPanel();
+	// When a thread is selected, switch to discussion mode
+	useEffect(() => {
+		if (selectedThreadId) {
+			setContextPanelMode('discussion');
 		}
-	}, [isRightPanelOpen, toggleRightPanel]);
+	}, [selectedThreadId]);
 
-	// Handle backdrop click (closes mobile nav or panel)
-	const handleBackdropClick = useCallback(() => {
-		if (mobileNavOpen) {
-			onToggleMobileNav();
-		} else if (isRightPanelOpen && isMobileNavMode) {
-			toggleRightPanel();
-		}
-	}, [mobileNavOpen, onToggleMobileNav, isRightPanelOpen, isMobileNavMode, toggleRightPanel]);
+	const handleModeChange = useCallback((mode: ContextPanelMode) => {
+		setContextPanelMode(mode);
+	}, []);
+
+	const shellClasses = ['app-shell', className].filter(Boolean).join(' ');
 
 	return (
 		<div className={shellClasses}>
@@ -122,17 +82,14 @@ function AppShellInner({
 				Skip to main content
 			</a>
 
-			{/* IconNav (56px sidebar) */}
-			<div className="app-shell__nav">
-				<IconNav />
+			{/* ProjectSidebar (left column) */}
+			<div className="app-shell__sidebar">
+				<ProjectSidebar onProjectChange={onProjectChange} />
 			</div>
 
 			{/* TopBar (48px header) */}
 			<div className="app-shell__topbar">
-				<TopBar
-					onNewTask={onNewTask}
-					onProjectChange={onProjectChange}
-				/>
+				<TopBar onNewTask={onNewTask} />
 			</div>
 
 			{/* Main Content Area (scrollable) */}
@@ -144,24 +101,19 @@ function AppShellInner({
 				{children}
 			</main>
 
-			{/* RightPanel (300px, collapsible) - Only rendered for routes with panel content */}
-			{hasPanelContent && (
-				<div className="app-shell__panel">
-					<RightPanel
-						isOpen={isRightPanelOpen}
-						onClose={handlePanelClose}
-					>
-						{panelContent}
-					</RightPanel>
-				</div>
-			)}
+			{/* TerminalDrawer (bottom) */}
+			<div className="app-shell__terminal-drawer">
+				<TerminalDrawer />
+			</div>
 
-			{/* Mobile backdrop */}
-			<div
-				className="app-shell__backdrop"
-				onClick={handleBackdropClick}
-				aria-hidden="true"
-			/>
+			{/* ContextPanel (right column) */}
+			<div className="app-shell__context-panel">
+				<ContextPanel
+					mode={contextPanelMode}
+					onModeChange={handleModeChange}
+					threadId={selectedThreadId ?? undefined}
+				/>
+			</div>
 		</div>
 	);
 }
@@ -170,39 +122,10 @@ function AppShellInner({
 // MAIN COMPONENT (provides context)
 // =============================================================================
 
-/**
- * AppShell - Main application layout shell.
- *
- * Wraps content in AppShellProvider for state management.
- * Right panel content is determined by route:
- * - /board renders BoardCommandPanel (reads from stores)
- * - Other routes use defaultPanelContent prop
- *
- * @example
- * ```tsx
- * <AppShell
- *   onNewTask={() => setShowNewTaskModal(true)}
- *   onProjectChange={() => setShowProjectSwitcher(true)}
- * >
- *   <Outlet />
- * </AppShell>
- * ```
- */
 export function AppShell(props: AppShellProps) {
-	// Mobile nav state (not part of context since it's shell-specific)
-	const [mobileNavOpen, setMobileNavOpen] = useState(false);
-
-	const toggleMobileNav = useCallback(() => {
-		setMobileNavOpen((prev) => !prev);
-	}, []);
-
 	return (
 		<AppShellProvider>
-			<AppShellInner
-				{...props}
-				mobileNavOpen={mobileNavOpen}
-				onToggleMobileNav={toggleMobileNav}
-			/>
+			<AppShellInner {...props} />
 		</AppShellProvider>
 	);
 }

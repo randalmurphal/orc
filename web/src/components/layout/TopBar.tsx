@@ -1,8 +1,8 @@
 /**
- * TopBar component - 48px fixed header with project selector, search, session metrics, and actions.
+ * TopBar component - 48px fixed header with navigation tabs, search, session metrics, and actions.
  *
  * Features:
- * - Project dropdown button (static - dropdown menu is future task)
+ * - Navigation tabs: Home, Board, Knowledge, Workflows, Settings
  * - Search box with Cmd+K shortcut (search functionality is future task)
  * - Session metrics: duration, tokens, cost with colored icon badges
  * - Pause/Resume button that integrates with sessionStore
@@ -10,20 +10,18 @@
  * - Responsive: hides session stats at 768px, expandable search at 480px
  */
 
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
-import { Icon, Tooltip } from '@/components/ui';
+import { Icon } from '@/components/ui';
 import {
 	useFormattedDuration,
 	useFormattedCost,
 	useFormattedTokens,
 	useIsPaused,
 	useSessionStore,
-	useCurrentProject,
 	useCurrentProjectId,
 } from '@/stores';
-import { AppShellContext } from './AppShellContext';
 import './TopBar.css';
 
 interface TopBarProps {
@@ -41,6 +39,14 @@ interface SessionStatProps {
 	colorClass: 'purple' | 'amber' | 'green';
 }
 
+const NAV_TABS = [
+	{ label: 'Home', path: '/', end: true },
+	{ label: 'Board', path: '/board', end: false },
+	{ label: 'Knowledge', path: '/knowledge', end: false },
+	{ label: 'Workflows', path: '/workflows', end: false },
+	{ label: 'Settings', path: '/settings', end: false },
+] as const;
+
 function SessionStat({ icon, label, value, colorClass }: SessionStatProps) {
 	return (
 		<div className="session-stat">
@@ -54,12 +60,9 @@ function SessionStat({ icon, label, value, colorClass }: SessionStatProps) {
 }
 
 export function TopBar({
-	projectName: projectNameProp,
-	onProjectChange,
 	onNewTask,
 	className = '',
 }: TopBarProps) {
-	const currentProject = useCurrentProject();
 	const projectId = useCurrentProjectId();
 	const duration = useFormattedDuration();
 	const formattedTokens = useFormattedTokens();
@@ -67,20 +70,9 @@ export function TopBar({
 	const isPaused = useIsPaused();
 	const pauseAll = useSessionStore((s) => s.pauseAll);
 	const resumeAll = useSessionStore((s) => s.resumeAll);
-	const location = useLocation();
-
-	// Get right panel state from AppShell context (null if not in AppShellProvider)
-	const appShell = useContext(AppShellContext);
-
-	// Only show panel toggle for routes that have panel content
-	// Currently only /board has panel content (BoardCommandPanel)
-	const isBoard = location.pathname === '/board';
-	const showPanelToggle = appShell && isBoard;
 
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const [searchExpanded, setSearchExpanded] = useState(false);
-
-	const projectName = projectNameProp ?? currentProject?.name ?? 'Select project';
 
 	const handlePauseResume = async () => {
 		if (isPaused) {
@@ -91,14 +83,12 @@ export function TopBar({
 	};
 
 	// Focus search on Cmd+K / Ctrl+K
-	// No dependency on searchExpanded — Escape always calls setSearchExpanded(false) (idempotent)
 	const handleKeyDown = useCallback((e: KeyboardEvent) => {
 		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
 			e.preventDefault();
 			setSearchExpanded(true);
 			searchInputRef.current?.focus();
 		}
-		// Close expanded search on Escape (idempotent — safe to call when already collapsed)
 		if (e.key === 'Escape') {
 			setSearchExpanded(false);
 			searchInputRef.current?.blur();
@@ -113,7 +103,6 @@ export function TopBar({
 	const handleSearchToggle = () => {
 		setSearchExpanded((prev) => !prev);
 		if (!searchExpanded) {
-			// Focus after state update
 			setTimeout(() => searchInputRef.current?.focus(), 0);
 		}
 	};
@@ -123,17 +112,22 @@ export function TopBar({
 
 	return (
 		<header className={classes} role="banner">
-			<div className="top-bar-left">
-				<button
-					className="project-selector"
-					onClick={onProjectChange}
-					aria-haspopup="listbox"
-				>
-					<Icon name="folder" size={14} />
-					<span className="project-name">{projectName}</span>
-					<Icon name="chevron-down" size={12} />
-				</button>
+			<nav className="top-bar-nav">
+				{NAV_TABS.map((tab) => (
+					<NavLink
+						key={tab.path}
+						to={tab.path}
+						end={tab.end}
+						className={({ isActive }) =>
+							`top-bar-nav-tab ${isActive ? 'active' : ''}`
+						}
+					>
+						{tab.label}
+					</NavLink>
+				))}
+			</nav>
 
+			<div className="top-bar-center">
 				{/* Mobile search toggle button (visible <480px) */}
 				<button
 					className="search-toggle"
@@ -157,9 +151,7 @@ export function TopBar({
 						<kbd>K</kbd>
 					</span>
 				</div>
-			</div>
 
-			<div className="top-bar-center">
 				<div className="session-info">
 					<SessionStat
 						icon="clock"
@@ -197,21 +189,6 @@ export function TopBar({
 					>
 						New Task
 					</Button>
-				)}
-				{showPanelToggle && appShell && (
-					<Tooltip content={<>Toggle panel <kbd>Shift+Alt+R</kbd></>}>
-						<Button
-							ref={appShell.panelToggleRef}
-							variant="ghost"
-							size="sm"
-							iconOnly
-							onClick={appShell.toggleRightPanel}
-							aria-label="Toggle right panel"
-							aria-expanded={appShell.isRightPanelOpen}
-						>
-							<Icon name="panel-right" size={16} />
-						</Button>
-					</Tooltip>
 				)}
 			</div>
 		</header>
