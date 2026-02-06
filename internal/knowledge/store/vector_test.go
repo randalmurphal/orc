@@ -115,62 +115,7 @@ func TestVectorStore_ConnectionError(t *testing.T) {
 	}
 }
 
-// --- Types and stubs ---
-
-// Vector represents a vector with payload.
-type Vector struct {
-	ID      string
-	Values  []float32
-	Payload map[string]interface{}
-}
-
-// ScoredVector represents a search result with similarity score.
-type ScoredVector struct {
-	ID      string
-	Score   float32
-	Payload map[string]interface{}
-}
-
-// VectorStore provides vector database operations.
-type VectorStore struct{}
-
-// VectorStoreOption configures a VectorStore.
-type VectorStoreOption func(*VectorStore)
-
-// NewVectorStore creates a new vector store.
-func NewVectorStore(opts ...VectorStoreOption) *VectorStore {
-	return nil
-}
-
-// WithQdrantClient sets a custom Qdrant client (for testing).
-func WithQdrantClient(client *mockQdrantClient) VectorStoreOption {
-	return func(s *VectorStore) {}
-}
-
-// Connect establishes connection to Qdrant.
-func (s *VectorStore) Connect(ctx context.Context) error {
-	return errors.New("not implemented")
-}
-
-// Close closes the connection.
-func (s *VectorStore) Close() error {
-	return errors.New("not implemented")
-}
-
-// CreateCollection creates a vector collection with given dimensions.
-func (s *VectorStore) CreateCollection(ctx context.Context, name string, dimension int) error {
-	return errors.New("not implemented")
-}
-
-// Upsert inserts or updates vectors in a collection.
-func (s *VectorStore) Upsert(ctx context.Context, collection string, vectors []Vector) error {
-	return errors.New("not implemented")
-}
-
-// Search performs similarity search and returns scored results.
-func (s *VectorStore) Search(ctx context.Context, collection string, queryVec []float32, limit int) ([]ScoredVector, error) {
-	return nil, errors.New("not implemented")
-}
+// --- Test doubles ---
 
 type mockQdrantClient struct {
 	upsertCalls           int
@@ -180,6 +125,34 @@ type mockQdrantClient struct {
 	expectedDimension     int
 	searchResults         []ScoredVector
 	connectErr            error
+}
+
+func (m *mockQdrantClient) ExpectedDimension() int {
+	return m.expectedDimension
+}
+
+func (m *mockQdrantClient) Connect(_ context.Context) error {
+	return m.connectErr
+}
+
+func (m *mockQdrantClient) Close() error {
+	return nil
+}
+
+func (m *mockQdrantClient) CreateCollection(_ context.Context, name string, dimension int) error {
+	m.createCollectionCalls++
+	m.lastDimension = dimension
+	return nil
+}
+
+func (m *mockQdrantClient) Upsert(_ context.Context, collection string, vectors []Vector) error {
+	m.upsertCalls++
+	m.lastCollection = collection
+	return nil
+}
+
+func (m *mockQdrantClient) Search(_ context.Context, collection string, queryVec []float32, limit int) ([]ScoredVector, error) {
+	return m.searchResults, nil
 }
 
 func containsString(s, substr string) bool {

@@ -124,60 +124,7 @@ func TestGraphStore_CypherSyntaxError(t *testing.T) {
 	}
 }
 
-// --- Types and stubs ---
-
-// Node represents a graph node.
-type Node struct {
-	ID         string
-	Labels     []string
-	Properties map[string]interface{}
-}
-
-// GraphStore provides graph database operations.
-type GraphStore struct{}
-
-// GraphStoreOption configures a GraphStore.
-type GraphStoreOption func(*GraphStore)
-
-// NewGraphStore creates a new graph store.
-func NewGraphStore(opts ...GraphStoreOption) *GraphStore {
-	return nil
-}
-
-// WithNeo4jDriver sets a custom Neo4j driver (for testing).
-func WithNeo4jDriver(driver *mockNeo4jDriver) GraphStoreOption {
-	return func(s *GraphStore) {}
-}
-
-// Connect establishes connection to Neo4j.
-func (s *GraphStore) Connect(ctx context.Context) error {
-	return errors.New("not implemented")
-}
-
-// Close closes the connection.
-func (s *GraphStore) Close() error {
-	return errors.New("not implemented")
-}
-
-// CreateNode creates a node and returns its ID.
-func (s *GraphStore) CreateNode(ctx context.Context, node Node) (string, error) {
-	return "", errors.New("not implemented")
-}
-
-// QueryNodes queries nodes by label and properties.
-func (s *GraphStore) QueryNodes(ctx context.Context, label string, props map[string]interface{}) ([]Node, error) {
-	return nil, errors.New("not implemented")
-}
-
-// CreateRelationship creates a relationship between two nodes.
-func (s *GraphStore) CreateRelationship(ctx context.Context, fromID, toID, relType string, props map[string]interface{}) error {
-	return errors.New("not implemented")
-}
-
-// ExecuteCypher executes a raw Cypher query.
-func (s *GraphStore) ExecuteCypher(ctx context.Context, query string, params map[string]interface{}) ([]map[string]interface{}, error) {
-	return nil, errors.New("not implemented")
-}
+// --- Test doubles ---
 
 type mockNeo4jDriver struct {
 	createNodeCalls int
@@ -188,4 +135,35 @@ type mockNeo4jDriver struct {
 	cypherResult    []map[string]interface{}
 	connectErr      error
 	cypherErr       error
+}
+
+func (m *mockNeo4jDriver) Connect(_ context.Context) error {
+	return m.connectErr
+}
+
+func (m *mockNeo4jDriver) Close() error {
+	return nil
+}
+
+func (m *mockNeo4jDriver) CreateNode(_ context.Context, labels []string, props map[string]interface{}) (string, error) {
+	m.createNodeCalls++
+	m.lastLabels = labels
+	return "node-id-1", nil
+}
+
+func (m *mockNeo4jDriver) QueryNodes(_ context.Context, label string, props map[string]interface{}) ([]Node, error) {
+	return m.queryResult, nil
+}
+
+func (m *mockNeo4jDriver) CreateRelationship(_ context.Context, fromID, toID, relType string, props map[string]interface{}) error {
+	m.createRelCalls++
+	m.lastRelType = relType
+	return nil
+}
+
+func (m *mockNeo4jDriver) ExecuteCypher(_ context.Context, query string, params map[string]interface{}) ([]map[string]interface{}, error) {
+	if m.cypherErr != nil {
+		return nil, m.cypherErr
+	}
+	return m.cypherResult, nil
 }

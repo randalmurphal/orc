@@ -3,7 +3,6 @@ package embed
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -27,23 +26,18 @@ func TestVoyageEmbedder_BatchSplitting(t *testing.T) {
 		requestBodies = append(requestBodies, req)
 
 		// Return vectors for each input
-		vectors := make([][]float32, len(req.Input))
-		for i := range vectors {
-			vectors[i] = make([]float32, 1024)
-		}
-
 		resp := voyageResponse{
 			Data: make([]voyageEmbedding, len(req.Input)),
 		}
 		for i := range resp.Data {
 			resp.Data[i] = voyageEmbedding{
-				Embedding: vectors[i],
+				Embedding: make([]float32, 1024),
 				Index:     i,
 			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -97,14 +91,14 @@ func TestVoyageEmbedder_RequestModel(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req voyageRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 		capturedModel = req.Model
 
 		resp := voyageResponse{
 			Data: []voyageEmbedding{{Embedding: make([]float32, 1024), Index: 0}},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -134,7 +128,7 @@ func TestVoyageEmbedder_SingleText(t *testing.T) {
 			Data: []voyageEmbedding{{Embedding: make([]float32, 1024), Index: 0}},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -214,7 +208,7 @@ func TestVoyageEmbedder_RateLimit(t *testing.T) {
 			Data: []voyageEmbedding{{Embedding: make([]float32, 1024), Index: 0}},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -241,7 +235,7 @@ func TestVoyageEmbedder_RateLimit(t *testing.T) {
 func TestVoyageEmbedder_AuthError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": "invalid api key"}`))
+		_, _ = w.Write([]byte(`{"error": "invalid api key"}`))
 	}))
 	defer server.Close()
 
@@ -261,7 +255,7 @@ func TestVoyageEmbedder_AuthError(t *testing.T) {
 func TestSidecarEmbedder_Embed(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req sidecarRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 
 		vectors := make([][]float32, len(req.Texts))
 		for i := range vectors {
@@ -270,7 +264,7 @@ func TestSidecarEmbedder_Embed(t *testing.T) {
 
 		resp := sidecarResponse{Embeddings: vectors}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -305,7 +299,7 @@ func TestSidecarEmbedder_NoAPIKeyRequired(t *testing.T) {
 			Embeddings: [][]float32{make([]float32, 1024)},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -402,92 +396,7 @@ func TestEmbedderSelection_NanoNoAPIKey(t *testing.T) {
 	}
 }
 
-// --- Types and stubs ---
-
-type voyageRequest struct {
-	Model     string   `json:"model"`
-	Input     []string `json:"input"`
-	InputType string   `json:"input_type,omitempty"`
-}
-
-type voyageEmbedding struct {
-	Embedding []float32 `json:"embedding"`
-	Index     int       `json:"index"`
-}
-
-type voyageResponse struct {
-	Data []voyageEmbedding `json:"data"`
-}
-
-type sidecarRequest struct {
-	Texts []string `json:"texts"`
-}
-
-type sidecarResponse struct {
-	Embeddings [][]float32 `json:"embeddings"`
-}
-
-// Embedder is the interface for embedding providers.
-type Embedder interface {
-	Embed(ctx context.Context, texts []string) ([][]float32, error)
-	Type() string
-}
-
-// VoyageConfig configures the Voyage AI embedder.
-type VoyageConfig struct {
-	APIKey  string
-	Model   string
-	BaseURL string
-}
-
-// SidecarConfig configures the sidecar embedder.
-type SidecarConfig struct {
-	URL string
-}
-
-// EmbedderConfig configures embedder selection.
-type EmbedderConfig struct {
-	Model  string
-	APIKey string
-}
-
-// VoyageEmbedder implements Embedder using Voyage AI API.
-type VoyageEmbedder struct{}
-
-// NewVoyageEmbedder creates a new Voyage AI embedder.
-func NewVoyageEmbedder(cfg VoyageConfig) *VoyageEmbedder {
-	return nil
-}
-
-// NewVoyageEmbedderFromEnv creates a Voyage embedder using env var for API key.
-func NewVoyageEmbedderFromEnv(cfg VoyageConfig) (*VoyageEmbedder, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (e *VoyageEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (e *VoyageEmbedder) Type() string { return "voyage" }
-
-// SidecarEmbedder implements Embedder using local FastAPI sidecar.
-type SidecarEmbedder struct{}
-
-// NewSidecarEmbedder creates a new sidecar embedder.
-func NewSidecarEmbedder(cfg SidecarConfig) *SidecarEmbedder {
-	return nil
-}
-
-func (e *SidecarEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (e *SidecarEmbedder) Type() string { return "sidecar" }
-
-// NewEmbedder creates an embedder based on model configuration.
-func NewEmbedder(cfg EmbedderConfig) (Embedder, error) {
-	return nil, errors.New("not implemented")
-}
+// --- Test helpers ---
 
 func containsStr(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
