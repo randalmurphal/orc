@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -163,6 +164,14 @@ func (g *Generator) generate(ctx context.Context, taskCount int) (*Brief, error)
 	}, nil
 }
 
+// Invalidate removes the cached brief, forcing regeneration on the next Generate call.
+func (g *Generator) Invalidate() error {
+	if g.cache != nil {
+		return g.cache.Invalidate()
+	}
+	return nil
+}
+
 func (g *Generator) countCompletedTasks() (int, error) {
 	tasks, err := g.backend.LoadAllTasks()
 	if err != nil {
@@ -171,7 +180,7 @@ func (g *Generator) countCompletedTasks() (int, error) {
 
 	count := 0
 	for _, t := range tasks {
-		if t.Status.String() == "TASK_STATUS_COMPLETED" {
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 			count++
 		}
 	}
