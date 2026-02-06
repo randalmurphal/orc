@@ -285,9 +285,9 @@ Team Total: $847.32 this month
 | TASK-795 | Port project migrations 001-020 | Completed |
 | TASK-796 | Port project migrations 021-040 | Completed |
 | TASK-797 | Port project migrations 041-056 | Completed |
-| TASK-798 | Cost viewing CLI, API, and UI | Planned |
+| TASK-798 | Cost viewing CLI, API, and UI | Completed |
 
-**15 completed, 1 planned, 1 failed (deferred).**
+**16 completed, 1 failed (deferred).**
 
 ---
 
