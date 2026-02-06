@@ -316,6 +316,21 @@ For each wiring point, note:
 - The EXISTING code path (what should call/import/render it)
 - How to verify the connection (what test to write)
 
+## Step 1b: Synthetic Data Cross-Check (CRITICAL)
+
+Review the unit tests from the previous phase (`tdd_write`). For each unit test that **manually constructs** input data with specific fields populated:
+
+1. **Note which fields are set** — e.g., `Children: methods` on a Symbol struct, `Users: []User{...}` on a response
+2. **Ask: "Does the production code path actually populate these fields?"** — or does it only populate a subset?
+3. **If uncertain, write an integration test** that runs the FULL production pipeline and asserts the field is populated in the output
+
+This catches the most insidious form of dead code: unit tests pass because they construct perfect input that **production code never produces**. The implementation looks correct, tests pass, but the feature is dead in production.
+
+Example:
+- Unit test manually sets `symbol.Children = [method1, method2]` → chunker correctly splits hierarchically
+- But the parser never populates `Children` → hierarchical splitting NEVER triggers in production
+- Integration test should: parse a real file → feed to chunker → assert hierarchical chunks exist
+
 ## Step 2: Write Integration Tests
 
 For each wiring point:

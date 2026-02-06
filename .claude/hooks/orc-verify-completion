@@ -12,8 +12,10 @@
 
 set -euo pipefail
 
-# Use task ID for marker uniqueness (hardcoded for running task)
-MARKER_FILE="/tmp/orc-verify-completion-TASK-013"
+# Use task ID for marker uniqueness, fall back to parent PID (Claude Code process)
+# Note: $PPID is consistent across hook invocations within the same Claude Code session,
+# unlike $$ which gives a new PID for each bash subprocess
+MARKER_FILE="/tmp/orc-verify-completion-${ORC_TASK_ID:-$PPID}"
 
 # Second stop attempt — allow it through
 if [ -f "$MARKER_FILE" ]; then

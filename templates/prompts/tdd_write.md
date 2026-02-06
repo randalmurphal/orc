@@ -17,6 +17,13 @@
 
 **Prevention:** Prefer sociable tests with real collaborators. Use mocks only when collaborators are slow, nondeterministic, or have side effects.
 
+**Failure #3: Testing structure instead of function (especially CLI commands)**
+- You test that a CLI command is registered, has the right flags, and displays help
+- But you never test that running the command actually DOES anything
+- A command whose handler returns `fmt.Errorf("not yet implemented")` passes all your tests
+
+**Prevention:** For every command/handler/endpoint, write at least one test that exercises the actual behavior: run the command with valid input and assert it produces the correct output or side effects. Registration tests are necessary but never sufficient.
+
 **Note:** Integration tests verifying production wiring (that new code is actually called from existing code paths) are written in the separate `tdd_integrate` phase. This phase focuses on unit and sociable tests for behavioral correctness.
 </common_failure_modes>
 
