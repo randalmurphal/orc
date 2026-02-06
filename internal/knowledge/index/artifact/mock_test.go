@@ -194,13 +194,6 @@ func (m *mockGraphStore) relsOfType(relType string) []relRecord {
 	return result
 }
 
-func (m *mockGraphStore) allRels() []relRecord {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	result := make([]relRecord, len(m.rels))
-	copy(result, m.rels)
-	return result
-}
 
 func (m *mockGraphStore) allCypherCalls() []cypherCall {
 	m.mu.Lock()

@@ -158,9 +158,9 @@ func TestServiceIndexTaskArtifacts_PropagatesIndexerErrors(t *testing.T) {
 		recordingComponents: newRecordingComponents(),
 		nodeErr:             fmt.Errorf("graph connection lost"),
 	}
-	failing.recordingComponents.neo4jHealthy = true
-	failing.recordingComponents.qdrantHealthy = true
-	failing.recordingComponents.redisHealthy = true
+	failing.neo4jHealthy = true
+	failing.qdrantHealthy = true
+	failing.redisHealthy = true
 
 	svc := NewService(ServiceConfig{Enabled: true}, WithComponents(failing))
 

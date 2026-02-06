@@ -76,12 +76,6 @@ func TestIndexMetrics_UpdatesRetryRate(t *testing.T) {
 	for _, c := range calls {
 		if strings.Contains(c.query, "avg_retry_rate") {
 			found = true
-			// Verify retry rate parameter is present.
-			if c.params != nil {
-				if _, ok := c.params["retry_count"]; ok {
-					break
-				}
-			}
 			break
 		}
 	}
