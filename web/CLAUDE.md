@@ -46,7 +46,8 @@ web/src/
 │   ├── workflow-editor/  # Visual editor (React Flow canvas, dagre layout)
 │   ├── workflow/         # Workflow modals (WorkflowSettingsModal)
 │   ├── workflows/        # Workflow management (WorkflowsView, WorkflowCreationWizard, PhaseListEditor)
-│   └── [6 more dirs]     # dashboard/, settings/, stats/, initiatives/, etc.
+│   ├── dashboard/        # My Work components (MyWorkDashboard, ProjectCard, TaskRow)
+│   └── [5 more dirs]     # settings/, stats/, initiatives/, etc.
 ├── stores/               # Zustand stores (10 stores — see State Management)
 ├── hooks/                # Custom hooks (useShortcuts, useEvents, useDocumentTitle, etc.)
 ├── pages/                # Route pages
@@ -59,7 +60,8 @@ web/src/
 
 | Route | Page | Description |
 |-------|------|-------------|
-| `/` | ProjectPickerPage | Project selection (redirects to `/board` when project chosen) |
+| `/` | ProjectPickerPage | Project selection |
+| (project index) | MyWorkPage | My Work dashboard: attention, running, ready, initiative progress |
 | `/board` | BoardView | Kanban board (queue + running columns) |
 | `/tasks/:taskId` | TaskDetailPage | Task details with workflow progress, resizable split panes, metrics footer |
 | `/initiatives` | InitiativesPage | Initiative list and stats |
@@ -107,6 +109,8 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `RunningCard` | `board/` | Active task card with pipeline + output. `memo()`-wrapped |
 | `Swimlane` | `board/` | Initiative group in queue column. `memo()`-wrapped |
 | `AttentionDashboard` | `board/` | Three-section dashboard: running tasks, attention items, queue. Error states with visual indicators for failed tasks and phases |
+| `MyWorkPage` | `pages/` | Project landing page: task sections (attention/running/ready/completed), initiative progress cards, stat cards |
+| `MyWorkDashboard` | `dashboard/` | Tabbed task view (Active/Needs Attention/Recently Completed) with summary cards, priority sort, initiative grouping |
 | `AppShell` | `layout/` | Main layout shell. Route-aware panel rendering via `useLocation` |
 | `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
 | `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
