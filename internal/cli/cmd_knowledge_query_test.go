@@ -17,10 +17,7 @@ func TestKnowledgeQueryCommand_Registered(t *testing.T) {
 }
 
 func TestKnowledgeQueryCommand_RequiresArgument(t *testing.T) {
-	cmd := findKnowledgeSubcommand("query")
-	if cmd == nil {
-		t.Fatal("'knowledge query' subcommand not found")
-	}
+	cmd := newKnowledgeQueryCmd()
 
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
@@ -34,10 +31,7 @@ func TestKnowledgeQueryCommand_RequiresArgument(t *testing.T) {
 }
 
 func TestKnowledgeQueryCommand_HelpFlag(t *testing.T) {
-	cmd := findKnowledgeSubcommand("query")
-	if cmd == nil {
-		t.Fatal("'knowledge query' subcommand not found")
-	}
+	cmd := newKnowledgeQueryCmd()
 
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
@@ -56,10 +50,7 @@ func TestKnowledgeQueryCommand_HelpFlag(t *testing.T) {
 }
 
 func TestKnowledgeQueryCommand_HasPresetFlag(t *testing.T) {
-	cmd := findKnowledgeSubcommand("query")
-	if cmd == nil {
-		t.Fatal("'knowledge query' subcommand not found")
-	}
+	cmd := newKnowledgeQueryCmd()
 
 	flag := cmd.Flag("preset")
 	if flag == nil {
@@ -68,10 +59,7 @@ func TestKnowledgeQueryCommand_HasPresetFlag(t *testing.T) {
 }
 
 func TestKnowledgeQueryCommand_HasLimitFlag(t *testing.T) {
-	cmd := findKnowledgeSubcommand("query")
-	if cmd == nil {
-		t.Fatal("'knowledge query' subcommand not found")
-	}
+	cmd := newKnowledgeQueryCmd()
 
 	flag := cmd.Flag("limit")
 	if flag == nil {
@@ -80,10 +68,7 @@ func TestKnowledgeQueryCommand_HasLimitFlag(t *testing.T) {
 }
 
 func TestKnowledgeQueryCommand_HasSummaryFlag(t *testing.T) {
-	cmd := findKnowledgeSubcommand("query")
-	if cmd == nil {
-		t.Fatal("'knowledge query' subcommand not found")
-	}
+	cmd := newKnowledgeQueryCmd()
 
 	flag := cmd.Flag("summary")
 	if flag == nil {
@@ -91,19 +76,16 @@ func TestKnowledgeQueryCommand_HasSummaryFlag(t *testing.T) {
 	}
 }
 
-func TestKnowledgeQueryCommand_KnowledgeUnavailable_PrintsMessage(t *testing.T) {
-	// When knowledge layer is not available, should print informational
-	// message and exit 0 (not error).
-	// This test verifies graceful degradation behavior.
-	// Full test requires mock service injection, but we verify command
-	// structure first.
-	cmd := findKnowledgeSubcommand("query")
-	if cmd == nil {
-		t.Fatal("'knowledge query' subcommand not found")
-	}
+func TestKnowledgeQueryCommand_KnowledgeUnavailable_ReturnsError(t *testing.T) {
+	cmd := newKnowledgeQueryCmd()
 
-	// Verify the command has RunE (error-returning handler)
-	if cmd.RunE == nil {
-		t.Error("'knowledge query' should have RunE handler")
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"test query"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Error("'knowledge query' should return error when knowledge layer is unavailable")
 	}
 }

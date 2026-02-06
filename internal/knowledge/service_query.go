@@ -3,6 +3,7 @@ package knowledge
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/randalmurphal/orc/internal/brief"
 	"github.com/randalmurphal/orc/internal/knowledge/retrieve"
@@ -83,7 +84,7 @@ func (s *Service) QueryForTask(ctx context.Context, description string) (*TaskCo
 		SummaryOnly: true,
 	})
 	if err != nil {
-		return tc, nil
+		return nil, fmt.Errorf("query for task: %w", err)
 	}
 
 	for _, doc := range result.Documents {
@@ -135,15 +136,15 @@ func (s *Service) EnrichBrief(ctx context.Context, b *brief.Brief) (*brief.Brief
 
 	patterns, err := enricher.GetPatterns(ctx)
 	if err != nil {
-		return b, nil
+		slog.Warn("enrich brief: get patterns", "error", err)
 	}
 	hotFiles, err := enricher.GetHotFiles(ctx)
 	if err != nil {
-		return b, nil
+		slog.Warn("enrich brief: get hot files", "error", err)
 	}
 	knownIssues, err := enricher.GetKnownIssues(ctx)
 	if err != nil {
-		return b, nil
+		slog.Warn("enrich brief: get known issues", "error", err)
 	}
 
 	if len(patterns) > 0 {

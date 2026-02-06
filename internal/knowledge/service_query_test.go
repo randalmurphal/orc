@@ -339,6 +339,25 @@ func TestServiceQueryForTask_Unavailable_ReturnsEmptyContext(t *testing.T) {
 	}
 }
 
+func TestServiceQueryForTask_QueryError_PropagatesError(t *testing.T) {
+	comps := &mockQueryComponents{
+		neo4jHealthy:  true,
+		qdrantHealthy: true,
+		redisHealthy:  true,
+		embedErr:      true, // causes Query to fail
+	}
+
+	svc := NewService(ServiceConfig{Enabled: true}, WithComponents(comps))
+
+	tc, err := svc.QueryForTask(context.Background(), "test task")
+	if err == nil {
+		t.Fatal("QueryForTask should propagate Query errors")
+	}
+	if tc != nil {
+		t.Error("should return nil TaskContext on error")
+	}
+}
+
 func TestServiceQueryForTask_EmptyDescription_ReturnsEmptyContext(t *testing.T) {
 	comps := &mockQueryComponents{
 		neo4jHealthy:  true,
@@ -589,6 +608,7 @@ type mockQueryComponents struct {
 	redisHealthy  bool
 
 	// Query data
+	embedErr      bool
 	embedResult   []float32
 	vectorResults []mockVectorResult
 	documents     map[string]retrieve.Document
@@ -649,6 +669,9 @@ func (m *mockQueryComponents) IsHealthy() (neo4j, qdrant, redis bool) {
 // --- retrieve.Embedder ---
 
 func (m *mockQueryComponents) Embed(_ context.Context, texts []string) ([][]float32, error) {
+	if m.embedErr {
+		return nil, fmt.Errorf("embedding service unavailable")
+	}
 	result := make([][]float32, len(texts))
 	for i := range texts {
 		if m.embedResult != nil {

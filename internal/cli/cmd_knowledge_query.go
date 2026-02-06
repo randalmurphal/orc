@@ -26,13 +26,11 @@ Presets control which pipeline stages execute:
   recency   - Recent focus: semantic + temporal`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			query := args[0]
+			_ = args[0] // validated by cobra.ExactArgs(1)
+			_, _ = preset, limit // flags parsed but require knowledge service
+			_ = summary
 
-			// In production, this would use the knowledge service.
-			// For now, print a message when knowledge is unavailable.
-			fmt.Fprintf(cmd.OutOrStdout(), "Knowledge layer is not available. Start it with: orc knowledge start\n")
-			fmt.Fprintf(cmd.OutOrStdout(), "Query: %s (preset=%s, limit=%d, summary=%v)\n", query, preset, limit, summary)
-			return nil
+			return fmt.Errorf("knowledge query: knowledge layer is not available, start it with: orc knowledge start")
 		},
 	}
 
