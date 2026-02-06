@@ -357,7 +357,7 @@ When adding llmkit features that orc depends on:
 
 Start: `make build && orc serve` (production) or `make dev-full` (hot reload).
 
-Features: Project picker, live task board, WebSocket updates, initiative filtering, keyboard shortcuts (`Shift+Alt` modifier), settings editor, visual workflow editor (React Flow). All API calls include `projectId`.
+Features: Project picker, My Work dashboard, live task board, WebSocket updates, initiative filtering, keyboard shortcuts (`Shift+Alt` modifier), settings editor, visual workflow editor (React Flow). All API calls include `projectId`.
 
 See `web/CLAUDE.md` for component library and architecture.
 

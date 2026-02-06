@@ -336,7 +336,12 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 			if phase == "" {
 				phase = "starting"
 			}
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t[%s]\n", t.Id, truncate(t.Title, 40), phase)
+			hbStatus := task.FormatHeartbeatStatus(t)
+			if hbStatus != "" {
+				_, _ = fmt.Fprintf(w, "  %s\t%s\t[%s] (%s)\n", t.Id, truncate(t.Title, 40), phase, hbStatus)
+			} else {
+				_, _ = fmt.Fprintf(w, "  %s\t%s\t[%s]\n", t.Id, truncate(t.Title, 40), phase)
+			}
 			_ = w.Flush()
 			if cfg != nil && cfg.Worktree.Enabled {
 				cwd, _ := os.Getwd()

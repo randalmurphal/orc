@@ -27,6 +27,12 @@ interface NavItemConfig {
 /** Configuration for main navigation items */
 const mainNavItems: NavItemConfig[] = [
 	{
+		icon: 'dashboard',
+		label: 'My Work',
+		path: '/',
+		description: 'My Work dashboard',
+	},
+	{
 		icon: 'board',
 		label: 'Board',
 		path: '/board',
@@ -88,9 +94,9 @@ export interface IconNavProps {
  * Handles nested routes by checking if pathname starts with the nav item path.
  */
 function checkIsActive(path: string, pathname: string): boolean {
-	// Exact match for these paths (no nested routes expected)
-	if (path === '/board' || path === '/help') {
-		return pathname === path || pathname.startsWith(`${path}/`);
+	// Exact match for root, board, help (no nested routes expected)
+	if (path === '/' || path === '/board' || path === '/help') {
+		return pathname === path;
 	}
 	// For settings, initiatives, stats, workflows - match prefix for nested routes
 	return pathname.startsWith(path);
