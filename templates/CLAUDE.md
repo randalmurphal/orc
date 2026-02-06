@@ -8,10 +8,10 @@ Embedded prompt templates for phase execution.
 templates/
 ├── embed.go              # Go embed directives
 ├── prompts/              # ALL prompt templates
-│   ├── *.md              # Phase and session prompts (22 files)
+│   ├── *.md              # Phase and session prompts (23 files)
 │   └── automation/*.md   # Maintenance automation templates (8 files)
 ├── workflows/            # Built-in workflow definitions (9 YAML files)
-├── phases/               # Built-in phase template definitions (11 YAML files)
+├── phases/               # Built-in phase template definitions (12 YAML files)
 ├── agents/               # Sub-agent definitions (9 built-in)
 ├── docs/                 # Documentation templates
 ├── scripts/              # Helper scripts
@@ -26,8 +26,8 @@ Built-in workflows are defined as YAML in `templates/workflows/` and synced to G
 |-------------|--------|----------|
 | `implement-trivial` | implement | One-liner fixes, typos |
 | `implement-small` | tiny_spec → implement → review → docs | Bug fixes, isolated changes |
-| `implement-medium` | spec → tdd_write → implement → review → docs | Standard features |
-| `implement-large` | spec → tdd_write → breakdown → implement → review → docs | Complex multi-file features |
+| `implement-medium` | spec → tdd_write → tdd_integrate → implement → review → docs | Standard features |
+| `implement-large` | spec → tdd_write → tdd_integrate → breakdown → implement → review → docs | Complex multi-file features |
 | `review` | review | Review existing changes |
 | `spec` | spec | Generate spec only |
 | `docs` | docs | Documentation only |
@@ -37,9 +37,9 @@ Built-in workflows are defined as YAML in `templates/workflows/` and synced to G
 **Resolution priority:** personal (`~/.orc/workflows/`) > local (`.orc/local/workflows/`) > project (`.orc/workflows/`) > embedded (`templates/workflows/`)
 
 **Key concepts:**
-- **TDD-first**: Tests written before implementation (medium/large via tdd_write phase)
-- **Test classification**: tdd_write classifies tests as solitary (mocked), sociable (real collaborators), or integration (wiring verification)
-- **Integration test mandate**: New code wired into existing paths MUST have integration tests proving the wiring works
+- **TDD-first**: Tests written before implementation (medium/large via tdd_write + tdd_integrate phases)
+- **Split test phases**: tdd_write handles solitary/sociable tests (behavioral correctness), tdd_integrate handles integration tests (production wiring verification)
+- **Integration test mandate**: New code wired into existing paths MUST have integration tests proving the wiring works (enforced by dedicated tdd_integrate phase)
 - **Review includes verification**: The review phase handles success criteria verification
 - **No separate test phase**: TDD handles testing upfront
 - **Composable phases**: Each phase is a reusable template in `phase_templates` table
@@ -57,7 +57,8 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `{{TASK_CATEGORY}}` | feature/bug/refactor/etc |
 | `{{PHASE}}`, `{{WEIGHT}}`, `{{ITERATION}}` | Execution context |
 | `{{SPEC_CONTENT}}` | Spec phase artifact |
-| `{{TDD_TESTS_CONTENT}}`, `{{TDD_TEST_PLAN}}` | TDD phase output |
+| `{{TDD_TESTS_CONTENT}}`, `{{TDD_TEST_PLAN}}` | TDD unit/sociable test phase output |
+| `{{TDD_INTEGRATION_CONTENT}}` | TDD integration test phase output |
 | `{{BREAKDOWN_CONTENT}}` | Task breakdown output |
 | `{{RETRY_ATTEMPT}}`, `{{RETRY_FROM_PHASE}}`, `{{RETRY_REASON}}` | Retry context via variable resolver (empty on first run) |
 | `{{RETRY_FEEDBACK}}`, `{{RETRY_FAILED_CRITERIA}}`, `{{RETRY_MAX_ATTEMPTS}}` | Structured retry context via prompt service. `{{RETRY_CONTEXT}}` available for backward compat |
@@ -79,7 +80,8 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `spec.md` | Technical specification with user stories and quality checklist |
 | `tiny_spec.md` | Combined spec+TDD for trivial/small tasks |
 | `design.md` | Create design document |
-| `tdd_write.md` | Write failing tests before implementation (classifies solitary/sociable/integration, requires integration tests for wiring) |
+| `tdd_write.md` | Write failing unit/sociable tests before implementation (behavioral correctness) |
+| `tdd_integrate.md` | Write failing integration tests verifying new code is wired into production paths |
 | `breakdown.md` | Break spec into checkboxed implementation tasks |
 | `implement.md` | Implementation with TDD context, must make tests pass |
 | `review.md` | Multi-agent code review (6 reviewers incl. no-op detection) + success criteria + TDD wiring verification |
@@ -144,7 +146,8 @@ Every phase prompt starts with a one-line identity statement: "You are a [role] 
 State the most common failure mode explicitly near the top:
 - **Spec**: "Most common failure is success criteria that verify existence instead of behavior"
 - **Implement**: "Most common failure is declaring completion without running verification"
-- **TDD**: "Most common failure is tests that pass with empty stubs"
+- **TDD (unit)**: "Most common failure is tests that pass with empty stubs"
+- **TDD (integration)**: "Most common failure is testing new code directly instead of through production entry points"
 
 ### Agent Prompt Patterns
 
@@ -188,7 +191,8 @@ Phases that produce artifacts use `--json-schema` constrained output with an `ar
 | tiny_spec | Yes | Combined spec + TDD tests |
 | research | Yes | Research findings |
 | design | Yes | Design document |
-| tdd_write | Yes | Test files and test plan |
+| tdd_write | Yes | Unit/sociable test files and test plan |
+| tdd_integrate | Yes | Integration test files and wiring verification |
 | breakdown | Yes | Checkboxed implementation tasks |
 | docs | Yes | Documentation summary |
 | implement | No | Code changes only |
@@ -302,27 +306,23 @@ All spec/TDD/review templates include guards against hollow implementations:
 
 ## Wiring Verification (Dead Code Prevention)
 
-New code that isn't wired into production paths is dead code. The orchestrator prevents this via mandatory wiring declarations and verification:
+New code that isn't wired into production paths is dead code. The orchestrator prevents this via a dedicated integration test phase and verification at multiple stages:
 
-### Wiring Declaration (spec/tdd_write/tiny_spec phases)
+### Dedicated Integration Test Phase (`tdd_integrate`)
 
-When creating new components/functions, output MUST include a `wiring` field:
+The `tdd_integrate` phase (medium/large workflows) writes integration tests that verify new code is reachable from production paths. These tests:
+1. Exercise EXISTING production entry points (not new code directly)
+2. FAIL if the wiring between existing code and new code is missing
+3. Use the recording mock pattern when effects aren't directly observable
 
-```json
-"wiring": {
-  "new_component_path": "@/components/feature/Panel.tsx",
-  "imported_by": "@/pages/Dashboard.tsx",
-  "integration_test_file": "Dashboard.integration.test.tsx",
-  "integration_test_verifies": "Dashboard renders Panel"
-}
-```
+Output includes `wiring_verification` declarations mapping each new code path to its production caller.
 
 ### Integration Test Location Rule
 
 | Pattern | Status | Why |
 |---------|--------|-----|
-| `NewComponent.test.tsx` imports `./NewComponent` | ❌ WRONG | Tests component in isolation, doesn't verify wiring |
-| `ExistingPage.integration.test.tsx` imports `./ExistingPage` | ✅ RIGHT | Fails if ExistingPage doesn't render NewComponent |
+| Test imports new code directly | WRONG | Tests isolation, not wiring |
+| Test imports existing caller that should use new code | RIGHT | Fails if caller doesn't reference new code |
 
 ### Wiring Verification (implement phase)
 
@@ -337,7 +337,7 @@ Before claiming completion, implement phase MUST:
 |-------|----------|------------------|
 | `spec.md` | `integration_points_complete` | Every new file has corresponding integration point entry |
 | `tiny_spec.md` | `wiring_declared` | If creating new files, wiring field specifies importer |
-| `tdd_write.md` | (pre-output verification) | Integration test imports existing parent, not new component |
+| `tdd_integrate.md` | `wiring_verification` | Integration tests import existing callers, not new code |
 | `implement.md` | Wiring check (step 5) | Every new file has production importer |
 
 ## Review Conditionals

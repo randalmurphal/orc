@@ -176,8 +176,8 @@ func TestBuiltinWorkflows_CorrectPhaseSequences(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedPhases := map[string][]string{
-		"implement-large":   {"spec", "tdd_write", "breakdown", "implement", "review", "docs"},
-		"implement-medium":  {"spec", "tdd_write", "implement", "review", "docs"},
+		"implement-large":   {"spec", "tdd_write", "tdd_integrate", "breakdown", "implement", "review", "docs"},
+		"implement-medium":  {"spec", "tdd_write", "tdd_integrate", "implement", "review", "docs"},
 		"implement-small":   {"tiny_spec", "implement", "review", "docs"},
 		"implement-trivial": {"implement"},
 		"review":            {"review"},

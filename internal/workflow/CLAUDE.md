@@ -112,8 +112,8 @@ Workflows resolved in order of precedence:
 |--------|-----------------|--------|
 | `trivial` | `implement-trivial` | implement |
 | `small` | `implement-small` | tiny_spec → implement → review → docs |
-| `medium` | `implement-medium` | spec → tdd_write → implement → review → docs |
-| `large` | `implement-large` | spec → tdd_write → breakdown → implement → review → docs |
+| `medium` | `implement-medium` | spec → tdd_write → tdd_integrate → implement → review → docs |
+| `large` | `implement-large` | spec → tdd_write → tdd_integrate → breakdown → implement → review → docs |
 
 ### Default Workflow Features
 
@@ -151,8 +151,8 @@ workflow, err := resolver.ResolveWorkflow(weight, userOverride)
 
 | ID | Phases | Use Case |
 |----|--------|----------|
-| `implement-large` | spec → tdd_write → breakdown → implement → review → docs | Large tasks (complex, multi-file) |
-| `implement-medium` | spec → tdd_write → implement → review → docs | Medium tasks (standard features) |
+| `implement-large` | spec → tdd_write → tdd_integrate → breakdown → implement → review → docs | Large tasks (complex, multi-file) |
+| `implement-medium` | spec → tdd_write → tdd_integrate → implement → review → docs | Medium tasks (standard features) |
 | `implement-small` | tiny_spec → implement → review → docs | Small changes |
 | `implement-trivial` | implement | Trivial fixes (no spec) |
 | `review` | review | Review existing changes |
@@ -167,7 +167,8 @@ workflow, err := resolver.ResolveWorkflow(weight, userOverride)
 |----|---------|-------------------|
 | `spec` | Full specification | Yes (spec) |
 | `tiny_spec` | Lightweight spec + TDD | Yes (spec) |
-| `tdd_write` | Write failing tests | Yes (tests) |
+| `tdd_write` | Write failing unit/sociable tests | Yes (tests) |
+| `tdd_integrate` | Write failing integration/wiring tests | Yes (tests) |
 | `breakdown` | Implementation tasks | Yes (breakdown) |
 | `implement` | Write code | No |
 | `review` | Multi-agent code review with verification | No |
