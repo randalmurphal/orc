@@ -60,10 +60,10 @@ docs/
 
 | ADR | Decision |
 |-----|----------|
-| `ADR-001` | Language and stack (Go + Svelte 5) |
+| `ADR-001` | Language and stack (Go + React 19) |
 | `ADR-002` | Storage model (YAML files, git-tracked) |
 | `ADR-003` | Git integration (branches, worktrees) |
-| `ADR-004` | UI framework (Svelte 5) |
+| `ADR-004` | UI framework (React 19, supersedes Svelte 5) |
 | `ADR-005` | Task weight system |
 | `ADR-006` | Execution model (Ralph-style) |
 | `ADR-007` | Human gates |
