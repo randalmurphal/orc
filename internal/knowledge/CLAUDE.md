@@ -1,12 +1,13 @@
 # Knowledge Package
 
-Persistent memory layer for orc. Manages Docker-based infrastructure (Neo4j, Qdrant, Redis), provides graph/vector/cache stores, and embedding generation.
+Persistent memory layer for orc. Manages Docker-based infrastructure (Neo4j, Qdrant, Redis), provides graph/vector/cache stores, embedding generation, and multi-signal retrieval.
 
 ## Sub-Package Overview
 
 | Package | Responsibility | Key Types |
 |---------|----------------|-----------|
-| `knowledge` (root) | Service orchestration, lifecycle, health | `Service`, `Components`, `ServiceConfig`, `ServiceStatus` |
+| `knowledge` (root) | Service orchestration, lifecycle, health, query API | `Service`, `Components`, `QueryComponents`, `TaskContext` |
+| `retrieve/` | Multi-signal search pipeline with presets and scoring | `Pipeline`, `Stage`, `Scorer`, `PresetDeps`, `PipelineResult` |
 | `infra/` | Docker container lifecycle (start/stop/health) | `Manager`, `DockerClient`, `Config`, `Health` |
 | `store/` | Storage backends (graph, vector, cache) | `GraphStore`, `VectorStore`, `CacheStore` |
 | `embed/` | Text embedding providers | `Embedder`, `VoyageEmbedder`, `SidecarEmbedder` |
@@ -75,9 +76,41 @@ Selected by `knowledge.indexing.embedding_model` in config:
 
 Factory: `embed.NewEmbedder(cfg)` (`embed/embedder.go:22`).
 
+### Retrieval Pipeline (`retrieve/`)
+
+Multi-signal search pipeline that combines vector similarity, graph traversal, temporal decay, and PageRank into a scored result set.
+
+**Pipeline stages** (implement `Stage` interface at `retrieve/types.go:57`):
+
+| Stage | Signal | Behavior |
+|-------|--------|----------|
+| `SemanticStage` | `semantic` | Embed query → vector search → initial candidates |
+| `HydrateStage` | - | Load full document content from graph store |
+| `GraphExpansionStage` | `graph` | Add related docs with depth decay: `1/(1+depth)` |
+| `TemporalDecayStage` | `temporal` | Exponential decay with configurable half-life (default 7d) |
+| `PageRankStage` | `pagerank` | Graph centrality as soft signal (graceful on failure) |
+| `RerankStage` | `rerank` | LLM/cross-encoder reranking of top-K candidates |
+
+**Presets** (factory functions at `retrieve/presets.go`):
+
+| Preset | Stages | Use Case |
+|--------|--------|----------|
+| `standard` | semantic → hydrate → graph → temporal → pagerank → rerank | Default full pipeline |
+| `fast` | semantic → hydrate | Quick lookups, task context |
+| `deep` | Same as standard, higher limits | Thorough research |
+| `graph_first` | semantic → hydrate → graph → pagerank | Structure-focused queries |
+| `recency` | semantic → hydrate → temporal | Recent changes focus |
+
+**Scoring:** `WeightedScorer` computes normalized weighted sum of signals. Each preset defines its own weight map. Unknown presets return an error (no fallback).
+
+**Service integration** (`service_query.go`):
+- `Query()` — Execute pipeline with preset and options
+- `QueryForTask()` — Structured task context using `fast` preset with summary-only
+- `EnrichBrief()` — Add graph-derived sections (patterns, hot files, known issues) to briefs
+
 ## Configuration
 
-Defined in `config.KnowledgeConfig` (`internal/config/config_types.go:1255`):
+Defined in `config.KnowledgeConfig` (`internal/config/config_types.go:1263`):
 
 ```yaml
 knowledge:
@@ -98,13 +131,14 @@ knowledge:
 
 ## CLI Commands
 
-All commands are stubs (`internal/cli/cmd_knowledge.go`), not yet wired to the service:
+| Command | Purpose | Status |
+|---------|---------|--------|
+| `orc knowledge start` | Start infrastructure containers | Stub |
+| `orc knowledge stop` | Stop infrastructure containers | Stub |
+| `orc knowledge status` | Show per-service health | Stub |
+| `orc knowledge query <query>` | Search knowledge graph | Wired (prints availability message) |
 
-| Command | Purpose |
-|---------|---------|
-| `orc knowledge start` | Start infrastructure containers |
-| `orc knowledge stop` | Stop infrastructure containers |
-| `orc knowledge status` | Show per-service health |
+Query flags: `--preset` (standard/fast/deep/graph_first/recency), `--limit`, `--summary`
 
 ## Testing Pattern
 
@@ -116,4 +150,4 @@ store := NewGraphStore(WithNeo4jDriver(&mockDriver{}))
 mgr := NewManager(cfg, WithDockerClient(&mockDocker{}))
 ```
 
-Tests are in `knowledge_test.go`. Test coverage includes startup order verification, failure cleanup, error propagation, and health status checks.
+Tests: `knowledge_test.go` (lifecycle), `service_query_test.go` (query/enrichment), `retrieve/*_test.go` (pipeline/stages/presets), `*_integration_test.go` (wiring).
