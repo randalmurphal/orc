@@ -1007,7 +1007,9 @@ func (s *dashboardServer) GetCostReport(
 	// Include budget info if filtering by project
 	if req.Msg.ProjectId != "" {
 		budgetStatus, err := s.globalDB.GetBudgetStatus(req.Msg.ProjectId)
-		if err == nil && budgetStatus != nil {
+		if err != nil {
+			slog.Warn("failed to get budget status", "project", req.Msg.ProjectId, "error", err)
+		} else if budgetStatus != nil {
 			resp.BudgetLimitUsd = &budgetStatus.MonthlyLimitUSD
 			resp.BudgetPercentUsed = &budgetStatus.PercentUsed
 		}

@@ -1,8 +1,5 @@
 package cli
 
-// NOTE: Tests in this file use os.Chdir() which is process-wide and not goroutine-safe.
-// These tests MUST NOT use t.Parallel() and run sequentially within this package.
-
 import (
 	"bytes"
 	"os"
@@ -22,8 +19,9 @@ import (
 // SC-6: orc costs --since 2026-01-01 filters by date
 // ============================================================================
 
-// withCostsTestDir creates a temp directory with .orc/config.yaml and changes to it.
-func withCostsTestDir(t *testing.T) string {
+// withCostsTestHome creates a temp directory with .orc/ structure and sets HOME to it.
+// db.OpenGlobal() resolves via $HOME/.orc/orc.db, so this isolates tests from the real home.
+func withCostsTestHome(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
 	orcDir := filepath.Join(tmpDir, ".orc")
@@ -33,21 +31,11 @@ func withCostsTestDir(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
 		t.Fatalf("create config: %v", err)
 	}
-
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
+	t.Setenv("HOME", tmpDir)
 	return tmpDir
 }
 
-// createCostsTestGlobalDB creates a global DB in ~/.orc/orc.db with test cost data.
+// createCostsTestGlobalDB creates a global DB in dir/.orc/orc.db with test cost data.
 func createCostsTestGlobalDB(t *testing.T, dir string) *db.GlobalDB {
 	t.Helper()
 	orcDir := filepath.Join(dir, ".orc")
@@ -114,7 +102,7 @@ func TestCostsCommand_HasRequiredFlags(t *testing.T) {
 }
 
 func TestCostsCommand_DefaultOutput_ShowsMonthSummary(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 	seedCostsTestData(t, gdb)
 	_ = gdb.Close() // Close so command can reopen
@@ -147,7 +135,7 @@ func TestCostsCommand_DefaultOutput_ShowsMonthSummary(t *testing.T) {
 }
 
 func TestCostsCommand_EmptyDatabase_ShowsZero(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 	_ = gdb.Close()
 
@@ -171,7 +159,7 @@ func TestCostsCommand_EmptyDatabase_ShowsZero(t *testing.T) {
 // --- SC-2: orc costs --by user ---
 
 func TestCostsCommand_ByUser_GroupsByUser(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 	seedCostsTestData(t, gdb)
 	_ = gdb.Close()
@@ -196,7 +184,7 @@ func TestCostsCommand_ByUser_GroupsByUser(t *testing.T) {
 }
 
 func TestCostsCommand_ByUser_ShowsUnattributed(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 	seedCostsTestData(t, gdb)
 	_ = gdb.Close()
@@ -220,7 +208,7 @@ func TestCostsCommand_ByUser_ShowsUnattributed(t *testing.T) {
 // --- SC-3: orc costs --by project ---
 
 func TestCostsCommand_ByProject_GroupsByProject(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 	seedCostsTestData(t, gdb)
 	_ = gdb.Close()
@@ -247,7 +235,7 @@ func TestCostsCommand_ByProject_GroupsByProject(t *testing.T) {
 // --- SC-4: orc costs --by model ---
 
 func TestCostsCommand_ByModel_GroupsByModel(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 	seedCostsTestData(t, gdb)
 	_ = gdb.Close()
@@ -277,7 +265,7 @@ func TestCostsCommand_ByModel_GroupsByModel(t *testing.T) {
 // --- SC-5: orc costs --user alice filters to user ---
 
 func TestCostsCommand_UserFilter_FiltersToUser(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 	seedCostsTestData(t, gdb)
 	_ = gdb.Close()
@@ -300,7 +288,7 @@ func TestCostsCommand_UserFilter_FiltersToUser(t *testing.T) {
 }
 
 func TestCostsCommand_UserFilter_UnknownUser_ReturnsError(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 	seedCostsTestData(t, gdb)
 	_ = gdb.Close()
@@ -323,7 +311,7 @@ func TestCostsCommand_UserFilter_UnknownUser_ReturnsError(t *testing.T) {
 // --- SC-6: orc costs --since date ---
 
 func TestCostsCommand_SinceFilter_FiltersByDate(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 	seedCostsTestData(t, gdb)
 	_ = gdb.Close()
@@ -345,7 +333,7 @@ func TestCostsCommand_SinceFilter_FiltersByDate(t *testing.T) {
 }
 
 func TestCostsCommand_SinceFilter_InvalidDate_ReturnsError(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 	_ = gdb.Close()
 
@@ -367,7 +355,7 @@ func TestCostsCommand_SinceFilter_InvalidDate_ReturnsError(t *testing.T) {
 // --- Edge Cases ---
 
 func TestCostsCommand_LargeValues_FormattedWithCommas(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 
 	// Insert a large cost entry
@@ -397,7 +385,7 @@ func TestCostsCommand_LargeValues_FormattedWithCommas(t *testing.T) {
 }
 
 func TestCostsCommand_BudgetStatus_ShownWhenConfigured(t *testing.T) {
-	home := withCostsTestDir(t)
+	home := withCostsTestHome(t)
 	gdb := createCostsTestGlobalDB(t, home)
 	seedCostsTestData(t, gdb)
 

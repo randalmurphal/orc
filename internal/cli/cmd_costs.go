@@ -4,8 +4,7 @@ package cli
 import (
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -52,7 +51,7 @@ Examples:
 }
 
 func runCosts(cmd *cobra.Command, userFilter, projectFilter, sinceFilter, groupBy string) error {
-	gdb, err := openGlobalDBForCosts()
+	gdb, err := db.OpenGlobal()
 	if err != nil {
 		return err
 	}
@@ -199,7 +198,11 @@ func resolveUserNames(gdb *db.GlobalDB, breakdowns []db.CostBreakdownEntry) map[
 
 func displayBudgetStatus(out io.Writer, gdb *db.GlobalDB, projectID string) {
 	status, err := gdb.GetBudgetStatus(projectID)
-	if err != nil || status == nil {
+	if err != nil {
+		slog.Warn("failed to get budget status", "project", projectID, "error", err)
+		return
+	}
+	if status == nil {
 		return
 	}
 	_, _ = fmt.Fprintf(out, "Budget: %s / %s (%.0f%%)\n",
@@ -240,17 +243,3 @@ func formatCost(amount float64) string {
 	return formatted
 }
 
-// openGlobalDBForCosts checks cwd/.orc/orc.db first, then falls back to ~/.orc/orc.db.
-func openGlobalDBForCosts() (*db.GlobalDB, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("get working directory: %w", err)
-	}
-
-	localDB := filepath.Join(cwd, ".orc", "orc.db")
-	if _, err := os.Stat(localDB); err == nil {
-		return db.OpenGlobalAt(localDB)
-	}
-
-	return db.OpenGlobal()
-}

@@ -700,8 +700,8 @@ func (g *GlobalDB) GetCostReport(filter CostReportFilter) (CostReportResult, err
 		groupQuery := fmt.Sprintf(`
 			SELECT %s as group_key, COALESCE(SUM(cost_usd), 0)
 			FROM cost_log WHERE %s
-			GROUP BY group_key
-			ORDER BY COALESCE(SUM(cost_usd), 0) DESC`,
+			GROUP BY 1
+			ORDER BY 2 DESC`,
 			groupCol, whereClause,
 		)
 
