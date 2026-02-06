@@ -75,6 +75,21 @@ const (
 	// InitiativeServiceListTaskGeneratedNotesProcedure is the fully-qualified name of the
 	// InitiativeService's ListTaskGeneratedNotes RPC.
 	InitiativeServiceListTaskGeneratedNotesProcedure = "/orc.v1.InitiativeService/ListTaskGeneratedNotes"
+	// InitiativeServiceAddCriterionProcedure is the fully-qualified name of the InitiativeService's
+	// AddCriterion RPC.
+	InitiativeServiceAddCriterionProcedure = "/orc.v1.InitiativeService/AddCriterion"
+	// InitiativeServiceRemoveCriterionProcedure is the fully-qualified name of the InitiativeService's
+	// RemoveCriterion RPC.
+	InitiativeServiceRemoveCriterionProcedure = "/orc.v1.InitiativeService/RemoveCriterion"
+	// InitiativeServiceMapCriterionToTaskProcedure is the fully-qualified name of the
+	// InitiativeService's MapCriterionToTask RPC.
+	InitiativeServiceMapCriterionToTaskProcedure = "/orc.v1.InitiativeService/MapCriterionToTask"
+	// InitiativeServiceVerifyCriterionProcedure is the fully-qualified name of the InitiativeService's
+	// VerifyCriterion RPC.
+	InitiativeServiceVerifyCriterionProcedure = "/orc.v1.InitiativeService/VerifyCriterion"
+	// InitiativeServiceGetCoverageReportProcedure is the fully-qualified name of the
+	// InitiativeService's GetCoverageReport RPC.
+	InitiativeServiceGetCoverageReportProcedure = "/orc.v1.InitiativeService/GetCoverageReport"
 )
 
 // InitiativeServiceClient is a client for the orc.v1.InitiativeService service.
@@ -94,6 +109,12 @@ type InitiativeServiceClient interface {
 	// Initiative Notes
 	ListInitiativeNotes(context.Context, *connect.Request[v1.ListInitiativeNotesRequest]) (*connect.Response[v1.ListInitiativeNotesResponse], error)
 	ListTaskGeneratedNotes(context.Context, *connect.Request[v1.ListTaskGeneratedNotesRequest]) (*connect.Response[v1.ListTaskGeneratedNotesResponse], error)
+	// Initiative Criteria
+	AddCriterion(context.Context, *connect.Request[v1.AddCriterionRequest]) (*connect.Response[v1.AddCriterionResponse], error)
+	RemoveCriterion(context.Context, *connect.Request[v1.RemoveCriterionRequest]) (*connect.Response[v1.RemoveCriterionResponse], error)
+	MapCriterionToTask(context.Context, *connect.Request[v1.MapCriterionToTaskRequest]) (*connect.Response[v1.MapCriterionToTaskResponse], error)
+	VerifyCriterion(context.Context, *connect.Request[v1.VerifyCriterionRequest]) (*connect.Response[v1.VerifyCriterionResponse], error)
+	GetCoverageReport(context.Context, *connect.Request[v1.GetCoverageReportRequest]) (*connect.Response[v1.GetCoverageReportResponse], error)
 }
 
 // NewInitiativeServiceClient constructs a client for the orc.v1.InitiativeService service. By
@@ -191,6 +212,36 @@ func NewInitiativeServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(initiativeServiceMethods.ByName("ListTaskGeneratedNotes")),
 			connect.WithClientOptions(opts...),
 		),
+		addCriterion: connect.NewClient[v1.AddCriterionRequest, v1.AddCriterionResponse](
+			httpClient,
+			baseURL+InitiativeServiceAddCriterionProcedure,
+			connect.WithSchema(initiativeServiceMethods.ByName("AddCriterion")),
+			connect.WithClientOptions(opts...),
+		),
+		removeCriterion: connect.NewClient[v1.RemoveCriterionRequest, v1.RemoveCriterionResponse](
+			httpClient,
+			baseURL+InitiativeServiceRemoveCriterionProcedure,
+			connect.WithSchema(initiativeServiceMethods.ByName("RemoveCriterion")),
+			connect.WithClientOptions(opts...),
+		),
+		mapCriterionToTask: connect.NewClient[v1.MapCriterionToTaskRequest, v1.MapCriterionToTaskResponse](
+			httpClient,
+			baseURL+InitiativeServiceMapCriterionToTaskProcedure,
+			connect.WithSchema(initiativeServiceMethods.ByName("MapCriterionToTask")),
+			connect.WithClientOptions(opts...),
+		),
+		verifyCriterion: connect.NewClient[v1.VerifyCriterionRequest, v1.VerifyCriterionResponse](
+			httpClient,
+			baseURL+InitiativeServiceVerifyCriterionProcedure,
+			connect.WithSchema(initiativeServiceMethods.ByName("VerifyCriterion")),
+			connect.WithClientOptions(opts...),
+		),
+		getCoverageReport: connect.NewClient[v1.GetCoverageReportRequest, v1.GetCoverageReportResponse](
+			httpClient,
+			baseURL+InitiativeServiceGetCoverageReportProcedure,
+			connect.WithSchema(initiativeServiceMethods.ByName("GetCoverageReport")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -210,6 +261,11 @@ type initiativeServiceClient struct {
 	runInitiative          *connect.Client[v1.RunInitiativeRequest, v1.RunInitiativeResponse]
 	listInitiativeNotes    *connect.Client[v1.ListInitiativeNotesRequest, v1.ListInitiativeNotesResponse]
 	listTaskGeneratedNotes *connect.Client[v1.ListTaskGeneratedNotesRequest, v1.ListTaskGeneratedNotesResponse]
+	addCriterion           *connect.Client[v1.AddCriterionRequest, v1.AddCriterionResponse]
+	removeCriterion        *connect.Client[v1.RemoveCriterionRequest, v1.RemoveCriterionResponse]
+	mapCriterionToTask     *connect.Client[v1.MapCriterionToTaskRequest, v1.MapCriterionToTaskResponse]
+	verifyCriterion        *connect.Client[v1.VerifyCriterionRequest, v1.VerifyCriterionResponse]
+	getCoverageReport      *connect.Client[v1.GetCoverageReportRequest, v1.GetCoverageReportResponse]
 }
 
 // ListInitiatives calls orc.v1.InitiativeService.ListInitiatives.
@@ -282,6 +338,31 @@ func (c *initiativeServiceClient) ListTaskGeneratedNotes(ctx context.Context, re
 	return c.listTaskGeneratedNotes.CallUnary(ctx, req)
 }
 
+// AddCriterion calls orc.v1.InitiativeService.AddCriterion.
+func (c *initiativeServiceClient) AddCriterion(ctx context.Context, req *connect.Request[v1.AddCriterionRequest]) (*connect.Response[v1.AddCriterionResponse], error) {
+	return c.addCriterion.CallUnary(ctx, req)
+}
+
+// RemoveCriterion calls orc.v1.InitiativeService.RemoveCriterion.
+func (c *initiativeServiceClient) RemoveCriterion(ctx context.Context, req *connect.Request[v1.RemoveCriterionRequest]) (*connect.Response[v1.RemoveCriterionResponse], error) {
+	return c.removeCriterion.CallUnary(ctx, req)
+}
+
+// MapCriterionToTask calls orc.v1.InitiativeService.MapCriterionToTask.
+func (c *initiativeServiceClient) MapCriterionToTask(ctx context.Context, req *connect.Request[v1.MapCriterionToTaskRequest]) (*connect.Response[v1.MapCriterionToTaskResponse], error) {
+	return c.mapCriterionToTask.CallUnary(ctx, req)
+}
+
+// VerifyCriterion calls orc.v1.InitiativeService.VerifyCriterion.
+func (c *initiativeServiceClient) VerifyCriterion(ctx context.Context, req *connect.Request[v1.VerifyCriterionRequest]) (*connect.Response[v1.VerifyCriterionResponse], error) {
+	return c.verifyCriterion.CallUnary(ctx, req)
+}
+
+// GetCoverageReport calls orc.v1.InitiativeService.GetCoverageReport.
+func (c *initiativeServiceClient) GetCoverageReport(ctx context.Context, req *connect.Request[v1.GetCoverageReportRequest]) (*connect.Response[v1.GetCoverageReportResponse], error) {
+	return c.getCoverageReport.CallUnary(ctx, req)
+}
+
 // InitiativeServiceHandler is an implementation of the orc.v1.InitiativeService service.
 type InitiativeServiceHandler interface {
 	ListInitiatives(context.Context, *connect.Request[v1.ListInitiativesRequest]) (*connect.Response[v1.ListInitiativesResponse], error)
@@ -299,6 +380,12 @@ type InitiativeServiceHandler interface {
 	// Initiative Notes
 	ListInitiativeNotes(context.Context, *connect.Request[v1.ListInitiativeNotesRequest]) (*connect.Response[v1.ListInitiativeNotesResponse], error)
 	ListTaskGeneratedNotes(context.Context, *connect.Request[v1.ListTaskGeneratedNotesRequest]) (*connect.Response[v1.ListTaskGeneratedNotesResponse], error)
+	// Initiative Criteria
+	AddCriterion(context.Context, *connect.Request[v1.AddCriterionRequest]) (*connect.Response[v1.AddCriterionResponse], error)
+	RemoveCriterion(context.Context, *connect.Request[v1.RemoveCriterionRequest]) (*connect.Response[v1.RemoveCriterionResponse], error)
+	MapCriterionToTask(context.Context, *connect.Request[v1.MapCriterionToTaskRequest]) (*connect.Response[v1.MapCriterionToTaskResponse], error)
+	VerifyCriterion(context.Context, *connect.Request[v1.VerifyCriterionRequest]) (*connect.Response[v1.VerifyCriterionResponse], error)
+	GetCoverageReport(context.Context, *connect.Request[v1.GetCoverageReportRequest]) (*connect.Response[v1.GetCoverageReportResponse], error)
 }
 
 // NewInitiativeServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -392,6 +479,36 @@ func NewInitiativeServiceHandler(svc InitiativeServiceHandler, opts ...connect.H
 		connect.WithSchema(initiativeServiceMethods.ByName("ListTaskGeneratedNotes")),
 		connect.WithHandlerOptions(opts...),
 	)
+	initiativeServiceAddCriterionHandler := connect.NewUnaryHandler(
+		InitiativeServiceAddCriterionProcedure,
+		svc.AddCriterion,
+		connect.WithSchema(initiativeServiceMethods.ByName("AddCriterion")),
+		connect.WithHandlerOptions(opts...),
+	)
+	initiativeServiceRemoveCriterionHandler := connect.NewUnaryHandler(
+		InitiativeServiceRemoveCriterionProcedure,
+		svc.RemoveCriterion,
+		connect.WithSchema(initiativeServiceMethods.ByName("RemoveCriterion")),
+		connect.WithHandlerOptions(opts...),
+	)
+	initiativeServiceMapCriterionToTaskHandler := connect.NewUnaryHandler(
+		InitiativeServiceMapCriterionToTaskProcedure,
+		svc.MapCriterionToTask,
+		connect.WithSchema(initiativeServiceMethods.ByName("MapCriterionToTask")),
+		connect.WithHandlerOptions(opts...),
+	)
+	initiativeServiceVerifyCriterionHandler := connect.NewUnaryHandler(
+		InitiativeServiceVerifyCriterionProcedure,
+		svc.VerifyCriterion,
+		connect.WithSchema(initiativeServiceMethods.ByName("VerifyCriterion")),
+		connect.WithHandlerOptions(opts...),
+	)
+	initiativeServiceGetCoverageReportHandler := connect.NewUnaryHandler(
+		InitiativeServiceGetCoverageReportProcedure,
+		svc.GetCoverageReport,
+		connect.WithSchema(initiativeServiceMethods.ByName("GetCoverageReport")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orc.v1.InitiativeService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InitiativeServiceListInitiativesProcedure:
@@ -422,6 +539,16 @@ func NewInitiativeServiceHandler(svc InitiativeServiceHandler, opts ...connect.H
 			initiativeServiceListInitiativeNotesHandler.ServeHTTP(w, r)
 		case InitiativeServiceListTaskGeneratedNotesProcedure:
 			initiativeServiceListTaskGeneratedNotesHandler.ServeHTTP(w, r)
+		case InitiativeServiceAddCriterionProcedure:
+			initiativeServiceAddCriterionHandler.ServeHTTP(w, r)
+		case InitiativeServiceRemoveCriterionProcedure:
+			initiativeServiceRemoveCriterionHandler.ServeHTTP(w, r)
+		case InitiativeServiceMapCriterionToTaskProcedure:
+			initiativeServiceMapCriterionToTaskHandler.ServeHTTP(w, r)
+		case InitiativeServiceVerifyCriterionProcedure:
+			initiativeServiceVerifyCriterionHandler.ServeHTTP(w, r)
+		case InitiativeServiceGetCoverageReportProcedure:
+			initiativeServiceGetCoverageReportHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -485,4 +612,24 @@ func (UnimplementedInitiativeServiceHandler) ListInitiativeNotes(context.Context
 
 func (UnimplementedInitiativeServiceHandler) ListTaskGeneratedNotes(context.Context, *connect.Request[v1.ListTaskGeneratedNotesRequest]) (*connect.Response[v1.ListTaskGeneratedNotesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.InitiativeService.ListTaskGeneratedNotes is not implemented"))
+}
+
+func (UnimplementedInitiativeServiceHandler) AddCriterion(context.Context, *connect.Request[v1.AddCriterionRequest]) (*connect.Response[v1.AddCriterionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.InitiativeService.AddCriterion is not implemented"))
+}
+
+func (UnimplementedInitiativeServiceHandler) RemoveCriterion(context.Context, *connect.Request[v1.RemoveCriterionRequest]) (*connect.Response[v1.RemoveCriterionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.InitiativeService.RemoveCriterion is not implemented"))
+}
+
+func (UnimplementedInitiativeServiceHandler) MapCriterionToTask(context.Context, *connect.Request[v1.MapCriterionToTaskRequest]) (*connect.Response[v1.MapCriterionToTaskResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.InitiativeService.MapCriterionToTask is not implemented"))
+}
+
+func (UnimplementedInitiativeServiceHandler) VerifyCriterion(context.Context, *connect.Request[v1.VerifyCriterionRequest]) (*connect.Response[v1.VerifyCriterionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.InitiativeService.VerifyCriterion is not implemented"))
+}
+
+func (UnimplementedInitiativeServiceHandler) GetCoverageReport(context.Context, *connect.Request[v1.GetCoverageReportRequest]) (*connect.Response[v1.GetCoverageReportResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.InitiativeService.GetCoverageReport is not implemented"))
 }
