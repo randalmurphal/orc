@@ -269,6 +269,9 @@ type ResolutionContext struct {
 	ChangelogContent     string // Current CHANGELOG.md content
 	ClaudeMDContent      string // Current CLAUDE.md content
 
+	// Project brief (auto-generated context from task history)
+	ProjectBrief string
+
 	// QA E2E testing context
 	QAIteration      int    // Current QA iteration (1, 2, 3, ...)
 	QAMaxLoops  int    // Maximum QA iterations before stopping
