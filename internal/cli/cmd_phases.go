@@ -2,14 +2,17 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
 )
 
@@ -45,15 +48,16 @@ func init() {
 }
 
 var phasesCmd = &cobra.Command{
-	Use:     "phases",
+	Use:     "phases [TASK-ID]",
 	Aliases: []string{"phase"},
-	Short:   "List available phase templates",
-	Long: `List all phase templates available for use in workflows.
+	Short:   "List phase templates or show phase execution history",
+	Long: `List all phase templates available for use in workflows, or show
+phase execution history for a specific task.
 
-Phase templates define reusable execution units with prompts, configuration,
-and input/output contracts. Built-in templates provide standard phases like
-'spec', 'implement', 'review'. You can create custom templates by cloning
-and modifying them.
+When called with a TASK-ID argument, displays phase execution history
+including timing, cost, and iteration counts for each phase.
+
+When called without arguments, lists available phase templates.
 
 Sources (--sources flag):
   personal  - ~/.orc/phases/ (user machine-wide)
@@ -63,11 +67,18 @@ Sources (--sources flag):
   embedded  - Built into the binary
 
 Examples:
-  orc phases                   # List all phase templates
-  orc phases --sources         # Show where each phase comes from
-  orc phases --custom          # List only custom templates
-  orc phases --builtin         # List only built-in templates`,
+  orc phases TASK-001            # Show phase execution history
+  orc phases TASK-001 --json     # Phase history as JSON
+  orc phases                     # List all phase templates
+  orc phases --sources           # Show where each phase comes from
+  orc phases --custom            # List only custom templates
+  orc phases --builtin           # List only built-in templates`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// If a task ID argument is provided, show phase execution history
+		if len(args) > 0 {
+			return runPhaseHistory(args[0])
+		}
+
 		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
@@ -391,6 +402,175 @@ Examples:
 		fmt.Printf("Updated phase template '%s'\n", phaseID)
 		return nil
 	},
+}
+
+// runPhaseHistory displays phase execution history for a task.
+func runPhaseHistory(taskID string) error {
+	backend, err := getBackend()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = backend.Close() }()
+
+	// Load task to verify it exists and get workflow ID
+	tk, err := backend.LoadTask(taskID)
+	if err != nil {
+		return fmt.Errorf("load task %s: %w", taskID, err)
+	}
+	if tk == nil {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	// Get phase execution records
+	phases, err := backend.DB().GetPhases(taskID)
+	if err != nil {
+		return fmt.Errorf("get phases for %s: %w", taskID, err)
+	}
+
+	// Build phase map for lookup
+	phaseMap := make(map[string]*db.Phase)
+	for i := range phases {
+		phaseMap[phases[i].PhaseID] = &phases[i]
+	}
+
+	// Determine display order from workflow sequence
+	var orderedPhaseIDs []string
+	if tk.WorkflowId != nil && *tk.WorkflowId != "" {
+		wfPhases, wfErr := backend.DB().GetWorkflowPhases(*tk.WorkflowId)
+		if wfErr == nil && len(wfPhases) > 0 {
+			seen := make(map[string]bool)
+			for _, wp := range wfPhases {
+				orderedPhaseIDs = append(orderedPhaseIDs, wp.PhaseTemplateID)
+				seen[wp.PhaseTemplateID] = true
+			}
+			// Append any executed phases not in the workflow definition
+			for _, ph := range phases {
+				if !seen[ph.PhaseID] {
+					orderedPhaseIDs = append(orderedPhaseIDs, ph.PhaseID)
+				}
+			}
+		}
+	}
+
+	// Fallback: use phases from DB in their stored order
+	if len(orderedPhaseIDs) == 0 {
+		for _, ph := range phases {
+			orderedPhaseIDs = append(orderedPhaseIDs, ph.PhaseID)
+		}
+	}
+
+	if jsonOut {
+		return printPhaseHistoryJSON(taskID, orderedPhaseIDs, phaseMap)
+	}
+	return printPhaseHistoryTable(orderedPhaseIDs, phaseMap)
+}
+
+// printPhaseHistoryTable renders phase execution history as a table.
+func printPhaseHistoryTable(orderedPhaseIDs []string, phaseMap map[string]*db.Phase) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "PHASE\tSTATUS\tSTARTED\tCOMPLETED\tDURATION\tITERATIONS\tCOST")
+
+	var totalCost float64
+	var totalIterations int
+
+	for _, phaseID := range orderedPhaseIDs {
+		ph, ok := phaseMap[phaseID]
+		if !ok {
+			continue
+		}
+
+		started := "-"
+		completed := "-"
+		duration := "-"
+		iterations := fmt.Sprintf("%d", ph.Iterations)
+		cost := formatCost(ph.CostUSD)
+
+		if ph.StartedAt != nil {
+			started = ph.StartedAt.Format("2006-01-02 15:04")
+		}
+		if ph.CompletedAt != nil {
+			completed = ph.CompletedAt.Format("2006-01-02 15:04")
+		}
+		if ph.StartedAt != nil && ph.CompletedAt != nil {
+			dur := ph.CompletedAt.Sub(*ph.StartedAt)
+			duration = task.FormatDuration(dur)
+		}
+
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			phaseID, ph.Status, started, completed, duration, iterations, cost)
+
+		totalCost += ph.CostUSD
+		totalIterations += ph.Iterations
+	}
+
+	_, _ = fmt.Fprintf(w, "TOTAL\t\t\t\t\t%d\t%s\n",
+		totalIterations, formatCost(totalCost))
+
+	_ = w.Flush()
+	return nil
+}
+
+// printPhaseHistoryJSON renders phase execution history as JSON.
+func printPhaseHistoryJSON(taskID string, orderedPhaseIDs []string, phaseMap map[string]*db.Phase) error {
+	type phaseEntry struct {
+		Phase           string  `json:"phase"`
+		Status          string  `json:"status"`
+		StartedAt       string  `json:"started_at"`
+		CompletedAt     string  `json:"completed_at"`
+		DurationSeconds float64 `json:"duration_seconds"`
+		Iterations      int     `json:"iterations"`
+		CostUSD         float64 `json:"cost_usd"`
+		InputTokens     int     `json:"input_tokens"`
+		OutputTokens    int     `json:"output_tokens"`
+	}
+
+	entries := make([]phaseEntry, 0)
+	var totalCost float64
+	var totalIterations int
+
+	for _, phaseID := range orderedPhaseIDs {
+		ph, ok := phaseMap[phaseID]
+		if !ok {
+			continue
+		}
+
+		entry := phaseEntry{
+			Phase:        phaseID,
+			Status:       ph.Status,
+			Iterations:   ph.Iterations,
+			CostUSD:      ph.CostUSD,
+			InputTokens:  ph.InputTokens,
+			OutputTokens: ph.OutputTokens,
+		}
+
+		if ph.StartedAt != nil {
+			entry.StartedAt = ph.StartedAt.Format(time.RFC3339)
+		}
+		if ph.CompletedAt != nil {
+			entry.CompletedAt = ph.CompletedAt.Format(time.RFC3339)
+		}
+		if ph.StartedAt != nil && ph.CompletedAt != nil {
+			dur := ph.CompletedAt.Sub(*ph.StartedAt)
+			entry.DurationSeconds = dur.Seconds()
+		}
+
+		entries = append(entries, entry)
+		totalCost += ph.CostUSD
+		totalIterations += ph.Iterations
+	}
+
+	result := map[string]any{
+		"task_id": taskID,
+		"phases":  entries,
+		"totals": map[string]any{
+			"cost_usd":   totalCost,
+			"iterations": totalIterations,
+		},
+	}
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(result)
 }
 
 var phaseCloneCmd = &cobra.Command{
