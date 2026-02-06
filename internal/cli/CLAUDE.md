@@ -22,6 +22,8 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_show.go` | Task display with workflow-aware phase listing |
 | `cmd_costs.go` | Cost reporting (`orc costs`) with filtering and grouping |
 | `cmd_gates.go` | Gate inspection (`orc gates list/show`) |
+| `cmd_knowledge.go` | Knowledge layer commands (start/stop/status) |
+| `cmd_knowledge_query.go` | `orc knowledge query` with preset/limit/summary flags |
 | `cmd_gates_test.go` | Gate command tests |
 | `cmd_show_gates_test.go` | Gate display in `orc show` tests |
 | `cmd_run_skipgates_test.go` | `--skip-gates` flag tests |

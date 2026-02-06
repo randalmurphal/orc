@@ -19,6 +19,7 @@ semantic search, and learning from past work.`,
 	cmd.AddCommand(newKnowledgeStartCmd())
 	cmd.AddCommand(newKnowledgeStopCmd())
 	cmd.AddCommand(newKnowledgeStatusCmd())
+	cmd.AddCommand(newKnowledgeQueryCmd())
 
 	return cmd
 }
