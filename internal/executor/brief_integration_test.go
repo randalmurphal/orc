@@ -76,7 +76,7 @@ func TestEnrichContext_PopulatesProjectBrief(t *testing.T) {
 	cfg := config.Default()
 
 	// Create executor with real backend
-	we := NewWorkflowExecutor(backend, backend.DB(), nil, cfg, t.TempDir())
+	we := NewWorkflowExecutor(backend, backend.DB(), testGlobalDBFrom(backend), cfg, t.TempDir())
 
 	// Create a running task for enrichment
 	tsk := task.NewProtoTask("TASK-BRIEF-TEST", "Test brief enrichment")
@@ -167,7 +167,7 @@ func TestBrief_CachedAcrossPhases(t *testing.T) {
 	}
 
 	cfg := config.Default()
-	we := NewWorkflowExecutor(backend, backend.DB(), nil, cfg, t.TempDir())
+	we := NewWorkflowExecutor(backend, backend.DB(), testGlobalDBFrom(backend), cfg, t.TempDir())
 
 	tsk := task.NewProtoTask("TASK-CACHE-TEST", "Test caching")
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
@@ -266,7 +266,7 @@ func TestEnrichContext_BDD1_FullProjectContext(t *testing.T) {
 	}
 
 	cfg := config.Default()
-	we := NewWorkflowExecutor(backend, backend.DB(), nil, cfg, t.TempDir())
+	we := NewWorkflowExecutor(backend, backend.DB(), testGlobalDBFrom(backend), cfg, t.TempDir())
 
 	tsk := task.NewProtoTask("TASK-BDD1", "BDD test task")
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
