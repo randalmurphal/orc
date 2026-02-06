@@ -151,7 +151,7 @@ func TestPhaseHistory_TableOutput(t *testing.T) {
 		CostUSD:      3.50,
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	// Run the phases command with task ID argument
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
@@ -221,7 +221,7 @@ func TestPhaseHistory_TotalRow(t *testing.T) {
 		CostUSD: 1.00,
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -286,7 +286,7 @@ func TestPhaseHistory_WorkflowOrder(t *testing.T) {
 		})
 	}
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -339,7 +339,7 @@ func TestPhaseHistory_DurationFormat(t *testing.T) {
 		CostUSD:     1.00,
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -377,7 +377,7 @@ func TestPhaseHistory_CostFormat(t *testing.T) {
 		CostUSD:     12345.67,
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -420,7 +420,7 @@ func TestPhaseHistory_JSONOutput(t *testing.T) {
 		CostUSD:     3.50,
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001", "--json"})
 	output := captureOutput(t, func() error {
@@ -500,7 +500,7 @@ func TestPhaseHistory_JSONTaskID(t *testing.T) {
 		CostUSD:     1.00,
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001", "--json"})
 	output := captureOutput(t, func() error {
@@ -523,7 +523,7 @@ func TestPhaseHistory_JSONTaskID(t *testing.T) {
 func TestPhaseHistory_NotFound(t *testing.T) {
 	tmpDir := withPhasesTestDir(t)
 	backend := createPhasesTestBackend(t, tmpDir)
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "NONEXISTENT-999"})
 	err := rootCmd.Execute()
@@ -567,7 +567,7 @@ func TestPhaseHistory_PendingPhases(t *testing.T) {
 		TaskID: "TASK-001", PhaseID: "review", Status: "pending",
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -610,7 +610,7 @@ func TestPhaseHistory_SkippedPhases(t *testing.T) {
 		CostUSD:     1.00,
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -651,7 +651,7 @@ func TestPhaseHistory_NoWorkflow(t *testing.T) {
 		CostUSD:     1.00,
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -677,7 +677,7 @@ func TestPhaseHistory_NoPhasesRun(t *testing.T) {
 	}
 
 	setupWorkflow(t, backend, "test-wf", []string{"implement"})
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -713,7 +713,7 @@ func TestPhaseHistory_ZeroCost(t *testing.T) {
 		CostUSD:     0.00,
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -759,7 +759,7 @@ func TestPhaseHistory_InProgress(t *testing.T) {
 		TaskID: "TASK-001", PhaseID: "review", Status: "pending",
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -770,10 +770,11 @@ func TestPhaseHistory_InProgress(t *testing.T) {
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "implement") {
-			// Should have started time (not all dashes)
+			// Should have started time (not all dashes).
+			// Too many dashes might mean started_at isn't showing.
+			// This is a heuristic - the key assertion is that started_at IS shown.
 			if strings.Count(line, "-") > 10 {
-				// Too many dashes might mean started_at isn't showing
-				// This is a heuristic - the key assertion is that started_at IS shown
+				t.Logf("implement phase line has many dashes (started_at may not be showing): %s", line)
 			}
 			break
 		}
@@ -807,7 +808,7 @@ func TestPhaseHistory_Retried(t *testing.T) {
 		CostUSD:     8.50,
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -842,7 +843,7 @@ func TestPhaseHistory_Interrupted(t *testing.T) {
 		CostUSD: 0.80,
 	})
 
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001"})
 	output := captureOutput(t, func() error {
@@ -888,7 +889,7 @@ func TestPhaseHistory_JSONAllPending(t *testing.T) {
 	}
 
 	setupWorkflow(t, backend, "test-wf", []string{"spec", "implement"})
-	backend.Close()
+	_ = backend.Close()
 
 	rootCmd.SetArgs([]string{"phases", "TASK-001", "--json"})
 	output := captureOutput(t, func() error {
