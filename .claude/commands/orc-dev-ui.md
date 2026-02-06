@@ -29,7 +29,7 @@ Ensure the orc server is running:
 curl -s http://localhost:8080 > /dev/null && echo "Server running" || echo "Need to start server"
 
 # If not running, build and start
-cd /home/randy/repos/orc && make build && ./bin/orc serve
+make build && ./bin/orc serve
 ```
 
 ## Step 2: Navigate to the App
