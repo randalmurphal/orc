@@ -843,6 +843,15 @@ type PlaywrightConfig struct {
 	TimeoutNavigation int `yaml:"timeout_navigation"`
 }
 
+// BriefConfig defines project brief generation settings.
+type BriefConfig struct {
+	// MaxTokens is the maximum token budget for the generated brief (default: 3000)
+	MaxTokens int `yaml:"max_tokens"`
+
+	// StaleThreshold is the number of new completed tasks before the brief is regenerated (default: 3)
+	StaleThreshold int `yaml:"stale_threshold"`
+}
+
 // MCPConfig defines MCP (Model Context Protocol) server configuration.
 type MCPConfig struct {
 	// Playwright settings for UI testing tasks

@@ -16,6 +16,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
+	"github.com/randalmurphal/orc/internal/brief"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
@@ -145,6 +146,9 @@ type WorkflowExecutor struct {
 	isResuming      bool // True if resuming a paused/failed/blocked task
 	skipGates       bool // When true, bypass all gate evaluations
 	inParallelLevel bool //nolint:unused // True when executing phases in parallel (prepared for parallel execution)
+
+	// briefGenerator is lazily created for project brief generation across phases.
+	briefGenerator *brief.Generator
 
 	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
 	turnExecutor TurnExecutor

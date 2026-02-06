@@ -153,6 +153,9 @@ type Config struct {
 	// Developer settings for personal branch targeting (staging branches)
 	Developer DeveloperConfig `yaml:"developer,omitempty"`
 
+	// Brief generation settings for project context
+	Brief BriefConfig `yaml:"brief"`
+
 	// MCP (Model Context Protocol) server configuration
 	MCP MCPConfig `yaml:"mcp"`
 
