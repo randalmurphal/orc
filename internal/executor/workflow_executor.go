@@ -23,6 +23,7 @@ import (
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/hosting"
+	"github.com/randalmurphal/orc/internal/knowledge/index/artifact"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/trigger"
@@ -1346,6 +1347,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					"error", err)
 			}
 		}
+
+		// Index task artifacts into the knowledge graph (best-effort, non-fatal).
+		we.indexTaskArtifacts(execCtx, t)
 	}
 
 	// Clear execution state and release executor claim
@@ -1561,5 +1565,56 @@ func extractPhaseOutput(output string) string {
 	// No content field - the entire JSON IS the output
 	// This handles qa_e2e_test (findings), qa_e2e_fix (fixes_applied), review, etc.
 	return output
+}
+
+// indexTaskArtifacts indexes a completed task's artifacts into the knowledge graph.
+// Best-effort: errors are logged as warnings but never fail task completion.
+func (we *WorkflowExecutor) indexTaskArtifacts(ctx context.Context, t *orcv1.Task) {
+	if we.knowledgeService == nil {
+		return
+	}
+
+	// Type-assert to indexing interface (not all knowledge services support it).
+	indexSvc, ok := we.knowledgeService.(KnowledgeArtifactIndexService)
+	if !ok {
+		return
+	}
+
+	if !indexSvc.IsAvailable() {
+		return
+	}
+
+	params := artifact.IndexParams{
+		TaskID: t.GetId(),
+	}
+
+	// Load artifacts from backend.
+	if we.backend != nil {
+		if spec, err := we.backend.GetSpecForTask(t.GetId()); err == nil {
+			params.Spec = spec
+		}
+
+		if findings, err := we.backend.LoadAllReviewFindings(t.GetId()); err == nil {
+			params.Findings = findings
+		}
+
+		if entries, err := we.backend.GetScratchpadEntries(t.GetId()); err == nil {
+			params.ScratchpadEntries = entries
+		}
+
+		// Load initiative decisions if task has an initiative.
+		if t.InitiativeId != nil && *t.InitiativeId != "" {
+			params.InitiativeID = *t.InitiativeId
+			if init, err := we.backend.LoadInitiative(*t.InitiativeId); err == nil && init != nil {
+				params.Decisions = init.Decisions
+			}
+		}
+	}
+
+	if err := indexSvc.IndexTaskArtifacts(ctx, params); err != nil {
+		we.logger.Warn("artifact indexing failed",
+			"task", t.GetId(),
+			"error", err)
+	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/knowledge/index/artifact"
 	"github.com/randalmurphal/orc/internal/knowledge/retrieve"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -27,6 +28,13 @@ type KnowledgePhaseConfig struct {
 type KnowledgeQueryService interface {
 	IsAvailable() bool
 	Query(ctx context.Context, query string, opts retrieve.QueryOpts) (*retrieve.PipelineResult, error)
+}
+
+// KnowledgeArtifactIndexService extends KnowledgeQueryService with artifact indexing.
+// Satisfied by *knowledge.Service when the knowledge layer supports artifact indexing.
+type KnowledgeArtifactIndexService interface {
+	IsAvailable() bool
+	IndexTaskArtifacts(ctx context.Context, params artifact.IndexParams) error
 }
 
 // KnowledgePhaseExecutor executes knowledge retrieval phases.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/randalmurphal/orc/internal/knowledge/index"
+	"github.com/randalmurphal/orc/internal/knowledge/index/artifact"
 )
 
 // ServiceConfig configures the knowledge Service.
@@ -187,4 +188,20 @@ func (s *Service) IndexProject(ctx context.Context, root string, opts index.Inde
 		index.WithEmbedder(em),
 	)
 	return idx.Index(ctx, root, opts)
+}
+
+// IndexTaskArtifacts indexes a completed task's artifacts into the knowledge graph.
+// Guarded by IsAvailable — returns nil (no error) when the knowledge layer is unavailable.
+func (s *Service) IndexTaskArtifacts(ctx context.Context, params artifact.IndexParams) error {
+	if !s.IsAvailable() {
+		return nil
+	}
+
+	gs, ok := s.comps.(index.GraphStorer)
+	if !ok {
+		return fmt.Errorf("components do not implement GraphStorer for artifact indexing")
+	}
+
+	idx := artifact.NewIndexer(gs)
+	return idx.IndexAll(ctx, params)
 }
