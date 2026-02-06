@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// DOMAIN MESSAGES
+// =============================================================================
+
+// Thread represents a conversation thread.
+message Thread {
+  string id = 1;
+  string title = 2;
+  string status = 3;
+  string task_id = 4;
+  string initiative_id = 5;
+  string session_id = 6;
+  string file_context = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  repeated ThreadMessage messages = 10;
+}
+
+// ThreadMessage represents a single message within a thread.
+message ThreadMessage {
+  int64 id = 1;
+  string thread_id = 2;
+  string role = 3;
+  string content = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service ThreadService {
+  // Create a new conversation thread.
+  rpc CreateThread(CreateThreadRequest) returns (CreateThreadResponse);
+
+  // Get a thread with all its messages.
+  rpc GetThread(GetThreadRequest) returns (GetThreadResponse);
+
+  // List threads with optional filters.
+  rpc ListThreads(ListThreadsRequest) returns (ListThreadsResponse);
+
+  // Send a message and get an assistant response.
+  rpc SendMessage(SendThreadMessageRequest) returns (SendThreadMessageResponse);
+
+  // Archive a thread (set status to "archived").
+  rpc ArchiveThread(ArchiveThreadRequest) returns (ArchiveThreadResponse);
+
+  // Delete a thread and all its messages.
+  rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadResponse);
+
+  // Record a decision from a thread discussion to its linked initiative.
+  rpc RecordDecision(RecordThreadDecisionRequest) returns (RecordThreadDecisionResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+// CreateThread
+message CreateThreadRequest {
+  string title = 1;
+  optional string task_id = 2;
+  optional string initiative_id = 3;
+  optional string file_context = 4;
+}
+
+message CreateThreadResponse {
+  Thread thread = 1;
+}
+
+// GetThread
+message GetThreadRequest {
+  string thread_id = 1;
+}
+
+message GetThreadResponse {
+  Thread thread = 1;
+}
+
+// ListThreads
+message ListThreadsRequest {
+  string status = 1;
+  string task_id = 2;
+}
+
+message ListThreadsResponse {
+  repeated Thread threads = 1;
+}
+
+// SendMessage
+message SendThreadMessageRequest {
+  string thread_id = 1;
+  string content = 2;
+}
+
+message SendThreadMessageResponse {
+  ThreadMessage user_message = 1;
+  ThreadMessage assistant_message = 2;
+}
+
+// ArchiveThread
+message ArchiveThreadRequest {
+  string thread_id = 1;
+}
+
+message ArchiveThreadResponse {
+  Thread thread = 1;
+}
+
+// DeleteThread
+message DeleteThreadRequest {
+  string thread_id = 1;
+}
+
+message DeleteThreadResponse {}
+
+// RecordDecision
+message RecordThreadDecisionRequest {
+  string thread_id = 1;
+  string decision = 2;
+  string rationale = 3;
+}
+
+message RecordThreadDecisionResponse {
+  string decision_id = 1;
+}
