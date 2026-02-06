@@ -297,6 +297,13 @@ func extractTableNames(t *testing.T, pattern string) map[string]bool {
 		t.Fatalf("failed to glob %s: %v", pattern, err)
 	}
 
+	return extractTableNamesFromFiles(t, files)
+}
+
+// extractTableNamesFromFiles parses CREATE TABLE statements from explicit file paths.
+func extractTableNamesFromFiles(t *testing.T, files []string) map[string]bool {
+	t.Helper()
+
 	tables := make(map[string]bool)
 	tableRe := regexp.MustCompile(`(?i)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)`)
 
@@ -327,6 +334,13 @@ func extractIndexNames(t *testing.T, pattern string) map[string]bool {
 		t.Fatalf("failed to glob %s: %v", pattern, err)
 	}
 
+	return extractIndexNamesFromFiles(t, files)
+}
+
+// extractIndexNamesFromFiles parses CREATE INDEX statements from explicit file paths.
+func extractIndexNamesFromFiles(t *testing.T, files []string) map[string]bool {
+	t.Helper()
+
 	indexes := make(map[string]bool)
 	indexRe := regexp.MustCompile(`(?i)CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)`)
 
@@ -356,6 +370,13 @@ func extractTableColumns(t *testing.T, pattern string, tableName string) map[str
 	if err != nil {
 		t.Fatalf("failed to glob %s: %v", pattern, err)
 	}
+
+	return extractTableColumnsFromFiles(t, files, tableName)
+}
+
+// extractTableColumnsFromFiles parses column names for a specific table from explicit file paths.
+func extractTableColumnsFromFiles(t *testing.T, files []string, tableName string) map[string]bool {
+	t.Helper()
 
 	columns := make(map[string]bool)
 
@@ -469,6 +490,15 @@ var ftsTableNames = map[string]bool{
 	"specs_fts_idx":           true,
 }
 
+// projectMigrationFiles returns explicit file paths for project migrations in [from, to] range.
+func projectMigrationFiles(dir string, from, to int) []string {
+	var files []string
+	for i := from; i <= to; i++ {
+		files = append(files, filepath.Join(dir, fmt.Sprintf("project_%03d.sql", i)))
+	}
+	return files
+}
+
 // ============================================================================
 // Project Migration Tests (SC-1 through SC-5 for project_001 - project_020)
 // ============================================================================
@@ -540,8 +570,9 @@ func TestPostgresMigrations_ProjectNoSQLiteisms(t *testing.T) {
 func TestPostgresMigrations_ProjectSameTableCount(t *testing.T) {
 	schemaDir := findSchemaDir(t)
 
-	sqliteTables := extractTableNames(t, filepath.Join(schemaDir, "project_*.sql"))
-	postgresTables := extractTableNames(t, filepath.Join(schemaDir, "postgres", "project_*.sql"))
+	// Scope to migrations 001-020 (this task's range)
+	sqliteTables := extractTableNamesFromFiles(t, projectMigrationFiles(schemaDir, 1, 20))
+	postgresTables := extractTableNamesFromFiles(t, projectMigrationFiles(filepath.Join(schemaDir, "postgres"), 1, 20))
 
 	if len(sqliteTables) == 0 {
 		t.Fatal("no SQLite project tables found")
@@ -611,13 +642,14 @@ func TestPostgresMigrations_ProjectColumnsMatch(t *testing.T) {
 		"qa_results",
 	}
 
-	sqlitePattern := filepath.Join(schemaDir, "project_*.sql")
-	pgPattern := filepath.Join(schemaDir, "postgres", "project_*.sql")
+	// Scope to migrations 001-020 (this task's range)
+	sqliteFiles := projectMigrationFiles(schemaDir, 1, 20)
+	pgFiles := projectMigrationFiles(filepath.Join(schemaDir, "postgres"), 1, 20)
 
 	for _, table := range tablesToCheck {
 		t.Run(table, func(t *testing.T) {
-			sqliteCols := extractTableColumns(t, sqlitePattern, table)
-			postgresCols := extractTableColumns(t, pgPattern, table)
+			sqliteCols := extractTableColumnsFromFiles(t, sqliteFiles, table)
+			postgresCols := extractTableColumnsFromFiles(t, pgFiles, table)
 
 			if len(sqliteCols) == 0 {
 				t.Skipf("no columns found for table %s in SQLite (may be ALTER-only)", table)
@@ -648,8 +680,9 @@ func TestPostgresMigrations_ProjectColumnsMatch(t *testing.T) {
 func TestPostgresMigrations_ProjectSameIndexes(t *testing.T) {
 	schemaDir := findSchemaDir(t)
 
-	sqliteIndexes := extractIndexNames(t, filepath.Join(schemaDir, "project_*.sql"))
-	postgresIndexes := extractIndexNames(t, filepath.Join(schemaDir, "postgres", "project_*.sql"))
+	// Scope to migrations 001-020 (this task's range)
+	sqliteIndexes := extractIndexNamesFromFiles(t, projectMigrationFiles(schemaDir, 1, 20))
+	postgresIndexes := extractIndexNamesFromFiles(t, projectMigrationFiles(filepath.Join(schemaDir, "postgres"), 1, 20))
 
 	if len(sqliteIndexes) == 0 {
 		t.Fatal("no SQLite project indexes found")
@@ -692,8 +725,8 @@ func TestPostgresMigrations_ProjectNumberingMatches(t *testing.T) {
 		base := filepath.Base(f)
 		if num := extractMigrationNumber(base); num != "" {
 			// Only consider migrations 001-020 (this task's scope)
-			v := 0
-			fmt.Sscanf(num, "%d", &v)
+			var v int
+			_, _ = fmt.Sscanf(num, "%d", &v)
 			if v >= 1 && v <= 20 {
 				sqliteNums[num] = true
 			}
