@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddDecisionRequest, AddDecisionResponse, CreateInitiativeRequest, CreateInitiativeResponse, DeleteInitiativeRequest, DeleteInitiativeResponse, GetDependencyGraphRequest, GetDependencyGraphResponse, GetInitiativeRequest, GetInitiativeResponse, GetReadyTasksRequest, GetReadyTasksResponse, LinkTasksRequest, LinkTasksResponse, ListInitiativeNotesRequest, ListInitiativeNotesResponse, ListInitiativesRequest, ListInitiativesResponse, ListInitiativeTasksRequest, ListInitiativeTasksResponse, ListTaskGeneratedNotesRequest, ListTaskGeneratedNotesResponse, RunInitiativeRequest, RunInitiativeResponse, UnlinkTaskRequest, UnlinkTaskResponse, UpdateInitiativeRequest, UpdateInitiativeResponse } from "./initiative_pb.js";
+import { AddCriterionRequest, AddCriterionResponse, AddDecisionRequest, AddDecisionResponse, CreateInitiativeRequest, CreateInitiativeResponse, DeleteInitiativeRequest, DeleteInitiativeResponse, GetCoverageReportRequest, GetCoverageReportResponse, GetDependencyGraphRequest, GetDependencyGraphResponse, GetInitiativeRequest, GetInitiativeResponse, GetReadyTasksRequest, GetReadyTasksResponse, LinkTasksRequest, LinkTasksResponse, ListInitiativeNotesRequest, ListInitiativeNotesResponse, ListInitiativesRequest, ListInitiativesResponse, ListInitiativeTasksRequest, ListInitiativeTasksResponse, ListTaskGeneratedNotesRequest, ListTaskGeneratedNotesResponse, MapCriterionToTaskRequest, MapCriterionToTaskResponse, RemoveCriterionRequest, RemoveCriterionResponse, RunInitiativeRequest, RunInitiativeResponse, UnlinkTaskRequest, UnlinkTaskResponse, UpdateInitiativeRequest, UpdateInitiativeResponse, VerifyCriterionRequest, VerifyCriterionResponse } from "./initiative_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -138,6 +138,53 @@ export const InitiativeService = {
       name: "ListTaskGeneratedNotes",
       I: ListTaskGeneratedNotesRequest,
       O: ListTaskGeneratedNotesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Initiative Criteria
+     *
+     * @generated from rpc orc.v1.InitiativeService.AddCriterion
+     */
+    addCriterion: {
+      name: "AddCriterion",
+      I: AddCriterionRequest,
+      O: AddCriterionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.InitiativeService.RemoveCriterion
+     */
+    removeCriterion: {
+      name: "RemoveCriterion",
+      I: RemoveCriterionRequest,
+      O: RemoveCriterionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.InitiativeService.MapCriterionToTask
+     */
+    mapCriterionToTask: {
+      name: "MapCriterionToTask",
+      I: MapCriterionToTaskRequest,
+      O: MapCriterionToTaskResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.InitiativeService.VerifyCriterion
+     */
+    verifyCriterion: {
+      name: "VerifyCriterion",
+      I: VerifyCriterionRequest,
+      O: VerifyCriterionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.InitiativeService.GetCoverageReport
+     */
+    getCoverageReport: {
+      name: "GetCoverageReport",
+      I: GetCoverageReportRequest,
+      O: GetCoverageReportResponse,
       kind: MethodKind.Unary,
     },
   }
