@@ -26,6 +26,8 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
 | `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
 | `phase_executor.go` | `PhaseExecutor` interface, weight-based executor config |
+| `phase_registry.go` | `PhaseTypeRegistry`, `PhaseTypeExecutor` interface — maps type strings to executors |
+| `knowledge_executor.go` | `KnowledgePhaseExecutor`, `KnowledgeQueryService` interface — knowledge retrieval phase |
 | `retry.go` | Retry context building (`BuildRetryContextForFreshSession`, `CompressPreviousContext`, `BuildRetryPreview`) |
 | `review.go` | Review findings parsing, formatting for round 2 (`FormatFindingsForRound2`) |
 | `qa.go` | QA E2E types, parsing (`ParseQAE2ETestResult`, `ParseQAE2EFixResult`) |
@@ -81,7 +83,10 @@ WorkflowExecutor.Run()
 │   ├── SetCurrentPhaseProto(t, id)   # Persist phase to task record (authoritative for `orc status`)
 │   ├── ApplyPhaseSettings()          # Configure Claude Code env (hooks, skills, hook scripts)
 │   ├── executePhaseWithTimeout()     # Run with timeout
-│   │   └── executeWithClaude()       # ClaudeExecutor
+│   │   ├── [phase type dispatch]     # TypeOverride > Template.Type > "llm"
+│   │   │   ├── non-LLM → phaseTypeRegistry.Get(type).ExecutePhase()
+│   │   │   └── "llm" → fall through to Claude path
+│   │   └── executeWithClaude()       # ClaudeExecutor (LLM path only)
 │   ├── applyPhaseContentToVars()     # Store output for subsequent phases
 │   ├── evaluateLoopConfig()          # Check loop_config: condition + max_loops → jump back
 │   └── recordCostToGlobal()          # Track costs
@@ -213,6 +218,27 @@ Worktrees are created at `~/.orc/worktrees/<project-id>/orc-TASK-XXX/` (outside 
 | `checkSpecRequirements()` | `workflow_phase.go:681` | Validates spec exists for non-trivial weights |
 | `IsPhaseTimeoutError()` | `workflow_phase.go:558` | Checks if error is `phaseTimeoutError` |
 | `IsPhaseBlockedError()` | `workflow_phase.go:43` | Checks if error is `PhaseBlockedError` |
+
+### Phase Type Dispatch (`phase_registry.go`, `knowledge_executor.go`, `workflow_phase.go:123`)
+
+Non-LLM phase types bypass prompt loading and Claude execution. Instead, they dispatch to a `PhaseTypeExecutor` registered in `PhaseTypeRegistry`.
+
+**Type resolution order:** `WorkflowPhase.TypeOverride` > `PhaseTemplate.Type` > `"llm"` (default)
+
+| Type | Executor | Behavior |
+|------|----------|----------|
+| `llm` | Sentinel (never called) | Falls through to `executeWithClaude()` |
+| `knowledge` | `KnowledgePhaseExecutor` | Queries knowledge service, stores result in workflow variable |
+
+**Registration:** `NewDefaultPhaseTypeRegistry()` pre-registers `llm` and `knowledge`. Custom types via `WithPhaseTypeExecutor(name, exec)`. If `WithWorkflowKnowledgeService(svc)` is used, the knowledge executor is re-registered with the live service.
+
+**KnowledgePhaseExecutor** (`knowledge_executor.go`):
+- Requires `KnowledgeQueryService` interface (satisfied by `*knowledge.Service`)
+- Query source: `KnowledgePhaseConfig.Query` > `task.Description` > `task.Title`
+- Output stored to workflow variables via `KnowledgePhaseConfig.OutputVar` or `PhaseTemplate.OutputVarName`
+- Fallback: `"skip"` returns `SKIPPED` status; `"error"` (default) returns error
+
+**Condition field:** `knowledge.available` resolves to `"true"`/`"false"` based on `we.knowledgeService != nil && svc.IsAvailable()`. Use in phase conditions to skip knowledge phases when no service is configured.
 
 ### Blocked Phase Handling
 
@@ -613,8 +639,13 @@ go test ./internal/executor/... -v
 | `heartbeat_test.go` | HeartbeatRunner: update lifecycle, interval timing |
 | `history_test.go` | Run history tracking: start/complete/fail/interrupt |
 | `idle_guard_test.go` | IdleGuard heartbeat loop and stale claim detection |
+| `phase_registry_test.go` | PhaseTypeRegistry: registration, Get(), default types, nil panic |
+| `knowledge_executor_test.go` | KnowledgePhaseExecutor: query routing, fallback skip/error, output vars, unavailable service |
+| `knowledge_condition_test.go` | `knowledge.available` condition field resolution |
+| `knowledge_wiring_integration_test.go` | Integration: registry wiring via `WithWorkflowKnowledgeService`, condition eval with live context |
+| `phase_dispatch_test.go` | Phase type dispatch: non-LLM routing, type override precedence, error propagation, event publishing |
 
-**Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `hostingProvider` field for PR tests
+**Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `WithPhaseTypeExecutor(name, mock)`, `WithWorkflowKnowledgeService(mock)`, `hostingProvider` field for PR tests
 
 ## Common Gotchas
 

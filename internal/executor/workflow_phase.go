@@ -119,6 +119,115 @@ func (we *WorkflowExecutor) executePhase(
 		}
 	}
 
+	// Resolve effective phase type: WorkflowPhase.TypeOverride > PhaseTemplate.Type > "llm"
+	effectiveType := tmpl.Type
+	if phase.TypeOverride != "" {
+		effectiveType = phase.TypeOverride
+	}
+	if effectiveType == "" {
+		effectiveType = "llm"
+	}
+
+	// For non-LLM types, dispatch to the registered executor (skip prompt loading)
+	if effectiveType != "llm" {
+		executor, lookupErr := we.phaseTypeRegistry.Get(effectiveType)
+		if lookupErr != nil {
+			result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
+			result.Error = lookupErr.Error()
+			return result, lookupErr
+		}
+
+		params := PhaseTypeParams{
+			PhaseTemplate: tmpl,
+			Task:          t,
+			Vars:          vars,
+			RCtx:          rctx,
+		}
+
+		// Build KnowledgePhaseConfig from template metadata if this is a knowledge phase
+		if effectiveType == "knowledge" && we.knowledgeService != nil {
+			params.KnowledgeConfig = &KnowledgePhaseConfig{
+				OutputVar: tmpl.OutputVarName,
+			}
+		}
+
+		phaseResult, execErr := executor.ExecutePhase(ctx, params)
+
+		// Update result from executor output
+		result.PhaseID = phaseResult.PhaseID
+		result.Status = phaseResult.Status
+		result.Content = phaseResult.Content
+		result.CostUSD = phaseResult.CostUSD
+		result.InputTokens = phaseResult.InputTokens
+		result.OutputTokens = phaseResult.OutputTokens
+		result.DurationMS = time.Since(startTime).Milliseconds()
+
+		if execErr != nil {
+			result.Error = execErr.Error()
+			runPhase.Status = result.Status
+			runPhase.Error = result.Error
+			runPhase.CompletedAt = timePtr(time.Now())
+			if saveErr := we.backend.SaveWorkflowRunPhase(runPhase); saveErr != nil {
+				we.logger.Warn("failed to save failed non-LLM phase state", "phase", tmpl.ID, "error", saveErr)
+			}
+			if t != nil {
+				we.publisher.PhaseFailed(t.Id, tmpl.ID, execErr)
+			}
+			return result, execErr
+		}
+
+		// Update run phase record - respect executor's returned status
+		isSkipped := result.Status == orcv1.PhaseStatus_PHASE_STATUS_SKIPPED.String()
+		if isSkipped {
+			runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_SKIPPED.String()
+		} else {
+			runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED.String()
+		}
+		runPhase.CompletedAt = timePtr(time.Now())
+		runPhase.CostUSD = result.CostUSD
+		runPhase.InputTokens = result.InputTokens
+		runPhase.OutputTokens = result.OutputTokens
+		if result.Content != "" {
+			runPhase.Content = result.Content
+		}
+		if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
+			we.logger.Warn("failed to save non-LLM run phase", "error", err)
+		}
+
+		// Publish appropriate event
+		if t != nil {
+			if isSkipped {
+				we.publisher.PhaseSkipped(t.Id, tmpl.ID)
+			} else {
+				we.publisher.PhaseComplete(t.Id, tmpl.ID, "")
+			}
+		}
+
+		// Update run totals (non-LLM phases typically have zero cost)
+		run.TotalCostUSD += result.CostUSD
+		run.TotalInputTokens += result.InputTokens
+		run.TotalOutputTokens += result.OutputTokens
+		if err := we.backend.SaveWorkflowRun(run); err != nil {
+			we.logger.Warn("failed to update run totals for non-LLM phase", "error", err)
+		}
+
+		// Update execution state if available
+		if we.task != nil {
+			if isSkipped {
+				task.SkipPhaseProto(we.task.Execution, tmpl.ID, "non-LLM executor returned skipped")
+			} else {
+				task.CompletePhaseProto(we.task.Execution, tmpl.ID, "")
+			}
+			if err := we.backend.SaveTask(we.task); err != nil {
+				we.logger.Warn("failed to save task execution state for non-LLM phase", "error", err)
+			}
+		}
+
+		return result, nil
+	}
+
+	// --- LLM path below: load prompt, configure Claude, execute ---
+
 	// Load prompt template
 	promptContent, err := we.loadPhasePrompt(effectiveTemplate)
 	if err != nil {
@@ -228,7 +337,7 @@ func (we *WorkflowExecutor) executePhase(
 		return result, nil
 	}
 
-	// Build execution context for ClaudeExecutor
+	// Build execution context for ClaudeExecutor (LLM path)
 	// Use worktree path if available, otherwise fall back to original working dir
 	execConfig := PhaseExecutionConfig{
 		Prompt:        renderedPrompt,

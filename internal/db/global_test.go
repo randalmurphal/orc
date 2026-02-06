@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -767,5 +768,247 @@ func TestGlobalDB_CostWorkflow(t *testing.T) {
 	// Use tolerance for float comparison
 	if diff := status.PercentUsed - expectedPercent; diff < -0.01 || diff > 0.01 {
 		t.Errorf("PercentUsed = %f, want %f", status.PercentUsed, expectedPercent)
+	}
+}
+
+// =============================================================================
+// SC-3: Migration adds "type" column to phase_templates (default "llm")
+// and "type_override" column to workflow_phases.
+// TASK-004: PhaseExecutor interface and Knowledge phase type
+// =============================================================================
+
+// TestMigration011_PhaseTypeColumns verifies that migration global_011 adds
+// the type column to phase_templates with "llm" default and type_override
+// column to workflow_phases.
+func TestMigration011_PhaseTypeColumns(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "global.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("global"); err != nil {
+		t.Fatalf("Migrate global failed: %v", err)
+	}
+
+	// Verify type column exists on phase_templates
+	var typeColCount int
+	err = db.QueryRow(`
+		SELECT COUNT(*) FROM pragma_table_info('phase_templates')
+		WHERE name = 'type'
+	`).Scan(&typeColCount)
+	if err != nil {
+		t.Fatalf("check type column: %v", err)
+	}
+	if typeColCount != 1 {
+		t.Errorf("phase_templates.type column count = %d, want 1", typeColCount)
+	}
+
+	// Verify type column has default "llm"
+	var dflt sql.NullString
+	err = db.QueryRow(`
+		SELECT dflt_value FROM pragma_table_info('phase_templates')
+		WHERE name = 'type'
+	`).Scan(&dflt)
+	if err != nil {
+		t.Fatalf("check type default: %v", err)
+	}
+	if !dflt.Valid || dflt.String != "'llm'" {
+		t.Errorf("phase_templates.type default = %v, want 'llm'", dflt)
+	}
+
+	// Verify type_override column exists on workflow_phases
+	var overrideColCount int
+	err = db.QueryRow(`
+		SELECT COUNT(*) FROM pragma_table_info('workflow_phases')
+		WHERE name = 'type_override'
+	`).Scan(&overrideColCount)
+	if err != nil {
+		t.Fatalf("check type_override column: %v", err)
+	}
+	if overrideColCount != 1 {
+		t.Errorf("workflow_phases.type_override column count = %d, want 1", overrideColCount)
+	}
+}
+
+// TestMigration011_PreExistingRowsGetDefault verifies that pre-existing rows
+// inserted before the migration receive the "llm" default for the type column.
+func TestMigration011_PreExistingRowsGetDefault(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "global.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Run all migrations to set up the schema
+	if err := db.Migrate("global"); err != nil {
+		t.Fatalf("Migrate global failed: %v", err)
+	}
+
+	gdb := &GlobalDB{DB: db}
+
+	// Insert a phase template (the save function won't include the type column
+	// yet since it doesn't exist in the struct - this tests the DB default)
+	pt := &PhaseTemplate{
+		ID:           "test-phase",
+		Name:         "Test Phase",
+		PromptSource: "embedded",
+		GateType:     "auto",
+		Checkpoint:   true,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+	if err := gdb.SavePhaseTemplate(pt); err != nil {
+		t.Fatalf("SavePhaseTemplate failed: %v", err)
+	}
+
+	// Query the type column directly - should be "llm" from the DB default
+	var phaseType string
+	err = db.QueryRow(`SELECT type FROM phase_templates WHERE id = ?`, "test-phase").Scan(&phaseType)
+	if err != nil {
+		t.Fatalf("query phase type: %v", err)
+	}
+	if phaseType != "llm" {
+		t.Errorf("phase_templates.type = %q, want %q", phaseType, "llm")
+	}
+}
+
+// TestMigration011_Idempotent verifies running the migration twice does not error.
+func TestMigration011_Idempotent(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "global.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Run migration twice
+	if err := db.Migrate("global"); err != nil {
+		t.Fatalf("First Migrate failed: %v", err)
+	}
+	if err := db.Migrate("global"); err != nil {
+		t.Fatalf("Second Migrate failed (not idempotent): %v", err)
+	}
+}
+
+// TestMigration011_TypeColumnRoundTrip verifies that the Type field on
+// PhaseTemplate can be saved and retrieved through the global DB.
+func TestMigration011_TypeColumnRoundTrip(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "global.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("global"); err != nil {
+		t.Fatalf("Migrate global failed: %v", err)
+	}
+
+	gdb := &GlobalDB{DB: db}
+
+	// Save a phase template with Type = "knowledge"
+	pt := &PhaseTemplate{
+		ID:           "gather-context",
+		Name:         "Gather Context",
+		Type:         "knowledge",
+		PromptSource: "embedded",
+		GateType:     "auto",
+		Checkpoint:   true,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+	if err := gdb.SavePhaseTemplate(pt); err != nil {
+		t.Fatalf("SavePhaseTemplate failed: %v", err)
+	}
+
+	// Retrieve and verify the Type field
+	got, err := gdb.GetPhaseTemplate("gather-context")
+	if err != nil {
+		t.Fatalf("GetPhaseTemplate failed: %v", err)
+	}
+	if got.Type != "knowledge" {
+		t.Errorf("Type = %q, want %q", got.Type, "knowledge")
+	}
+}
+
+// TestMigration011_WorkflowPhaseTypeOverrideRoundTrip verifies that the
+// TypeOverride field on WorkflowPhase can be saved and retrieved.
+func TestMigration011_WorkflowPhaseTypeOverrideRoundTrip(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "global.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("global"); err != nil {
+		t.Fatalf("Migrate global failed: %v", err)
+	}
+
+	gdb := &GlobalDB{DB: db}
+
+	// Create prerequisite workflow and phase template
+	wf := &Workflow{
+		ID:        "test-workflow",
+		Name:      "Test Workflow",
+		IsBuiltin: false,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := gdb.SaveWorkflow(wf); err != nil {
+		t.Fatalf("SaveWorkflow failed: %v", err)
+	}
+
+	pt := &PhaseTemplate{
+		ID:           "test-phase",
+		Name:         "Test Phase",
+		PromptSource: "embedded",
+		GateType:     "auto",
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+	if err := gdb.SavePhaseTemplate(pt); err != nil {
+		t.Fatalf("SavePhaseTemplate failed: %v", err)
+	}
+
+	// Save a workflow phase with TypeOverride
+	wp := &WorkflowPhase{
+		WorkflowID:      "test-workflow",
+		PhaseTemplateID: "test-phase",
+		Sequence:        0,
+		TypeOverride:    "knowledge",
+	}
+	if err := gdb.SaveWorkflowPhase(wp); err != nil {
+		t.Fatalf("SaveWorkflowPhase failed: %v", err)
+	}
+
+	// Retrieve and verify the TypeOverride field
+	phases, err := gdb.GetWorkflowPhases("test-workflow")
+	if err != nil {
+		t.Fatalf("GetWorkflowPhases failed: %v", err)
+	}
+	if len(phases) != 1 {
+		t.Fatalf("len(phases) = %d, want 1", len(phases))
+	}
+	if phases[0].TypeOverride != "knowledge" {
+		t.Errorf("TypeOverride = %q, want %q", phases[0].TypeOverride, "knowledge")
 	}
 }

@@ -45,6 +45,7 @@ SQLite migrations in `schema/`. PostgreSQL equivalents in `schema/postgres/` (em
 | `schema/global_010.sql` | **Users table**: `users` (id, name, email, created_at); `user_id` column on `cost_log` |
 | `schema/project_057.sql` | **User attribution columns**: `assigned_to` on tasks, `created_by`/`owned_by` on initiatives, `executed_by` on phases, `started_by` on workflow_runs |
 | `schema/project_058.sql` | **Atomic user claims**: `claimed_by`/`claimed_at` columns on `tasks`, `task_claim_history` table (append-only with `stolen_from` tracking) |
+| `schema/global_011.sql` | **Phase type columns**: `phase_templates.type` (executor type, default `"llm"`), `workflow_phases.type_override` (per-workflow override) |
 
 ### FK-Disabling Migrations
 
@@ -98,7 +99,7 @@ PostgreSQL migrations live in `schema/postgres/` (embedded via `//go:embed`). Ea
 | `tsvector` + GIN indexes | FTS5 | Full-text search |
 | `JSONB` | JSON text columns | Structured data |
 
-**Current PostgreSQL migration coverage**: `global_001.sql`-`global_010.sql`, `project_001.sql`-`project_056.sql`. Remaining: project migrations `project_057.sql`-`project_058.sql` still need porting.
+**Current PostgreSQL migration coverage**: `global_001.sql`-`global_011.sql`, `project_001.sql`-`project_056.sql`. Remaining: project migrations `project_057.sql`-`project_058.sql` still need porting.
 
 **Table ordering**: PostgreSQL validates FK references at DDL time, so migration files may reorder tables compared to SQLite versions. The SQLite migration runner disables FK enforcement during migrations, making order irrelevant there.
 
