@@ -894,6 +894,125 @@ func scanInitiativeNote(row *sql.Row) (*InitiativeNote, error) {
 	return &n, nil
 }
 
+// ============================================================================
+// Initiative Criteria Types
+// ============================================================================
+
+// InitiativeCriterion represents an acceptance criterion stored in the database.
+type InitiativeCriterion struct {
+	ID           string
+	InitiativeID string
+	Description  string
+	Status       string
+	TaskIDs      string // JSON-encoded []string
+	VerifiedAt   string
+	VerifiedBy   string
+	Evidence     string
+}
+
+// ============================================================================
+// Initiative Criteria Operations
+// ============================================================================
+
+// ClearInitiativeCriteriaTx removes all criteria for an initiative within a transaction.
+func ClearInitiativeCriteriaTx(tx *TxOps, initiativeID string) error {
+	_, err := tx.Exec(`DELETE FROM initiative_criteria WHERE initiative_id = ?`, initiativeID)
+	if err != nil {
+		return fmt.Errorf("clear initiative criteria: %w", err)
+	}
+	return nil
+}
+
+// AddInitiativeCriterionTx adds a criterion within a transaction.
+func AddInitiativeCriterionTx(tx *TxOps, c *InitiativeCriterion) error {
+	_, err := tx.Exec(`
+		INSERT INTO initiative_criteria (id, initiative_id, description, status, task_ids, verified_at, verified_by, evidence)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, c.ID, c.InitiativeID, c.Description, c.Status, c.TaskIDs, c.VerifiedAt, c.VerifiedBy, c.Evidence)
+	if err != nil {
+		return fmt.Errorf("add initiative criterion: %w", err)
+	}
+	return nil
+}
+
+// GetInitiativeCriteria retrieves all criteria for an initiative.
+func (p *ProjectDB) GetInitiativeCriteria(initiativeID string) ([]InitiativeCriterion, error) {
+	rows, err := p.Query(`
+		SELECT id, initiative_id, description, status, task_ids, verified_at, verified_by, evidence
+		FROM initiative_criteria WHERE initiative_id = ?
+		ORDER BY id
+	`, initiativeID)
+	if err != nil {
+		return nil, fmt.Errorf("get initiative criteria: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return scanInitiativeCriteria(rows)
+}
+
+// GetAllInitiativeCriteria retrieves all initiative criteria in one query.
+// Returns a map from initiative_id to list of criteria.
+func (p *ProjectDB) GetAllInitiativeCriteria() (map[string][]InitiativeCriterion, error) {
+	rows, err := p.Query(`
+		SELECT id, initiative_id, description, status, task_ids, verified_at, verified_by, evidence
+		FROM initiative_criteria ORDER BY initiative_id, id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("get all initiative criteria: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	criteria := make(map[string][]InitiativeCriterion)
+	for rows.Next() {
+		var c InitiativeCriterion
+		var verifiedAt, verifiedBy, evidence sql.NullString
+		if err := rows.Scan(&c.ID, &c.InitiativeID, &c.Description, &c.Status,
+			&c.TaskIDs, &verifiedAt, &verifiedBy, &evidence); err != nil {
+			return nil, fmt.Errorf("scan initiative criterion: %w", err)
+		}
+		if verifiedAt.Valid {
+			c.VerifiedAt = verifiedAt.String
+		}
+		if verifiedBy.Valid {
+			c.VerifiedBy = verifiedBy.String
+		}
+		if evidence.Valid {
+			c.Evidence = evidence.String
+		}
+		criteria[c.InitiativeID] = append(criteria[c.InitiativeID], c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate initiative criteria: %w", err)
+	}
+	return criteria, nil
+}
+
+func scanInitiativeCriteria(rows *sql.Rows) ([]InitiativeCriterion, error) {
+	var criteria []InitiativeCriterion
+	for rows.Next() {
+		var c InitiativeCriterion
+		var verifiedAt, verifiedBy, evidence sql.NullString
+		if err := rows.Scan(&c.ID, &c.InitiativeID, &c.Description, &c.Status,
+			&c.TaskIDs, &verifiedAt, &verifiedBy, &evidence); err != nil {
+			return nil, fmt.Errorf("scan initiative criterion: %w", err)
+		}
+		if verifiedAt.Valid {
+			c.VerifiedAt = verifiedAt.String
+		}
+		if verifiedBy.Valid {
+			c.VerifiedBy = verifiedBy.String
+		}
+		if evidence.Valid {
+			c.Evidence = evidence.String
+		}
+		criteria = append(criteria, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate initiative criteria: %w", err)
+	}
+	return criteria, nil
+}
+
 // scanInitiativeNotes scans multiple initiative notes from rows.
 func scanInitiativeNotes(rows *sql.Rows) ([]InitiativeNote, error) {
 	var notes []InitiativeNote
