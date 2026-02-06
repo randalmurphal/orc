@@ -436,7 +436,7 @@ func runPhaseHistory(taskID string) error {
 	// Determine display order from workflow sequence
 	var orderedPhaseIDs []string
 	if tk.WorkflowId != nil && *tk.WorkflowId != "" {
-		wfPhases, wfErr := backend.DB().GetWorkflowPhases(*tk.WorkflowId)
+		wfPhases, wfErr := backend.GetWorkflowPhases(*tk.WorkflowId)
 		if wfErr == nil && len(wfPhases) > 0 {
 			seen := make(map[string]bool)
 			for _, wp := range wfPhases {
