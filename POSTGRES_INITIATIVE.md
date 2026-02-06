@@ -283,7 +283,7 @@ Team Total: $847.32 this month
 | TASK-793 | "My Work" dashboard UI | Planned |
 | TASK-794 | Hosting detection and token validation | Failed (needs retry) |
 | TASK-795 | Port project migrations 001-020 | Completed |
-| TASK-796 | Port project migrations 021-040 | Planned |
+| TASK-796 | Port project migrations 021-040 | Completed |
 | TASK-797 | Port project migrations 041-056 | Planned |
 | TASK-798 | Cost viewing CLI, API, and UI | Planned |
 
