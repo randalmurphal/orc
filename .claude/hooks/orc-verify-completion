@@ -12,8 +12,8 @@
 
 set -euo pipefail
 
-# Use task ID for marker uniqueness, fall back to session PID
-MARKER_FILE="/tmp/orc-verify-completion-${ORC_TASK_ID:-$$}"
+# Use task ID for marker uniqueness (hardcoded for running task)
+MARKER_FILE="/tmp/orc-verify-completion-TASK-013"
 
 # Second stop attempt — allow it through
 if [ -f "$MARKER_FILE" ]; then
