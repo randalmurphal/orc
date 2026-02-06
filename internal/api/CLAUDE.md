@@ -33,7 +33,7 @@ Services are registered in `server_connect.go:17-116`. Each implements a handler
 | `EventService` | `event_server.go` | Yes | Subscribe (streaming), GetEvents, GetTimeline |
 | `ConfigService` | `config_server.go` | Yes | Config, Settings, Hooks (CRUD + Export/Import), Skills (CRUD + Export/Import), ScanClaudeDir, ClaudeMd, Constitution, Prompts, Agents, Scripts, Tools |
 | `HostingService` | `hosting_server.go` | Yes | PR CRUD, Refresh, AutofixComment |
-| `DashboardService` | `dashboard_server.go` | Yes | Stats, Metrics (TTL cache + singleflight) |
+| `DashboardService` | `dashboard_server.go` | Yes | Stats, Metrics, CostReport (TTL cache + singleflight) |
 | `ProjectService` | `project_server.go` | No | Multi-project management (global), cross-project status aggregation |
 | `BranchService` | `branch_server.go` | Yes | Branch operations |
 | `DecisionService` | `decision_server.go` | Yes | Gate decisions (approve/reject) |

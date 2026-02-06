@@ -57,6 +57,7 @@ func (s *Server) registerConnectHandlers() {
 	dashboardSvc := NewDashboardServer(s.backend, s.logger)
 	if ds, ok := dashboardSvc.(*dashboardServer); ok {
 		ds.SetProjectCache(s.projectCache)
+		ds.SetGlobalDB(s.globalDB)
 	}
 	attentionDashboardSvc := NewAttentionDashboardServer(s.backend, s.publisher, s.pendingDecisions, s.logger)
 	if ads, ok := attentionDashboardSvc.(*attentionDashboardServer); ok {

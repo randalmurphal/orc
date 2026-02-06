@@ -40,6 +40,10 @@ type Driver interface {
 	Now() string            // datetime('now') for SQLite, NOW() for Postgres
 	UpsertConflict() string // ON CONFLICT syntax varies
 
+	// Date formatting helpers for dialect-specific SQL fragments
+	DateFormat(column, format string) string // strftime for SQLite, TO_CHAR for Postgres
+	DateTrunc(unit, column string) string    // strftime workaround for SQLite, date_trunc for Postgres
+
 	// Raw access (for advanced operations)
 	DB() *sql.DB
 }

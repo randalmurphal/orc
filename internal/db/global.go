@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/randalmurphal/orc/internal/db/driver"
 )
 
 // ErrBudgetNotFound is returned when no budget exists for a project.
@@ -377,30 +379,18 @@ func (g *GlobalDB) GetCostByModel(projectID string, since time.Time) (map[string
 	return result, nil
 }
 
-// strftimeFormat returns the SQLite strftime format for a given granularity.
-func strftimeFormat(granularity string) string {
-	switch granularity {
-	case "week":
-		return "%Y-W%W"
-	case "month":
-		return "%Y-%m"
-	default: // "day" or default
-		return "%Y-%m-%d"
-	}
-}
-
 // buildTimeseriesQuery builds the SQL query for cost timeseries aggregation.
+// The drv parameter provides dialect-specific date formatting.
 // The granularity parameter determines the date bucketing (day, week, month).
 // If withProject is true, a project_id filter placeholder is added.
-func buildTimeseriesQuery(granularity string, withProject bool) string {
-	dateFormat := strftimeFormat(granularity)
-	// Use the same dateFormat in both SELECT and GROUP BY for consistency
+func buildTimeseriesQuery(drv driver.Driver, granularity string, withProject bool) string {
+	dateExpr := drv.DateFormat("timestamp", granularity)
 	query := fmt.Sprintf(`
 		SELECT
 			COALESCE(project_id, '') as project_id,
 			COALESCE(model, '') as model,
 			'' as phase,
-			strftime('%s', timestamp) as date,
+			%s as date,
 			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
 			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
@@ -408,11 +398,11 @@ func buildTimeseriesQuery(granularity string, withProject bool) string {
 			COUNT(*) as turn_count,
 			COUNT(DISTINCT task_id) as task_count
 		FROM cost_log
-		WHERE timestamp >= ?`, dateFormat)
+		WHERE timestamp >= ?`, dateExpr)
 	if withProject {
 		query += " AND project_id = ?"
 	}
-	query += fmt.Sprintf(" GROUP BY strftime('%s', timestamp), model ORDER BY date ASC", dateFormat)
+	query += fmt.Sprintf(" GROUP BY %s, model ORDER BY date ASC", dateExpr)
 	return query
 }
 
@@ -427,7 +417,7 @@ func (g *GlobalDB) GetCostTimeseries(projectID string, since time.Time, granular
 
 	// Build query using template function based on project filter
 	withProject := projectID != ""
-	query := buildTimeseriesQuery(granularity, withProject)
+	query := buildTimeseriesQuery(g.Driver(), granularity, withProject)
 
 	var args []any
 	if withProject {
@@ -564,19 +554,20 @@ func (g *GlobalDB) GetBudget(projectID string) (*CostBudget, error) {
 
 // SetBudget creates or updates the budget for a project.
 func (g *GlobalDB) SetBudget(budget CostBudget) error {
-	_, err := g.Exec(`
+	now := g.Driver().Now()
+	_, err := g.Exec(fmt.Sprintf(`
 		INSERT INTO cost_budgets (
 			project_id, monthly_limit_usd, alert_threshold_percent,
 			current_month, current_month_spent, updated_at
 		)
-		VALUES (?, ?, ?, ?, ?, datetime('now'))
+		VALUES (?, ?, ?, ?, ?, %s)
 		ON CONFLICT(project_id) DO UPDATE SET
 			monthly_limit_usd = excluded.monthly_limit_usd,
 			alert_threshold_percent = excluded.alert_threshold_percent,
 			current_month = excluded.current_month,
 			current_month_spent = excluded.current_month_spent,
-			updated_at = datetime('now')
-	`, budget.ProjectID, budget.MonthlyLimitUSD, budget.AlertThresholdPercent,
+			updated_at = %s
+	`, now, now), budget.ProjectID, budget.MonthlyLimitUSD, budget.AlertThresholdPercent,
 		budget.CurrentMonth, budget.CurrentMonthSpent)
 	if err != nil {
 		return fmt.Errorf("set budget: %w", err)
@@ -637,6 +628,102 @@ func (g *GlobalDB) GetBudgetStatus(projectID string) (*BudgetStatus, error) {
 	}
 
 	return status, nil
+}
+
+// =============================================================================
+// Cost Report (flexible filtering and grouping)
+// =============================================================================
+
+// CostReportFilter defines the filters for cost report queries.
+type CostReportFilter struct {
+	UserID    string
+	ProjectID string
+	Since     time.Time
+	GroupBy   string // "user", "project", "model", or "" for total only
+}
+
+// CostReportResult contains the aggregated cost report data.
+type CostReportResult struct {
+	TotalCostUSD float64
+	Breakdowns   []CostBreakdownEntry
+}
+
+// CostBreakdownEntry represents a single breakdown entry in the cost report.
+type CostBreakdownEntry struct {
+	Key     string
+	CostUSD float64
+}
+
+// GetCostReport returns aggregated cost data with optional filtering and grouping.
+func (g *GlobalDB) GetCostReport(filter CostReportFilter) (CostReportResult, error) {
+	var result CostReportResult
+
+	// Build WHERE clause
+	conditions := []string{"1=1"}
+	var args []any
+
+	if filter.UserID != "" {
+		conditions = append(conditions, "user_id = ?")
+		args = append(args, filter.UserID)
+	}
+	if filter.ProjectID != "" {
+		conditions = append(conditions, "project_id = ?")
+		args = append(args, filter.ProjectID)
+	}
+	if !filter.Since.IsZero() {
+		conditions = append(conditions, "timestamp >= ?")
+		args = append(args, filter.Since.UTC().Format("2006-01-02 15:04:05"))
+	}
+
+	whereClause := strings.Join(conditions, " AND ")
+
+	// Get total
+	totalQuery := fmt.Sprintf("SELECT COALESCE(SUM(cost_usd), 0) FROM cost_log WHERE %s", whereClause)
+	if err := g.QueryRow(totalQuery, args...).Scan(&result.TotalCostUSD); err != nil {
+		return result, fmt.Errorf("get cost report total: %w", err)
+	}
+
+	// Get breakdowns if grouping is requested
+	if filter.GroupBy != "" {
+		var groupCol string
+		switch filter.GroupBy {
+		case "user":
+			groupCol = "CASE WHEN user_id = '' OR user_id IS NULL THEN 'unattributed' ELSE user_id END"
+		case "project":
+			groupCol = "project_id"
+		case "model":
+			groupCol = "CASE WHEN model = '' OR model IS NULL THEN 'unknown' ELSE model END"
+		default:
+			return result, fmt.Errorf("invalid group_by value: %s", filter.GroupBy)
+		}
+
+		groupQuery := fmt.Sprintf(`
+			SELECT %s as group_key, COALESCE(SUM(cost_usd), 0)
+			FROM cost_log WHERE %s
+			GROUP BY 1
+			ORDER BY 2 DESC`,
+			groupCol, whereClause,
+		)
+
+		rows, err := g.Query(groupQuery, args...)
+		if err != nil {
+			return result, fmt.Errorf("get cost report breakdowns: %w", err)
+		}
+		defer func() { _ = rows.Close() }()
+
+		for rows.Next() {
+			var entry CostBreakdownEntry
+			if err := rows.Scan(&entry.Key, &entry.CostUSD); err != nil {
+				return result, fmt.Errorf("scan cost breakdown: %w", err)
+			}
+			result.Breakdowns = append(result.Breakdowns, entry)
+		}
+		if err := rows.Err(); err != nil {
+			return result, fmt.Errorf("iterate cost breakdowns: %w", err)
+		}
+	}
+
+	return result, nil
 }
 
 // =============================================================================

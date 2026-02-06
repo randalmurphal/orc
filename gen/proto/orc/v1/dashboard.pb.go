@@ -2303,6 +2303,195 @@ func (x *GetTaskMetricsResponse) GetMetrics() *MetricsSummary {
 	return nil
 }
 
+// Cost report with filtering and grouping
+type GetCostReportRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	UserId        *string                `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3,oneof" json:"user_id,omitempty"`
+	Since         *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=since,proto3,oneof" json:"since,omitempty"`
+	GroupBy       *string                `protobuf:"bytes,4,opt,name=group_by,json=groupBy,proto3,oneof" json:"group_by,omitempty"` // "user", "project", "model"
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCostReportRequest) Reset() {
+	*x = GetCostReportRequest{}
+	mi := &file_orc_v1_dashboard_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCostReportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCostReportRequest) ProtoMessage() {}
+
+func (x *GetCostReportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_dashboard_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCostReportRequest.ProtoReflect.Descriptor instead.
+func (*GetCostReportRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_dashboard_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *GetCostReportRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *GetCostReportRequest) GetUserId() string {
+	if x != nil && x.UserId != nil {
+		return *x.UserId
+	}
+	return ""
+}
+
+func (x *GetCostReportRequest) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
+}
+
+func (x *GetCostReportRequest) GetGroupBy() string {
+	if x != nil && x.GroupBy != nil {
+		return *x.GroupBy
+	}
+	return ""
+}
+
+type GetCostReportResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	TotalCostUsd      float64                `protobuf:"fixed64,1,opt,name=total_cost_usd,json=totalCostUsd,proto3" json:"total_cost_usd,omitempty"`
+	Breakdowns        []*CostBreakdown       `protobuf:"bytes,2,rep,name=breakdowns,proto3" json:"breakdowns,omitempty"`
+	BudgetLimitUsd    *float64               `protobuf:"fixed64,3,opt,name=budget_limit_usd,json=budgetLimitUsd,proto3,oneof" json:"budget_limit_usd,omitempty"`
+	BudgetPercentUsed *float64               `protobuf:"fixed64,4,opt,name=budget_percent_used,json=budgetPercentUsed,proto3,oneof" json:"budget_percent_used,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetCostReportResponse) Reset() {
+	*x = GetCostReportResponse{}
+	mi := &file_orc_v1_dashboard_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCostReportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCostReportResponse) ProtoMessage() {}
+
+func (x *GetCostReportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_dashboard_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCostReportResponse.ProtoReflect.Descriptor instead.
+func (*GetCostReportResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_dashboard_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *GetCostReportResponse) GetTotalCostUsd() float64 {
+	if x != nil {
+		return x.TotalCostUsd
+	}
+	return 0
+}
+
+func (x *GetCostReportResponse) GetBreakdowns() []*CostBreakdown {
+	if x != nil {
+		return x.Breakdowns
+	}
+	return nil
+}
+
+func (x *GetCostReportResponse) GetBudgetLimitUsd() float64 {
+	if x != nil && x.BudgetLimitUsd != nil {
+		return *x.BudgetLimitUsd
+	}
+	return 0
+}
+
+func (x *GetCostReportResponse) GetBudgetPercentUsed() float64 {
+	if x != nil && x.BudgetPercentUsed != nil {
+		return *x.BudgetPercentUsed
+	}
+	return 0
+}
+
+type CostBreakdown struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	CostUsd       float64                `protobuf:"fixed64,2,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CostBreakdown) Reset() {
+	*x = CostBreakdown{}
+	mi := &file_orc_v1_dashboard_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CostBreakdown) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CostBreakdown) ProtoMessage() {}
+
+func (x *CostBreakdown) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_dashboard_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CostBreakdown.ProtoReflect.Descriptor instead.
+func (*CostBreakdown) Descriptor() ([]byte, []int) {
+	return file_orc_v1_dashboard_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *CostBreakdown) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CostBreakdown) GetCostUsd() float64 {
+	if x != nil {
+		return x.CostUsd
+	}
+	return 0
+}
+
 var File_orc_v1_dashboard_proto protoreflect.FileDescriptor
 
 const file_orc_v1_dashboard_proto_rawDesc = "" +
@@ -2484,7 +2673,29 @@ const file_orc_v1_dashboard_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\"J\n" +
 	"\x16GetTaskMetricsResponse\x120\n" +
-	"\ametrics\x18\x01 \x01(\v2\x16.orc.v1.MetricsSummaryR\ametrics2\xfb\x06\n" +
+	"\ametrics\x18\x01 \x01(\v2\x16.orc.v1.MetricsSummaryR\ametrics\"\xcd\x01\n" +
+	"\x14GetCostReportRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1c\n" +
+	"\auser_id\x18\x02 \x01(\tH\x00R\x06userId\x88\x01\x01\x125\n" +
+	"\x05since\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampH\x01R\x05since\x88\x01\x01\x12\x1e\n" +
+	"\bgroup_by\x18\x04 \x01(\tH\x02R\agroupBy\x88\x01\x01B\n" +
+	"\n" +
+	"\b_user_idB\b\n" +
+	"\x06_sinceB\v\n" +
+	"\t_group_by\"\x85\x02\n" +
+	"\x15GetCostReportResponse\x12$\n" +
+	"\x0etotal_cost_usd\x18\x01 \x01(\x01R\ftotalCostUsd\x125\n" +
+	"\n" +
+	"breakdowns\x18\x02 \x03(\v2\x15.orc.v1.CostBreakdownR\n" +
+	"breakdowns\x12-\n" +
+	"\x10budget_limit_usd\x18\x03 \x01(\x01H\x00R\x0ebudgetLimitUsd\x88\x01\x01\x123\n" +
+	"\x13budget_percent_used\x18\x04 \x01(\x01H\x01R\x11budgetPercentUsed\x88\x01\x01B\x13\n" +
+	"\x11_budget_limit_usdB\x16\n" +
+	"\x14_budget_percent_used\"<\n" +
+	"\rCostBreakdown\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x19\n" +
+	"\bcost_usd\x18\x02 \x01(\x01R\acostUsd2\xc9\a\n" +
 	"\x10DashboardService\x12=\n" +
 	"\bGetStats\x12\x17.orc.v1.GetStatsRequest\x1a\x18.orc.v1.GetStatsResponse\x12[\n" +
 	"\x12GetActivityHeatmap\x12!.orc.v1.GetActivityHeatmapRequest\x1a\".orc.v1.GetActivityHeatmapResponse\x12O\n" +
@@ -2497,7 +2708,8 @@ const file_orc_v1_dashboard_proto_rawDesc = "" +
 	"\x11GetTopInitiatives\x12 .orc.v1.GetTopInitiativesRequest\x1a!.orc.v1.GetTopInitiativesResponse\x12F\n" +
 	"\vGetTopFiles\x12\x1a.orc.v1.GetTopFilesRequest\x1a\x1b.orc.v1.GetTopFilesResponse\x12L\n" +
 	"\rGetComparison\x12\x1c.orc.v1.GetComparisonRequest\x1a\x1d.orc.v1.GetComparisonResponse\x12O\n" +
-	"\x0eGetTaskMetrics\x12\x1d.orc.v1.GetTaskMetricsRequest\x1a\x1e.orc.v1.GetTaskMetricsResponseB\x8a\x01\n" +
+	"\x0eGetTaskMetrics\x12\x1d.orc.v1.GetTaskMetricsRequest\x1a\x1e.orc.v1.GetTaskMetricsResponse\x12L\n" +
+	"\rGetCostReport\x12\x1c.orc.v1.GetCostReportRequest\x1a\x1d.orc.v1.GetCostReportResponseB\x8a\x01\n" +
 	"\n" +
 	"com.orc.v1B\x0eDashboardProtoP\x01Z3github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1\xa2\x02\x03OXX\xaa\x02\x06Orc.V1\xca\x02\x06Orc\\V1\xe2\x02\x12Orc\\V1\\GPBMetadata\xea\x02\aOrc::V1b\x06proto3"
 
@@ -2513,7 +2725,7 @@ func file_orc_v1_dashboard_proto_rawDescGZIP() []byte {
 	return file_orc_v1_dashboard_proto_rawDescData
 }
 
-var file_orc_v1_dashboard_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_orc_v1_dashboard_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
 var file_orc_v1_dashboard_proto_goTypes = []any{
 	(*DashboardStats)(nil),             // 0: orc.v1.DashboardStats
 	(*StatusCounts)(nil),               // 1: orc.v1.StatusCounts
@@ -2553,24 +2765,27 @@ var file_orc_v1_dashboard_proto_goTypes = []any{
 	(*GetComparisonResponse)(nil),      // 35: orc.v1.GetComparisonResponse
 	(*GetTaskMetricsRequest)(nil),      // 36: orc.v1.GetTaskMetricsRequest
 	(*GetTaskMetricsResponse)(nil),     // 37: orc.v1.GetTaskMetricsResponse
-	nil,                                // 38: orc.v1.CostSummary.ByModelEntry
-	nil,                                // 39: orc.v1.CostSummary.ByCategoryEntry
-	(*TokenUsage)(nil),                 // 40: orc.v1.TokenUsage
-	(*timestamppb.Timestamp)(nil),      // 41: google.protobuf.Timestamp
+	(*GetCostReportRequest)(nil),       // 38: orc.v1.GetCostReportRequest
+	(*GetCostReportResponse)(nil),      // 39: orc.v1.GetCostReportResponse
+	(*CostBreakdown)(nil),              // 40: orc.v1.CostBreakdown
+	nil,                                // 41: orc.v1.CostSummary.ByModelEntry
+	nil,                                // 42: orc.v1.CostSummary.ByCategoryEntry
+	(*TokenUsage)(nil),                 // 43: orc.v1.TokenUsage
+	(*timestamppb.Timestamp)(nil),      // 44: google.protobuf.Timestamp
 }
 var file_orc_v1_dashboard_proto_depIdxs = []int32{
 	1,  // 0: orc.v1.DashboardStats.task_counts:type_name -> orc.v1.StatusCounts
 	2,  // 1: orc.v1.DashboardStats.running_tasks:type_name -> orc.v1.RunningTaskInfo
 	3,  // 2: orc.v1.DashboardStats.recent_completions:type_name -> orc.v1.RecentCompletion
-	40, // 3: orc.v1.DashboardStats.today_tokens:type_name -> orc.v1.TokenUsage
-	41, // 4: orc.v1.RunningTaskInfo.started_at:type_name -> google.protobuf.Timestamp
-	41, // 5: orc.v1.RecentCompletion.completed_at:type_name -> google.protobuf.Timestamp
+	43, // 3: orc.v1.DashboardStats.today_tokens:type_name -> orc.v1.TokenUsage
+	44, // 4: orc.v1.RunningTaskInfo.started_at:type_name -> google.protobuf.Timestamp
+	44, // 5: orc.v1.RecentCompletion.completed_at:type_name -> google.protobuf.Timestamp
 	5,  // 6: orc.v1.ActivityHeatmap.days:type_name -> orc.v1.ActivityDay
 	7,  // 7: orc.v1.CostSummary.by_period:type_name -> orc.v1.PeriodCost
-	38, // 8: orc.v1.CostSummary.by_model:type_name -> orc.v1.CostSummary.ByModelEntry
-	39, // 9: orc.v1.CostSummary.by_category:type_name -> orc.v1.CostSummary.ByCategoryEntry
-	40, // 10: orc.v1.MetricsSummary.total_tokens:type_name -> orc.v1.TokenUsage
-	40, // 11: orc.v1.ModelMetrics.tokens:type_name -> orc.v1.TokenUsage
+	41, // 8: orc.v1.CostSummary.by_model:type_name -> orc.v1.CostSummary.ByModelEntry
+	42, // 9: orc.v1.CostSummary.by_category:type_name -> orc.v1.CostSummary.ByCategoryEntry
+	43, // 10: orc.v1.MetricsSummary.total_tokens:type_name -> orc.v1.TokenUsage
+	43, // 11: orc.v1.ModelMetrics.tokens:type_name -> orc.v1.TokenUsage
 	9,  // 12: orc.v1.PerDayStats.days:type_name -> orc.v1.DailyMetrics
 	8,  // 13: orc.v1.ComparisonMetrics.current:type_name -> orc.v1.MetricsSummary
 	8,  // 14: orc.v1.ComparisonMetrics.previous:type_name -> orc.v1.MetricsSummary
@@ -2585,33 +2800,37 @@ var file_orc_v1_dashboard_proto_depIdxs = []int32{
 	14, // 23: orc.v1.GetTopFilesResponse.files:type_name -> orc.v1.TopFile
 	15, // 24: orc.v1.GetComparisonResponse.comparison:type_name -> orc.v1.ComparisonMetrics
 	8,  // 25: orc.v1.GetTaskMetricsResponse.metrics:type_name -> orc.v1.MetricsSummary
-	16, // 26: orc.v1.DashboardService.GetStats:input_type -> orc.v1.GetStatsRequest
-	18, // 27: orc.v1.DashboardService.GetActivityHeatmap:input_type -> orc.v1.GetActivityHeatmapRequest
-	20, // 28: orc.v1.DashboardService.GetCostSummary:input_type -> orc.v1.GetCostSummaryRequest
-	22, // 29: orc.v1.DashboardService.GetMetrics:input_type -> orc.v1.GetMetricsRequest
-	24, // 30: orc.v1.DashboardService.GetDailyMetrics:input_type -> orc.v1.GetDailyMetricsRequest
-	26, // 31: orc.v1.DashboardService.GetMetricsByModel:input_type -> orc.v1.GetMetricsByModelRequest
-	28, // 32: orc.v1.DashboardService.GetOutcomes:input_type -> orc.v1.GetOutcomesRequest
-	30, // 33: orc.v1.DashboardService.GetTopInitiatives:input_type -> orc.v1.GetTopInitiativesRequest
-	32, // 34: orc.v1.DashboardService.GetTopFiles:input_type -> orc.v1.GetTopFilesRequest
-	34, // 35: orc.v1.DashboardService.GetComparison:input_type -> orc.v1.GetComparisonRequest
-	36, // 36: orc.v1.DashboardService.GetTaskMetrics:input_type -> orc.v1.GetTaskMetricsRequest
-	17, // 37: orc.v1.DashboardService.GetStats:output_type -> orc.v1.GetStatsResponse
-	19, // 38: orc.v1.DashboardService.GetActivityHeatmap:output_type -> orc.v1.GetActivityHeatmapResponse
-	21, // 39: orc.v1.DashboardService.GetCostSummary:output_type -> orc.v1.GetCostSummaryResponse
-	23, // 40: orc.v1.DashboardService.GetMetrics:output_type -> orc.v1.GetMetricsResponse
-	25, // 41: orc.v1.DashboardService.GetDailyMetrics:output_type -> orc.v1.GetDailyMetricsResponse
-	27, // 42: orc.v1.DashboardService.GetMetricsByModel:output_type -> orc.v1.GetMetricsByModelResponse
-	29, // 43: orc.v1.DashboardService.GetOutcomes:output_type -> orc.v1.GetOutcomesResponse
-	31, // 44: orc.v1.DashboardService.GetTopInitiatives:output_type -> orc.v1.GetTopInitiativesResponse
-	33, // 45: orc.v1.DashboardService.GetTopFiles:output_type -> orc.v1.GetTopFilesResponse
-	35, // 46: orc.v1.DashboardService.GetComparison:output_type -> orc.v1.GetComparisonResponse
-	37, // 47: orc.v1.DashboardService.GetTaskMetrics:output_type -> orc.v1.GetTaskMetricsResponse
-	37, // [37:48] is the sub-list for method output_type
-	26, // [26:37] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	44, // 26: orc.v1.GetCostReportRequest.since:type_name -> google.protobuf.Timestamp
+	40, // 27: orc.v1.GetCostReportResponse.breakdowns:type_name -> orc.v1.CostBreakdown
+	16, // 28: orc.v1.DashboardService.GetStats:input_type -> orc.v1.GetStatsRequest
+	18, // 29: orc.v1.DashboardService.GetActivityHeatmap:input_type -> orc.v1.GetActivityHeatmapRequest
+	20, // 30: orc.v1.DashboardService.GetCostSummary:input_type -> orc.v1.GetCostSummaryRequest
+	22, // 31: orc.v1.DashboardService.GetMetrics:input_type -> orc.v1.GetMetricsRequest
+	24, // 32: orc.v1.DashboardService.GetDailyMetrics:input_type -> orc.v1.GetDailyMetricsRequest
+	26, // 33: orc.v1.DashboardService.GetMetricsByModel:input_type -> orc.v1.GetMetricsByModelRequest
+	28, // 34: orc.v1.DashboardService.GetOutcomes:input_type -> orc.v1.GetOutcomesRequest
+	30, // 35: orc.v1.DashboardService.GetTopInitiatives:input_type -> orc.v1.GetTopInitiativesRequest
+	32, // 36: orc.v1.DashboardService.GetTopFiles:input_type -> orc.v1.GetTopFilesRequest
+	34, // 37: orc.v1.DashboardService.GetComparison:input_type -> orc.v1.GetComparisonRequest
+	36, // 38: orc.v1.DashboardService.GetTaskMetrics:input_type -> orc.v1.GetTaskMetricsRequest
+	38, // 39: orc.v1.DashboardService.GetCostReport:input_type -> orc.v1.GetCostReportRequest
+	17, // 40: orc.v1.DashboardService.GetStats:output_type -> orc.v1.GetStatsResponse
+	19, // 41: orc.v1.DashboardService.GetActivityHeatmap:output_type -> orc.v1.GetActivityHeatmapResponse
+	21, // 42: orc.v1.DashboardService.GetCostSummary:output_type -> orc.v1.GetCostSummaryResponse
+	23, // 43: orc.v1.DashboardService.GetMetrics:output_type -> orc.v1.GetMetricsResponse
+	25, // 44: orc.v1.DashboardService.GetDailyMetrics:output_type -> orc.v1.GetDailyMetricsResponse
+	27, // 45: orc.v1.DashboardService.GetMetricsByModel:output_type -> orc.v1.GetMetricsByModelResponse
+	29, // 46: orc.v1.DashboardService.GetOutcomes:output_type -> orc.v1.GetOutcomesResponse
+	31, // 47: orc.v1.DashboardService.GetTopInitiatives:output_type -> orc.v1.GetTopInitiativesResponse
+	33, // 48: orc.v1.DashboardService.GetTopFiles:output_type -> orc.v1.GetTopFilesResponse
+	35, // 49: orc.v1.DashboardService.GetComparison:output_type -> orc.v1.GetComparisonResponse
+	37, // 50: orc.v1.DashboardService.GetTaskMetrics:output_type -> orc.v1.GetTaskMetricsResponse
+	39, // 51: orc.v1.DashboardService.GetCostReport:output_type -> orc.v1.GetCostReportResponse
+	40, // [40:52] is the sub-list for method output_type
+	28, // [28:40] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_dashboard_proto_init() }
@@ -2624,13 +2843,15 @@ func file_orc_v1_dashboard_proto_init() {
 	file_orc_v1_dashboard_proto_msgTypes[26].OneofWrappers = []any{}
 	file_orc_v1_dashboard_proto_msgTypes[28].OneofWrappers = []any{}
 	file_orc_v1_dashboard_proto_msgTypes[32].OneofWrappers = []any{}
+	file_orc_v1_dashboard_proto_msgTypes[38].OneofWrappers = []any{}
+	file_orc_v1_dashboard_proto_msgTypes[39].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_dashboard_proto_rawDesc), len(file_orc_v1_dashboard_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   40,
+			NumMessages:   43,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
