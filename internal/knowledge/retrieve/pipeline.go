@@ -115,7 +115,9 @@ func (p *Pipeline) Execute(ctx context.Context, query string) (*PipelineResult, 
 		if docTokens == 0 {
 			docTokens = estimateTokens(c.Content)
 		}
-		if p.summaryOnly && c.Summary != "" {
+		if p.summaryOnly {
+			// In summary-only mode, content was already replaced with
+			// summary or truncated excerpt — re-estimate from actual content.
 			docTokens = estimateTokens(c.Content)
 		}
 

@@ -211,6 +211,6 @@ func buildPipeline(preset string, deps retrieve.PresetDeps) (*retrieve.Pipeline,
 	case "recency":
 		return retrieve.RecencyPreset(deps)
 	default:
-		return retrieve.StandardPreset(deps)
+		return nil, fmt.Errorf("unknown preset: %q", preset)
 	}
 }
