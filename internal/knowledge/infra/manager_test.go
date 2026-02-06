@@ -180,10 +180,10 @@ func TestManager_Status_MissingContainers(t *testing.T) {
 func TestManager_Start_ExternalBackend(t *testing.T) {
 	mock := &mockDockerClient{}
 	mgr := NewManager(Config{
-		Backend:    "external",
-		Neo4jURI:   "bolt://external:7687",
-		QdrantURI:  "http://external:6334",
-		RedisURI:   "redis://external:6379",
+		Backend:   "external",
+		Neo4jURI:  "bolt://external:7687",
+		QdrantURI: "http://external:6334",
+		RedisURI:  "redis://external:6379",
 	}, WithDockerClient(mock))
 
 	err := mgr.Start(context.Background())
@@ -368,7 +368,7 @@ func TestManager_Status_Disabled(t *testing.T) {
 	mgr := NewManager(Config{
 		Backend:  "docker",
 		Disabled: true,
-	}, nil)
+	})
 
 	health, err := mgr.Status(context.Background())
 	if err != nil {
@@ -383,63 +383,6 @@ func TestManager_Status_Disabled(t *testing.T) {
 
 // --- Test doubles ---
 
-// Health represents per-service health status.
-type Health struct {
-	Neo4j  string
-	Qdrant string
-	Redis  string
-}
-
-// Config holds infrastructure manager configuration.
-type Config struct {
-	Backend    string
-	Neo4jPort  int
-	QdrantPort int
-	RedisPort  int
-	DataDir    string
-	Neo4jURI   string
-	QdrantURI  string
-	RedisURI   string
-	Disabled   bool
-}
-
-// Manager manages knowledge infrastructure containers.
-type Manager struct{}
-
-// ManagerOption configures the Manager.
-type ManagerOption func(*Manager)
-
-// NewManager creates a new infrastructure manager.
-func NewManager(cfg Config, opts ...ManagerOption) *Manager {
-	// Stub — will be implemented in the implement phase.
-	return nil
-}
-
-// WithDockerClient sets a custom Docker client (for testing).
-func WithDockerClient(client *mockDockerClient) ManagerOption {
-	return func(m *Manager) {}
-}
-
-// WithHealthCheck sets a custom health check function (for testing).
-func WithHealthCheck(fn func(uri string) error) ManagerOption {
-	return func(m *Manager) {}
-}
-
-// Start starts the knowledge infrastructure.
-func (m *Manager) Start(ctx context.Context) error {
-	return errors.New("not implemented")
-}
-
-// Stop stops the knowledge infrastructure.
-func (m *Manager) Stop(ctx context.Context) error {
-	return errors.New("not implemented")
-}
-
-// Status returns health status.
-func (m *Manager) Status(ctx context.Context) (*Health, error) {
-	return nil, errors.New("not implemented")
-}
-
 type mockDockerClient struct {
 	startCount         int
 	stopCount          int
@@ -453,6 +396,63 @@ type mockDockerClient struct {
 	failError          error
 	failOnStop         bool
 	daemonDown         bool
+}
+
+func (m *mockDockerClient) IsDaemonRunning(_ context.Context) error {
+	if m.daemonDown {
+		return errors.New("docker daemon not running")
+	}
+	return nil
+}
+
+func (m *mockDockerClient) StartContainer(_ context.Context, name string, port int, dataDir string) error {
+	if m.failOnContainer == name {
+		if m.failError != nil {
+			return m.failError
+		}
+		return errors.New("failed to start " + name)
+	}
+	m.startCount++
+	m.startedContainers = append(m.startedContainers, name)
+	return nil
+}
+
+func (m *mockDockerClient) StopContainer(_ context.Context, name string) error {
+	if m.failOnStop {
+		return errors.New("docker API error")
+	}
+	m.stopCount++
+	return nil
+}
+
+func (m *mockDockerClient) ContainerExists(_ context.Context, name string) (bool, error) {
+	for _, c := range m.existingContainers {
+		if c == name {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (m *mockDockerClient) ContainerHealth(_ context.Context, name string) (string, error) {
+	if m.healthStatus == nil {
+		return "", nil
+	}
+	return m.healthStatus[name], nil
+}
+
+func (m *mockDockerClient) RestartContainer(_ context.Context, name string) error {
+	m.restartCount++
+	return nil
+}
+
+func (m *mockDockerClient) CreateContainer(_ context.Context, name string, port int, dataDir string) error {
+	m.createCount++
+	return nil
+}
+
+func (m *mockDockerClient) ListRunning(_ context.Context) ([]string, error) {
+	return m.runningContainers, nil
 }
 
 func containsString(s, substr string) bool {

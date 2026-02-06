@@ -221,58 +221,89 @@ func TestService_Start_CallsAllStoreConnects(t *testing.T) {
 	}
 }
 
-// --- Types and stubs ---
+// --- Test doubles ---
 
-// ServiceConfig configures the knowledge Service.
-type ServiceConfig struct {
-	Enabled bool
-	Backend string
+type mockComponents struct {
+	callOrder         []string
+	healthCheckCalled bool
+	neo4jHealthy      bool
+	qdrantHealthy     bool
+	redisHealthy      bool
+	failOn            string
+	failError         error
 }
 
-// Service orchestrates knowledge infrastructure.
-type Service struct{}
-
-// ServiceOption configures the Service.
-type ServiceOption func(*Service)
-
-// NewService creates a new knowledge service.
-func NewService(cfg ServiceConfig, opts ...ServiceOption) *Service {
+func (m *mockComponents) InfraStart(_ context.Context) error {
+	m.callOrder = append(m.callOrder, "infra.Start")
+	if m.failOn == "infra.Start" {
+		if m.failError != nil {
+			return m.failError
+		}
+		return errors.New("infra.Start failed")
+	}
 	return nil
 }
 
-// WithComponents injects mock components (for testing).
-func WithComponents(comps *mockComponents) ServiceOption {
-	return func(s *Service) {}
+func (m *mockComponents) InfraStop(_ context.Context) error {
+	m.callOrder = append(m.callOrder, "infra.Stop")
+	return nil
 }
 
-// Start starts infrastructure then connects stores.
-func (s *Service) Start(ctx context.Context) error {
-	return errors.New("not implemented")
+func (m *mockComponents) GraphConnect(_ context.Context) error {
+	m.callOrder = append(m.callOrder, "graph.Connect")
+	if m.failOn == "graph.Connect" {
+		if m.failError != nil {
+			return m.failError
+		}
+		return errors.New("graph.Connect failed")
+	}
+	return nil
 }
 
-// Stop disconnects stores then stops infrastructure.
-func (s *Service) Stop(ctx context.Context) error {
-	return errors.New("not implemented")
+func (m *mockComponents) GraphClose() error {
+	m.callOrder = append(m.callOrder, "graph.Close")
+	return nil
 }
 
-// IsAvailable returns whether the knowledge layer is available.
-func (s *Service) IsAvailable() bool {
-	return false
+func (m *mockComponents) VectorConnect(_ context.Context) error {
+	m.callOrder = append(m.callOrder, "vector.Connect")
+	if m.failOn == "vector.Connect" {
+		if m.failError != nil {
+			return m.failError
+		}
+		return errors.New("vector.Connect failed")
+	}
+	return nil
 }
 
-// Status returns infrastructure health.
-func (s *Service) Status(ctx context.Context) (interface{}, error) {
-	return nil, errors.New("not implemented")
+func (m *mockComponents) VectorClose() error {
+	m.callOrder = append(m.callOrder, "vector.Close")
+	return nil
 }
 
-type mockComponents struct {
-	callOrder        []string
-	healthCheckCalled bool
-	neo4jHealthy     bool
-	qdrantHealthy    bool
-	redisHealthy     bool
-	failOn           string
-	failError        error
+func (m *mockComponents) CacheConnect(_ context.Context) error {
+	m.callOrder = append(m.callOrder, "cache.Connect")
+	if m.failOn == "cache.Connect" {
+		if m.failError != nil {
+			return m.failError
+		}
+		return errors.New("cache.Connect failed")
+	}
+	return nil
+}
+
+func (m *mockComponents) CacheClose() error {
+	m.callOrder = append(m.callOrder, "cache.Close")
+	return nil
+}
+
+func (m *mockComponents) IsHealthy() (neo4j, qdrant, redis bool) {
+	m.healthCheckCalled = true
+	return m.neo4jHealthy, m.qdrantHealthy, m.redisHealthy
+}
+
+func (m *mockComponents) HealthCheckCalled() bool {
+	return m.healthCheckCalled
 }
 
 func containsStr(s, substr string) bool {

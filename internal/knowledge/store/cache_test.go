@@ -145,58 +145,7 @@ func TestCacheStore_SetZeroTTL(t *testing.T) {
 	_ = err // Implementation will define the behavior
 }
 
-// --- Types and stubs ---
-
-// CacheStore provides cache operations.
-type CacheStore struct{}
-
-// CacheStoreOption configures a CacheStore.
-type CacheStoreOption func(*CacheStore)
-
-// NewCacheStore creates a new cache store.
-func NewCacheStore(opts ...CacheStoreOption) *CacheStore {
-	return nil
-}
-
-// WithRedisClient sets a custom Redis client (for testing).
-func WithRedisClient(client *mockRedisClient) CacheStoreOption {
-	return func(s *CacheStore) {}
-}
-
-// Connect establishes connection to Redis.
-func (s *CacheStore) Connect(ctx context.Context) error {
-	return errors.New("not implemented")
-}
-
-// Close closes the connection.
-func (s *CacheStore) Close() error {
-	return errors.New("not implemented")
-}
-
-// Set stores a value with TTL.
-func (s *CacheStore) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
-	return errors.New("not implemented")
-}
-
-// Get retrieves a value. Returns (nil, nil) on cache miss.
-func (s *CacheStore) Get(ctx context.Context, key string) ([]byte, error) {
-	return nil, errors.New("not implemented")
-}
-
-// Delete removes a key. Idempotent.
-func (s *CacheStore) Delete(ctx context.Context, key string) error {
-	return errors.New("not implemented")
-}
-
-// SetEmbedding stores an embedding with 30-day TTL.
-func (s *CacheStore) SetEmbedding(ctx context.Context, hash string, data []byte) error {
-	return errors.New("not implemented")
-}
-
-// SetQuery stores a query result with 10-minute TTL.
-func (s *CacheStore) SetQuery(ctx context.Context, hash string, data []byte) error {
-	return errors.New("not implemented")
-}
+// --- Test doubles ---
 
 type mockRedisClient struct {
 	setCalls   int
@@ -204,4 +153,40 @@ type mockRedisClient struct {
 	lastTTL    time.Duration
 	data       map[string][]byte
 	connectErr error
+}
+
+func (m *mockRedisClient) Connect(_ context.Context) error {
+	return m.connectErr
+}
+
+func (m *mockRedisClient) Close() error {
+	return nil
+}
+
+func (m *mockRedisClient) Set(_ context.Context, key string, value []byte, ttl time.Duration) error {
+	m.setCalls++
+	m.lastKey = key
+	m.lastTTL = ttl
+	if m.data != nil {
+		m.data[key] = value
+	}
+	return nil
+}
+
+func (m *mockRedisClient) Get(_ context.Context, key string) ([]byte, error) {
+	if m.data == nil {
+		return nil, nil
+	}
+	val, ok := m.data[key]
+	if !ok {
+		return nil, nil // Cache miss = (nil, nil)
+	}
+	return val, nil
+}
+
+func (m *mockRedisClient) Delete(_ context.Context, key string) error {
+	if m.data != nil {
+		delete(m.data, key)
+	}
+	return nil
 }
