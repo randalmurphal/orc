@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -441,10 +442,324 @@ func splitColumns(s string) []string {
 }
 
 // extractMigrationNumber extracts the number from a migration filename.
+// Handles both global_ and project_ prefixes.
 func extractMigrationNumber(filename string) string {
-	re := regexp.MustCompile(`global_(\d+)\.sql`)
+	re := regexp.MustCompile(`(?:global|project)_(\d+)\.sql`)
 	if matches := re.FindStringSubmatch(filename); len(matches) > 1 {
 		return matches[1]
 	}
 	return ""
+}
+
+// FTS tables that exist only in SQLite (FTS5 virtual tables and their internal tables).
+// These are excluded from cross-dialect table/index comparisons because PostgreSQL
+// will use tsvector-based FTS in a separate task.
+var ftsTableNames = map[string]bool{
+	"transcripts_fts":         true,
+	"transcripts_fts_config":  true,
+	"transcripts_fts_content": true,
+	"transcripts_fts_data":    true,
+	"transcripts_fts_docsize": true,
+	"transcripts_fts_idx":     true,
+	"specs_fts":               true,
+	"specs_fts_config":        true,
+	"specs_fts_content":       true,
+	"specs_fts_data":          true,
+	"specs_fts_docsize":       true,
+	"specs_fts_idx":           true,
+}
+
+// ============================================================================
+// Project Migration Tests (SC-1 through SC-5 for project_001 - project_020)
+// ============================================================================
+
+// TestPostgresMigrations_ProjectFilesExist verifies all 20 project migration files exist.
+// Covers SC-5: Migration numbering matches — project_001.sql through project_020.sql
+// exist in both schema/ and schema/postgres/.
+func TestPostgresMigrations_ProjectFilesExist(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+	postgresDir := filepath.Join(schemaDir, "postgres")
+
+	for i := 1; i <= 20; i++ {
+		file := fmt.Sprintf("project_%03d.sql", i)
+		path := filepath.Join(postgresDir, file)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			t.Errorf("missing PostgreSQL project migration file: %s", file)
+		}
+	}
+}
+
+// TestPostgresMigrations_ProjectNoSQLiteisms verifies project migrations don't contain SQLite syntax.
+// Covers SC-1: Static analysis rejects any PostgreSQL project migration containing SQLite-specific
+// syntax (datetime('now'), AUTOINCREMENT, strftime, unparameterized ? placeholders).
+func TestPostgresMigrations_ProjectNoSQLiteisms(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+	postgresDir := filepath.Join(schemaDir, "postgres")
+
+	sqlitePatterns := []struct {
+		pattern *regexp.Regexp
+		desc    string
+	}{
+		{regexp.MustCompile(`datetime\s*\(\s*'now'\s*\)`), "datetime('now') - use NOW() instead"},
+		{regexp.MustCompile(`\bAUTOINCREMENT\b`), "AUTOINCREMENT - use SERIAL instead"},
+		{regexp.MustCompile(`strftime\s*\(`), "strftime() - use PostgreSQL date functions"},
+		{regexp.MustCompile(`(?m)^[^'-]*\?[^'-]*$`), "? placeholder - use $1, $2, etc."},
+		{regexp.MustCompile(`\brandomblob\s*\(`), "randomblob() - use gen_random_bytes() instead"},
+		{regexp.MustCompile(`\blower\s*\(\s*hex\s*\(`), "lower(hex()) - use encode(..., 'hex') instead"},
+		{regexp.MustCompile(`\bINSERT\s+OR\s+IGNORE\b`), "INSERT OR IGNORE - use ON CONFLICT DO NOTHING"},
+	}
+
+	files, err := filepath.Glob(filepath.Join(postgresDir, "project_*.sql"))
+	if err != nil {
+		t.Fatalf("failed to glob postgres project migrations: %v", err)
+	}
+
+	if len(files) == 0 {
+		t.Fatal("no PostgreSQL project migration files found")
+	}
+
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			t.Errorf("failed to read %s: %v", file, err)
+			continue
+		}
+
+		contentStr := string(content)
+		for _, pat := range sqlitePatterns {
+			if pat.pattern.MatchString(contentStr) {
+				t.Errorf("%s contains SQLite-ism: %s", filepath.Base(file), pat.desc)
+			}
+		}
+	}
+}
+
+// TestPostgresMigrations_ProjectSameTableCount verifies PostgreSQL project migrations create
+// the same tables as SQLite project migrations, excluding FTS5 virtual tables.
+// Covers SC-2: Table names match between SQLite and PostgreSQL for project migrations.
+func TestPostgresMigrations_ProjectSameTableCount(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+
+	sqliteTables := extractTableNames(t, filepath.Join(schemaDir, "project_*.sql"))
+	postgresTables := extractTableNames(t, filepath.Join(schemaDir, "postgres", "project_*.sql"))
+
+	if len(sqliteTables) == 0 {
+		t.Fatal("no SQLite project tables found")
+	}
+
+	if len(postgresTables) == 0 {
+		t.Fatal("no PostgreSQL project tables found - migrations likely don't exist yet")
+	}
+
+	// Check that all non-FTS SQLite tables exist in PostgreSQL
+	for table := range sqliteTables {
+		if ftsTableNames[table] {
+			continue
+		}
+		if !postgresTables[table] {
+			t.Errorf("table %s exists in SQLite project migrations but not in PostgreSQL", table)
+		}
+	}
+
+	// Check for extra tables in PostgreSQL (excluding FTS)
+	for table := range postgresTables {
+		if ftsTableNames[table] {
+			continue
+		}
+		if !sqliteTables[table] {
+			t.Errorf("table %s exists in PostgreSQL project migrations but not in SQLite", table)
+		}
+	}
+}
+
+// TestPostgresMigrations_ProjectColumnsMatch verifies all project tables have matching columns.
+// Covers SC-3: Column names match for all project tables between SQLite and PostgreSQL.
+func TestPostgresMigrations_ProjectColumnsMatch(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+
+	// All project tables that have CREATE TABLE statements (from migrations 001-020).
+	// This list covers every non-FTS table created by project migrations.
+	tablesToCheck := []string{
+		"detection",
+		"tasks",
+		"phases",
+		"transcripts",
+		"initiatives",
+		"initiative_decisions",
+		"initiative_tasks",
+		"task_dependencies",
+		"subtask_queue",
+		"review_comments",
+		"team_members",
+		"task_claims",
+		"activity_log",
+		"knowledge_queue",
+		"task_comments",
+		"initiative_dependencies",
+		"plans",
+		"specs",
+		"gate_decisions",
+		"task_attachments",
+		"sync_state",
+		"branches",
+		"automation_triggers",
+		"trigger_executions",
+		"trigger_counters",
+		"trigger_metrics",
+		"notifications",
+		"review_findings",
+		"qa_results",
+	}
+
+	sqlitePattern := filepath.Join(schemaDir, "project_*.sql")
+	pgPattern := filepath.Join(schemaDir, "postgres", "project_*.sql")
+
+	for _, table := range tablesToCheck {
+		t.Run(table, func(t *testing.T) {
+			sqliteCols := extractTableColumns(t, sqlitePattern, table)
+			postgresCols := extractTableColumns(t, pgPattern, table)
+
+			if len(sqliteCols) == 0 {
+				t.Skipf("no columns found for table %s in SQLite (may be ALTER-only)", table)
+			}
+
+			if len(postgresCols) == 0 {
+				t.Fatalf("no columns found for table %s in PostgreSQL - migrations likely don't exist yet", table)
+			}
+
+			for col := range sqliteCols {
+				if !postgresCols[col] {
+					t.Errorf("column %s.%s exists in SQLite but not in PostgreSQL", table, col)
+				}
+			}
+
+			for col := range postgresCols {
+				if !sqliteCols[col] {
+					t.Errorf("column %s.%s exists in PostgreSQL but not in SQLite", table, col)
+				}
+			}
+		})
+	}
+}
+
+// TestPostgresMigrations_ProjectSameIndexes verifies all indexes from SQLite project
+// migrations exist in PostgreSQL versions, excluding FTS-related indexes.
+// Covers SC-4: All non-FTS indexes present in both dialects.
+func TestPostgresMigrations_ProjectSameIndexes(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+
+	sqliteIndexes := extractIndexNames(t, filepath.Join(schemaDir, "project_*.sql"))
+	postgresIndexes := extractIndexNames(t, filepath.Join(schemaDir, "postgres", "project_*.sql"))
+
+	if len(sqliteIndexes) == 0 {
+		t.Fatal("no SQLite project indexes found")
+	}
+
+	if len(postgresIndexes) == 0 {
+		t.Fatal("no PostgreSQL project indexes found - migrations likely don't exist yet")
+	}
+
+	for idx := range sqliteIndexes {
+		if !postgresIndexes[idx] {
+			t.Errorf("index %s exists in SQLite project migrations but not in PostgreSQL", idx)
+		}
+	}
+}
+
+// TestPostgresMigrations_ProjectNumberingMatches verifies project migration file numbering
+// is identical between SQLite and PostgreSQL (files 001-020 in both directories).
+// Covers SC-5: Migration numbering matches.
+func TestPostgresMigrations_ProjectNumberingMatches(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+
+	sqliteFiles, err := filepath.Glob(filepath.Join(schemaDir, "project_*.sql"))
+	if err != nil {
+		t.Fatalf("failed to glob SQLite project migrations: %v", err)
+	}
+
+	postgresFiles, err := filepath.Glob(filepath.Join(schemaDir, "postgres", "project_*.sql"))
+	if err != nil {
+		t.Fatalf("failed to glob PostgreSQL project migrations: %v", err)
+	}
+
+	if len(postgresFiles) == 0 {
+		t.Fatal("no PostgreSQL project migration files found")
+	}
+
+	// Extract numbers from SQLite project files (only 001-020 scope)
+	sqliteNums := make(map[string]bool)
+	for _, f := range sqliteFiles {
+		base := filepath.Base(f)
+		if num := extractMigrationNumber(base); num != "" {
+			// Only consider migrations 001-020 (this task's scope)
+			v := 0
+			fmt.Sscanf(num, "%d", &v)
+			if v >= 1 && v <= 20 {
+				sqliteNums[num] = true
+			}
+		}
+	}
+
+	postgresNums := make(map[string]bool)
+	for _, f := range postgresFiles {
+		base := filepath.Base(f)
+		if num := extractMigrationNumber(base); num != "" {
+			postgresNums[num] = true
+		}
+	}
+
+	// Verify all SQLite project numbers 001-020 exist in PostgreSQL
+	var missingNums []string
+	for num := range sqliteNums {
+		if !postgresNums[num] {
+			missingNums = append(missingNums, num)
+		}
+	}
+
+	if len(missingNums) > 0 {
+		sort.Strings(missingNums)
+		t.Errorf("PostgreSQL project migrations missing numbers: %v", missingNums)
+	}
+}
+
+// TestPostgresMigrations_ProjectUsesCorrectSyntax verifies project_001.sql uses PostgreSQL syntax.
+// Covers SC-1 (partial): Spot check that the first project migration uses proper PG types.
+func TestPostgresMigrations_ProjectUsesCorrectSyntax(t *testing.T) {
+	schemaDir := findSchemaDir(t)
+	postgresDir := filepath.Join(schemaDir, "postgres")
+
+	content, err := os.ReadFile(filepath.Join(postgresDir, "project_001.sql"))
+	if err != nil {
+		t.Fatalf("failed to read project_001.sql: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Should use SERIAL for auto-incrementing PKs (transcripts table)
+	if strings.Contains(contentStr, "INTEGER PRIMARY KEY AUTOINCREMENT") {
+		t.Error("project_001.sql should use SERIAL PRIMARY KEY instead of INTEGER PRIMARY KEY AUTOINCREMENT")
+	}
+
+	// Should use NOW() or CURRENT_TIMESTAMP for defaults
+	if strings.Contains(contentStr, "datetime('now')") {
+		t.Error("project_001.sql should use NOW() instead of datetime('now')")
+	}
+
+	// Should use TIMESTAMP WITH TIME ZONE for timestamp columns
+	if strings.Contains(contentStr, "CREATE TABLE") {
+		if strings.Contains(contentStr, "detected_at TEXT DEFAULT") ||
+			strings.Contains(contentStr, "created_at TEXT DEFAULT") {
+			t.Error("project_001.sql should use TIMESTAMP WITH TIME ZONE for timestamp columns, not TEXT")
+		}
+	}
+
+	// Should NOT contain FTS5 virtual tables (those are out of scope)
+	if strings.Contains(contentStr, "USING fts5") {
+		t.Error("project_001.sql should not contain FTS5 virtual tables (handled by separate task)")
+	}
+
+	// Should NOT contain FTS sync triggers
+	if strings.Contains(contentStr, "transcripts_fts") {
+		t.Error("project_001.sql should not reference transcripts_fts (FTS handled by separate task)")
+	}
 }
