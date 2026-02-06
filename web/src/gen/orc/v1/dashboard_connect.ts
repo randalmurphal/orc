@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetActivityHeatmapRequest, GetActivityHeatmapResponse, GetComparisonRequest, GetComparisonResponse, GetCostSummaryRequest, GetCostSummaryResponse, GetDailyMetricsRequest, GetDailyMetricsResponse, GetMetricsByModelRequest, GetMetricsByModelResponse, GetMetricsRequest, GetMetricsResponse, GetOutcomesRequest, GetOutcomesResponse, GetStatsRequest, GetStatsResponse, GetTaskMetricsRequest, GetTaskMetricsResponse, GetTopFilesRequest, GetTopFilesResponse, GetTopInitiativesRequest, GetTopInitiativesResponse } from "./dashboard_pb.js";
+import { GetActivityHeatmapRequest, GetActivityHeatmapResponse, GetComparisonRequest, GetComparisonResponse, GetCostReportRequest, GetCostReportResponse, GetCostSummaryRequest, GetCostSummaryResponse, GetDailyMetricsRequest, GetDailyMetricsResponse, GetMetricsByModelRequest, GetMetricsByModelResponse, GetMetricsRequest, GetMetricsResponse, GetOutcomesRequest, GetOutcomesResponse, GetStatsRequest, GetStatsResponse, GetTaskMetricsRequest, GetTaskMetricsResponse, GetTopFilesRequest, GetTopFilesResponse, GetTopInitiativesRequest, GetTopInitiativesResponse } from "./dashboard_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -131,6 +131,17 @@ export const DashboardService = {
       name: "GetTaskMetrics",
       I: GetTaskMetricsRequest,
       O: GetTaskMetricsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Get cost report with filtering and grouping (queries GlobalDB)
+     *
+     * @generated from rpc orc.v1.DashboardService.GetCostReport
+     */
+    getCostReport: {
+      name: "GetCostReport",
+      I: GetCostReportRequest,
+      O: GetCostReportResponse,
       kind: MethodKind.Unary,
     },
   }
