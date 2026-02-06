@@ -1,5 +1,3 @@
-//go:build tdd_pending
-
 package knowledge
 
 import (

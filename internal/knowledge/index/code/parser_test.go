@@ -2,8 +2,6 @@ package code
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -572,12 +570,3 @@ func findSymbol(symbols []Symbol, name string) *Symbol {
 	return nil
 }
 
-// writeGoTestFile creates a Go source file in a temp dir and returns its path.
-func writeGoTestFile(t *testing.T, dir, name, content string) string {
-	t.Helper()
-	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-	return path
-}

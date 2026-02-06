@@ -4,6 +4,8 @@ package knowledge
 import (
 	"context"
 	"fmt"
+
+	"github.com/randalmurphal/orc/internal/knowledge/index"
 )
 
 // ServiceConfig configures the knowledge Service.
@@ -145,4 +147,44 @@ func (s *Service) Status(_ context.Context) (*ServiceStatus, error) {
 	st.Neo4j, st.Qdrant, st.Redis = s.comps.IsHealthy()
 	st.Running = st.Neo4j && st.Qdrant && st.Redis
 	return st, nil
+}
+
+// projectIndexer is implemented by Components that can perform indexing directly.
+type projectIndexer interface {
+	IndexProject(ctx context.Context, root string, opts index.IndexOptions) (*index.IndexResult, error)
+}
+
+// IndexProject indexes a project's source code into the knowledge layer.
+func (s *Service) IndexProject(ctx context.Context, root string, opts index.IndexOptions) (*index.IndexResult, error) {
+	if !s.cfg.Enabled {
+		return nil, fmt.Errorf("knowledge service is disabled")
+	}
+	if s.comps == nil {
+		return nil, fmt.Errorf("knowledge components not configured")
+	}
+
+	neo4j, qdrant, _ := s.comps.IsHealthy()
+	if !neo4j || !qdrant {
+		return nil, fmt.Errorf("knowledge infrastructure unhealthy: neo4j=%v qdrant=%v", neo4j, qdrant)
+	}
+
+	// If components implement direct indexing, delegate to them.
+	if pi, ok := s.comps.(projectIndexer); ok {
+		return pi.IndexProject(ctx, root, opts)
+	}
+
+	// Otherwise, create a real indexer from store interfaces.
+	gs, gsOK := s.comps.(index.GraphStorer)
+	vs, vsOK := s.comps.(index.VectorStorer)
+	em, emOK := s.comps.(index.Embedder)
+	if !gsOK || !vsOK || !emOK {
+		return nil, fmt.Errorf("components do not implement required store interfaces")
+	}
+
+	idx := index.NewIndexer(
+		index.WithGraphStore(gs),
+		index.WithVectorStore(vs),
+		index.WithEmbedder(em),
+	)
+	return idx.Index(ctx, root, opts)
 }
