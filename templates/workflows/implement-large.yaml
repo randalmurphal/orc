@@ -33,8 +33,8 @@ phases:
         value: "needs_changes"
       max_loops: 3
       loop_templates:
-        "1": "review.md"
-        default: "review_round2.md"
+        "1": "prompts/review.md"
+        default: "prompts/review_round2.md"
       loop_schemas:
         "1": "ReviewFindingsSchema"
         default: "ReviewDecisionSchema"
