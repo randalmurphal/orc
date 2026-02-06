@@ -827,6 +827,17 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			)
 		}
 
+		// Extract and persist scratchpad entries from raw phase output JSON
+		if t != nil {
+			rawOutput := phaseResult.RawOutput
+			if rawOutput == "" {
+				rawOutput = phaseResult.Content
+			}
+			if rawOutput != "" {
+				we.persistScratchpadEntries(t.Id, phase.PhaseTemplateID, rctx.RetryAttempt, rawOutput)
+			}
+		}
+
 		// Check for loop configuration and handle iterative loops
 		if phase.LoopConfig != "" {
 			loopCfg, loopErr := db.ParseLoopConfig(phase.LoopConfig)
@@ -1380,6 +1391,7 @@ type PhaseResult struct {
 	Iterations          int
 	DurationMS          int64
 	Content             string
+	RawOutput           string // Full JSON output (for scratchpad extraction)
 	Error               string
 	BlockedReason       string // Set when phase outputs blocked status (for gate evaluation)
 	InputTokens         int

@@ -395,6 +395,7 @@ func (we *WorkflowExecutor) executePhase(
 	// All phases store their output in result.Content so that applyPhaseContentToVars
 	// populates rctx.PriorOutputs — required for EvaluateCondition(phase_output.*).
 	result.Content = execResult.Content
+	result.RawOutput = execResult.RawOutput
 	if tmpl.ProducesArtifact && result.Content == "" {
 		we.logger.Warn("artifact-producing phase completed with no content extracted",
 			"phase", tmpl.ID,
