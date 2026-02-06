@@ -55,10 +55,10 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 we := NewWorkflowExecutor(backend, projectDB, globalDB, orcConfig, workingDir, opts...)
 ```
 
-| Database | Used For |
-|----------|----------|
-| `globalDB` | Workflow definitions: `GetWorkflow()`, `GetWorkflowPhases()`, `GetWorkflowVariables()`, `GetPhaseTemplate()` |
-| `projectDB` | Execution records: workflow runs, phases, transcripts, events |
+| Database | Used For | Call Sites |
+|----------|----------|------------|
+| `globalDB` | Workflow definitions: `GetWorkflow()`, `GetWorkflowPhases()`, `GetWorkflowVariables()`, `GetPhaseTemplate()` | `workflow_executor.go:326-641`, `parallel_execution.go:254` |
+| `projectDB` | Execution records: workflow runs, phases, transcripts, events | Throughout executor |
 
 **Why both?** Workflow definitions are seeded to GlobalDB (shared across projects). ProjectDB holds per-project execution data. Reading definitions from ProjectDB returns stale/empty data.
 
