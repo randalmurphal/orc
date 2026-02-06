@@ -65,6 +65,15 @@ const (
 	EventDecisionRequired EventType = "decision_required"
 	// EventDecisionResolved indicates a gate decision was approved or rejected.
 	EventDecisionResolved EventType = "decision_resolved"
+
+	// Thread events (for Development OS chat interface)
+
+	// EventThreadMessage indicates a new message was added to a thread.
+	EventThreadMessage EventType = "thread_message"
+	// EventThreadTyping indicates an assistant is generating a response.
+	EventThreadTyping EventType = "thread_typing"
+	// EventThreadStatus indicates a thread status change (e.g., archived).
+	EventThreadStatus EventType = "thread_status"
 )
 
 // Event represents a published event.
@@ -213,4 +222,25 @@ type DecisionResolvedData struct {
 	Reason     string    `json:"reason,omitempty"`
 	ResolvedBy string    `json:"resolved_by"` // "api" or "cli"
 	ResolvedAt time.Time `json:"resolved_at"`
+}
+
+// ThreadMessageData represents a new message in a thread.
+type ThreadMessageData struct {
+	ThreadID  string `json:"thread_id"`
+	MessageID int64  `json:"message_id"`
+	Role      string `json:"role"`
+	Content   string `json:"content"`
+}
+
+// ThreadTypingData represents an assistant generating a response.
+type ThreadTypingData struct {
+	ThreadID string `json:"thread_id"`
+	IsTyping bool   `json:"is_typing"`
+}
+
+// ThreadStatusData represents a thread status change.
+type ThreadStatusData struct {
+	ThreadID  string `json:"thread_id"`
+	OldStatus string `json:"old_status"`
+	NewStatus string `json:"new_status"`
 }
