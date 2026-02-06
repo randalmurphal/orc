@@ -8,33 +8,7 @@ import (
 
 // ============================================================================
 // SC-7, SC-8, SC-9: GetCostReport database query function
-//
-// Tests the new GlobalDB.GetCostReport() method that supports:
-// - Filtering by user_id, project_id, and since timestamp
-// - Grouping by user, project, or model dimensions
-// - Returning aggregated cost breakdowns
 // ============================================================================
-
-// CostReportFilter defines the filters for cost report queries.
-// This struct will be implemented in global.go.
-// type CostReportFilter struct {
-//     UserID    string
-//     ProjectID string
-//     Since     time.Time
-//     GroupBy   string // "user", "project", "model", or "" for total only
-// }
-
-// CostReportResult contains the aggregated cost report data.
-// type CostReportResult struct {
-//     TotalCostUSD float64
-//     Breakdowns   []CostBreakdownEntry
-// }
-
-// CostBreakdownEntry represents a single breakdown entry in the cost report.
-// type CostBreakdownEntry struct {
-//     Key     string
-//     CostUSD float64
-// }
 
 // newTestGlobalDB creates a GlobalDB backed by a temp file for testing.
 func newTestGlobalDB(t *testing.T) *GlobalDB {

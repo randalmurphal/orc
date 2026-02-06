@@ -631,6 +631,102 @@ func (g *GlobalDB) GetBudgetStatus(projectID string) (*BudgetStatus, error) {
 }
 
 // =============================================================================
+// Cost Report (flexible filtering and grouping)
+// =============================================================================
+
+// CostReportFilter defines the filters for cost report queries.
+type CostReportFilter struct {
+	UserID    string
+	ProjectID string
+	Since     time.Time
+	GroupBy   string // "user", "project", "model", or "" for total only
+}
+
+// CostReportResult contains the aggregated cost report data.
+type CostReportResult struct {
+	TotalCostUSD float64
+	Breakdowns   []CostBreakdownEntry
+}
+
+// CostBreakdownEntry represents a single breakdown entry in the cost report.
+type CostBreakdownEntry struct {
+	Key     string
+	CostUSD float64
+}
+
+// GetCostReport returns aggregated cost data with optional filtering and grouping.
+func (g *GlobalDB) GetCostReport(filter CostReportFilter) (CostReportResult, error) {
+	var result CostReportResult
+
+	// Build WHERE clause
+	conditions := []string{"1=1"}
+	var args []any
+
+	if filter.UserID != "" {
+		conditions = append(conditions, "user_id = ?")
+		args = append(args, filter.UserID)
+	}
+	if filter.ProjectID != "" {
+		conditions = append(conditions, "project_id = ?")
+		args = append(args, filter.ProjectID)
+	}
+	if !filter.Since.IsZero() {
+		conditions = append(conditions, "timestamp >= ?")
+		args = append(args, filter.Since.UTC().Format("2006-01-02 15:04:05"))
+	}
+
+	whereClause := strings.Join(conditions, " AND ")
+
+	// Get total
+	totalQuery := fmt.Sprintf("SELECT COALESCE(SUM(cost_usd), 0) FROM cost_log WHERE %s", whereClause)
+	if err := g.QueryRow(totalQuery, args...).Scan(&result.TotalCostUSD); err != nil {
+		return result, fmt.Errorf("get cost report total: %w", err)
+	}
+
+	// Get breakdowns if grouping is requested
+	if filter.GroupBy != "" {
+		var groupCol string
+		switch filter.GroupBy {
+		case "user":
+			groupCol = "CASE WHEN user_id = '' OR user_id IS NULL THEN 'unattributed' ELSE user_id END"
+		case "project":
+			groupCol = "project_id"
+		case "model":
+			groupCol = "CASE WHEN model = '' OR model IS NULL THEN 'unknown' ELSE model END"
+		default:
+			return result, fmt.Errorf("invalid group_by value: %s", filter.GroupBy)
+		}
+
+		groupQuery := fmt.Sprintf(`
+			SELECT %s as group_key, COALESCE(SUM(cost_usd), 0)
+			FROM cost_log WHERE %s
+			GROUP BY group_key
+			ORDER BY COALESCE(SUM(cost_usd), 0) DESC`,
+			groupCol, whereClause,
+		)
+
+		rows, err := g.Query(groupQuery, args...)
+		if err != nil {
+			return result, fmt.Errorf("get cost report breakdowns: %w", err)
+		}
+		defer func() { _ = rows.Close() }()
+
+		for rows.Next() {
+			var entry CostBreakdownEntry
+			if err := rows.Scan(&entry.Key, &entry.CostUSD); err != nil {
+				return result, fmt.Errorf("scan cost breakdown: %w", err)
+			}
+			result.Breakdowns = append(result.Breakdowns, entry)
+		}
+		if err := rows.Err(); err != nil {
+			return result, fmt.Errorf("iterate cost breakdowns: %w", err)
+		}
+	}
+
+	return result, nil
+}
+
+// =============================================================================
 // Workflow Operations (Global - shared across projects)
 // =============================================================================
 

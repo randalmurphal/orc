@@ -41,6 +41,12 @@ vi.mock('@/stores', () => ({
 		{ subscribe: vi.fn(() => vi.fn()) }
 	),
 	useWsStatus: vi.fn(() => 'connected'),
+	useInitiativeStore: vi.fn((selector: unknown) => {
+		if (typeof selector === 'function') {
+			return (selector as (s: Record<string, unknown>) => unknown)({ getInitiativeProgress: () => new Map() });
+		}
+		return { getInitiativeProgress: () => new Map() };
+	}),
 }));
 
 vi.mock('@/stores/projectStore', () => ({
@@ -55,7 +61,7 @@ import { dashboardClient, initiativeClient } from '@/lib/client';
 import { Dashboard } from './Dashboard';
 
 const mockGetStats = dashboardClient.getStats as ReturnType<typeof vi.fn>;
-const mockGetCostReport = (dashboardClient as Record<string, unknown>).getCostReport as ReturnType<typeof vi.fn>;
+const mockGetCostReport = dashboardClient.getCostReport as ReturnType<typeof vi.fn>;
 const mockListInitiatives = initiativeClient.listInitiatives as ReturnType<typeof vi.fn>;
 
 function renderDashboard() {

@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // ============================================================================
@@ -434,7 +433,6 @@ func TestCostsCommand_BudgetStatus_ShownWhenConfigured(t *testing.T) {
 // --- Integration: command wired in root ---
 
 func TestCostsCommand_RegisteredInRoot(t *testing.T) {
-	// Verify the costs command would be registered in root.go
 	cmd := newCostsCmd()
 	if cmd == nil {
 		t.Fatal("newCostsCmd() returned nil")
@@ -443,6 +441,3 @@ func TestCostsCommand_RegisteredInRoot(t *testing.T) {
 		t.Error("command has empty Use string")
 	}
 }
-
-// Suppress unused import warnings for storage
-var _ = storage.NewTestBackend

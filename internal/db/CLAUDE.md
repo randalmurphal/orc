@@ -268,6 +268,7 @@ Persisted executor events for timeline reconstruction. `event_log.go`
 | Record | `RecordCostExtended(CostEntry)` (model, cache, duration tracking) |
 | Query by model | `GetCostByModel(projectID, since)` |
 | Time series | `GetCostTimeseries(projectID, since, granularity)` |
+| Cost report | `GetCostReport(CostReportFilter)` — aggregated costs with group-by (user/project/model) |
 | Budget | `SetBudget()`, `GetBudget()`, `GetBudgetStatus()` |
 | Model detect | `DetectModel(modelID)` returns "opus", "sonnet", "haiku", "unknown" |
 

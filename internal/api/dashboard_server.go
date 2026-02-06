@@ -13,6 +13,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -32,6 +33,7 @@ type dashboardServer struct {
 	cache        *dashboardCache
 	logger       *slog.Logger
 	diffSvc      DiffServicer
+	globalDB     *db.GlobalDB
 }
 
 // NewDashboardServer creates a new DashboardService handler.
@@ -59,6 +61,11 @@ func NewDashboardServerWithDiff(
 		logger:  logger,
 		diffSvc: diffSvc,
 	}
+}
+
+// SetGlobalDB sets the global database for cost report queries.
+func (s *dashboardServer) SetGlobalDB(globalDB *db.GlobalDB) {
+	s.globalDB = globalDB
 }
 
 // SetProjectCache sets the project cache for multi-project support.
@@ -957,4 +964,54 @@ func (s *dashboardServer) calculateMetricsForPeriod(tasks []*orcv1.Task, start, 
 	return metrics
 }
 
+// GetCostReport returns aggregated cost data from GlobalDB with filtering and grouping.
+func (s *dashboardServer) GetCostReport(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetCostReportRequest],
+) (*connect.Response[orcv1.GetCostReportResponse], error) {
+	if s.globalDB == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("global database not configured"))
+	}
 
+	filter := db.CostReportFilter{}
+
+	if req.Msg.UserId != nil {
+		filter.UserID = *req.Msg.UserId
+	}
+	if req.Msg.ProjectId != "" {
+		filter.ProjectID = req.Msg.ProjectId
+	}
+	if req.Msg.Since != nil {
+		filter.Since = req.Msg.Since.AsTime()
+	}
+	if req.Msg.GroupBy != nil {
+		filter.GroupBy = *req.Msg.GroupBy
+	}
+
+	result, err := s.globalDB.GetCostReport(filter)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get cost report: %w", err))
+	}
+
+	resp := &orcv1.GetCostReportResponse{
+		TotalCostUsd: result.TotalCostUSD,
+	}
+
+	for _, b := range result.Breakdowns {
+		resp.Breakdowns = append(resp.Breakdowns, &orcv1.CostBreakdown{
+			Key:     b.Key,
+			CostUsd: b.CostUSD,
+		})
+	}
+
+	// Include budget info if filtering by project
+	if req.Msg.ProjectId != "" {
+		budgetStatus, err := s.globalDB.GetBudgetStatus(req.Msg.ProjectId)
+		if err == nil && budgetStatus != nil {
+			resp.BudgetLimitUsd = &budgetStatus.MonthlyLimitUSD
+			resp.BudgetPercentUsed = &budgetStatus.PercentUsed
+		}
+	}
+
+	return connect.NewResponse(resp), nil
+}
