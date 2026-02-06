@@ -49,7 +49,7 @@ func TestReviewPhaseLoopConfig_Seeded(t *testing.T) {
 
 // SC-2: loop_config has correct configuration:
 //   - loop_to_phase: implement
-//   - condition: {field: "phase_output.review.status", op: "eq", value: "needs_changes"}
+//   - condition: {field: "phase_output.review.needs_changes", op: "eq", value: "true"}
 //   - max_loops: 3
 //   - loop_templates: {"1": "review.md", "default": "review_round2.md"}
 //   - loop_schemas: {"1": "ReviewFindingsSchema", "default": "ReviewDecisionSchema"}
@@ -100,14 +100,14 @@ func TestReviewPhaseLoopConfig_Values(t *testing.T) {
 	}
 	err = json.Unmarshal(cfg.Condition, &condition)
 	require.NoError(t, err, "condition should be valid JSON object")
-	assert.Equal(t, "phase_output.review.status", condition.Field)
+	assert.Equal(t, "phase_output.review.needs_changes", condition.Field)
 	assert.Equal(t, "eq", condition.Op)
-	assert.Equal(t, "needs_changes", condition.Value)
+	assert.Equal(t, "true", condition.Value)
 
 	// Verify loop_templates
 	require.NotNil(t, cfg.LoopTemplates, "loop_templates should be configured")
-	assert.Equal(t, "review.md", cfg.LoopTemplates["1"], "first iteration should use review.md")
-	assert.Equal(t, "review_round2.md", cfg.LoopTemplates["default"], "subsequent iterations should use review_round2.md")
+	assert.Equal(t, "prompts/review.md", cfg.LoopTemplates["1"], "first iteration should use review.md")
+	assert.Equal(t, "prompts/review_round2.md", cfg.LoopTemplates["default"], "subsequent iterations should use review_round2.md")
 
 	// Verify loop_schemas
 	require.NotNil(t, cfg.LoopSchemas, "loop_schemas should be configured")

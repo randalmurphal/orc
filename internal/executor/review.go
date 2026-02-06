@@ -29,7 +29,7 @@ type ReviewFinding struct {
 
 // ReviewFindings represents the output of a review round.
 type ReviewFindings struct {
-	Status    string          `json:"status,omitempty"` // "complete" or "blocked" (empty treated as complete for backward compat)
+	NeedsChanges bool            `json:"needs_changes"` // true = send back to implement, false = approved
 	Round     int             `json:"round"`
 	Summary   string          `json:"summary"`
 	Issues    []ReviewFinding `json:"issues"`
@@ -80,10 +80,9 @@ const (
 	ReviewFindingsSchema = `{
 		"type": "object",
 		"properties": {
-			"status": {
-				"type": "string",
-				"enum": ["complete", "blocked"],
-				"description": "Whether review completed successfully or is blocked (e.g., no implementation exists to review)"
+			"needs_changes": {
+				"type": "boolean",
+				"description": "Whether the implementation needs changes. True = send back to implement, false = approved"
 			},
 			"round": {
 				"type": "integer",
@@ -135,7 +134,7 @@ const (
 				"description": "Positive aspects noted"
 			}
 		},
-		"required": ["status", "round", "summary", "issues"]
+		"required": ["needs_changes", "round", "summary", "issues"]
 	}`
 
 	// ReviewDecisionSchema forces structured output for review decisions.

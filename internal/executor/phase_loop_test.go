@@ -162,11 +162,11 @@ func TestPhaseLoop_JSONConditionTriggersLoop(t *testing.T) {
 	// Build the condition context as the executor would
 	rctx := &variable.ResolutionContext{
 		PriorOutputs: map[string]string{
-			"review": `{"status": "needs_changes", "summary": "Found issues"}`,
+			"review": `{"needs_changes": true, "summary": "Found issues"}`,
 		},
 	}
 
-	conditionJSON := `{"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"}`
+	conditionJSON := `{"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"}`
 
 	ctx := &ConditionContext{
 		Vars: variable.VariableSet{},
@@ -187,11 +187,11 @@ func TestPhaseLoop_JSONConditionNoLoop(t *testing.T) {
 
 	rctx := &variable.ResolutionContext{
 		PriorOutputs: map[string]string{
-			"review": `{"status": "complete", "summary": "All good"}`,
+			"review": `{"needs_changes": false, "summary": "All good"}`,
 		},
 	}
 
-	conditionJSON := `{"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"}`
+	conditionJSON := `{"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"}`
 
 	ctx := &ConditionContext{
 		Vars: variable.VariableSet{},
@@ -224,7 +224,7 @@ func TestPhaseLoop_ReviewImplementLoop(t *testing.T) {
 	// Create JSON loop condition
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3
 	}`
 	setupLoopWorkflow(t, backend, loopCfg)
@@ -237,11 +237,11 @@ func TestPhaseLoop_ReviewImplementLoop(t *testing.T) {
 			// Round 1: implement → complete
 			`{"status": "complete", "summary": "Implemented feature"}`,
 			// Round 1: review → needs_changes (triggers loop)
-			`{"status": "needs_changes", "summary": "Found issues"}`,
+			`{"needs_changes": true, "summary": "Found issues"}`,
 			// Round 2: implement → complete (loop back)
 			`{"status": "complete", "summary": "Fixed issues"}`,
 			// Round 2: review → complete (no more loop)
-			`{"status": "complete", "summary": "All good"}`,
+			`{"needs_changes": false, "summary": "All good"}`,
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -303,7 +303,7 @@ func TestPhaseLoop_MaxLoopsExceeded(t *testing.T) {
 	// max_loops=2, but review always returns needs_changes
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 2
 	}`
 	setupLoopWorkflow(t, backend, loopCfg)
@@ -315,15 +315,15 @@ func TestPhaseLoop_MaxLoopsExceeded(t *testing.T) {
 			// Round 1: implement
 			`{"status": "complete", "summary": "Done"}`,
 			// Round 1: review → needs_changes (loop 1)
-			`{"status": "needs_changes", "summary": "Issues"}`,
+			`{"needs_changes": true, "summary": "Issues"}`,
 			// Round 2: implement (looped back)
 			`{"status": "complete", "summary": "Fixed"}`,
 			// Round 2: review → needs_changes (loop 2)
-			`{"status": "needs_changes", "summary": "More issues"}`,
+			`{"needs_changes": true, "summary": "More issues"}`,
 			// Round 3: implement (looped back again)
 			`{"status": "complete", "summary": "More fixes"}`,
 			// Round 3: review → needs_changes (max reached, should NOT loop)
-			`{"status": "needs_changes", "summary": "Still issues"}`,
+			`{"needs_changes": true, "summary": "Still issues"}`,
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -460,7 +460,7 @@ func TestPhaseLoop_GateRetrySharesCounter(t *testing.T) {
 		Sequence:        2,
 		LoopConfig: `{
 			"loop_to_phase": "implement",
-			"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+			"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 			"max_loops": 3
 		}`,
 	}
@@ -581,7 +581,7 @@ func TestPhaseLoop_EventPublished(t *testing.T) {
 
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3
 	}`
 	setupLoopWorkflow(t, backend, loopCfg)
@@ -590,9 +590,9 @@ func TestPhaseLoop_EventPublished(t *testing.T) {
 	mock := &MockTurnExecutor{
 		Responses: []string{
 			`{"status": "complete", "summary": "Done"}`,
-			`{"status": "needs_changes", "summary": "Issues"}`,
+			`{"needs_changes": true, "summary": "Issues"}`,
 			`{"status": "complete", "summary": "Fixed"}`,
-			`{"status": "complete", "summary": "All good"}`,
+			`{"needs_changes": false, "summary": "All good"}`,
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -642,7 +642,7 @@ func TestPhaseLoop_NoEventOnMaxExceeded(t *testing.T) {
 	// max_loops=1: only one loop allowed
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 1
 	}`
 	setupLoopWorkflow(t, backend, loopCfg)
@@ -651,9 +651,9 @@ func TestPhaseLoop_NoEventOnMaxExceeded(t *testing.T) {
 	mock := &MockTurnExecutor{
 		Responses: []string{
 			`{"status": "complete", "summary": "Done"}`,
-			`{"status": "needs_changes", "summary": "Issues"}`,    // Triggers loop 1
+			`{"needs_changes": true, "summary": "Issues"}`,    // Triggers loop 1
 			`{"status": "complete", "summary": "Fixed"}`,
-			`{"status": "needs_changes", "summary": "Still bad"}`, // Max exceeded, NO loop
+			`{"needs_changes": true, "summary": "Still bad"}`, // Max exceeded, NO loop
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -694,7 +694,7 @@ func TestPhaseLoop_InvalidCondition(t *testing.T) {
 	// Invalid JSON condition object
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "INVALID_OP", "value": "x"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "INVALID_OP", "value": "x"},
 		"max_loops": 3
 	}`
 	setupLoopWorkflow(t, backend, loopCfg)
@@ -703,7 +703,7 @@ func TestPhaseLoop_InvalidCondition(t *testing.T) {
 	mock := &MockTurnExecutor{
 		Responses: []string{
 			`{"status": "complete", "summary": "Done"}`,
-			`{"status": "needs_changes", "summary": "Issues"}`,
+			`{"needs_changes": true, "summary": "Issues"}`,
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -757,7 +757,7 @@ func TestPhaseLoop_InvalidTarget(t *testing.T) {
 		Sequence:        2,
 		LoopConfig: `{
 			"loop_to_phase": "nonexistent_phase",
-			"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+			"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 			"max_loops": 3
 		}`,
 	}
@@ -779,7 +779,7 @@ func TestPhaseLoop_InvalidTarget(t *testing.T) {
 	mock := &MockTurnExecutor{
 		Responses: []string{
 			`{"status": "complete", "summary": "Done"}`,
-			`{"status": "needs_changes", "summary": "Issues"}`,
+			`{"needs_changes": true, "summary": "Issues"}`,
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -856,7 +856,7 @@ func TestPhaseLoop_ForwardReference(t *testing.T) {
 	mock := &MockTurnExecutor{
 		Responses: []string{
 			`{"status": "needs_review", "summary": "Done"}`,
-			`{"status": "complete", "summary": "Reviewed"}`,
+			`{"needs_changes": false, "summary": "Reviewed"}`,
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -898,7 +898,7 @@ func TestPhaseLoop_MissingPhaseOutput(t *testing.T) {
 		PriorOutputs: map[string]string{}, // No review output
 	}
 
-	conditionJSON := `{"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"}`
+	conditionJSON := `{"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"}`
 	ctx := &ConditionContext{
 		Vars: variable.VariableSet{},
 		RCtx: rctx,
@@ -933,7 +933,7 @@ func TestPhaseLoop_EmptyCondition(t *testing.T) {
 	mock := &MockTurnExecutor{
 		Responses: []string{
 			`{"status": "complete", "summary": "Done"}`,
-			`{"status": "complete", "summary": "Reviewed"}`,
+			`{"needs_changes": false, "summary": "Reviewed"}`,
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -971,7 +971,7 @@ func TestPhaseLoop_MaxLoopsOne(t *testing.T) {
 
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 1
 	}`
 	setupLoopWorkflow(t, backend, loopCfg)
@@ -980,9 +980,9 @@ func TestPhaseLoop_MaxLoopsOne(t *testing.T) {
 	mock := &MockTurnExecutor{
 		Responses: []string{
 			`{"status": "complete", "summary": "Done"}`,
-			`{"status": "needs_changes", "summary": "Issues"}`, // Loop 1
+			`{"needs_changes": true, "summary": "Issues"}`, // Loop 1
 			`{"status": "complete", "summary": "Fixed"}`,
-			`{"status": "needs_changes", "summary": "More"}`,   // Max reached → no loop
+			`{"needs_changes": true, "summary": "More"}`,   // Max reached → no loop
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -1047,7 +1047,7 @@ func TestPhaseLoop_FinalPhaseLoop(t *testing.T) {
 	// Review is the last phase and it loops back to implement
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 2
 	}`
 	setupLoopWorkflow(t, backend, loopCfg)
@@ -1056,9 +1056,9 @@ func TestPhaseLoop_FinalPhaseLoop(t *testing.T) {
 	mock := &MockTurnExecutor{
 		Responses: []string{
 			`{"status": "complete", "summary": "Done"}`,
-			`{"status": "needs_changes", "summary": "Issues"}`, // Loop back
+			`{"needs_changes": true, "summary": "Issues"}`, // Loop back
 			`{"status": "complete", "summary": "Fixed"}`,
-			`{"status": "complete", "summary": "All good"}`,    // Complete
+			`{"needs_changes": false, "summary": "All good"}`,    // Complete
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -1107,7 +1107,7 @@ func TestPhaseLoop_ConditionTypeDispatch(t *testing.T) {
 	}{
 		{
 			name:     "JSON object condition",
-			jsonStr:  `{"loop_to_phase":"impl","condition":{"field":"phase_output.review.status","op":"eq","value":"needs_changes"},"max_loops":3}`,
+			jsonStr:  `{"loop_to_phase":"impl","condition":{"field":"phase_output.review.needs_changes","op":"eq","value":"true"},"max_loops":3}`,
 			isLegacy: false,
 		},
 		{
@@ -1160,7 +1160,7 @@ func TestPhaseLoop_VarsSurviveLoop(t *testing.T) {
 	// Build a resolution context with prior outputs
 	rctx := &variable.ResolutionContext{
 		PriorOutputs: map[string]string{
-			"review": `{"status": "needs_changes", "findings": "issue A"}`,
+			"review": `{"needs_changes": true, "findings": "issue A"}`,
 		},
 	}
 
@@ -1245,7 +1245,7 @@ func TestPhaseLoop_GateRetryUsesLowerLimit(t *testing.T) {
 		Sequence:        2,
 		LoopConfig: `{
 			"loop_to_phase": "implement",
-			"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+			"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 			"max_loops": 5
 		}`,
 	}

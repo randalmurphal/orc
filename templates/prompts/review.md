@@ -7,11 +7,11 @@ Three possible outcomes. Your output MUST be a structured response matching one 
 
 **Outcome 1 — No Issues / Small Fixes:**
 Use when no issues found, or issues are small enough to fix directly (missing null check, typo, forgotten import, simple logic fix). If you made fixes, commit them first.
-Output your structured response with status set to "complete" and a summary describing what was verified or what fixes you made.
+Output your structured response with `needs_changes: false` and a summary describing what was verified or what fixes you made.
 
 **Outcome 2 — Major Implementation Issues:**
 Use when significant problems need re-implementation, but the overall approach is correct. Examples: missing error handling throughout, component doesn't integrate correctly, business logic wrong in multiple places, tests missing or inadequate.
-Do NOT fix these yourself. Output your structured response with status set to "blocked" and a reason containing:
+Do NOT fix these yourself. Output your structured response with `needs_changes: true` and issues containing:
 1. A brief description of each issue
 2. **MANDATORY: Specific file:line locations** where each fix must be applied
 3. What the implement phase must do at each location
@@ -34,7 +34,7 @@ What to do: Create a helper method on WorkflowExecutor that loads initiative and
 
 **Outcome 3 — Wrong Approach Entirely:**
 Use when the fundamental approach is wrong and re-implementing won't help. Examples: misunderstood requirements, wrong architecture, built the wrong thing entirely.
-Output your structured response with status set to "blocked" and a reason explaining why the current approach is incorrect and what the correct approach should be.
+Output your structured response with `needs_changes: true` and issues explaining why the current approach is incorrect and what the correct approach should be.
 
 ### Decision Guide
 

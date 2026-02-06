@@ -804,7 +804,15 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				// Note: Review findings are stored in RetryState.FailureOutput when
 				// SetRetryState is called by gate rejection handler below
 				phaseResult.BlockedReason = blockedErr.Reason
-				// Fall through to gate evaluation (don't return)
+
+				// Populate Content from the blocked output so applyPhaseContentToVars
+				// stores it in PriorOutputs — required for loop condition evaluation
+				// (e.g., review loop checks phase_output.review.needs_changes).
+				if blockedErr.Output != "" {
+					phaseResult.Content = blockedErr.Output
+					phaseResult.RawOutput = blockedErr.Output
+				}
+				// Fall through to loop evaluation and gate handling (don't return)
 			} else {
 				// Check if this was triggered by pause signal (execCtx cancelled)
 				// Note: The error may be "signal: killed" from subprocess, not context.Canceled
@@ -992,8 +1000,11 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			// Continue on gate error - don't block automation
 		}
 
-		// Handle blocked phases: force gate rejection to trigger retry
-		if phaseResult.BlockedReason != "" {
+		// Handle blocked phases: force gate rejection to trigger retry.
+		// Skip this when a loop config exists — the loop system already evaluated
+		// the blocked state and decided whether to loop back. If it didn't loop
+		// (max reached, invalid condition, invalid target), proceed forward.
+		if phaseResult.BlockedReason != "" && phase.LoopConfig == "" {
 			we.logger.Info("phase blocked, forcing gate rejection for retry",
 				"phase", tmpl.ID,
 				"reason", phaseResult.BlockedReason,
