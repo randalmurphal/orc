@@ -141,6 +141,7 @@ func TestNoHardcodedDatetimeNow(t *testing.T) {
 		"global.go",
 		"branch.go",
 		"phase_output.go",
+		"project.go",
 		"subtask.go",
 	}
 
