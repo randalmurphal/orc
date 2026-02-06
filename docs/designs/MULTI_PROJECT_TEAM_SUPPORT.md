@@ -515,18 +515,19 @@ Consider using merge_on_ci_pass instead
 | FTS5 virtual tables | `tsvector` + GIN indexes |
 | `?` placeholders | `$1, $2, ...` placeholders |
 
-### SQLite-isms in Go Code
+### SQLite-isms in Go Code (Completed - TASK-790)
 
-Files requiring dialect-aware updates:
+All hardcoded SQLite date functions replaced with driver helpers. `transcript.go` FTS remains (addressed separately in TASK-791).
 
-| File | Pattern | Fix |
-|------|---------|-----|
-| `global.go` | `strftime()` | Use `driver.DateFormat()` helper |
-| `branch.go` | `strftime()` | Use helper |
-| `phase_output.go` | `datetime('now')` | Use `driver.Now()` |
-| `project.go` | `datetime('now')` | Use `driver.Now()` |
-| `subtask.go` | `datetime('now')` | Use `driver.Now()` |
-| `transcript.go` | FTS5 MATCH | Dialect-specific search |
+| File | Pattern Removed | Replaced With |
+|------|----------------|---------------|
+| `global.go` | `strftime()` | `driver.DateFormat()` |
+| `branch.go` | `strftime()` | `driver.DateFormat()` + `driver.Now()` |
+| `phase_output.go` | `datetime('now')` | `driver.Now()` |
+| `project.go` | `datetime('now')` | `driver.Now()` |
+| `subtask.go` | `datetime('now')` | `driver.Now()` |
+
+Regression tests in `sqlite_isms_test.go` prevent re-introduction of hardcoded patterns.
 
 ---
 

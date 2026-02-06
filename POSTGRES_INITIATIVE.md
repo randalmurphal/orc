@@ -274,20 +274,20 @@ Team Total: $847.32 this month
 | TASK-784 | Atomic claim-on-run with history | In Progress |
 | TASK-785 | Release command | Planned |
 | TASK-786 | Heartbeat-based stale detection | Planned |
-| TASK-787 | Budget enforcement in executor | Planned |
+| TASK-787 | Budget enforcement in executor | Completed |
 | TASK-788 | Port global SQLite migrations to PostgreSQL | Planned |
 | TASK-789 | pgxpool connection pooling | Planned |
-| TASK-790 | Fix SQLite-isms in Go code | Planned |
+| TASK-790 | Fix SQLite-isms in Go code | Completed |
 | TASK-791 | PostgreSQL full-text search | Planned |
 | TASK-792 | Cross-project status API endpoint | Planned |
 | TASK-793 | "My Work" dashboard UI | Planned |
 | TASK-794 | Hosting detection and token validation | Failed (needs retry) |
-| TASK-795 | Port project migrations 001-020 | Planned |
+| TASK-795 | Port project migrations 001-020 | Completed |
 | TASK-796 | Port project migrations 021-040 | Planned |
 | TASK-797 | Port project migrations 041-056 | Planned |
 | TASK-798 | Cost viewing CLI, API, and UI | Planned |
 
-**1 completed, 2 in progress, 13 planned, 1 failed.**
+**4 completed, 2 in progress, 10 planned, 1 failed.**
 
 ---
 

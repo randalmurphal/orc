@@ -71,8 +71,8 @@ Database driver abstraction supporting SQLite and PostgreSQL. All database opera
 | File | Purpose |
 |------|---------|
 | `driver.go` | `Driver` interface, `Tx` interface, `SchemaFS`, `ParseDialect()`, `New()` factory |
-| `sqlite.go` | SQLite driver: `?` placeholders, `datetime('now')`, FK-disable migration support |
-| `postgresql.go` | PostgreSQL driver: `$N` placeholders, `NOW()`, `_migrations` version tracking |
+| `sqlite.go` | SQLite driver: `?` placeholders, `datetime('now')`, `strftime()` date helpers, FK-disable migration support |
+| `postgresql.go` | PostgreSQL driver: `$N` placeholders, `NOW()`, `TO_CHAR()`/`date_trunc()` helpers, `_migrations` version tracking |
 | `migrations.go` | Shared migration runner for both dialects |
 
 **Dialect helpers** (used by CRUD code for portable queries):
@@ -81,6 +81,10 @@ Database driver abstraction supporting SQLite and PostgreSQL. All database opera
 |--------|--------|------------|
 | `Placeholder(n)` | `?` | `$1`, `$2`, ... |
 | `Now()` | `datetime('now')` | `NOW()` |
+| `DateFormat(col, fmt)` | `strftime(fmt, col)` | `TO_CHAR(col, fmt)` |
+| `DateTrunc(unit, col)` | strftime workaround | `date_trunc(unit, col)` |
+
+Supported `DateFormat` formats: `day`, `week`, `month`, `rfc3339`. Supported `DateTrunc` units: `day`, `week`, `month`, `year`. Adding new formats requires updating both driver implementations + tests.
 
 ### PostgreSQL Migration Files
 
