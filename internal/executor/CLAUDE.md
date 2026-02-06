@@ -27,6 +27,8 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
 | `phase_executor.go` | `PhaseExecutor` interface, weight-based executor config |
 | `phase_registry.go` | `PhaseTypeRegistry`, `PhaseTypeExecutor` interface — maps type strings to executors |
+| `script_executor.go` | `ScriptPhaseExecutor` — runs shell commands as phases (command, workdir, timeout, success_pattern, output_var) |
+| `api_executor.go` | `APIPhaseExecutor` — makes HTTP requests as phases (method, URL, headers, body, success_status, output_var) |
 | `knowledge_executor.go` | `KnowledgePhaseExecutor`, `KnowledgeQueryService` interface — knowledge retrieval phase |
 | `retry.go` | Retry context building (`BuildRetryContextForFreshSession`, `CompressPreviousContext`, `BuildRetryPreview`) |
 | `review.go` | Review findings parsing, formatting for round 2 (`FormatFindingsForRound2`) |
@@ -231,8 +233,10 @@ Non-LLM phase types bypass prompt loading and Claude execution. Instead, they di
 |------|----------|----------|
 | `llm` | Sentinel (never called) | Falls through to `executeWithClaude()` |
 | `knowledge` | `KnowledgePhaseExecutor` | Queries knowledge service, stores result in workflow variable |
+| `script` | `ScriptPhaseExecutor` | Runs shell command, captures stdout, optional regex validation |
+| `api` | `APIPhaseExecutor` | Makes HTTP request, captures response body, checks status code |
 
-**Registration:** `NewDefaultPhaseTypeRegistry()` pre-registers `llm` and `knowledge`. Custom types via `WithPhaseTypeExecutor(name, exec)`. If `WithWorkflowKnowledgeService(svc)` is used, the knowledge executor is re-registered with the live service.
+**Registration:** `NewDefaultPhaseTypeRegistry()` pre-registers `llm`, `knowledge`, `script`, and `api`. Custom types via `WithPhaseTypeExecutor(name, exec)`. If `WithWorkflowKnowledgeService(svc)` is used, the knowledge executor is re-registered with the live service.
 
 **KnowledgePhaseExecutor** (`knowledge_executor.go`):
 - Requires `KnowledgeQueryService` interface (satisfied by `*knowledge.Service`)
@@ -241,6 +245,24 @@ Non-LLM phase types bypass prompt loading and Claude execution. Instead, they di
 - Fallback: `"skip"` returns `SKIPPED` status; `"error"` (default) returns error
 
 **Condition field:** `knowledge.available` resolves to `"true"`/`"false"` based on `we.knowledgeService != nil && svc.IsAvailable()`. Use in phase conditions to skip knowledge phases when no service is configured.
+
+**ScriptPhaseExecutor** (`script_executor.go`):
+- Command source: `SCRIPT_COMMAND` variable > `PhaseTemplate.PromptContent`
+- Variable interpolation on command and workdir via `variable.RenderTemplate()`
+- Optional timeout via `context.WithTimeout`, optional `success_pattern` regex validation on stdout
+- Output stored via `storeOutputVar()` to both `params.Vars` and `params.RCtx.PhaseOutputVars`
+- Empty command → completes with empty content (no error)
+
+**APIPhaseExecutor** (`api_executor.go`):
+- URL source: `PhaseTemplate.PromptContent` (after variable interpolation) > URL-like values in `params.Vars`
+- Defaults: method=`GET`, success_status=`[200]`
+- Variable interpolation on URL, body, and headers
+- 1MB response body limit (`maxAPIResponseBody`), truncated if exceeded
+- Empty URL → completes with empty content (no error)
+
+**Shared utilities** (`script_executor.go`):
+- `storeOutputVar(params, outputVar, value)` — stores to both `Vars` and `RCtx.PhaseOutputVars` when outputVar is non-empty
+- `durationMS(start)` — elapsed milliseconds with minimum of 1
 
 ### Blocked Phase Handling
 
@@ -646,9 +668,12 @@ go test ./internal/executor/... -v
 | `knowledge_executor_test.go` | KnowledgePhaseExecutor: query routing, fallback skip/error, output vars, unavailable service |
 | `knowledge_condition_test.go` | `knowledge.available` condition field resolution |
 | `knowledge_wiring_integration_test.go` | Integration: registry wiring via `WithWorkflowKnowledgeService`, condition eval with live context |
+| `script_executor_test.go` | ScriptPhaseExecutor: command execution, timeout, success_pattern, output vars, empty command, workdir |
+| `api_executor_test.go` | APIPhaseExecutor: HTTP requests, status codes, headers, body, response limits, output vars, empty URL |
+| `script_api_wiring_integration_test.go` | Integration: script/API executor registration, dispatch through phase loop, variable propagation |
 | `phase_dispatch_test.go` | Phase type dispatch: non-LLM routing, type override precedence, error propagation, event publishing |
 
-**Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `WithPhaseTypeExecutor(name, mock)`, `WithWorkflowKnowledgeService(mock)`, `hostingProvider` field for PR tests
+**Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `WithPhaseTypeExecutor(name, mock)` (for script/api/knowledge/custom), `WithWorkflowKnowledgeService(mock)`, `hostingProvider` field for PR tests
 
 ## Common Gotchas
 

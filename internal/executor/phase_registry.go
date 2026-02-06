@@ -42,6 +42,8 @@ func NewDefaultPhaseTypeRegistry() *PhaseTypeRegistry {
 	r := NewPhaseTypeRegistry()
 	r.Register("llm", &llmPhaseTypeExecutor{})
 	r.Register("knowledge", NewKnowledgePhaseExecutor(nil))
+	r.Register("script", NewScriptPhaseExecutor())
+	r.Register("api", NewAPIPhaseExecutor())
 	return r
 }
 

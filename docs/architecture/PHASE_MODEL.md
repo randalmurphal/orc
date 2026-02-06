@@ -68,6 +68,8 @@ Phases have a `type` field that determines how they execute. The default type is
 |------|----------|----------|
 | `llm` | Built-in Claude path | Load prompt, configure Claude, execute via `TurnExecutor` |
 | `knowledge` | `KnowledgePhaseExecutor` | Query knowledge service, store result as workflow variable |
+| `script` | `ScriptPhaseExecutor` | Run shell command, capture stdout, optional regex validation |
+| `api` | `APIPhaseExecutor` | Make HTTP request, capture response body, check status code |
 
 Custom types can be registered via `WithPhaseTypeExecutor()`. See `internal/executor/CLAUDE.md` for implementation details.
 
