@@ -2,6 +2,7 @@ package knowledge
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -643,6 +644,79 @@ func (m *mockQueryComponents) CacheClose() error {
 
 func (m *mockQueryComponents) IsHealthy() (neo4j, qdrant, redis bool) {
 	return m.neo4jHealthy, m.qdrantHealthy, m.redisHealthy
+}
+
+// --- retrieve.Embedder ---
+
+func (m *mockQueryComponents) Embed(_ context.Context, texts []string) ([][]float32, error) {
+	result := make([][]float32, len(texts))
+	for i := range texts {
+		if m.embedResult != nil {
+			result[i] = m.embedResult
+		} else {
+			result[i] = []float32{0.0, 0.0}
+		}
+	}
+	return result, nil
+}
+
+func (m *mockQueryComponents) Type() string { return "mock" }
+
+// --- retrieve.VectorSearcher ---
+
+func (m *mockQueryComponents) Search(_ context.Context, _ string, _ []float32, _ int) ([]retrieve.VectorSearchResult, error) {
+	var results []retrieve.VectorSearchResult
+	for _, r := range m.vectorResults {
+		results = append(results, retrieve.VectorSearchResult{ID: r.id, Score: r.score})
+	}
+	return results, nil
+}
+
+// --- retrieve.GraphQuerier ---
+
+func (m *mockQueryComponents) FetchDocument(_ context.Context, id string) (*retrieve.Document, error) {
+	doc, ok := m.documents[id]
+	if !ok {
+		return nil, nil
+	}
+	return &doc, nil
+}
+
+func (m *mockQueryComponents) FindRelated(_ context.Context, _ string, _ int) ([]retrieve.RelatedDoc, error) {
+	return nil, nil
+}
+
+func (m *mockQueryComponents) GetCentrality(_ context.Context, _ []string) (map[string]float64, error) {
+	return nil, nil
+}
+
+// --- retrieve.Reranker ---
+
+func (m *mockQueryComponents) Rerank(_ context.Context, _ string, docs []retrieve.ScoredDocument) ([]retrieve.ScoredDocument, error) {
+	return docs, nil
+}
+
+// --- retrieve.EnrichmentProvider ---
+
+func (m *mockQueryComponents) GetPatterns(_ context.Context) ([]retrieve.Document, error) {
+	if m.enrichErr {
+		return nil, fmt.Errorf("enrichment error")
+	}
+	return m.patterns, nil
+}
+
+func (m *mockQueryComponents) GetHotFiles(_ context.Context) ([]retrieve.Document, error) {
+	if m.enrichErr {
+		return nil, fmt.Errorf("enrichment error")
+	}
+	return m.hotFiles, nil
+}
+
+func (m *mockQueryComponents) GetKnownIssues(_ context.Context) ([]retrieve.Document, error) {
+	if m.enrichErr {
+		return nil, fmt.Errorf("enrichment error")
+	}
+	return m.knownIssues, nil
 }
 
 // makeContent creates a string of approximately n characters.

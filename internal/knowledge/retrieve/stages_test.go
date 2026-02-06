@@ -789,11 +789,15 @@ type mockVectorSearcher struct {
 	err     error
 }
 
-func (m *mockVectorSearcher) Search(_ context.Context, _ string, _ []float32, _ int) ([]vectorSearchResult, error) {
+func (m *mockVectorSearcher) Search(_ context.Context, _ string, _ []float32, _ int) ([]VectorSearchResult, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	return m.results, nil
+	var out []VectorSearchResult
+	for _, r := range m.results {
+		out = append(out, VectorSearchResult{ID: r.id, Score: r.score, Payload: r.payload})
+	}
+	return out, nil
 }
 
 // relatedDoc represents a graph-related document for testing.
@@ -823,11 +827,15 @@ func (m *mockGraphQuerier) FetchDocument(_ context.Context, id string) (*Documen
 	return &doc, nil
 }
 
-func (m *mockGraphQuerier) FindRelated(_ context.Context, id string, _ int) ([]relatedDoc, error) {
+func (m *mockGraphQuerier) FindRelated(_ context.Context, id string, _ int) ([]RelatedDoc, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	return m.related[id], nil
+	var out []RelatedDoc
+	for _, r := range m.related[id] {
+		out = append(out, RelatedDoc{Doc: r.doc, Depth: r.depth})
+	}
+	return out, nil
 }
 
 func (m *mockGraphQuerier) GetCentrality(_ context.Context, ids []string) (map[string]float64, error) {
