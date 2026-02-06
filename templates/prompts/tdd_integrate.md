@@ -88,9 +88,14 @@ Before outputting the final JSON, STOP and verify:
    - For each integration test: "If I delete the line in production that calls the new code, does this test fail?"
    - If the answer is "no" for any test, that test is wrong
 
-4. **Check for gaps**
+4. **Run the stub thought experiment**
+   - For each handler/callback: "If I replace the handler body with `return nil` or `pass`, does the test fail?"
+   - If the answer is "no", you're testing registration, not invocation — rewrite the test
+
+5. **Check for gaps**
    - Every entry in `wiring_verification` has a corresponding test in `tests`
    - No new production-path code is left unverified
+   - No test comments say "structure only" or "full test requires X" — these are red flags for incomplete coverage
 
 **Only after completing this verification, output the StructuredOutput.**
 </pre_output_verification>
@@ -139,6 +144,36 @@ assert result.ok
 | Test "function exists" via reflection | Existence ≠ reachability | Test through production code path |
 | Put integration test next to new code | Associates with wrong module | Put next to the caller/existing code |
 | Assert only on return values | May miss wiring gaps | Assert the new code was actually invoked |
+| Test registration/structure only | Proves wiring exists, not that it's invoked | Test that the handler/callback actually executes |
+
+### Registration vs Invocation — A Critical Distinction
+
+**Registration** means new code is added to a tree/map/config (e.g., command registered in CLI, route added to router, component added to parent).
+
+**Invocation** means the registered code actually runs when triggered (e.g., CLI handler calls the service, route handler processes requests, component renders with real props).
+
+Testing registration alone is a **structural test**, NOT an integration test. Registration without invocation is dead code with a good address.
+
+Example — CLI command:
+```
+# BAD: Tests registration only (structural test)
+test "query command is registered":
+    cmd = find_subcommand("query")
+    assert cmd != nil
+    assert cmd.has_flag("--preset")
+    assert cmd.has_flag("--limit")
+    # Passes even if the command handler is an empty stub!
+
+# GOOD: Tests invocation (integration test)
+test "query command invokes service":
+    recorder = create_recording_service()
+    cmd = create_query_command(service=recorder)
+    cmd.execute(["some query"])
+    assert recorder.query_called           # Fails if handler doesn't call service
+    assert recorder.last_query == "some query"
+```
+
+If the CLI handler is a stub that prints a message and returns nil, the BAD test passes. The GOOD test fails. **Always write the GOOD test.**
 </critical_constraints>
 
 <examples>
@@ -274,6 +309,7 @@ Read the spec and identify every place where new code must connect to existing c
 3. **New config options** — which existing code path should read them?
 4. **New UI components** — which existing page/component should render them?
 5. **New handlers/routes** — which existing server/router should register them?
+6. **New CLI commands** — does the handler actually call the service/function it's supposed to? Registration in the command tree is NOT sufficient — the `RunE`/`Run` handler must invoke the real service
 
 For each wiring point, note:
 - The NEW code path (what was created)

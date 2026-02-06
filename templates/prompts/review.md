@@ -86,6 +86,10 @@ The implement phase finds creative workarounds. You must recognize and reject th
 | "Tests pass so implementation is correct" | Tests may only cover component isolation, not integration. | Verify: "Does clicking ACTUALLY work end-to-end?" |
 | "Component design is correct, just needs wiring later" | Unwired component = dead code. | BLOCK: "Dead code ships if we merge this" |
 | "This is good progress, we can wire it in the next task" | Partial implementations create debt and confusion. | BLOCK: "Task must be complete per spec" |
+| "Handler prints message when service unavailable" | A handler that never calls the service is a stub, not graceful degradation. | BLOCK: "Handler must call service; return error if unavailable" |
+| "Structural tests verify command registration" | Registration tests prove wiring exists, not that it's invoked. | BLOCK: "Test must invoke handler and verify service call" |
+
+**The test for CLI behavior:** Does the command handler actually call the service/function? Not "does the command have the right flags" but "if I run the command, does it invoke the real code path?" A handler that prints a message and returns nil is dead code with good error UX.
 
 **The test for UI behavior:** Can you actually perform the action described in the SC? Not "does the component have an onClick prop" but "if I click it in the running app, does the specified behavior happen?"
 </critical_constraints>
@@ -259,6 +263,7 @@ If the integration test phase declared wiring verifications, verify EACH declara
 1. Was the new code created at the declared path?
 2. Does the declared production file actually import/call the new code?
 3. Do the integration tests pass — proving the wiring works end-to-end?
+4. **Do the integration tests verify INVOCATION, not just REGISTRATION?** A test that checks "command is registered" or "has correct flags" is a structural test, not an integration test. Open the test file and verify it actually triggers the handler and asserts the service was called.
 
 ```bash
 # Example verification for wiring declaration:

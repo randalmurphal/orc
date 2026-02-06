@@ -175,6 +175,9 @@ func (we *WorkflowExecutor) executePhase(
 			WorktreePath: we.worktreePath,
 			MainRepoPath: we.workingDir,
 			TaskID:       rctx.TaskID,
+			AdditionalEnv: map[string]string{
+				"ORC_TASK_ID": rctx.TaskID,
+			},
 		}
 		if err := ApplyPhaseSettings(we.worktreePath, claudeConfig, baseCfg, we.globalDB, we.globalDB); err != nil {
 			result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
