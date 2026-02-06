@@ -107,11 +107,12 @@ func (p *ProjectDB) CountPendingSubtasks(parentID string) (int, error) {
 
 // ApproveSubtask marks a sub-task as approved.
 func (p *ProjectDB) ApproveSubtask(id, approvedBy string) (*Subtask, error) {
-	result, err := p.Exec(`
+	now := p.Driver().Now()
+	result, err := p.Exec(fmt.Sprintf(`
 		UPDATE subtask_queue
-		SET status = ?, approved_by = ?, approved_at = datetime('now')
+		SET status = ?, approved_by = ?, approved_at = %s
 		WHERE id = ? AND status = ?
-	`, SubtaskApproved, approvedBy, id, SubtaskPending)
+	`, now), SubtaskApproved, approvedBy, id, SubtaskPending)
 	if err != nil {
 		return nil, fmt.Errorf("approve subtask: %w", err)
 	}

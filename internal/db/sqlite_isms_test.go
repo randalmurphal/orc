@@ -363,6 +363,9 @@ func TestApproveSubtask_SetsTimestamp(t *testing.T) {
 	}
 	defer func() { _ = pdb.Close() }()
 
+	// Create task record for FK constraint
+	createTestTask(t, pdb, "TASK-001")
+
 	// Queue a subtask
 	st, err := pdb.QueueSubtask("TASK-001", "sub task", "description", "user1")
 	if err != nil {
@@ -447,6 +450,9 @@ func TestSaveSpecForTask_UsesDriverNow(t *testing.T) {
 		t.Fatalf("open project db: %v", err)
 	}
 	defer func() { _ = pdb.Close() }()
+
+	// Create task record for FK constraint
+	createTestTask(t, pdb, "TASK-001")
 
 	// SaveSpecForTask creates workflow/run records with datetime('now')
 	if err := pdb.SaveSpecForTask("TASK-001", "# Test Spec\nContent here", "import"); err != nil {
@@ -537,5 +543,15 @@ func TestStoreDetection_UsesDriverNow(t *testing.T) {
 	}
 	if time.Since(got.DetectedAt) > time.Minute {
 		t.Errorf("DetectedAt = %v, expected recent timestamp", got.DetectedAt)
+	}
+}
+
+// createTestTask inserts a minimal task record to satisfy FK constraints.
+func createTestTask(t *testing.T, pdb *ProjectDB, taskID string) {
+	t.Helper()
+	_, err := pdb.Exec(`INSERT INTO tasks (id, title, status) VALUES (?, ?, ?)`,
+		taskID, "test task", "pending")
+	if err != nil {
+		t.Fatalf("create test task %s: %v", taskID, err)
 	}
 }
