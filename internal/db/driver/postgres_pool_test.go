@@ -2,12 +2,7 @@ package driver
 
 import (
 	"testing"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-// Ensure pgxpool is used (compile-time check).
-var _ *pgxpool.Pool
 
 // TestPostgresDriver_HasPool verifies PostgresDriver stores a pgxpool.Pool.
 // Covers SC-1: Open creates a pgxpool.Pool with configured settings.
