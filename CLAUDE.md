@@ -273,6 +273,7 @@ Task data stored in per-project database (`~/.orc/projects/<id>/orc.db` for SQLi
 | `orc close TASK-ID` | Close task without re-running |
 | `orc gates list` | Show gate config for all workflow phases |
 | `orc gates show <phase>` | Detailed gate config for a phase |
+| `orc costs` | View cost report across projects (`--by user/project/model`, `--user`, `--since`, `--project`) |
 
 ### Initiatives
 

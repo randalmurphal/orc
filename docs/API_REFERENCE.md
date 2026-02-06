@@ -48,7 +48,7 @@ All Connect RPC services accept a `project_id` field in their request messages. 
 | TaskService | `task.proto` | All request messages |
 | InitiativeService | `initiative.proto` | All request messages |
 | HostingService | `hosting.proto` | CreatePR, GetPR, MergePR, RefreshPR, SyncComments, AutofixComment, GetChecks, ListPRs, GetPRComments |
-| DashboardService | `dashboard.proto` | GetStats, GetActivity, GetPerDayStats, GetOutcomes, GetTopInitiatives, GetTopFiles, GetComparison, GetCostSummary, GetCostByModel, GetCostTimeseries, GetBudget |
+| DashboardService | `dashboard.proto` | GetStats, GetActivityHeatmap, GetCostSummary, GetMetrics, GetDailyMetrics, GetMetricsByModel, GetOutcomes, GetTopInitiatives, GetTopFiles, GetComparison, GetTaskMetrics, GetCostReport |
 | DecisionService | `decision.proto` | ListDecisions, ResolveDecision, GetDecision, ListDecisionHistory |
 | NotificationService | `notification.proto` | ListNotifications, DismissNotification, DismissAllNotifications |
 | BranchService | `project.proto` | ListBranches, GetBranch, UpdateBranchStatus, DeleteBranch, CleanupStaleBranches |
@@ -1641,6 +1641,7 @@ All DashboardService RPC requests accept `project_id` to target a specific proje
 | GET | `/api/stats/top-initiatives` | Get most active initiatives (`?limit=10&period=all`) |
 | GET | `/api/stats/top-files` | Get most frequently modified files (`?limit=N&period=30d`) |
 | GET | `/api/stats/comparison` | Get period comparison stats (`?period=7d`) |
+| RPC | `GetCostReport` | Aggregated cost data from GlobalDB with filtering/grouping |
 
 **Dashboard stats response:**
 
@@ -2052,6 +2053,48 @@ Query parameters:
 ```
 
 **Note:** The database layer for cost tracking with model identification is implemented (TASK-406). API endpoint handlers are pending future work.
+
+### Cost Report (Connect RPC)
+
+Aggregated cost data from GlobalDB with filtering and grouping. Used by both the CLI (`orc costs`) and the web UI (`DashboardCostSummary` component).
+
+**Connect RPC: `DashboardService.GetCostReport`** (`proto/orc/v1/dashboard.proto`)
+
+**Request fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `project_id` | string | Filter to specific project |
+| `user_id` | string (optional) | Filter to specific user ID |
+| `since` | Timestamp (optional) | Filter entries after this time |
+| `group_by` | string (optional) | Group dimension: `user`, `project`, `model` |
+
+**Response:**
+```json
+{
+  "total_cost_usd": 125.50,
+  "breakdowns": [
+    {"key": "opus", "cost_usd": 100.00},
+    {"key": "sonnet", "cost_usd": 25.50}
+  ],
+  "budget_limit_usd": 200.00,
+  "budget_percent_used": 62.75
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `total_cost_usd` | double | Total cost matching filters |
+| `breakdowns` | array | Cost entries grouped by `group_by` dimension |
+| `breakdowns[].key` | string | Group key (model name, project ID, or user ID) |
+| `breakdowns[].cost_usd` | double | Total cost for this group |
+| `budget_limit_usd` | double (optional) | Monthly budget limit (only when `project_id` is set) |
+| `budget_percent_used` | double (optional) | Budget usage percentage (only when `project_id` is set) |
+
+**Notes:**
+- Requires `SetGlobalDB()` to be called on the dashboard server at startup (wired in `server_connect.go`)
+- Budget info is only included when filtering by a specific `project_id`
+- When `group_by` is `user`, keys are user IDs (resolve to names via `GetUser()`)
 
 ---
 

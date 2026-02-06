@@ -381,7 +381,7 @@ func (we *WorkflowExecutor) executePhase(
 
 	// Record cost to global database for cross-project analytics
 	phaseModel := we.resolvePhaseModel(tmpl, phase)
-	we.recordCostToGlobal(t, tmpl.ID, result, phaseModel, time.Since(startTime))
+	we.recordCostToGlobal(ctx, t, tmpl.ID, result, phaseModel, time.Since(startTime))
 
 	// Update execution state if available (Task-centric approach)
 	if we.task != nil {

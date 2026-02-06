@@ -46,7 +46,7 @@ web/src/
 │   ├── workflow-editor/  # Visual editor (React Flow canvas, dagre layout)
 │   ├── workflow/         # Workflow modals (WorkflowSettingsModal)
 │   ├── workflows/        # Workflow management (WorkflowsView, WorkflowCreationWizard, PhaseListEditor)
-│   ├── dashboard/        # My Work components (MyWorkDashboard, ProjectCard, TaskRow)
+│   ├── dashboard/        # My Work components (MyWorkDashboard, ProjectCard, TaskRow, DashboardCostSummary)
 │   └── [5 more dirs]     # settings/, stats/, initiatives/, etc.
 ├── stores/               # Zustand stores (10 stores — see State Management)
 ├── hooks/                # Custom hooks (useShortcuts, useEvents, useDocumentTitle, etc.)
@@ -111,6 +111,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `AttentionDashboard` | `board/` | Three-section dashboard: running tasks, attention items, queue. Error states with visual indicators for failed tasks and phases |
 | `MyWorkPage` | `pages/` | Project landing page: task sections (attention/running/ready/completed), initiative progress cards, stat cards |
 | `MyWorkDashboard` | `dashboard/` | Tabbed task view (Active/Needs Attention/Recently Completed) with summary cards, priority sort, initiative grouping |
+| `DashboardCostSummary` | `dashboard/` | Cost report widget: fetches `GetCostReport` RPC, shows total, model breakdown, budget usage |
 | `AppShell` | `layout/` | Main layout shell. Route-aware panel rendering via `useLocation` |
 | `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
 | `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |

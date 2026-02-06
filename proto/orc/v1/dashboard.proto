@@ -210,6 +210,9 @@ service DashboardService {
 
   // Get task-specific metrics
   rpc GetTaskMetrics(GetTaskMetricsRequest) returns (GetTaskMetricsResponse);
+
+  // Get cost report with filtering and grouping (queries GlobalDB)
+  rpc GetCostReport(GetCostReportRequest) returns (GetCostReportResponse);
 }
 
 // =============================================================================
@@ -323,4 +326,24 @@ message GetTaskMetricsRequest {
 
 message GetTaskMetricsResponse {
   MetricsSummary metrics = 1;
+}
+
+// Cost report with filtering and grouping
+message GetCostReportRequest {
+  string project_id = 1;
+  optional string user_id = 2;
+  optional google.protobuf.Timestamp since = 3;
+  optional string group_by = 4;  // "user", "project", "model"
+}
+
+message GetCostReportResponse {
+  double total_cost_usd = 1;
+  repeated CostBreakdown breakdowns = 2;
+  optional double budget_limit_usd = 3;
+  optional double budget_percent_used = 4;
+}
+
+message CostBreakdown {
+  string key = 1;
+  double cost_usd = 2;
 }
