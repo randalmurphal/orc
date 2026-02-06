@@ -736,6 +736,10 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 	agentID := sqlNullString(pt.AgentID)
 	subAgents := sqlNullString(pt.SubAgents)
 	gateAgentID := sqlNullString(pt.GateAgentID)
+	phaseType := pt.Type
+	if phaseType == "" {
+		phaseType = "llm"
+	}
 
 	_, err := g.Exec(`
 		INSERT INTO phase_templates (id, name, description, agent_id, sub_agents,
@@ -745,8 +749,8 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, system_prompt, claude_config,
 			is_builtin, created_at, updated_at,
-			gate_input_config, gate_output_config, gate_mode, gate_agent_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			gate_input_config, gate_output_config, gate_mode, gate_agent_id, type)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
@@ -773,6 +777,7 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			gate_output_config = excluded.gate_output_config,
 			gate_mode = excluded.gate_mode,
 			gate_agent_id = excluded.gate_agent_id,
+			type = excluded.type,
 			updated_at = excluded.updated_at
 	`, pt.ID, pt.Name, pt.Description, agentID, subAgents,
 		pt.PromptSource, pt.PromptContent, pt.PromptPath,
@@ -781,7 +786,7 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 		thinkingEnabled, pt.GateType, pt.Checkpoint,
 		pt.RetryFromPhase, pt.RetryPromptPath, "", pt.ClaudeConfig, // system_prompt empty, claude_config from struct
 		pt.IsBuiltin, pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339),
-		pt.GateInputConfig, pt.GateOutputConfig, pt.GateMode, gateAgentID)
+		pt.GateInputConfig, pt.GateOutputConfig, pt.GateMode, gateAgentID, phaseType)
 	if err != nil {
 		return fmt.Errorf("save phase template: %w", err)
 	}
@@ -798,7 +803,8 @@ func (g *GlobalDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
 			thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
 			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
-			COALESCE(claude_config, '') as claude_config
+			COALESCE(claude_config, '') as claude_config,
+			COALESCE(type, 'llm') as type
 		FROM phase_templates WHERE id = ?
 	`, id)
 
@@ -822,7 +828,8 @@ func (g *GlobalDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
 			thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
 			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
-			COALESCE(claude_config, '') as claude_config
+			COALESCE(claude_config, '') as claude_config,
+			COALESCE(type, 'llm') as type
 		FROM phase_templates
 		ORDER BY is_builtin DESC, name ASC
 	`)
@@ -945,8 +952,9 @@ func (g *GlobalDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 		INSERT INTO workflow_phases (workflow_id, phase_template_id, sequence, depends_on,
 			agent_override, sub_agents_override,
 			model_override, thinking_override, gate_type_override, condition,
-			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y,
+			type_override)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(workflow_id, phase_template_id) DO UPDATE SET
 			sequence = excluded.sequence,
 			depends_on = excluded.depends_on,
@@ -961,11 +969,13 @@ func (g *GlobalDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 			claude_config_override = excluded.claude_config_override,
 			before_triggers = excluded.before_triggers,
 			position_x = excluded.position_x,
-			position_y = excluded.position_y
+			position_y = excluded.position_y,
+			type_override = excluded.type_override
 	`, wp.WorkflowID, wp.PhaseTemplateID, wp.Sequence, wp.DependsOn,
 		agentOverride, subAgentsOverride,
 		wp.ModelOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition,
-		wp.QualityChecksOverride, wp.LoopConfig, wp.ClaudeConfigOverride, wp.BeforeTriggers, posX, posY)
+		wp.QualityChecksOverride, wp.LoopConfig, wp.ClaudeConfigOverride, wp.BeforeTriggers, posX, posY,
+		wp.TypeOverride)
 	if err != nil {
 		return fmt.Errorf("save workflow phase: %w", err)
 	}
@@ -990,7 +1000,8 @@ func (g *GlobalDB) GetWorkflowPhases(workflowID string) ([]*WorkflowPhase, error
 		SELECT id, workflow_id, phase_template_id, sequence, depends_on,
 			agent_override, sub_agents_override,
 			model_override, thinking_override, gate_type_override, condition,
-			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y
+			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y,
+			COALESCE(type_override, '') as type_override
 		FROM workflow_phases
 		WHERE workflow_id = ?
 		ORDER BY sequence ASC
