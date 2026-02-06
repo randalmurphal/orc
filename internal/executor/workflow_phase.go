@@ -662,13 +662,19 @@ func (we *WorkflowExecutor) loadPhasePrompt(tmpl *db.PhaseTemplate) (string, err
 }
 
 // loadEmbeddedPrompt loads a prompt from embedded templates.
+// Tries the embed.FS first (works in production binary), falls back to filesystem (dev).
 func (we *WorkflowExecutor) loadEmbeddedPrompt(path string) (string, error) {
-	// Import from templates package - fallback to file for now
+	// Try embedded templates first (production path)
+	content, err := templates.Prompts.ReadFile(path)
+	if err == nil {
+		return string(content), nil
+	}
+
+	// Fallback to filesystem for development (worktree has templates/ directory)
 	fullPath := filepath.Join(we.workingDir, "templates", path)
-	content, err := os.ReadFile(fullPath)
-	if err != nil {
-		// Try embedded
-		return "", fmt.Errorf("load embedded prompt %s: %w", path, err)
+	content, fsErr := os.ReadFile(fullPath)
+	if fsErr != nil {
+		return "", fmt.Errorf("load embedded prompt %s: embed: %w, file: %w", path, err, fsErr)
 	}
 	return string(content), nil
 }
