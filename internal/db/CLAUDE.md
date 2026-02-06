@@ -28,7 +28,7 @@ Two database types with distinct responsibilities:
 
 ### Schema Migrations (SQLite)
 
-SQLite migrations in `schema/`. PostgreSQL equivalents in `driver/schema/postgres/` (see Driver Package section).
+SQLite migrations in `schema/`. PostgreSQL equivalents in `schema/postgres/` (embedded via `db.go`, see Driver Package section).
 
 | Schema | Purpose |
 |--------|---------|
@@ -72,7 +72,8 @@ Database driver abstraction supporting SQLite and PostgreSQL. All database opera
 |------|---------|
 | `driver.go` | `Driver` interface, `Tx` interface, `SchemaFS`, `ParseDialect()`, `New()` factory |
 | `sqlite.go` | SQLite driver: `?` placeholders, `datetime('now')`, FK-disable migration support |
-| `postgres.go` | PostgreSQL driver: `$N` placeholders, `NOW()`, `_migrations` version tracking |
+| `postgresql.go` | PostgreSQL driver: `$N` placeholders, `NOW()`, `_migrations` version tracking |
+| `migrations.go` | Shared migration runner for both dialects |
 
 **Dialect helpers** (used by CRUD code for portable queries):
 
@@ -93,7 +94,7 @@ PostgreSQL migrations live in `schema/postgres/` (embedded via `//go:embed`). Ea
 | `tsvector` + GIN indexes | FTS5 | Full-text search |
 | `JSONB` | JSON text columns | Structured data |
 
-**Current PostgreSQL migration coverage**: `global_001.sql`-`global_010.sql`. Remaining: project migrations (`project_001.sql`-`project_058.sql`) still need porting.
+**Current PostgreSQL migration coverage**: `global_001.sql`-`global_010.sql`, `project_001.sql`-`project_020.sql`. Remaining: project migrations `project_021.sql`-`project_058.sql` still need porting.
 
 **Table ordering**: PostgreSQL validates FK references at DDL time, so migration files may reorder tables compared to SQLite versions. The SQLite migration runner disables FK enforcement during migrations, making order irrelevant there.
 
