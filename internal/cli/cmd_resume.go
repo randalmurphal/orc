@@ -238,6 +238,7 @@ Use --force to resume a task even if it appears to still be running.`,
 			we := executor.NewWorkflowExecutor(
 				backend,
 				pdb,
+				gdb,
 				cfg,
 				projectRoot,
 				execOpts...,

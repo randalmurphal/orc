@@ -148,18 +148,13 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		phaseID := args[0]
 
-		projectRoot, err := ResolveProjectPath()
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return err
+			return fmt.Errorf("open global database: %w", err)
 		}
+		defer func() { _ = gdb.Close() }()
 
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
-
-		t, err := pdb.GetPhaseTemplate(phaseID)
+		t, err := gdb.GetPhaseTemplate(phaseID)
 		if err != nil {
 			return fmt.Errorf("get phase template: %w", err)
 		}
@@ -234,19 +229,14 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		phaseID := args[0]
 
-		projectRoot, err := ResolveProjectPath()
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return err
+			return fmt.Errorf("open global database: %w", err)
 		}
-
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
+		defer func() { _ = gdb.Close() }()
 
 		// Check if template already exists
-		existing, err := pdb.GetPhaseTemplate(phaseID)
+		existing, err := gdb.GetPhaseTemplate(phaseID)
 		if err != nil {
 			return fmt.Errorf("check existing: %w", err)
 		}
@@ -262,7 +252,7 @@ Examples:
 
 		// Validate agent exists if specified
 		if agentID != "" {
-			agent, err := pdb.GetAgent(agentID)
+			agent, err := gdb.GetAgent(agentID)
 			if err != nil {
 				return fmt.Errorf("get agent: %w", err)
 			}
@@ -300,7 +290,7 @@ Examples:
 			IsBuiltin:        false,
 		}
 
-		if err := pdb.SavePhaseTemplate(tmpl); err != nil {
+		if err := gdb.SavePhaseTemplate(tmpl); err != nil {
 			return fmt.Errorf("save phase template: %w", err)
 		}
 
@@ -325,18 +315,13 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		phaseID := args[0]
 
-		projectRoot, err := ResolveProjectPath()
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return err
+			return fmt.Errorf("open global database: %w", err)
 		}
+		defer func() { _ = gdb.Close() }()
 
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
-
-		tmpl, err := pdb.GetPhaseTemplate(phaseID)
+		tmpl, err := gdb.GetPhaseTemplate(phaseID)
 		if err != nil {
 			return fmt.Errorf("get phase template: %w", err)
 		}
@@ -355,7 +340,7 @@ Examples:
 			agentID, _ := cmd.Flags().GetString("agent")
 			// Validate agent exists if specified
 			if agentID != "" {
-				agent, err := pdb.GetAgent(agentID)
+				agent, err := gdb.GetAgent(agentID)
 				if err != nil {
 					return fmt.Errorf("get agent: %w", err)
 				}
@@ -384,7 +369,7 @@ Examples:
 			return nil
 		}
 
-		if err := pdb.SavePhaseTemplate(tmpl); err != nil {
+		if err := gdb.SavePhaseTemplate(tmpl); err != nil {
 			return fmt.Errorf("save phase template: %w", err)
 		}
 

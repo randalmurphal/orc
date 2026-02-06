@@ -247,7 +247,7 @@ func TestPhaseLoop_ReviewImplementLoop(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowPublisher(mockPub),
 		WithWorkflowTurnExecutor(mock),
@@ -329,7 +329,7 @@ func TestPhaseLoop_MaxLoopsExceeded(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -386,7 +386,7 @@ func TestPhaseLoop_LegacyConditionCompat(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -598,7 +598,7 @@ func TestPhaseLoop_EventPublished(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowPublisher(mockPub),
 		WithWorkflowTurnExecutor(mock),
@@ -659,7 +659,7 @@ func TestPhaseLoop_NoEventOnMaxExceeded(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowPublisher(mockPub),
 		WithWorkflowTurnExecutor(mock),
@@ -709,7 +709,7 @@ func TestPhaseLoop_InvalidCondition(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -785,7 +785,7 @@ func TestPhaseLoop_InvalidTarget(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -862,7 +862,7 @@ func TestPhaseLoop_ForwardReference(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -939,7 +939,7 @@ func TestPhaseLoop_EmptyCondition(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -988,7 +988,7 @@ func TestPhaseLoop_MaxLoopsOne(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -1064,7 +1064,7 @@ func TestPhaseLoop_FinalPhaseLoop(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -1279,7 +1279,7 @@ func TestPhaseLoop_GateRetryUsesLowerLimit(t *testing.T) {
 	// Config has max_retries=2, loop_config has max_loops=5
 	// Gate retry should use min(5, 2) = 2
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{
 			Retry: config.RetryConfig{MaxRetries: 2},
 		}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),

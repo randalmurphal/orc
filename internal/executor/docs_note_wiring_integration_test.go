@@ -73,6 +73,7 @@ func TestDocsPhase_PersistsInitiativeNotes(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		testGlobalDBFrom(backend),
 		&config.Config{
 			Gates: config.GateConfig{AutoApproveOnSuccess: true},
 		},
@@ -169,6 +170,7 @@ func TestDocsPhase_NoInitiative_SkipsNotePersistence(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		testGlobalDBFrom(backend),
 		&config.Config{
 			Gates: config.GateConfig{AutoApproveOnSuccess: true},
 		},
@@ -236,6 +238,7 @@ func TestDocsPhase_EmptyNotes_NoError(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		testGlobalDBFrom(backend),
 		&config.Config{
 			Gates: config.GateConfig{AutoApproveOnSuccess: true},
 		},
@@ -307,6 +310,7 @@ func TestDocsPhase_NotesMissingFromOutput_NoError(t *testing.T) {
 	we := NewWorkflowExecutor(
 		backend,
 		backend.DB(),
+		testGlobalDBFrom(backend),
 		&config.Config{
 			Gates: config.GateConfig{AutoApproveOnSuccess: true},
 		},

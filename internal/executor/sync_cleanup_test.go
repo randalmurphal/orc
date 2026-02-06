@@ -166,6 +166,7 @@ func (env *syncCleanupTestEnv) runWithSyncFailure(t *testing.T, logger *slog.Log
 	we := NewWorkflowExecutor(
 		env.backend,
 		env.projectDB,
+		&db.GlobalDB{DB: env.projectDB.DB},
 		env.cfg,
 		env.repoDir,
 		WithWorkflowGitOps(env.gitOps),

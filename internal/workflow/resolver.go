@@ -541,6 +541,8 @@ func parsePhaseYAML(data []byte) (*PhaseTemplate, error) {
 		ArtifactType:     pt.ArtifactType,
 		GateType:         GateType(pt.GateType),
 		Checkpoint:       pt.Checkpoint,
+		OutputType:       pt.OutputType,
+		QualityChecks:    pt.QualityChecks,
 		RetryFromPhase:   pt.RetryFromPhase,
 		RetryPromptPath:  pt.RetryPromptPath,
 		ClaudeConfig:     pt.ClaudeConfig,
