@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/randalmurphal/orc/internal/db/driver"
 )
 
 // ErrBudgetNotFound is returned when no budget exists for a project.
@@ -377,30 +379,18 @@ func (g *GlobalDB) GetCostByModel(projectID string, since time.Time) (map[string
 	return result, nil
 }
 
-// strftimeFormat returns the SQLite strftime format for a given granularity.
-func strftimeFormat(granularity string) string {
-	switch granularity {
-	case "week":
-		return "%Y-W%W"
-	case "month":
-		return "%Y-%m"
-	default: // "day" or default
-		return "%Y-%m-%d"
-	}
-}
-
 // buildTimeseriesQuery builds the SQL query for cost timeseries aggregation.
+// The drv parameter provides dialect-specific date formatting.
 // The granularity parameter determines the date bucketing (day, week, month).
 // If withProject is true, a project_id filter placeholder is added.
-func buildTimeseriesQuery(granularity string, withProject bool) string {
-	dateFormat := strftimeFormat(granularity)
-	// Use the same dateFormat in both SELECT and GROUP BY for consistency
+func buildTimeseriesQuery(drv driver.Driver, granularity string, withProject bool) string {
+	dateExpr := drv.DateFormat("timestamp", granularity)
 	query := fmt.Sprintf(`
 		SELECT
 			COALESCE(project_id, '') as project_id,
 			COALESCE(model, '') as model,
 			'' as phase,
-			strftime('%s', timestamp) as date,
+			%s as date,
 			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
 			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
 			COALESCE(SUM(output_tokens), 0) as total_output_tokens,
@@ -408,11 +398,11 @@ func buildTimeseriesQuery(granularity string, withProject bool) string {
 			COUNT(*) as turn_count,
 			COUNT(DISTINCT task_id) as task_count
 		FROM cost_log
-		WHERE timestamp >= ?`, dateFormat)
+		WHERE timestamp >= ?`, dateExpr)
 	if withProject {
 		query += " AND project_id = ?"
 	}
-	query += fmt.Sprintf(" GROUP BY strftime('%s', timestamp), model ORDER BY date ASC", dateFormat)
+	query += fmt.Sprintf(" GROUP BY %s, model ORDER BY date ASC", dateExpr)
 	return query
 }
 
@@ -427,7 +417,7 @@ func (g *GlobalDB) GetCostTimeseries(projectID string, since time.Time, granular
 
 	// Build query using template function based on project filter
 	withProject := projectID != ""
-	query := buildTimeseriesQuery(granularity, withProject)
+	query := buildTimeseriesQuery(g.Driver(), granularity, withProject)
 
 	var args []any
 	if withProject {
@@ -564,19 +554,20 @@ func (g *GlobalDB) GetBudget(projectID string) (*CostBudget, error) {
 
 // SetBudget creates or updates the budget for a project.
 func (g *GlobalDB) SetBudget(budget CostBudget) error {
-	_, err := g.Exec(`
+	now := g.Driver().Now()
+	_, err := g.Exec(fmt.Sprintf(`
 		INSERT INTO cost_budgets (
 			project_id, monthly_limit_usd, alert_threshold_percent,
 			current_month, current_month_spent, updated_at
 		)
-		VALUES (?, ?, ?, ?, ?, datetime('now'))
+		VALUES (?, ?, ?, ?, ?, %s)
 		ON CONFLICT(project_id) DO UPDATE SET
 			monthly_limit_usd = excluded.monthly_limit_usd,
 			alert_threshold_percent = excluded.alert_threshold_percent,
 			current_month = excluded.current_month,
 			current_month_spent = excluded.current_month_spent,
-			updated_at = datetime('now')
-	`, budget.ProjectID, budget.MonthlyLimitUSD, budget.AlertThresholdPercent,
+			updated_at = %s
+	`, now, now), budget.ProjectID, budget.MonthlyLimitUSD, budget.AlertThresholdPercent,
 		budget.CurrentMonth, budget.CurrentMonthSpent)
 	if err != nil {
 		return fmt.Errorf("set budget: %w", err)
