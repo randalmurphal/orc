@@ -66,7 +66,7 @@ func (s *briefServer) RegenerateProjectBrief(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
 	}
 
-	b, err := s.generateBrief(ctx, backend)
+	b, err := s.generateBriefWithOptions(ctx, backend, true)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("regenerate brief: %w", err))
 	}
@@ -81,6 +81,10 @@ func (s *briefServer) RegenerateProjectBrief(
 }
 
 func (s *briefServer) generateBrief(ctx context.Context, backend storage.Backend) (*brief.Brief, error) {
+	return s.generateBriefWithOptions(ctx, backend, false)
+}
+
+func (s *briefServer) generateBriefWithOptions(ctx context.Context, backend storage.Backend, invalidateCache bool) (*brief.Brief, error) {
 	dbBackend, ok := backend.(*storage.DatabaseBackend)
 	if !ok {
 		return &brief.Brief{}, nil
@@ -88,6 +92,11 @@ func (s *briefServer) generateBrief(ctx context.Context, backend storage.Backend
 
 	cfg := brief.DefaultConfig()
 	gen := brief.NewGenerator(dbBackend, cfg)
+	if invalidateCache {
+		if err := gen.Invalidate(); err != nil {
+			return nil, fmt.Errorf("invalidate brief cache: %w", err)
+		}
+	}
 	return gen.Generate(ctx)
 }
 
