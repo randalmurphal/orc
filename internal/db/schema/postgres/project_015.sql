@@ -1,0 +1,8 @@
+-- Migration 015: Intentionally empty
+--
+-- The branches table was originally added here but was moved to project_013.sql
+-- to consolidate branch targeting schema changes. The project_013.sql version
+-- includes additional columns (base_branch, merged_at, merged_to, merge_commit_sha)
+-- needed for full branch lifecycle tracking.
+--
+-- This file is kept as a placeholder to maintain migration sequence integrity.

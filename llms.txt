@@ -71,7 +71,7 @@
 - api/CLAUDE.md - REST server
 - bootstrap/CLAUDE.md - Project init
 - cli/CLAUDE.md - Commands (199 lines)
-- db/CLAUDE.md - SQLite persistence
+- db/CLAUDE.md - Database persistence (SQLite + PostgreSQL)
 - executor/CLAUDE.md - Phase execution (270 lines)
 - initiative/CLAUDE.md - Task grouping
 - orchestrator/CLAUDE.md - High-level orchestration

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -120,4 +121,63 @@ func contains(s, substr []byte) bool {
 		}
 	}
 	return false
+}
+
+// TestEmbed_PostgresProjectFilesIncluded verifies all 20 PostgreSQL project migration files
+// are readable from the embedded filesystem.
+// Covers SC-7: Embed test confirms all 20 PostgreSQL project migration files are readable.
+func TestEmbed_PostgresProjectFilesIncluded(t *testing.T) {
+	entries, err := schemaFS.ReadDir("schema/postgres")
+	if err != nil {
+		t.Fatalf("failed to read schema/postgres from embedded FS: %v\n"+
+			"The embed directive in db.go must include 'schema/postgres/*.sql'", err)
+	}
+
+	foundFiles := make(map[string]bool)
+	for _, entry := range entries {
+		foundFiles[entry.Name()] = true
+	}
+
+	for i := 1; i <= 20; i++ {
+		file := fmt.Sprintf("project_%03d.sql", i)
+		if !foundFiles[file] {
+			t.Errorf("expected file %s not found in embedded schema/postgres/", file)
+		}
+	}
+}
+
+// TestEmbed_PostgresProjectFilesReadable verifies project migration content can be read.
+// Covers SC-7 (partial): Content is non-empty and readable.
+func TestEmbed_PostgresProjectFilesReadable(t *testing.T) {
+	// Spot-check first and last project migration files
+	for _, file := range []string{"project_001.sql", "project_020.sql"} {
+		content, err := schemaFS.ReadFile("schema/postgres/" + file)
+		if err != nil {
+			t.Errorf("failed to read schema/postgres/%s: %v", file, err)
+			continue
+		}
+
+		if len(content) == 0 {
+			t.Errorf("schema/postgres/%s is empty", file)
+		}
+	}
+}
+
+// TestEmbed_PostgresProjectContainsCreateTable verifies project migration 001 has CREATE TABLE.
+// Covers SC-7 (partial): Validates embedded content is valid SQL.
+func TestEmbed_PostgresProjectContainsCreateTable(t *testing.T) {
+	content, err := schemaFS.ReadFile("schema/postgres/project_001.sql")
+	if err != nil {
+		t.Fatalf("failed to read schema/postgres/project_001.sql: %v", err)
+	}
+
+	contentStr := string(content)
+
+	if !containsIgnoreCase(contentStr, "CREATE TABLE") {
+		t.Error("schema/postgres/project_001.sql should contain CREATE TABLE statement")
+	}
+
+	if !containsIgnoreCase(contentStr, "tasks") {
+		t.Error("schema/postgres/project_001.sql should create tasks table")
+	}
 }
