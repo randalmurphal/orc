@@ -101,6 +101,12 @@ import {
 	FeedbackType,
 	FeedbackTiming,
 } from '@/gen/orc/v1/feedback_pb';
+import {
+	ProjectStatusSchema,
+	TaskSummarySchema,
+	type ProjectStatus,
+	type TaskSummary,
+} from '@/gen/orc/v1/project_pb';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 
 /**
@@ -537,6 +543,35 @@ export function createMockFeedback(overrides: Partial<Omit<Feedback, '$typeName'
 		received: false,
 		sentAt: createTimestamp('2024-01-01T00:00:00Z'),
 		createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+	});
+	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock TaskSummary with proto-compatible types
+ */
+export function createMockTaskSummary(overrides: Partial<Omit<TaskSummary, '$typeName' | '$unknown'>> = {}): TaskSummary {
+	const base = create(TaskSummarySchema, {
+		id: 'TASK-001',
+		title: 'Test task',
+		status: TaskStatus.RUNNING,
+		claimedByName: '',
+		isStale: false,
+	});
+	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock ProjectStatus with proto-compatible types
+ */
+export function createMockProjectStatus(overrides: Partial<Omit<ProjectStatus, '$typeName' | '$unknown'>> = {}): ProjectStatus {
+	const base = create(ProjectStatusSchema, {
+		projectId: 'proj-001',
+		projectName: 'Test Project',
+		projectPath: '/home/user/test-project',
+		activeTasks: [],
+		totalTasks: 0,
+		completedToday: 0,
 	});
 	return Object.assign(base, overrides);
 }
