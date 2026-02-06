@@ -1,5 +1,3 @@
-//go:build tdd_pending
-
 package knowledge
 
 import (
@@ -203,4 +201,13 @@ func (m *mockIndexComponents) CacheClose() error {
 func (m *mockIndexComponents) IsHealthy() (neo4j, qdrant, redis bool) {
 	m.healthCheckCalled = true
 	return m.neo4jHealthy, m.qdrantHealthy, m.redisHealthy
+}
+
+func (m *mockIndexComponents) IndexProject(_ context.Context, root string, opts index.IndexOptions) (*index.IndexResult, error) {
+	m.lastRoot = root
+	m.lastOpts = opts
+	if m.indexErr != nil {
+		return nil, m.indexErr
+	}
+	return m.indexResult, nil
 }

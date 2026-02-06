@@ -1310,6 +1310,15 @@ type KnowledgeIndexingConfig struct {
 	// EmbeddingModel is the model for text embedding (default: "voyage-4")
 	// Valid values: voyage-4, voyage-4-large, voyage-4-nano
 	EmbeddingModel string `yaml:"embedding_model"`
+
+	// IncludePatterns overrides default file include globs for code indexing.
+	IncludePatterns []string `yaml:"include_patterns"`
+
+	// ExcludePatterns adds additional directory/file exclusion patterns for code indexing.
+	ExcludePatterns []string `yaml:"exclude_patterns"`
+
+	// AutoIndexOnComplete triggers re-indexing after task completion.
+	AutoIndexOnComplete bool `yaml:"auto_index_on_complete"`
 }
 
 // ValidEmbeddingModels are the allowed values for knowledge.indexing.embedding_model
