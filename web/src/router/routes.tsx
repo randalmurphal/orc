@@ -58,7 +58,7 @@ const Preferences = lazy(() => import('@/pages/Preferences').then(m => ({ defaul
  *
  * | Route | Params |
  * |-------|--------|
- * | / | redirects to /board |
+ * | / | My Work dashboard |
  * | /board | ?project, ?initiative, ?dependency_status |
  * | /initiatives | initiatives overview with stats and cards |
  * | /initiatives/:id | - |

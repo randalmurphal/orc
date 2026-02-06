@@ -136,10 +136,6 @@ describe('TaskRow', () => {
 
 	describe('edge cases', () => {
 		it('should not show user indicator when claimedByName is empty', () => {
-			renderTaskRow({
-				task: createMockTaskSummary({ claimedByName: '' }),
-			});
-
 			// No claimer text should appear
 			const { container } = renderTaskRow({
 				task: createMockTaskSummary({ claimedByName: '' }),
