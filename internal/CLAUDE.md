@@ -8,6 +8,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 |---------|----------------|-----------|
 | `api/` | Connect RPC server, WebSocket | `Server`, `*Server` (service impls) |
 | `automation/` | Trigger-based task automation | `Trigger`, `Service`, `Evaluator` |
+| `brief/` | Auto-generated project briefs from task history | `Generator`, `Brief`, `Cache` |
 | `bootstrap/` | Instant project initialization (<500ms) | `Run`, `Options`, `Result` |
 | `cli/` | Command-line interface (Cobra) | Commands |
 | `claude/` | Re-exports llmkit/claudeconfig types | `Settings`, `Skill` |
@@ -51,6 +52,7 @@ cmd/orc
         ├── api/
         │   ├── events/
         │   ├── executor/
+        │   │   ├── brief/
         │   │   ├── events/
         │   │   ├── gate/
         │   │   ├── git/
@@ -184,6 +186,7 @@ See package-specific CLAUDE.md files for detailed usage:
 |---------|-----------|
 | `api/` | Connect RPC services, WebSocket |
 | `automation/` | Trigger-based automation |
+| `brief/` | Auto-generated project briefs |
 | `bootstrap/` | Instant project initialization |
 | `cli/` | CLI commands |
 | `db/` | Database persistence (SQLite + PostgreSQL) |

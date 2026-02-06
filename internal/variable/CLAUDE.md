@@ -71,6 +71,7 @@ These are automatically populated from `ResolutionContext`:
 | Retry | `RETRY_ATTEMPT`, `RETRY_FROM_PHASE`, `RETRY_REASON` |
 | Git | `WORKTREE_PATH`, `PROJECT_ROOT`, `TASK_BRANCH`, `TARGET_BRANCH` |
 | Constitution | `CONSTITUTION_CONTENT` |
+| Project Brief | `PROJECT_BRIEF` (auto-generated from task history, see `brief/`) |
 | Initiative | `INITIATIVE_ID`, `INITIATIVE_TITLE`, `INITIATIVE_VISION`, `INITIATIVE_DECISIONS`, `INITIATIVE_NOTES`, `INITIATIVE_CONTEXT`, `INITIATIVE_TASKS` |
 | Review | `REVIEW_ROUND`, `REVIEW_FINDINGS` |
 | Project Detection | `LANGUAGE`, `HAS_FRONTEND`, `HAS_TESTS`, `TEST_COMMAND`, `LINT_COMMAND`, `BUILD_COMMAND`, `FRAMEWORKS`, `ERROR_PATTERNS` |
