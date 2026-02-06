@@ -162,6 +162,9 @@ type Config struct {
 	// Hosting provider configuration (GitHub, GitLab, auto-detect)
 	Hosting HostingConfig `yaml:"hosting"`
 
+	// Knowledge layer configuration
+	Knowledge KnowledgeConfig `yaml:"knowledge"`
+
 	// Jira Cloud import configuration
 	Jira JiraConfig `yaml:"jira"`
 
@@ -957,6 +960,13 @@ func (c *Config) Validate() error {
 	// Validate finalize configuration
 	if err := c.validateFinalize(); err != nil {
 		return err
+	}
+
+	// Validate knowledge configuration
+	if c.Knowledge.Indexing.EmbeddingModel != "" &&
+		!contains(ValidEmbeddingModels, c.Knowledge.Indexing.EmbeddingModel) {
+		return fmt.Errorf("invalid knowledge.indexing.embedding_model: %s (must be one of: %s)",
+			c.Knowledge.Indexing.EmbeddingModel, strings.Join(ValidEmbeddingModels, ", "))
 	}
 
 	return nil

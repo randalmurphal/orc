@@ -134,6 +134,7 @@ func init() {
 	addCmd(newImportCmd(), groupImportExport)
 
 	// Team & Advanced
+	addCmd(newKnowledgeCmd(), groupAdvanced)
 	addCmd(newTeamCmd(), groupAdvanced)
 	addCmd(newPoolCmd(), groupAdvanced)
 	addCmd(newAutomationCmd(), groupAdvanced)

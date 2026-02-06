@@ -339,6 +339,182 @@ func (x *TaskRef) GetDependsOn() []string {
 	return nil
 }
 
+type Criterion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"` // uncovered, covered, satisfied, regressed
+	TaskIds       []string               `protobuf:"bytes,4,rep,name=task_ids,json=taskIds,proto3" json:"task_ids,omitempty"`
+	VerifiedAt    string                 `protobuf:"bytes,5,opt,name=verified_at,json=verifiedAt,proto3" json:"verified_at,omitempty"`
+	VerifiedBy    string                 `protobuf:"bytes,6,opt,name=verified_by,json=verifiedBy,proto3" json:"verified_by,omitempty"`
+	Evidence      string                 `protobuf:"bytes,7,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Criterion) Reset() {
+	*x = Criterion{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Criterion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Criterion) ProtoMessage() {}
+
+func (x *Criterion) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Criterion.ProtoReflect.Descriptor instead.
+func (*Criterion) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Criterion) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Criterion) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *Criterion) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Criterion) GetTaskIds() []string {
+	if x != nil {
+		return x.TaskIds
+	}
+	return nil
+}
+
+func (x *Criterion) GetVerifiedAt() string {
+	if x != nil {
+		return x.VerifiedAt
+	}
+	return ""
+}
+
+func (x *Criterion) GetVerifiedBy() string {
+	if x != nil {
+		return x.VerifiedBy
+	}
+	return ""
+}
+
+func (x *Criterion) GetEvidence() string {
+	if x != nil {
+		return x.Evidence
+	}
+	return ""
+}
+
+type CoverageReport struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Total         int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Uncovered     int32                  `protobuf:"varint,2,opt,name=uncovered,proto3" json:"uncovered,omitempty"`
+	Covered       int32                  `protobuf:"varint,3,opt,name=covered,proto3" json:"covered,omitempty"`
+	Satisfied     int32                  `protobuf:"varint,4,opt,name=satisfied,proto3" json:"satisfied,omitempty"`
+	Regressed     int32                  `protobuf:"varint,5,opt,name=regressed,proto3" json:"regressed,omitempty"`
+	Criteria      []*Criterion           `protobuf:"bytes,6,rep,name=criteria,proto3" json:"criteria,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CoverageReport) Reset() {
+	*x = CoverageReport{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CoverageReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CoverageReport) ProtoMessage() {}
+
+func (x *CoverageReport) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CoverageReport.ProtoReflect.Descriptor instead.
+func (*CoverageReport) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CoverageReport) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *CoverageReport) GetUncovered() int32 {
+	if x != nil {
+		return x.Uncovered
+	}
+	return 0
+}
+
+func (x *CoverageReport) GetCovered() int32 {
+	if x != nil {
+		return x.Covered
+	}
+	return 0
+}
+
+func (x *CoverageReport) GetSatisfied() int32 {
+	if x != nil {
+		return x.Satisfied
+	}
+	return 0
+}
+
+func (x *CoverageReport) GetRegressed() int32 {
+	if x != nil {
+		return x.Regressed
+	}
+	return 0
+}
+
+func (x *CoverageReport) GetCriteria() []*Criterion {
+	if x != nil {
+		return x.Criteria
+	}
+	return nil
+}
+
 type Initiative struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Version       int32                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
@@ -357,6 +533,7 @@ type Initiative struct {
 	MergeCommit   *string                `protobuf:"bytes,14,opt,name=merge_commit,json=mergeCommit,proto3,oneof" json:"merge_commit,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Criteria      []*Criterion           `protobuf:"bytes,17,rep,name=criteria,proto3" json:"criteria,omitempty"`
 	Blocks        []string               `protobuf:"bytes,100,rep,name=blocks,proto3" json:"blocks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -364,7 +541,7 @@ type Initiative struct {
 
 func (x *Initiative) Reset() {
 	*x = Initiative{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[3]
+	mi := &file_orc_v1_initiative_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -376,7 +553,7 @@ func (x *Initiative) String() string {
 func (*Initiative) ProtoMessage() {}
 
 func (x *Initiative) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[3]
+	mi := &file_orc_v1_initiative_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -389,7 +566,7 @@ func (x *Initiative) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Initiative.ProtoReflect.Descriptor instead.
 func (*Initiative) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{3}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Initiative) GetVersion() int32 {
@@ -504,6 +681,13 @@ func (x *Initiative) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Initiative) GetCriteria() []*Criterion {
+	if x != nil {
+		return x.Criteria
+	}
+	return nil
+}
+
 func (x *Initiative) GetBlocks() []string {
 	if x != nil {
 		return x.Blocks
@@ -522,7 +706,7 @@ type InitiativeProgress struct {
 
 func (x *InitiativeProgress) Reset() {
 	*x = InitiativeProgress{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[4]
+	mi := &file_orc_v1_initiative_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +718,7 @@ func (x *InitiativeProgress) String() string {
 func (*InitiativeProgress) ProtoMessage() {}
 
 func (x *InitiativeProgress) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[4]
+	mi := &file_orc_v1_initiative_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +731,7 @@ func (x *InitiativeProgress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InitiativeProgress.ProtoReflect.Descriptor instead.
 func (*InitiativeProgress) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{4}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *InitiativeProgress) GetId() string {
@@ -592,7 +776,7 @@ type InitiativeNote struct {
 
 func (x *InitiativeNote) Reset() {
 	*x = InitiativeNote{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[5]
+	mi := &file_orc_v1_initiative_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -604,7 +788,7 @@ func (x *InitiativeNote) String() string {
 func (*InitiativeNote) ProtoMessage() {}
 
 func (x *InitiativeNote) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[5]
+	mi := &file_orc_v1_initiative_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -617,7 +801,7 @@ func (x *InitiativeNote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InitiativeNote.ProtoReflect.Descriptor instead.
 func (*InitiativeNote) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{5}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *InitiativeNote) GetId() string {
@@ -709,7 +893,7 @@ type ListInitiativesRequest struct {
 
 func (x *ListInitiativesRequest) Reset() {
 	*x = ListInitiativesRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[6]
+	mi := &file_orc_v1_initiative_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -721,7 +905,7 @@ func (x *ListInitiativesRequest) String() string {
 func (*ListInitiativesRequest) ProtoMessage() {}
 
 func (x *ListInitiativesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[6]
+	mi := &file_orc_v1_initiative_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -734,7 +918,7 @@ func (x *ListInitiativesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInitiativesRequest.ProtoReflect.Descriptor instead.
 func (*ListInitiativesRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{6}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListInitiativesRequest) GetProjectId() string {
@@ -775,7 +959,7 @@ type ListInitiativesResponse struct {
 
 func (x *ListInitiativesResponse) Reset() {
 	*x = ListInitiativesResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[7]
+	mi := &file_orc_v1_initiative_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -787,7 +971,7 @@ func (x *ListInitiativesResponse) String() string {
 func (*ListInitiativesResponse) ProtoMessage() {}
 
 func (x *ListInitiativesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[7]
+	mi := &file_orc_v1_initiative_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -800,7 +984,7 @@ func (x *ListInitiativesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInitiativesResponse.ProtoReflect.Descriptor instead.
 func (*ListInitiativesResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{7}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListInitiativesResponse) GetInitiatives() []*Initiative {
@@ -827,7 +1011,7 @@ type GetInitiativeRequest struct {
 
 func (x *GetInitiativeRequest) Reset() {
 	*x = GetInitiativeRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[8]
+	mi := &file_orc_v1_initiative_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -839,7 +1023,7 @@ func (x *GetInitiativeRequest) String() string {
 func (*GetInitiativeRequest) ProtoMessage() {}
 
 func (x *GetInitiativeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[8]
+	mi := &file_orc_v1_initiative_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -852,7 +1036,7 @@ func (x *GetInitiativeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInitiativeRequest.ProtoReflect.Descriptor instead.
 func (*GetInitiativeRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{8}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetInitiativeRequest) GetProjectId() string {
@@ -878,7 +1062,7 @@ type GetInitiativeResponse struct {
 
 func (x *GetInitiativeResponse) Reset() {
 	*x = GetInitiativeResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[9]
+	mi := &file_orc_v1_initiative_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -890,7 +1074,7 @@ func (x *GetInitiativeResponse) String() string {
 func (*GetInitiativeResponse) ProtoMessage() {}
 
 func (x *GetInitiativeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[9]
+	mi := &file_orc_v1_initiative_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -903,7 +1087,7 @@ func (x *GetInitiativeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInitiativeResponse.ProtoReflect.Descriptor instead.
 func (*GetInitiativeResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{9}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetInitiativeResponse) GetInitiative() *Initiative {
@@ -929,7 +1113,7 @@ type CreateInitiativeRequest struct {
 
 func (x *CreateInitiativeRequest) Reset() {
 	*x = CreateInitiativeRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[10]
+	mi := &file_orc_v1_initiative_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -941,7 +1125,7 @@ func (x *CreateInitiativeRequest) String() string {
 func (*CreateInitiativeRequest) ProtoMessage() {}
 
 func (x *CreateInitiativeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[10]
+	mi := &file_orc_v1_initiative_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -954,7 +1138,7 @@ func (x *CreateInitiativeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInitiativeRequest.ProtoReflect.Descriptor instead.
 func (*CreateInitiativeRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{10}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CreateInitiativeRequest) GetProjectId() string {
@@ -1022,7 +1206,7 @@ type CreateInitiativeResponse struct {
 
 func (x *CreateInitiativeResponse) Reset() {
 	*x = CreateInitiativeResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[11]
+	mi := &file_orc_v1_initiative_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1034,7 +1218,7 @@ func (x *CreateInitiativeResponse) String() string {
 func (*CreateInitiativeResponse) ProtoMessage() {}
 
 func (x *CreateInitiativeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[11]
+	mi := &file_orc_v1_initiative_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1047,7 +1231,7 @@ func (x *CreateInitiativeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInitiativeResponse.ProtoReflect.Descriptor instead.
 func (*CreateInitiativeResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{11}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CreateInitiativeResponse) GetInitiative() *Initiative {
@@ -1075,7 +1259,7 @@ type UpdateInitiativeRequest struct {
 
 func (x *UpdateInitiativeRequest) Reset() {
 	*x = UpdateInitiativeRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[12]
+	mi := &file_orc_v1_initiative_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1087,7 +1271,7 @@ func (x *UpdateInitiativeRequest) String() string {
 func (*UpdateInitiativeRequest) ProtoMessage() {}
 
 func (x *UpdateInitiativeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[12]
+	mi := &file_orc_v1_initiative_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1100,7 +1284,7 @@ func (x *UpdateInitiativeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateInitiativeRequest.ProtoReflect.Descriptor instead.
 func (*UpdateInitiativeRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{12}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *UpdateInitiativeRequest) GetProjectId() string {
@@ -1182,7 +1366,7 @@ type UpdateInitiativeResponse struct {
 
 func (x *UpdateInitiativeResponse) Reset() {
 	*x = UpdateInitiativeResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[13]
+	mi := &file_orc_v1_initiative_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1194,7 +1378,7 @@ func (x *UpdateInitiativeResponse) String() string {
 func (*UpdateInitiativeResponse) ProtoMessage() {}
 
 func (x *UpdateInitiativeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[13]
+	mi := &file_orc_v1_initiative_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1207,7 +1391,7 @@ func (x *UpdateInitiativeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateInitiativeResponse.ProtoReflect.Descriptor instead.
 func (*UpdateInitiativeResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{13}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UpdateInitiativeResponse) GetInitiative() *Initiative {
@@ -1227,7 +1411,7 @@ type DeleteInitiativeRequest struct {
 
 func (x *DeleteInitiativeRequest) Reset() {
 	*x = DeleteInitiativeRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[14]
+	mi := &file_orc_v1_initiative_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1239,7 +1423,7 @@ func (x *DeleteInitiativeRequest) String() string {
 func (*DeleteInitiativeRequest) ProtoMessage() {}
 
 func (x *DeleteInitiativeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[14]
+	mi := &file_orc_v1_initiative_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1252,7 +1436,7 @@ func (x *DeleteInitiativeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteInitiativeRequest.ProtoReflect.Descriptor instead.
 func (*DeleteInitiativeRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{14}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DeleteInitiativeRequest) GetProjectId() string {
@@ -1278,7 +1462,7 @@ type DeleteInitiativeResponse struct {
 
 func (x *DeleteInitiativeResponse) Reset() {
 	*x = DeleteInitiativeResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[15]
+	mi := &file_orc_v1_initiative_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1290,7 +1474,7 @@ func (x *DeleteInitiativeResponse) String() string {
 func (*DeleteInitiativeResponse) ProtoMessage() {}
 
 func (x *DeleteInitiativeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[15]
+	mi := &file_orc_v1_initiative_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1303,7 +1487,7 @@ func (x *DeleteInitiativeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteInitiativeResponse.ProtoReflect.Descriptor instead.
 func (*DeleteInitiativeResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{15}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DeleteInitiativeResponse) GetMessage() string {
@@ -1323,7 +1507,7 @@ type ListInitiativeTasksRequest struct {
 
 func (x *ListInitiativeTasksRequest) Reset() {
 	*x = ListInitiativeTasksRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[16]
+	mi := &file_orc_v1_initiative_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1335,7 +1519,7 @@ func (x *ListInitiativeTasksRequest) String() string {
 func (*ListInitiativeTasksRequest) ProtoMessage() {}
 
 func (x *ListInitiativeTasksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[16]
+	mi := &file_orc_v1_initiative_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1348,7 +1532,7 @@ func (x *ListInitiativeTasksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInitiativeTasksRequest.ProtoReflect.Descriptor instead.
 func (*ListInitiativeTasksRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{16}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListInitiativeTasksRequest) GetProjectId() string {
@@ -1374,7 +1558,7 @@ type ListInitiativeTasksResponse struct {
 
 func (x *ListInitiativeTasksResponse) Reset() {
 	*x = ListInitiativeTasksResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[17]
+	mi := &file_orc_v1_initiative_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1386,7 +1570,7 @@ func (x *ListInitiativeTasksResponse) String() string {
 func (*ListInitiativeTasksResponse) ProtoMessage() {}
 
 func (x *ListInitiativeTasksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[17]
+	mi := &file_orc_v1_initiative_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1399,7 +1583,7 @@ func (x *ListInitiativeTasksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInitiativeTasksResponse.ProtoReflect.Descriptor instead.
 func (*ListInitiativeTasksResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{17}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListInitiativeTasksResponse) GetTasks() []*Task {
@@ -1420,7 +1604,7 @@ type LinkTasksRequest struct {
 
 func (x *LinkTasksRequest) Reset() {
 	*x = LinkTasksRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[18]
+	mi := &file_orc_v1_initiative_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1432,7 +1616,7 @@ func (x *LinkTasksRequest) String() string {
 func (*LinkTasksRequest) ProtoMessage() {}
 
 func (x *LinkTasksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[18]
+	mi := &file_orc_v1_initiative_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1445,7 +1629,7 @@ func (x *LinkTasksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkTasksRequest.ProtoReflect.Descriptor instead.
 func (*LinkTasksRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{18}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *LinkTasksRequest) GetProjectId() string {
@@ -1478,7 +1662,7 @@ type LinkTasksResponse struct {
 
 func (x *LinkTasksResponse) Reset() {
 	*x = LinkTasksResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[19]
+	mi := &file_orc_v1_initiative_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1490,7 +1674,7 @@ func (x *LinkTasksResponse) String() string {
 func (*LinkTasksResponse) ProtoMessage() {}
 
 func (x *LinkTasksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[19]
+	mi := &file_orc_v1_initiative_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1503,7 +1687,7 @@ func (x *LinkTasksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkTasksResponse.ProtoReflect.Descriptor instead.
 func (*LinkTasksResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{19}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *LinkTasksResponse) GetInitiative() *Initiative {
@@ -1524,7 +1708,7 @@ type UnlinkTaskRequest struct {
 
 func (x *UnlinkTaskRequest) Reset() {
 	*x = UnlinkTaskRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[20]
+	mi := &file_orc_v1_initiative_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1536,7 +1720,7 @@ func (x *UnlinkTaskRequest) String() string {
 func (*UnlinkTaskRequest) ProtoMessage() {}
 
 func (x *UnlinkTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[20]
+	mi := &file_orc_v1_initiative_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1549,7 +1733,7 @@ func (x *UnlinkTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlinkTaskRequest.ProtoReflect.Descriptor instead.
 func (*UnlinkTaskRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{20}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *UnlinkTaskRequest) GetProjectId() string {
@@ -1582,7 +1766,7 @@ type UnlinkTaskResponse struct {
 
 func (x *UnlinkTaskResponse) Reset() {
 	*x = UnlinkTaskResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[21]
+	mi := &file_orc_v1_initiative_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1594,7 +1778,7 @@ func (x *UnlinkTaskResponse) String() string {
 func (*UnlinkTaskResponse) ProtoMessage() {}
 
 func (x *UnlinkTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[21]
+	mi := &file_orc_v1_initiative_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1607,7 +1791,7 @@ func (x *UnlinkTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlinkTaskResponse.ProtoReflect.Descriptor instead.
 func (*UnlinkTaskResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{21}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *UnlinkTaskResponse) GetInitiative() *Initiative {
@@ -1630,7 +1814,7 @@ type AddDecisionRequest struct {
 
 func (x *AddDecisionRequest) Reset() {
 	*x = AddDecisionRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[22]
+	mi := &file_orc_v1_initiative_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1642,7 +1826,7 @@ func (x *AddDecisionRequest) String() string {
 func (*AddDecisionRequest) ProtoMessage() {}
 
 func (x *AddDecisionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[22]
+	mi := &file_orc_v1_initiative_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1655,7 +1839,7 @@ func (x *AddDecisionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddDecisionRequest.ProtoReflect.Descriptor instead.
 func (*AddDecisionRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{22}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *AddDecisionRequest) GetProjectId() string {
@@ -1702,7 +1886,7 @@ type AddDecisionResponse struct {
 
 func (x *AddDecisionResponse) Reset() {
 	*x = AddDecisionResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[23]
+	mi := &file_orc_v1_initiative_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1714,7 +1898,7 @@ func (x *AddDecisionResponse) String() string {
 func (*AddDecisionResponse) ProtoMessage() {}
 
 func (x *AddDecisionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[23]
+	mi := &file_orc_v1_initiative_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1727,7 +1911,7 @@ func (x *AddDecisionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddDecisionResponse.ProtoReflect.Descriptor instead.
 func (*AddDecisionResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{23}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *AddDecisionResponse) GetInitiative() *Initiative {
@@ -1747,7 +1931,7 @@ type GetReadyTasksRequest struct {
 
 func (x *GetReadyTasksRequest) Reset() {
 	*x = GetReadyTasksRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[24]
+	mi := &file_orc_v1_initiative_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1759,7 +1943,7 @@ func (x *GetReadyTasksRequest) String() string {
 func (*GetReadyTasksRequest) ProtoMessage() {}
 
 func (x *GetReadyTasksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[24]
+	mi := &file_orc_v1_initiative_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1772,7 +1956,7 @@ func (x *GetReadyTasksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReadyTasksRequest.ProtoReflect.Descriptor instead.
 func (*GetReadyTasksRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{24}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetReadyTasksRequest) GetProjectId() string {
@@ -1798,7 +1982,7 @@ type GetReadyTasksResponse struct {
 
 func (x *GetReadyTasksResponse) Reset() {
 	*x = GetReadyTasksResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[25]
+	mi := &file_orc_v1_initiative_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1810,7 +1994,7 @@ func (x *GetReadyTasksResponse) String() string {
 func (*GetReadyTasksResponse) ProtoMessage() {}
 
 func (x *GetReadyTasksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[25]
+	mi := &file_orc_v1_initiative_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1823,7 +2007,7 @@ func (x *GetReadyTasksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReadyTasksResponse.ProtoReflect.Descriptor instead.
 func (*GetReadyTasksResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{25}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetReadyTasksResponse) GetTasks() []*Task {
@@ -1843,7 +2027,7 @@ type GetDependencyGraphRequest struct {
 
 func (x *GetDependencyGraphRequest) Reset() {
 	*x = GetDependencyGraphRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[26]
+	mi := &file_orc_v1_initiative_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1855,7 +2039,7 @@ func (x *GetDependencyGraphRequest) String() string {
 func (*GetDependencyGraphRequest) ProtoMessage() {}
 
 func (x *GetDependencyGraphRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[26]
+	mi := &file_orc_v1_initiative_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1868,7 +2052,7 @@ func (x *GetDependencyGraphRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDependencyGraphRequest.ProtoReflect.Descriptor instead.
 func (*GetDependencyGraphRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{26}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetDependencyGraphRequest) GetProjectId() string {
@@ -1894,7 +2078,7 @@ type GetDependencyGraphResponse struct {
 
 func (x *GetDependencyGraphResponse) Reset() {
 	*x = GetDependencyGraphResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[27]
+	mi := &file_orc_v1_initiative_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1906,7 +2090,7 @@ func (x *GetDependencyGraphResponse) String() string {
 func (*GetDependencyGraphResponse) ProtoMessage() {}
 
 func (x *GetDependencyGraphResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[27]
+	mi := &file_orc_v1_initiative_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1919,7 +2103,7 @@ func (x *GetDependencyGraphResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDependencyGraphResponse.ProtoReflect.Descriptor instead.
 func (*GetDependencyGraphResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{27}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetDependencyGraphResponse) GetGraph() *DependencyGraph {
@@ -1941,7 +2125,7 @@ type RunInitiativeRequest struct {
 
 func (x *RunInitiativeRequest) Reset() {
 	*x = RunInitiativeRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[28]
+	mi := &file_orc_v1_initiative_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1953,7 +2137,7 @@ func (x *RunInitiativeRequest) String() string {
 func (*RunInitiativeRequest) ProtoMessage() {}
 
 func (x *RunInitiativeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[28]
+	mi := &file_orc_v1_initiative_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1966,7 +2150,7 @@ func (x *RunInitiativeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunInitiativeRequest.ProtoReflect.Descriptor instead.
 func (*RunInitiativeRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{28}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RunInitiativeRequest) GetProjectId() string {
@@ -2008,7 +2192,7 @@ type RunInitiativeResponse struct {
 
 func (x *RunInitiativeResponse) Reset() {
 	*x = RunInitiativeResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[29]
+	mi := &file_orc_v1_initiative_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2020,7 +2204,7 @@ func (x *RunInitiativeResponse) String() string {
 func (*RunInitiativeResponse) ProtoMessage() {}
 
 func (x *RunInitiativeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[29]
+	mi := &file_orc_v1_initiative_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2033,7 +2217,7 @@ func (x *RunInitiativeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunInitiativeResponse.ProtoReflect.Descriptor instead.
 func (*RunInitiativeResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{29}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *RunInitiativeResponse) GetInitiative() *Initiative {
@@ -2069,7 +2253,7 @@ type ListInitiativeNotesRequest struct {
 
 func (x *ListInitiativeNotesRequest) Reset() {
 	*x = ListInitiativeNotesRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[30]
+	mi := &file_orc_v1_initiative_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2081,7 +2265,7 @@ func (x *ListInitiativeNotesRequest) String() string {
 func (*ListInitiativeNotesRequest) ProtoMessage() {}
 
 func (x *ListInitiativeNotesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[30]
+	mi := &file_orc_v1_initiative_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2094,7 +2278,7 @@ func (x *ListInitiativeNotesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInitiativeNotesRequest.ProtoReflect.Descriptor instead.
 func (*ListInitiativeNotesRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{30}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ListInitiativeNotesRequest) GetProjectId() string {
@@ -2127,7 +2311,7 @@ type ListInitiativeNotesResponse struct {
 
 func (x *ListInitiativeNotesResponse) Reset() {
 	*x = ListInitiativeNotesResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[31]
+	mi := &file_orc_v1_initiative_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2139,7 +2323,7 @@ func (x *ListInitiativeNotesResponse) String() string {
 func (*ListInitiativeNotesResponse) ProtoMessage() {}
 
 func (x *ListInitiativeNotesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[31]
+	mi := &file_orc_v1_initiative_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2152,7 +2336,7 @@ func (x *ListInitiativeNotesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInitiativeNotesResponse.ProtoReflect.Descriptor instead.
 func (*ListInitiativeNotesResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{31}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ListInitiativeNotesResponse) GetNotes() []*InitiativeNote {
@@ -2172,7 +2356,7 @@ type ListTaskGeneratedNotesRequest struct {
 
 func (x *ListTaskGeneratedNotesRequest) Reset() {
 	*x = ListTaskGeneratedNotesRequest{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[32]
+	mi := &file_orc_v1_initiative_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2184,7 +2368,7 @@ func (x *ListTaskGeneratedNotesRequest) String() string {
 func (*ListTaskGeneratedNotesRequest) ProtoMessage() {}
 
 func (x *ListTaskGeneratedNotesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[32]
+	mi := &file_orc_v1_initiative_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2197,7 +2381,7 @@ func (x *ListTaskGeneratedNotesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskGeneratedNotesRequest.ProtoReflect.Descriptor instead.
 func (*ListTaskGeneratedNotesRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{32}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ListTaskGeneratedNotesRequest) GetProjectId() string {
@@ -2223,7 +2407,7 @@ type ListTaskGeneratedNotesResponse struct {
 
 func (x *ListTaskGeneratedNotesResponse) Reset() {
 	*x = ListTaskGeneratedNotesResponse{}
-	mi := &file_orc_v1_initiative_proto_msgTypes[33]
+	mi := &file_orc_v1_initiative_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2235,7 +2419,7 @@ func (x *ListTaskGeneratedNotesResponse) String() string {
 func (*ListTaskGeneratedNotesResponse) ProtoMessage() {}
 
 func (x *ListTaskGeneratedNotesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_initiative_proto_msgTypes[33]
+	mi := &file_orc_v1_initiative_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2248,12 +2432,549 @@ func (x *ListTaskGeneratedNotesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskGeneratedNotesResponse.ProtoReflect.Descriptor instead.
 func (*ListTaskGeneratedNotesResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{33}
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ListTaskGeneratedNotesResponse) GetNotes() []*InitiativeNote {
 	if x != nil {
 		return x.Notes
+	}
+	return nil
+}
+
+// Initiative Criteria - Request/Response messages
+type AddCriterionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddCriterionRequest) Reset() {
+	*x = AddCriterionRequest{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddCriterionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddCriterionRequest) ProtoMessage() {}
+
+func (x *AddCriterionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddCriterionRequest.ProtoReflect.Descriptor instead.
+func (*AddCriterionRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *AddCriterionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *AddCriterionRequest) GetInitiativeId() string {
+	if x != nil {
+		return x.InitiativeId
+	}
+	return ""
+}
+
+func (x *AddCriterionRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type AddCriterionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Initiative    *Initiative            `protobuf:"bytes,1,opt,name=initiative,proto3" json:"initiative,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddCriterionResponse) Reset() {
+	*x = AddCriterionResponse{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddCriterionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddCriterionResponse) ProtoMessage() {}
+
+func (x *AddCriterionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddCriterionResponse.ProtoReflect.Descriptor instead.
+func (*AddCriterionResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *AddCriterionResponse) GetInitiative() *Initiative {
+	if x != nil {
+		return x.Initiative
+	}
+	return nil
+}
+
+type RemoveCriterionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	CriterionId   string                 `protobuf:"bytes,3,opt,name=criterion_id,json=criterionId,proto3" json:"criterion_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveCriterionRequest) Reset() {
+	*x = RemoveCriterionRequest{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveCriterionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveCriterionRequest) ProtoMessage() {}
+
+func (x *RemoveCriterionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveCriterionRequest.ProtoReflect.Descriptor instead.
+func (*RemoveCriterionRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *RemoveCriterionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *RemoveCriterionRequest) GetInitiativeId() string {
+	if x != nil {
+		return x.InitiativeId
+	}
+	return ""
+}
+
+func (x *RemoveCriterionRequest) GetCriterionId() string {
+	if x != nil {
+		return x.CriterionId
+	}
+	return ""
+}
+
+type RemoveCriterionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Initiative    *Initiative            `protobuf:"bytes,1,opt,name=initiative,proto3" json:"initiative,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveCriterionResponse) Reset() {
+	*x = RemoveCriterionResponse{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveCriterionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveCriterionResponse) ProtoMessage() {}
+
+func (x *RemoveCriterionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveCriterionResponse.ProtoReflect.Descriptor instead.
+func (*RemoveCriterionResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *RemoveCriterionResponse) GetInitiative() *Initiative {
+	if x != nil {
+		return x.Initiative
+	}
+	return nil
+}
+
+type MapCriterionToTaskRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	CriterionId   string                 `protobuf:"bytes,3,opt,name=criterion_id,json=criterionId,proto3" json:"criterion_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MapCriterionToTaskRequest) Reset() {
+	*x = MapCriterionToTaskRequest{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MapCriterionToTaskRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MapCriterionToTaskRequest) ProtoMessage() {}
+
+func (x *MapCriterionToTaskRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MapCriterionToTaskRequest.ProtoReflect.Descriptor instead.
+func (*MapCriterionToTaskRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *MapCriterionToTaskRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *MapCriterionToTaskRequest) GetInitiativeId() string {
+	if x != nil {
+		return x.InitiativeId
+	}
+	return ""
+}
+
+func (x *MapCriterionToTaskRequest) GetCriterionId() string {
+	if x != nil {
+		return x.CriterionId
+	}
+	return ""
+}
+
+func (x *MapCriterionToTaskRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+type MapCriterionToTaskResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Initiative    *Initiative            `protobuf:"bytes,1,opt,name=initiative,proto3" json:"initiative,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MapCriterionToTaskResponse) Reset() {
+	*x = MapCriterionToTaskResponse{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MapCriterionToTaskResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MapCriterionToTaskResponse) ProtoMessage() {}
+
+func (x *MapCriterionToTaskResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MapCriterionToTaskResponse.ProtoReflect.Descriptor instead.
+func (*MapCriterionToTaskResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *MapCriterionToTaskResponse) GetInitiative() *Initiative {
+	if x != nil {
+		return x.Initiative
+	}
+	return nil
+}
+
+type VerifyCriterionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	CriterionId   string                 `protobuf:"bytes,3,opt,name=criterion_id,json=criterionId,proto3" json:"criterion_id,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Evidence      string                 `protobuf:"bytes,5,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyCriterionRequest) Reset() {
+	*x = VerifyCriterionRequest{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyCriterionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyCriterionRequest) ProtoMessage() {}
+
+func (x *VerifyCriterionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyCriterionRequest.ProtoReflect.Descriptor instead.
+func (*VerifyCriterionRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *VerifyCriterionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *VerifyCriterionRequest) GetInitiativeId() string {
+	if x != nil {
+		return x.InitiativeId
+	}
+	return ""
+}
+
+func (x *VerifyCriterionRequest) GetCriterionId() string {
+	if x != nil {
+		return x.CriterionId
+	}
+	return ""
+}
+
+func (x *VerifyCriterionRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *VerifyCriterionRequest) GetEvidence() string {
+	if x != nil {
+		return x.Evidence
+	}
+	return ""
+}
+
+type VerifyCriterionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Initiative    *Initiative            `protobuf:"bytes,1,opt,name=initiative,proto3" json:"initiative,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyCriterionResponse) Reset() {
+	*x = VerifyCriterionResponse{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyCriterionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyCriterionResponse) ProtoMessage() {}
+
+func (x *VerifyCriterionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyCriterionResponse.ProtoReflect.Descriptor instead.
+func (*VerifyCriterionResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *VerifyCriterionResponse) GetInitiative() *Initiative {
+	if x != nil {
+		return x.Initiative
+	}
+	return nil
+}
+
+type GetCoverageReportRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCoverageReportRequest) Reset() {
+	*x = GetCoverageReportRequest{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCoverageReportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCoverageReportRequest) ProtoMessage() {}
+
+func (x *GetCoverageReportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCoverageReportRequest.ProtoReflect.Descriptor instead.
+func (*GetCoverageReportRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *GetCoverageReportRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *GetCoverageReportRequest) GetInitiativeId() string {
+	if x != nil {
+		return x.InitiativeId
+	}
+	return ""
+}
+
+type GetCoverageReportResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Report        *CoverageReport        `protobuf:"bytes,1,opt,name=report,proto3" json:"report,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCoverageReportResponse) Reset() {
+	*x = GetCoverageReportResponse{}
+	mi := &file_orc_v1_initiative_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCoverageReportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCoverageReportResponse) ProtoMessage() {}
+
+func (x *GetCoverageReportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_initiative_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCoverageReportResponse.ProtoReflect.Descriptor instead.
+func (*GetCoverageReportResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *GetCoverageReportResponse) GetReport() *CoverageReport {
+	if x != nil {
+		return x.Report
 	}
 	return nil
 }
@@ -2282,7 +3003,24 @@ const file_orc_v1_initiative_proto_rawDesc = "" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12*\n" +
 	"\x06status\x18\x03 \x01(\x0e2\x12.orc.v1.TaskStatusR\x06status\x12\x1d\n" +
 	"\n" +
-	"depends_on\x18\x04 \x03(\tR\tdependsOn\"\xf3\x05\n" +
+	"depends_on\x18\x04 \x03(\tR\tdependsOn\"\xce\x01\n" +
+	"\tCriterion\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x19\n" +
+	"\btask_ids\x18\x04 \x03(\tR\ataskIds\x12\x1f\n" +
+	"\vverified_at\x18\x05 \x01(\tR\n" +
+	"verifiedAt\x12\x1f\n" +
+	"\vverified_by\x18\x06 \x01(\tR\n" +
+	"verifiedBy\x12\x1a\n" +
+	"\bevidence\x18\a \x01(\tR\bevidence\"\xc9\x01\n" +
+	"\x0eCoverageReport\x12\x14\n" +
+	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x1c\n" +
+	"\tuncovered\x18\x02 \x01(\x05R\tuncovered\x12\x18\n" +
+	"\acovered\x18\x03 \x01(\x05R\acovered\x12\x1c\n" +
+	"\tsatisfied\x18\x04 \x01(\x05R\tsatisfied\x12\x1c\n" +
+	"\tregressed\x18\x05 \x01(\x05R\tregressed\x12-\n" +
+	"\bcriteria\x18\x06 \x03(\v2\x11.orc.v1.CriterionR\bcriteria\"\xa2\x06\n" +
 	"\n" +
 	"Initiative\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x05R\aversion\x12\x0e\n" +
@@ -2305,7 +3043,8 @@ const file_orc_v1_initiative_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x16\n" +
+	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12-\n" +
+	"\bcriteria\x18\x11 \x03(\v2\x11.orc.v1.CriterionR\bcriteria\x12\x16\n" +
 	"\x06blocks\x18d \x03(\tR\x06blocksB\b\n" +
 	"\x06_ownerB\t\n" +
 	"\a_visionB\x0e\n" +
@@ -2481,7 +3220,52 @@ const file_orc_v1_initiative_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\"N\n" +
 	"\x1eListTaskGeneratedNotesResponse\x12,\n" +
-	"\x05notes\x18\x01 \x03(\v2\x16.orc.v1.InitiativeNoteR\x05notes*\xb1\x01\n" +
+	"\x05notes\x18\x01 \x03(\v2\x16.orc.v1.InitiativeNoteR\x05notes\"{\n" +
+	"\x13AddCriterionRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\"J\n" +
+	"\x14AddCriterionResponse\x122\n" +
+	"\n" +
+	"initiative\x18\x01 \x01(\v2\x12.orc.v1.InitiativeR\n" +
+	"initiative\"\x7f\n" +
+	"\x16RemoveCriterionRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\x12!\n" +
+	"\fcriterion_id\x18\x03 \x01(\tR\vcriterionId\"M\n" +
+	"\x17RemoveCriterionResponse\x122\n" +
+	"\n" +
+	"initiative\x18\x01 \x01(\v2\x12.orc.v1.InitiativeR\n" +
+	"initiative\"\x9b\x01\n" +
+	"\x19MapCriterionToTaskRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\x12!\n" +
+	"\fcriterion_id\x18\x03 \x01(\tR\vcriterionId\x12\x17\n" +
+	"\atask_id\x18\x04 \x01(\tR\x06taskId\"P\n" +
+	"\x1aMapCriterionToTaskResponse\x122\n" +
+	"\n" +
+	"initiative\x18\x01 \x01(\v2\x12.orc.v1.InitiativeR\n" +
+	"initiative\"\xb3\x01\n" +
+	"\x16VerifyCriterionRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\x12!\n" +
+	"\fcriterion_id\x18\x03 \x01(\tR\vcriterionId\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1a\n" +
+	"\bevidence\x18\x05 \x01(\tR\bevidence\"M\n" +
+	"\x17VerifyCriterionResponse\x122\n" +
+	"\n" +
+	"initiative\x18\x01 \x01(\v2\x12.orc.v1.InitiativeR\n" +
+	"initiative\"^\n" +
+	"\x18GetCoverageReportRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\"K\n" +
+	"\x19GetCoverageReportResponse\x12.\n" +
+	"\x06report\x18\x01 \x01(\v2\x16.orc.v1.CoverageReportR\x06report*\xb1\x01\n" +
 	"\x10InitiativeStatus\x12!\n" +
 	"\x1dINITIATIVE_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17INITIATIVE_STATUS_DRAFT\x10\x01\x12\x1c\n" +
@@ -2494,7 +3278,7 @@ const file_orc_v1_initiative_proto_rawDesc = "" +
 	"\x14MERGE_STATUS_PENDING\x10\x02\x12\x1c\n" +
 	"\x18MERGE_STATUS_IN_PROGRESS\x10\x03\x12\x17\n" +
 	"\x13MERGE_STATUS_MERGED\x10\x04\x12\x17\n" +
-	"\x13MERGE_STATUS_FAILED\x10\x052\xab\t\n" +
+	"\x13MERGE_STATUS_FAILED\x10\x052\xd5\f\n" +
 	"\x11InitiativeService\x12R\n" +
 	"\x0fListInitiatives\x12\x1e.orc.v1.ListInitiativesRequest\x1a\x1f.orc.v1.ListInitiativesResponse\x12L\n" +
 	"\rGetInitiative\x12\x1c.orc.v1.GetInitiativeRequest\x1a\x1d.orc.v1.GetInitiativeResponse\x12U\n" +
@@ -2510,7 +3294,12 @@ const file_orc_v1_initiative_proto_rawDesc = "" +
 	"\x12GetDependencyGraph\x12!.orc.v1.GetDependencyGraphRequest\x1a\".orc.v1.GetDependencyGraphResponse\x12L\n" +
 	"\rRunInitiative\x12\x1c.orc.v1.RunInitiativeRequest\x1a\x1d.orc.v1.RunInitiativeResponse\x12^\n" +
 	"\x13ListInitiativeNotes\x12\".orc.v1.ListInitiativeNotesRequest\x1a#.orc.v1.ListInitiativeNotesResponse\x12g\n" +
-	"\x16ListTaskGeneratedNotes\x12%.orc.v1.ListTaskGeneratedNotesRequest\x1a&.orc.v1.ListTaskGeneratedNotesResponseB\x8b\x01\n" +
+	"\x16ListTaskGeneratedNotes\x12%.orc.v1.ListTaskGeneratedNotesRequest\x1a&.orc.v1.ListTaskGeneratedNotesResponse\x12I\n" +
+	"\fAddCriterion\x12\x1b.orc.v1.AddCriterionRequest\x1a\x1c.orc.v1.AddCriterionResponse\x12R\n" +
+	"\x0fRemoveCriterion\x12\x1e.orc.v1.RemoveCriterionRequest\x1a\x1f.orc.v1.RemoveCriterionResponse\x12[\n" +
+	"\x12MapCriterionToTask\x12!.orc.v1.MapCriterionToTaskRequest\x1a\".orc.v1.MapCriterionToTaskResponse\x12R\n" +
+	"\x0fVerifyCriterion\x12\x1e.orc.v1.VerifyCriterionRequest\x1a\x1f.orc.v1.VerifyCriterionResponse\x12X\n" +
+	"\x11GetCoverageReport\x12 .orc.v1.GetCoverageReportRequest\x1a!.orc.v1.GetCoverageReportResponseB\x8b\x01\n" +
 	"\n" +
 	"com.orc.v1B\x0fInitiativeProtoP\x01Z3github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1\xa2\x02\x03OXX\xaa\x02\x06Orc.V1\xca\x02\x06Orc\\V1\xe2\x02\x12Orc\\V1\\GPBMetadata\xea\x02\aOrc::V1b\x06proto3"
 
@@ -2527,114 +3316,143 @@ func file_orc_v1_initiative_proto_rawDescGZIP() []byte {
 }
 
 var file_orc_v1_initiative_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_orc_v1_initiative_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_orc_v1_initiative_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
 var file_orc_v1_initiative_proto_goTypes = []any{
 	(InitiativeStatus)(0),                  // 0: orc.v1.InitiativeStatus
 	(MergeStatus)(0),                       // 1: orc.v1.MergeStatus
 	(*Identity)(nil),                       // 2: orc.v1.Identity
 	(*InitiativeDecision)(nil),             // 3: orc.v1.InitiativeDecision
 	(*TaskRef)(nil),                        // 4: orc.v1.TaskRef
-	(*Initiative)(nil),                     // 5: orc.v1.Initiative
-	(*InitiativeProgress)(nil),             // 6: orc.v1.InitiativeProgress
-	(*InitiativeNote)(nil),                 // 7: orc.v1.InitiativeNote
-	(*ListInitiativesRequest)(nil),         // 8: orc.v1.ListInitiativesRequest
-	(*ListInitiativesResponse)(nil),        // 9: orc.v1.ListInitiativesResponse
-	(*GetInitiativeRequest)(nil),           // 10: orc.v1.GetInitiativeRequest
-	(*GetInitiativeResponse)(nil),          // 11: orc.v1.GetInitiativeResponse
-	(*CreateInitiativeRequest)(nil),        // 12: orc.v1.CreateInitiativeRequest
-	(*CreateInitiativeResponse)(nil),       // 13: orc.v1.CreateInitiativeResponse
-	(*UpdateInitiativeRequest)(nil),        // 14: orc.v1.UpdateInitiativeRequest
-	(*UpdateInitiativeResponse)(nil),       // 15: orc.v1.UpdateInitiativeResponse
-	(*DeleteInitiativeRequest)(nil),        // 16: orc.v1.DeleteInitiativeRequest
-	(*DeleteInitiativeResponse)(nil),       // 17: orc.v1.DeleteInitiativeResponse
-	(*ListInitiativeTasksRequest)(nil),     // 18: orc.v1.ListInitiativeTasksRequest
-	(*ListInitiativeTasksResponse)(nil),    // 19: orc.v1.ListInitiativeTasksResponse
-	(*LinkTasksRequest)(nil),               // 20: orc.v1.LinkTasksRequest
-	(*LinkTasksResponse)(nil),              // 21: orc.v1.LinkTasksResponse
-	(*UnlinkTaskRequest)(nil),              // 22: orc.v1.UnlinkTaskRequest
-	(*UnlinkTaskResponse)(nil),             // 23: orc.v1.UnlinkTaskResponse
-	(*AddDecisionRequest)(nil),             // 24: orc.v1.AddDecisionRequest
-	(*AddDecisionResponse)(nil),            // 25: orc.v1.AddDecisionResponse
-	(*GetReadyTasksRequest)(nil),           // 26: orc.v1.GetReadyTasksRequest
-	(*GetReadyTasksResponse)(nil),          // 27: orc.v1.GetReadyTasksResponse
-	(*GetDependencyGraphRequest)(nil),      // 28: orc.v1.GetDependencyGraphRequest
-	(*GetDependencyGraphResponse)(nil),     // 29: orc.v1.GetDependencyGraphResponse
-	(*RunInitiativeRequest)(nil),           // 30: orc.v1.RunInitiativeRequest
-	(*RunInitiativeResponse)(nil),          // 31: orc.v1.RunInitiativeResponse
-	(*ListInitiativeNotesRequest)(nil),     // 32: orc.v1.ListInitiativeNotesRequest
-	(*ListInitiativeNotesResponse)(nil),    // 33: orc.v1.ListInitiativeNotesResponse
-	(*ListTaskGeneratedNotesRequest)(nil),  // 34: orc.v1.ListTaskGeneratedNotesRequest
-	(*ListTaskGeneratedNotesResponse)(nil), // 35: orc.v1.ListTaskGeneratedNotesResponse
-	(*timestamppb.Timestamp)(nil),          // 36: google.protobuf.Timestamp
-	(TaskStatus)(0),                        // 37: orc.v1.TaskStatus
-	(*PageRequest)(nil),                    // 38: orc.v1.PageRequest
-	(*PageResponse)(nil),                   // 39: orc.v1.PageResponse
-	(*Task)(nil),                           // 40: orc.v1.Task
-	(*DependencyGraph)(nil),                // 41: orc.v1.DependencyGraph
+	(*Criterion)(nil),                      // 5: orc.v1.Criterion
+	(*CoverageReport)(nil),                 // 6: orc.v1.CoverageReport
+	(*Initiative)(nil),                     // 7: orc.v1.Initiative
+	(*InitiativeProgress)(nil),             // 8: orc.v1.InitiativeProgress
+	(*InitiativeNote)(nil),                 // 9: orc.v1.InitiativeNote
+	(*ListInitiativesRequest)(nil),         // 10: orc.v1.ListInitiativesRequest
+	(*ListInitiativesResponse)(nil),        // 11: orc.v1.ListInitiativesResponse
+	(*GetInitiativeRequest)(nil),           // 12: orc.v1.GetInitiativeRequest
+	(*GetInitiativeResponse)(nil),          // 13: orc.v1.GetInitiativeResponse
+	(*CreateInitiativeRequest)(nil),        // 14: orc.v1.CreateInitiativeRequest
+	(*CreateInitiativeResponse)(nil),       // 15: orc.v1.CreateInitiativeResponse
+	(*UpdateInitiativeRequest)(nil),        // 16: orc.v1.UpdateInitiativeRequest
+	(*UpdateInitiativeResponse)(nil),       // 17: orc.v1.UpdateInitiativeResponse
+	(*DeleteInitiativeRequest)(nil),        // 18: orc.v1.DeleteInitiativeRequest
+	(*DeleteInitiativeResponse)(nil),       // 19: orc.v1.DeleteInitiativeResponse
+	(*ListInitiativeTasksRequest)(nil),     // 20: orc.v1.ListInitiativeTasksRequest
+	(*ListInitiativeTasksResponse)(nil),    // 21: orc.v1.ListInitiativeTasksResponse
+	(*LinkTasksRequest)(nil),               // 22: orc.v1.LinkTasksRequest
+	(*LinkTasksResponse)(nil),              // 23: orc.v1.LinkTasksResponse
+	(*UnlinkTaskRequest)(nil),              // 24: orc.v1.UnlinkTaskRequest
+	(*UnlinkTaskResponse)(nil),             // 25: orc.v1.UnlinkTaskResponse
+	(*AddDecisionRequest)(nil),             // 26: orc.v1.AddDecisionRequest
+	(*AddDecisionResponse)(nil),            // 27: orc.v1.AddDecisionResponse
+	(*GetReadyTasksRequest)(nil),           // 28: orc.v1.GetReadyTasksRequest
+	(*GetReadyTasksResponse)(nil),          // 29: orc.v1.GetReadyTasksResponse
+	(*GetDependencyGraphRequest)(nil),      // 30: orc.v1.GetDependencyGraphRequest
+	(*GetDependencyGraphResponse)(nil),     // 31: orc.v1.GetDependencyGraphResponse
+	(*RunInitiativeRequest)(nil),           // 32: orc.v1.RunInitiativeRequest
+	(*RunInitiativeResponse)(nil),          // 33: orc.v1.RunInitiativeResponse
+	(*ListInitiativeNotesRequest)(nil),     // 34: orc.v1.ListInitiativeNotesRequest
+	(*ListInitiativeNotesResponse)(nil),    // 35: orc.v1.ListInitiativeNotesResponse
+	(*ListTaskGeneratedNotesRequest)(nil),  // 36: orc.v1.ListTaskGeneratedNotesRequest
+	(*ListTaskGeneratedNotesResponse)(nil), // 37: orc.v1.ListTaskGeneratedNotesResponse
+	(*AddCriterionRequest)(nil),            // 38: orc.v1.AddCriterionRequest
+	(*AddCriterionResponse)(nil),           // 39: orc.v1.AddCriterionResponse
+	(*RemoveCriterionRequest)(nil),         // 40: orc.v1.RemoveCriterionRequest
+	(*RemoveCriterionResponse)(nil),        // 41: orc.v1.RemoveCriterionResponse
+	(*MapCriterionToTaskRequest)(nil),      // 42: orc.v1.MapCriterionToTaskRequest
+	(*MapCriterionToTaskResponse)(nil),     // 43: orc.v1.MapCriterionToTaskResponse
+	(*VerifyCriterionRequest)(nil),         // 44: orc.v1.VerifyCriterionRequest
+	(*VerifyCriterionResponse)(nil),        // 45: orc.v1.VerifyCriterionResponse
+	(*GetCoverageReportRequest)(nil),       // 46: orc.v1.GetCoverageReportRequest
+	(*GetCoverageReportResponse)(nil),      // 47: orc.v1.GetCoverageReportResponse
+	(*timestamppb.Timestamp)(nil),          // 48: google.protobuf.Timestamp
+	(TaskStatus)(0),                        // 49: orc.v1.TaskStatus
+	(*PageRequest)(nil),                    // 50: orc.v1.PageRequest
+	(*PageResponse)(nil),                   // 51: orc.v1.PageResponse
+	(*Task)(nil),                           // 52: orc.v1.Task
+	(*DependencyGraph)(nil),                // 53: orc.v1.DependencyGraph
 }
 var file_orc_v1_initiative_proto_depIdxs = []int32{
-	36, // 0: orc.v1.InitiativeDecision.date:type_name -> google.protobuf.Timestamp
-	37, // 1: orc.v1.TaskRef.status:type_name -> orc.v1.TaskStatus
-	0,  // 2: orc.v1.Initiative.status:type_name -> orc.v1.InitiativeStatus
-	2,  // 3: orc.v1.Initiative.owner:type_name -> orc.v1.Identity
-	3,  // 4: orc.v1.Initiative.decisions:type_name -> orc.v1.InitiativeDecision
-	4,  // 5: orc.v1.Initiative.tasks:type_name -> orc.v1.TaskRef
-	1,  // 6: orc.v1.Initiative.merge_status:type_name -> orc.v1.MergeStatus
-	36, // 7: orc.v1.Initiative.created_at:type_name -> google.protobuf.Timestamp
-	36, // 8: orc.v1.Initiative.updated_at:type_name -> google.protobuf.Timestamp
-	36, // 9: orc.v1.InitiativeNote.created_at:type_name -> google.protobuf.Timestamp
-	38, // 10: orc.v1.ListInitiativesRequest.page:type_name -> orc.v1.PageRequest
-	0,  // 11: orc.v1.ListInitiativesRequest.status:type_name -> orc.v1.InitiativeStatus
-	5,  // 12: orc.v1.ListInitiativesResponse.initiatives:type_name -> orc.v1.Initiative
-	39, // 13: orc.v1.ListInitiativesResponse.page:type_name -> orc.v1.PageResponse
-	5,  // 14: orc.v1.GetInitiativeResponse.initiative:type_name -> orc.v1.Initiative
-	2,  // 15: orc.v1.CreateInitiativeRequest.owner:type_name -> orc.v1.Identity
-	5,  // 16: orc.v1.CreateInitiativeResponse.initiative:type_name -> orc.v1.Initiative
-	2,  // 17: orc.v1.UpdateInitiativeRequest.owner:type_name -> orc.v1.Identity
-	0,  // 18: orc.v1.UpdateInitiativeRequest.status:type_name -> orc.v1.InitiativeStatus
-	5,  // 19: orc.v1.UpdateInitiativeResponse.initiative:type_name -> orc.v1.Initiative
-	40, // 20: orc.v1.ListInitiativeTasksResponse.tasks:type_name -> orc.v1.Task
-	5,  // 21: orc.v1.LinkTasksResponse.initiative:type_name -> orc.v1.Initiative
-	5,  // 22: orc.v1.UnlinkTaskResponse.initiative:type_name -> orc.v1.Initiative
-	5,  // 23: orc.v1.AddDecisionResponse.initiative:type_name -> orc.v1.Initiative
-	40, // 24: orc.v1.GetReadyTasksResponse.tasks:type_name -> orc.v1.Task
-	41, // 25: orc.v1.GetDependencyGraphResponse.graph:type_name -> orc.v1.DependencyGraph
-	5,  // 26: orc.v1.RunInitiativeResponse.initiative:type_name -> orc.v1.Initiative
-	7,  // 27: orc.v1.ListInitiativeNotesResponse.notes:type_name -> orc.v1.InitiativeNote
-	7,  // 28: orc.v1.ListTaskGeneratedNotesResponse.notes:type_name -> orc.v1.InitiativeNote
-	8,  // 29: orc.v1.InitiativeService.ListInitiatives:input_type -> orc.v1.ListInitiativesRequest
-	10, // 30: orc.v1.InitiativeService.GetInitiative:input_type -> orc.v1.GetInitiativeRequest
-	12, // 31: orc.v1.InitiativeService.CreateInitiative:input_type -> orc.v1.CreateInitiativeRequest
-	14, // 32: orc.v1.InitiativeService.UpdateInitiative:input_type -> orc.v1.UpdateInitiativeRequest
-	16, // 33: orc.v1.InitiativeService.DeleteInitiative:input_type -> orc.v1.DeleteInitiativeRequest
-	18, // 34: orc.v1.InitiativeService.ListInitiativeTasks:input_type -> orc.v1.ListInitiativeTasksRequest
-	20, // 35: orc.v1.InitiativeService.LinkTasks:input_type -> orc.v1.LinkTasksRequest
-	22, // 36: orc.v1.InitiativeService.UnlinkTask:input_type -> orc.v1.UnlinkTaskRequest
-	24, // 37: orc.v1.InitiativeService.AddDecision:input_type -> orc.v1.AddDecisionRequest
-	26, // 38: orc.v1.InitiativeService.GetReadyTasks:input_type -> orc.v1.GetReadyTasksRequest
-	28, // 39: orc.v1.InitiativeService.GetDependencyGraph:input_type -> orc.v1.GetDependencyGraphRequest
-	30, // 40: orc.v1.InitiativeService.RunInitiative:input_type -> orc.v1.RunInitiativeRequest
-	32, // 41: orc.v1.InitiativeService.ListInitiativeNotes:input_type -> orc.v1.ListInitiativeNotesRequest
-	34, // 42: orc.v1.InitiativeService.ListTaskGeneratedNotes:input_type -> orc.v1.ListTaskGeneratedNotesRequest
-	9,  // 43: orc.v1.InitiativeService.ListInitiatives:output_type -> orc.v1.ListInitiativesResponse
-	11, // 44: orc.v1.InitiativeService.GetInitiative:output_type -> orc.v1.GetInitiativeResponse
-	13, // 45: orc.v1.InitiativeService.CreateInitiative:output_type -> orc.v1.CreateInitiativeResponse
-	15, // 46: orc.v1.InitiativeService.UpdateInitiative:output_type -> orc.v1.UpdateInitiativeResponse
-	17, // 47: orc.v1.InitiativeService.DeleteInitiative:output_type -> orc.v1.DeleteInitiativeResponse
-	19, // 48: orc.v1.InitiativeService.ListInitiativeTasks:output_type -> orc.v1.ListInitiativeTasksResponse
-	21, // 49: orc.v1.InitiativeService.LinkTasks:output_type -> orc.v1.LinkTasksResponse
-	23, // 50: orc.v1.InitiativeService.UnlinkTask:output_type -> orc.v1.UnlinkTaskResponse
-	25, // 51: orc.v1.InitiativeService.AddDecision:output_type -> orc.v1.AddDecisionResponse
-	27, // 52: orc.v1.InitiativeService.GetReadyTasks:output_type -> orc.v1.GetReadyTasksResponse
-	29, // 53: orc.v1.InitiativeService.GetDependencyGraph:output_type -> orc.v1.GetDependencyGraphResponse
-	31, // 54: orc.v1.InitiativeService.RunInitiative:output_type -> orc.v1.RunInitiativeResponse
-	33, // 55: orc.v1.InitiativeService.ListInitiativeNotes:output_type -> orc.v1.ListInitiativeNotesResponse
-	35, // 56: orc.v1.InitiativeService.ListTaskGeneratedNotes:output_type -> orc.v1.ListTaskGeneratedNotesResponse
-	43, // [43:57] is the sub-list for method output_type
-	29, // [29:43] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	48, // 0: orc.v1.InitiativeDecision.date:type_name -> google.protobuf.Timestamp
+	49, // 1: orc.v1.TaskRef.status:type_name -> orc.v1.TaskStatus
+	5,  // 2: orc.v1.CoverageReport.criteria:type_name -> orc.v1.Criterion
+	0,  // 3: orc.v1.Initiative.status:type_name -> orc.v1.InitiativeStatus
+	2,  // 4: orc.v1.Initiative.owner:type_name -> orc.v1.Identity
+	3,  // 5: orc.v1.Initiative.decisions:type_name -> orc.v1.InitiativeDecision
+	4,  // 6: orc.v1.Initiative.tasks:type_name -> orc.v1.TaskRef
+	1,  // 7: orc.v1.Initiative.merge_status:type_name -> orc.v1.MergeStatus
+	48, // 8: orc.v1.Initiative.created_at:type_name -> google.protobuf.Timestamp
+	48, // 9: orc.v1.Initiative.updated_at:type_name -> google.protobuf.Timestamp
+	5,  // 10: orc.v1.Initiative.criteria:type_name -> orc.v1.Criterion
+	48, // 11: orc.v1.InitiativeNote.created_at:type_name -> google.protobuf.Timestamp
+	50, // 12: orc.v1.ListInitiativesRequest.page:type_name -> orc.v1.PageRequest
+	0,  // 13: orc.v1.ListInitiativesRequest.status:type_name -> orc.v1.InitiativeStatus
+	7,  // 14: orc.v1.ListInitiativesResponse.initiatives:type_name -> orc.v1.Initiative
+	51, // 15: orc.v1.ListInitiativesResponse.page:type_name -> orc.v1.PageResponse
+	7,  // 16: orc.v1.GetInitiativeResponse.initiative:type_name -> orc.v1.Initiative
+	2,  // 17: orc.v1.CreateInitiativeRequest.owner:type_name -> orc.v1.Identity
+	7,  // 18: orc.v1.CreateInitiativeResponse.initiative:type_name -> orc.v1.Initiative
+	2,  // 19: orc.v1.UpdateInitiativeRequest.owner:type_name -> orc.v1.Identity
+	0,  // 20: orc.v1.UpdateInitiativeRequest.status:type_name -> orc.v1.InitiativeStatus
+	7,  // 21: orc.v1.UpdateInitiativeResponse.initiative:type_name -> orc.v1.Initiative
+	52, // 22: orc.v1.ListInitiativeTasksResponse.tasks:type_name -> orc.v1.Task
+	7,  // 23: orc.v1.LinkTasksResponse.initiative:type_name -> orc.v1.Initiative
+	7,  // 24: orc.v1.UnlinkTaskResponse.initiative:type_name -> orc.v1.Initiative
+	7,  // 25: orc.v1.AddDecisionResponse.initiative:type_name -> orc.v1.Initiative
+	52, // 26: orc.v1.GetReadyTasksResponse.tasks:type_name -> orc.v1.Task
+	53, // 27: orc.v1.GetDependencyGraphResponse.graph:type_name -> orc.v1.DependencyGraph
+	7,  // 28: orc.v1.RunInitiativeResponse.initiative:type_name -> orc.v1.Initiative
+	9,  // 29: orc.v1.ListInitiativeNotesResponse.notes:type_name -> orc.v1.InitiativeNote
+	9,  // 30: orc.v1.ListTaskGeneratedNotesResponse.notes:type_name -> orc.v1.InitiativeNote
+	7,  // 31: orc.v1.AddCriterionResponse.initiative:type_name -> orc.v1.Initiative
+	7,  // 32: orc.v1.RemoveCriterionResponse.initiative:type_name -> orc.v1.Initiative
+	7,  // 33: orc.v1.MapCriterionToTaskResponse.initiative:type_name -> orc.v1.Initiative
+	7,  // 34: orc.v1.VerifyCriterionResponse.initiative:type_name -> orc.v1.Initiative
+	6,  // 35: orc.v1.GetCoverageReportResponse.report:type_name -> orc.v1.CoverageReport
+	10, // 36: orc.v1.InitiativeService.ListInitiatives:input_type -> orc.v1.ListInitiativesRequest
+	12, // 37: orc.v1.InitiativeService.GetInitiative:input_type -> orc.v1.GetInitiativeRequest
+	14, // 38: orc.v1.InitiativeService.CreateInitiative:input_type -> orc.v1.CreateInitiativeRequest
+	16, // 39: orc.v1.InitiativeService.UpdateInitiative:input_type -> orc.v1.UpdateInitiativeRequest
+	18, // 40: orc.v1.InitiativeService.DeleteInitiative:input_type -> orc.v1.DeleteInitiativeRequest
+	20, // 41: orc.v1.InitiativeService.ListInitiativeTasks:input_type -> orc.v1.ListInitiativeTasksRequest
+	22, // 42: orc.v1.InitiativeService.LinkTasks:input_type -> orc.v1.LinkTasksRequest
+	24, // 43: orc.v1.InitiativeService.UnlinkTask:input_type -> orc.v1.UnlinkTaskRequest
+	26, // 44: orc.v1.InitiativeService.AddDecision:input_type -> orc.v1.AddDecisionRequest
+	28, // 45: orc.v1.InitiativeService.GetReadyTasks:input_type -> orc.v1.GetReadyTasksRequest
+	30, // 46: orc.v1.InitiativeService.GetDependencyGraph:input_type -> orc.v1.GetDependencyGraphRequest
+	32, // 47: orc.v1.InitiativeService.RunInitiative:input_type -> orc.v1.RunInitiativeRequest
+	34, // 48: orc.v1.InitiativeService.ListInitiativeNotes:input_type -> orc.v1.ListInitiativeNotesRequest
+	36, // 49: orc.v1.InitiativeService.ListTaskGeneratedNotes:input_type -> orc.v1.ListTaskGeneratedNotesRequest
+	38, // 50: orc.v1.InitiativeService.AddCriterion:input_type -> orc.v1.AddCriterionRequest
+	40, // 51: orc.v1.InitiativeService.RemoveCriterion:input_type -> orc.v1.RemoveCriterionRequest
+	42, // 52: orc.v1.InitiativeService.MapCriterionToTask:input_type -> orc.v1.MapCriterionToTaskRequest
+	44, // 53: orc.v1.InitiativeService.VerifyCriterion:input_type -> orc.v1.VerifyCriterionRequest
+	46, // 54: orc.v1.InitiativeService.GetCoverageReport:input_type -> orc.v1.GetCoverageReportRequest
+	11, // 55: orc.v1.InitiativeService.ListInitiatives:output_type -> orc.v1.ListInitiativesResponse
+	13, // 56: orc.v1.InitiativeService.GetInitiative:output_type -> orc.v1.GetInitiativeResponse
+	15, // 57: orc.v1.InitiativeService.CreateInitiative:output_type -> orc.v1.CreateInitiativeResponse
+	17, // 58: orc.v1.InitiativeService.UpdateInitiative:output_type -> orc.v1.UpdateInitiativeResponse
+	19, // 59: orc.v1.InitiativeService.DeleteInitiative:output_type -> orc.v1.DeleteInitiativeResponse
+	21, // 60: orc.v1.InitiativeService.ListInitiativeTasks:output_type -> orc.v1.ListInitiativeTasksResponse
+	23, // 61: orc.v1.InitiativeService.LinkTasks:output_type -> orc.v1.LinkTasksResponse
+	25, // 62: orc.v1.InitiativeService.UnlinkTask:output_type -> orc.v1.UnlinkTaskResponse
+	27, // 63: orc.v1.InitiativeService.AddDecision:output_type -> orc.v1.AddDecisionResponse
+	29, // 64: orc.v1.InitiativeService.GetReadyTasks:output_type -> orc.v1.GetReadyTasksResponse
+	31, // 65: orc.v1.InitiativeService.GetDependencyGraph:output_type -> orc.v1.GetDependencyGraphResponse
+	33, // 66: orc.v1.InitiativeService.RunInitiative:output_type -> orc.v1.RunInitiativeResponse
+	35, // 67: orc.v1.InitiativeService.ListInitiativeNotes:output_type -> orc.v1.ListInitiativeNotesResponse
+	37, // 68: orc.v1.InitiativeService.ListTaskGeneratedNotes:output_type -> orc.v1.ListTaskGeneratedNotesResponse
+	39, // 69: orc.v1.InitiativeService.AddCriterion:output_type -> orc.v1.AddCriterionResponse
+	41, // 70: orc.v1.InitiativeService.RemoveCriterion:output_type -> orc.v1.RemoveCriterionResponse
+	43, // 71: orc.v1.InitiativeService.MapCriterionToTask:output_type -> orc.v1.MapCriterionToTaskResponse
+	45, // 72: orc.v1.InitiativeService.VerifyCriterion:output_type -> orc.v1.VerifyCriterionResponse
+	47, // 73: orc.v1.InitiativeService.GetCoverageReport:output_type -> orc.v1.GetCoverageReportResponse
+	55, // [55:74] is the sub-list for method output_type
+	36, // [36:55] is the sub-list for method input_type
+	36, // [36:36] is the sub-list for extension type_name
+	36, // [36:36] is the sub-list for extension extendee
+	0,  // [0:36] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_initiative_proto_init() }
@@ -2646,21 +3464,21 @@ func file_orc_v1_initiative_proto_init() {
 	file_orc_v1_task_proto_init()
 	file_orc_v1_initiative_proto_msgTypes[0].OneofWrappers = []any{}
 	file_orc_v1_initiative_proto_msgTypes[1].OneofWrappers = []any{}
-	file_orc_v1_initiative_proto_msgTypes[3].OneofWrappers = []any{}
 	file_orc_v1_initiative_proto_msgTypes[5].OneofWrappers = []any{}
-	file_orc_v1_initiative_proto_msgTypes[6].OneofWrappers = []any{}
-	file_orc_v1_initiative_proto_msgTypes[10].OneofWrappers = []any{}
+	file_orc_v1_initiative_proto_msgTypes[7].OneofWrappers = []any{}
+	file_orc_v1_initiative_proto_msgTypes[8].OneofWrappers = []any{}
 	file_orc_v1_initiative_proto_msgTypes[12].OneofWrappers = []any{}
-	file_orc_v1_initiative_proto_msgTypes[22].OneofWrappers = []any{}
-	file_orc_v1_initiative_proto_msgTypes[28].OneofWrappers = []any{}
+	file_orc_v1_initiative_proto_msgTypes[14].OneofWrappers = []any{}
+	file_orc_v1_initiative_proto_msgTypes[24].OneofWrappers = []any{}
 	file_orc_v1_initiative_proto_msgTypes[30].OneofWrappers = []any{}
+	file_orc_v1_initiative_proto_msgTypes[32].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_initiative_proto_rawDesc), len(file_orc_v1_initiative_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   34,
+			NumMessages:   46,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
