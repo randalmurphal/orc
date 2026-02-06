@@ -146,10 +146,16 @@ func (i *Initiative) VerifyCriterion(id string, status CriterionStatus, evidence
 }
 
 // VerifyAllCriteria marks all criteria as verified by the given author.
+// Criteria with tasks (covered/satisfied/regressed) are set to satisfied.
+// Uncovered criteria are left unchanged since there are no tasks to verify.
 // Returns all criteria after verification.
 func (i *Initiative) VerifyAllCriteria(author string) []*Criterion {
 	now := time.Now().Format(time.RFC3339)
 	for _, c := range i.Criteria {
+		if c.Status == CriterionStatusUncovered {
+			continue
+		}
+		c.Status = CriterionStatusSatisfied
 		c.VerifiedBy = author
 		c.VerifiedAt = now
 	}

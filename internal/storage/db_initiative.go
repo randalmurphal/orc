@@ -155,7 +155,10 @@ func (d *DatabaseBackend) LoadInitiative(id string) (*initiative.Initiative, err
 		d.logger.Printf("warning: failed to get initiative criteria: %v", err)
 	} else {
 		for _, dbc := range dbCriteria {
-			c := dbCriterionToInitiativeCriterion(&dbc)
+			c, err := dbCriterionToInitiativeCriterion(&dbc)
+			if err != nil {
+				return nil, fmt.Errorf("convert criterion %s: %w", dbc.ID, err)
+			}
 			i.Criteria = append(i.Criteria, c)
 		}
 		i.RecomputeCriterionSeq()
@@ -240,7 +243,10 @@ func (d *DatabaseBackend) LoadAllInitiatives() ([]*initiative.Initiative, error)
 
 		if dbCriteria, ok := allCriteria[i.ID]; ok {
 			for _, dbc := range dbCriteria {
-				c := dbCriterionToInitiativeCriterion(&dbc)
+				c, err := dbCriterionToInitiativeCriterion(&dbc)
+				if err != nil {
+					return nil, fmt.Errorf("convert criterion %s for initiative %s: %w", dbc.ID, i.ID, err)
+				}
 				i.Criteria = append(i.Criteria, c)
 			}
 			i.RecomputeCriterionSeq()
@@ -305,10 +311,12 @@ func initiativeToDBInitiative(i *initiative.Initiative) *db.Initiative {
 	}
 }
 
-func dbCriterionToProtoCriterion(dbc *db.InitiativeCriterion) *orcv1.Criterion {
+func dbCriterionToProtoCriterion(dbc *db.InitiativeCriterion) (*orcv1.Criterion, error) {
 	var taskIDs []string
 	if dbc.TaskIDs != "" {
-		_ = json.Unmarshal([]byte(dbc.TaskIDs), &taskIDs)
+		if err := json.Unmarshal([]byte(dbc.TaskIDs), &taskIDs); err != nil {
+			return nil, fmt.Errorf("unmarshal criterion %s task IDs: %w", dbc.ID, err)
+		}
 	}
 	if taskIDs == nil {
 		taskIDs = []string{}
@@ -321,13 +329,15 @@ func dbCriterionToProtoCriterion(dbc *db.InitiativeCriterion) *orcv1.Criterion {
 		VerifiedAt:  dbc.VerifiedAt,
 		VerifiedBy:  dbc.VerifiedBy,
 		Evidence:    dbc.Evidence,
-	}
+	}, nil
 }
 
-func dbCriterionToInitiativeCriterion(dbc *db.InitiativeCriterion) *initiative.Criterion {
+func dbCriterionToInitiativeCriterion(dbc *db.InitiativeCriterion) (*initiative.Criterion, error) {
 	var taskIDs []string
 	if dbc.TaskIDs != "" {
-		_ = json.Unmarshal([]byte(dbc.TaskIDs), &taskIDs)
+		if err := json.Unmarshal([]byte(dbc.TaskIDs), &taskIDs); err != nil {
+			return nil, fmt.Errorf("unmarshal criterion %s task IDs: %w", dbc.ID, err)
+		}
 	}
 	if taskIDs == nil {
 		taskIDs = []string{}
@@ -340,7 +350,7 @@ func dbCriterionToInitiativeCriterion(dbc *db.InitiativeCriterion) *initiative.C
 		VerifiedAt:  dbc.VerifiedAt,
 		VerifiedBy:  dbc.VerifiedBy,
 		Evidence:    dbc.Evidence,
-	}
+	}, nil
 }
 
 func dbInitiativeToInitiative(dbInit *db.Initiative) *initiative.Initiative {
@@ -508,7 +518,11 @@ func (d *DatabaseBackend) LoadInitiativeProto(id string) (*orcv1.Initiative, err
 		d.logger.Printf("warning: failed to get initiative criteria: %v", err)
 	} else {
 		for _, dbc := range dbCriteria {
-			i.Criteria = append(i.Criteria, dbCriterionToProtoCriterion(&dbc))
+			c, err := dbCriterionToProtoCriterion(&dbc)
+			if err != nil {
+				return nil, fmt.Errorf("convert criterion %s: %w", dbc.ID, err)
+			}
+			i.Criteria = append(i.Criteria, c)
 		}
 	}
 
@@ -587,7 +601,11 @@ func (d *DatabaseBackend) LoadAllInitiativesProto() ([]*orcv1.Initiative, error)
 		// Apply pre-fetched criteria
 		if dbCriteriaList, ok := allCriteria[i.Id]; ok {
 			for _, dbc := range dbCriteriaList {
-				i.Criteria = append(i.Criteria, dbCriterionToProtoCriterion(&dbc))
+				c, err := dbCriterionToProtoCriterion(&dbc)
+				if err != nil {
+					return nil, fmt.Errorf("convert criterion %s for initiative %s: %w", dbc.ID, i.Id, err)
+				}
+				i.Criteria = append(i.Criteria, c)
 			}
 		}
 
