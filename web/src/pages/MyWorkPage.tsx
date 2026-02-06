@@ -8,16 +8,18 @@ import type { ProjectStatus } from '@/gen/orc/v1/project_pb';
 import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import './MyWorkPage.css';
 
-type StatusFilter = 'all' | 'running' | 'blocked' | 'created';
+type StatusFilter = 'all' | 'running' | 'blocked' | 'created' | 'paused';
 
 function matchesFilter(status: TaskStatus, filter: StatusFilter): boolean {
 	switch (filter) {
 		case 'running':
-			return status === TaskStatus.RUNNING;
+			return status === TaskStatus.RUNNING || status === TaskStatus.FINALIZING;
 		case 'blocked':
 			return status === TaskStatus.BLOCKED;
 		case 'created':
 			return status === TaskStatus.CREATED;
+		case 'paused':
+			return status === TaskStatus.PAUSED;
 		default:
 			return true;
 	}
@@ -64,13 +66,13 @@ export function MyWorkPage() {
 		[navigate],
 	);
 
-	const filteredProjects = useMemo(() => {
+	const filteredProjects: ProjectStatus[] = useMemo(() => {
 		if (filter === 'all') return projects;
 		return projects
-			.map((p) => ({
-				...p,
-				activeTasks: p.activeTasks.filter((t) => matchesFilter(t.status, filter)),
-			}))
+			.map((p) => {
+				const filtered = p.activeTasks.filter((t) => matchesFilter(t.status, filter));
+				return { ...p, activeTasks: filtered } as ProjectStatus;
+			})
 			.filter((p) => p.activeTasks.length > 0);
 	}, [projects, filter]);
 
@@ -115,6 +117,7 @@ export function MyWorkPage() {
 					<option value="all">All</option>
 					<option value="running">Running</option>
 					<option value="blocked">Blocked</option>
+					<option value="paused">Paused</option>
 					<option value="created">Created</option>
 				</select>
 			</div>
@@ -127,7 +130,7 @@ export function MyWorkPage() {
 					filteredProjects.map((project) => (
 						<ProjectCard
 							key={project.projectId}
-							project={project as ProjectStatus}
+							project={project}
 							onTaskClick={handleTaskClick}
 							onViewAll={handleViewAll}
 						/>
