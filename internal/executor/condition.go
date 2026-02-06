@@ -20,6 +20,9 @@ type ConditionContext struct {
 	Task *orcv1.Task
 	Vars variable.VariableSet
 	RCtx *variable.ResolutionContext
+	// KnowledgeAvailable is set by the executor when a knowledge service
+	// is injected. Used by the "knowledge.available" condition field.
+	KnowledgeAvailable bool
 }
 
 // EvaluateCondition evaluates a JSON condition string against the given context.
@@ -195,6 +198,8 @@ func resolveField(field string, ctx *ConditionContext) string {
 		return ctx.RCtx.Environment[name]
 	case "phase_output":
 		return resolvePhaseOutputField(name, ctx)
+	case "knowledge":
+		return resolveKnowledgeField(name, ctx)
 	default:
 		return ""
 	}
@@ -252,6 +257,20 @@ func resolvePhaseOutputField(nameAndField string, ctx *ConditionContext) string 
 	}
 
 	return fmt.Sprintf("%v", val)
+}
+
+// resolveKnowledgeField resolves knowledge.FIELD to its value.
+// Currently only supports "available" which returns "true"/"false".
+func resolveKnowledgeField(name string, ctx *ConditionContext) string {
+	switch name {
+	case "available":
+		if ctx.KnowledgeAvailable {
+			return "true"
+		}
+		return "false"
+	default:
+		return ""
+	}
 }
 
 // normalizeValue normalizes a comparison value. If it looks like a proto enum

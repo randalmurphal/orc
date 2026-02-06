@@ -159,6 +159,13 @@ type WorkflowExecutor struct {
 
 	// triggerRunner evaluates before-phase and lifecycle triggers.
 	triggerRunner trigger.Runner
+
+	// phaseTypeRegistry maps type strings to PhaseTypeExecutor implementations.
+	phaseTypeRegistry *PhaseTypeRegistry
+
+	// knowledgeService is the optional knowledge query service for knowledge phases
+	// and condition evaluation. Set via WithWorkflowKnowledgeService.
+	knowledgeService KnowledgeQueryService
 }
 
 // WorkflowExecutorOption configures a WorkflowExecutor.
@@ -235,6 +242,25 @@ func WithWorkflowGateEvaluator(eval GateEvaluatorInterface) WorkflowExecutorOpti
 	}
 }
 
+// WithPhaseTypeExecutor registers a custom PhaseTypeExecutor for a type string.
+func WithPhaseTypeExecutor(typeName string, executor PhaseTypeExecutor) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		if we.phaseTypeRegistry == nil {
+			we.phaseTypeRegistry = NewDefaultPhaseTypeRegistry()
+		}
+		we.phaseTypeRegistry.Register(typeName, executor)
+	}
+}
+
+// WithWorkflowKnowledgeService injects a knowledge query service.
+// This sets KnowledgeAvailable=true on ConditionContext during Run() and
+// provides the service to knowledge phase executors.
+func WithWorkflowKnowledgeService(svc KnowledgeQueryService) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.knowledgeService = svc
+	}
+}
+
 // setWorkflow stores the workflow reference on the executor for use in failRun.
 func (we *WorkflowExecutor) setWorkflow(wf *workflow.Workflow) {
 	we.wf = wf
@@ -266,6 +292,16 @@ func NewWorkflowExecutor(
 
 	for _, opt := range opts {
 		opt(we)
+	}
+
+	// Ensure phase type registry is initialized
+	if we.phaseTypeRegistry == nil {
+		we.phaseTypeRegistry = NewDefaultPhaseTypeRegistry()
+	}
+
+	// If a knowledge service was injected, register a properly-wired knowledge executor
+	if we.knowledgeService != nil {
+		we.phaseTypeRegistry.Register("knowledge", NewKnowledgePhaseExecutor(we.knowledgeService))
 	}
 
 	return we
@@ -686,9 +722,10 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		// Evaluate phase condition — skip phase if condition evaluates to false
 		if phase.Condition != "" {
 			condCtx := &ConditionContext{
-				Task: t,
-				Vars: vars,
-				RCtx: rctx,
+				Task:               t,
+				Vars:               vars,
+				RCtx:               rctx,
+				KnowledgeAvailable: we.knowledgeService != nil && we.knowledgeService.IsAvailable(),
 			}
 			condResult, condErr := EvaluateCondition(phase.Condition, condCtx)
 			if condErr != nil {

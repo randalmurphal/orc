@@ -426,10 +426,11 @@ func TestPhaseDispatch_TypeOverride(t *testing.T) {
 
 	// Phase template has type="knowledge"
 	tmpl := &db.PhaseTemplate{
-		ID:           "gather-context",
-		Name:         "Gather Context",
-		PromptSource: "db",
-		Type:         "knowledge",
+		ID:            "gather-context",
+		Name:          "Gather Context",
+		PromptSource:  "db",
+		PromptContent: "Gather context for the task: {{TASK_DESCRIPTION}}",
+		Type:          "knowledge",
 	}
 	if err := gdb.SavePhaseTemplate(tmpl); err != nil {
 		t.Fatalf("save phase template: %v", err)
