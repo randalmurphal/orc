@@ -16,6 +16,7 @@ Per-project storage backend abstraction layer. Each `Backend` wraps a single `Pr
 | `config.go` | Config storage operations |
 | `export.go` | Export functionality for task artifacts |
 | `import.go` | Import functionality |
+| `scratchpad.go` | Scratchpad entry CRUD (structured notes from phase execution) |
 | `cleanup.go` | Cleanup and maintenance operations |
 
 ## Multi-Project Architecture
@@ -76,6 +77,7 @@ All storage operations are defined by the `Backend` interface:
 | Feedback | `SaveFeedback`, `GetFeedback`, `ListFeedback`, `UpdateFeedback`, `DeleteFeedback`, `MarkFeedbackReceived` |
 | Constitution | `SaveConstitution`, `LoadConstitution`, `ConstitutionExists`, `DeleteConstitution` |
 | Context | `MaterializeContext`, `NeedsMaterialization` |
+| Scratchpad | `SaveScratchpadEntry`, `GetScratchpadEntries`, `GetScratchpadEntriesByPhase`, `GetScratchpadEntriesByAttempt` |
 | User Claims | `ClaimTaskByUser`, `ForceClaimTaskByUser`, `ReleaseUserClaim` |
 | Lifecycle | `Sync`, `Cleanup`, `Close` |
 
