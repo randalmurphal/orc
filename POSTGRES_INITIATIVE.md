@@ -270,24 +270,24 @@ Team Total: $847.32 this month
 | Task | Description | Status |
 |------|-------------|--------|
 | TASK-782 | Users table and user attribution schema | Completed |
-| TASK-783 | Database dialect configuration | In Progress |
-| TASK-784 | Atomic claim-on-run with history | In Progress |
-| TASK-785 | Release command | Planned |
-| TASK-786 | Heartbeat-based stale detection | Planned |
+| TASK-783 | Database dialect configuration | Completed |
+| TASK-784 | Atomic claim-on-run with history | Completed |
+| TASK-785 | Release command | Completed |
+| TASK-786 | Heartbeat-based stale detection | Completed |
 | TASK-787 | Budget enforcement in executor | Completed |
-| TASK-788 | Port global SQLite migrations to PostgreSQL | Planned |
-| TASK-789 | pgxpool connection pooling | Planned |
+| TASK-788 | Port global SQLite migrations to PostgreSQL | Completed |
+| TASK-789 | pgxpool connection pooling | Completed |
 | TASK-790 | Fix SQLite-isms in Go code | Completed |
-| TASK-791 | PostgreSQL full-text search | Planned |
-| TASK-792 | Cross-project status API endpoint | Planned |
-| TASK-793 | "My Work" dashboard UI | Planned |
-| TASK-794 | Hosting detection and token validation | Failed (needs retry) |
+| TASK-791 | PostgreSQL full-text search | Completed |
+| TASK-792 | Cross-project status API endpoint | Completed |
+| TASK-793 | "My Work" dashboard UI | Completed |
+| TASK-794 | Hosting detection and token validation | Failed (deferred) |
 | TASK-795 | Port project migrations 001-020 | Completed |
 | TASK-796 | Port project migrations 021-040 | Completed |
-| TASK-797 | Port project migrations 041-056 | Planned |
+| TASK-797 | Port project migrations 041-056 | Completed |
 | TASK-798 | Cost viewing CLI, API, and UI | Planned |
 
-**4 completed, 2 in progress, 10 planned, 1 failed.**
+**15 completed, 1 planned, 1 failed (deferred).**
 
 ---
 

@@ -28,6 +28,7 @@ import {
 	DashboardRecentActivity,
 	DashboardSummary,
 	DashboardInitiatives,
+	DashboardCostSummary,
 } from '@/components/dashboard';
 import { Button } from '@/components/ui/Button';
 import './Dashboard.css';
@@ -178,6 +179,7 @@ export function Dashboard() {
 				onDependencyFilterClick={navigateToDependencyFiltered}
 			/>
 			<DashboardQuickActions onNewTask={handleNewTask} onViewTasks={handleViewTasks} />
+			<DashboardCostSummary projectId={projectId ?? ''} />
 			<DashboardInitiatives initiatives={initiatives} />
 			<DashboardActiveTasks tasks={activeTasks} />
 			<DashboardRecentActivity tasks={recentTasks} />
