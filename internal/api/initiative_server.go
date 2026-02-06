@@ -848,6 +848,235 @@ func (s *initiativeServer) ListInitiativeNotes(
 	}), nil
 }
 
+// ============================================================================
+// Criteria RPCs
+// ============================================================================
+
+// AddCriterion adds a new acceptance criterion to an initiative.
+func (s *initiativeServer) AddCriterion(
+	ctx context.Context,
+	req *connect.Request[orcv1.AddCriterionRequest],
+) (*connect.Response[orcv1.AddCriterionResponse], error) {
+	if req.Msg.InitiativeId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
+	}
+	if req.Msg.Description == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("description is required"))
+	}
+
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	// Load initiative via legacy path to use domain methods
+	init, err := backend.LoadInitiative(req.Msg.InitiativeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
+	}
+
+	// Add criterion using domain method
+	init.AddCriterion(req.Msg.Description)
+
+	// Save via legacy path
+	if err := backend.SaveInitiative(init); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save initiative: %w", err))
+	}
+
+	// Reload via proto path for response
+	protoInit, err := backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload initiative: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.AddCriterionResponse{
+		Initiative: protoInit,
+	}), nil
+}
+
+// RemoveCriterion removes an acceptance criterion from an initiative.
+func (s *initiativeServer) RemoveCriterion(
+	ctx context.Context,
+	req *connect.Request[orcv1.RemoveCriterionRequest],
+) (*connect.Response[orcv1.RemoveCriterionResponse], error) {
+	if req.Msg.InitiativeId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
+	}
+	if req.Msg.CriterionId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("criterion_id is required"))
+	}
+
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	init, err := backend.LoadInitiative(req.Msg.InitiativeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
+	}
+
+	if !init.RemoveCriterion(req.Msg.CriterionId) {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("criterion %s not found", req.Msg.CriterionId))
+	}
+
+	if err := backend.SaveInitiative(init); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save initiative: %w", err))
+	}
+
+	protoInit, err := backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload initiative: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.RemoveCriterionResponse{
+		Initiative: protoInit,
+	}), nil
+}
+
+// MapCriterionToTask maps a task to an acceptance criterion.
+func (s *initiativeServer) MapCriterionToTask(
+	ctx context.Context,
+	req *connect.Request[orcv1.MapCriterionToTaskRequest],
+) (*connect.Response[orcv1.MapCriterionToTaskResponse], error) {
+	if req.Msg.InitiativeId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
+	}
+	if req.Msg.CriterionId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("criterion_id is required"))
+	}
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
+	}
+
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	init, err := backend.LoadInitiative(req.Msg.InitiativeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
+	}
+
+	if err := init.MapCriterionToTask(req.Msg.CriterionId, req.Msg.TaskId); err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("criterion %s not found", req.Msg.CriterionId))
+	}
+
+	if err := backend.SaveInitiative(init); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save initiative: %w", err))
+	}
+
+	protoInit, err := backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload initiative: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.MapCriterionToTaskResponse{
+		Initiative: protoInit,
+	}), nil
+}
+
+// VerifyCriterion sets the verification status and evidence for a criterion.
+func (s *initiativeServer) VerifyCriterion(
+	ctx context.Context,
+	req *connect.Request[orcv1.VerifyCriterionRequest],
+) (*connect.Response[orcv1.VerifyCriterionResponse], error) {
+	if req.Msg.InitiativeId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
+	}
+	if req.Msg.CriterionId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("criterion_id is required"))
+	}
+
+	// Validate status first
+	if err := initiative.ValidateCriterionStatus(req.Msg.Status); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	init, err := backend.LoadInitiative(req.Msg.InitiativeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
+	}
+
+	if err := init.VerifyCriterion(req.Msg.CriterionId, req.Msg.Status, req.Msg.Evidence); err != nil {
+		// Distinguish "not found" from validation errors
+		if init.GetCriterion(req.Msg.CriterionId) == nil {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	if err := backend.SaveInitiative(init); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save initiative: %w", err))
+	}
+
+	protoInit, err := backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload initiative: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.VerifyCriterionResponse{
+		Initiative: protoInit,
+	}), nil
+}
+
+// GetCoverageReport returns coverage statistics for an initiative's criteria.
+func (s *initiativeServer) GetCoverageReport(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetCoverageReportRequest],
+) (*connect.Response[orcv1.GetCoverageReportResponse], error) {
+	if req.Msg.InitiativeId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
+	}
+
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	init, err := backend.LoadInitiative(req.Msg.InitiativeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
+	}
+
+	domainReport := init.GetCoverageReport()
+
+	// Convert to proto
+	report := &orcv1.CoverageReport{
+		Total:     int32(domainReport.Total),
+		Uncovered: int32(domainReport.Uncovered),
+		Covered:   int32(domainReport.Covered),
+		Satisfied: int32(domainReport.Satisfied),
+		Regressed: int32(domainReport.Regressed),
+		Criteria:  make([]*orcv1.Criterion, 0, len(domainReport.Criteria)),
+	}
+	for _, c := range domainReport.Criteria {
+		taskIDs := c.TaskIDs
+		if taskIDs == nil {
+			taskIDs = []string{}
+		}
+		report.Criteria = append(report.Criteria, &orcv1.Criterion{
+			Id:          c.ID,
+			Description: c.Description,
+			Status:      c.Status,
+			TaskIds:     taskIDs,
+			VerifiedAt:  c.VerifiedAt,
+			VerifiedBy:  c.VerifiedBy,
+			Evidence:    c.Evidence,
+		})
+	}
+
+	return connect.NewResponse(&orcv1.GetCoverageReportResponse{
+		Report: report,
+	}), nil
+}
+
 // ListTaskGeneratedNotes returns all notes generated by a specific task.
 func (s *initiativeServer) ListTaskGeneratedNotes(
 	ctx context.Context,
