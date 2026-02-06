@@ -48,24 +48,16 @@ describe('TopBar', () => {
 			expect(screen.getByRole('banner')).toBeInTheDocument();
 		});
 
-		it('should render with default props (no project selected)', () => {
-			useProjectStore.setState({
-				projects: [],
-				currentProjectId: null,
-			});
+		it('should render navigation tabs', () => {
 			renderWithRouter(<TopBar />);
-			expect(screen.getByText('Select project')).toBeInTheDocument();
+			expect(screen.getByText('Home')).toBeInTheDocument();
+			expect(screen.getByText('Board')).toBeInTheDocument();
+			expect(screen.getByText('Settings')).toBeInTheDocument();
 		});
 
-		it('should display project name when project is selected', () => {
+		it('should render search box', () => {
 			renderWithRouter(<TopBar />);
-			expect(screen.getByText('Test Project')).toBeInTheDocument();
-		});
-
-		it('should allow projectName prop to override store value', () => {
-			renderWithRouter(<TopBar projectName="Override Project" />);
-			expect(screen.getByText('Override Project')).toBeInTheDocument();
-			expect(screen.queryByText('Test Project')).not.toBeInTheDocument();
+			expect(screen.getByLabelText('Search tasks')).toBeInTheDocument();
 		});
 	});
 
@@ -181,31 +173,6 @@ describe('TopBar', () => {
 			expect(screen.getByLabelText('Search tasks')).toBeInTheDocument();
 		});
 
-		it('should have aria-haspopup="listbox" on project selector', () => {
-			renderWithRouter(<TopBar />);
-			const projectSelector = screen.getByText('Test Project').closest('button');
-			expect(projectSelector).toHaveAttribute('aria-haspopup', 'listbox');
-		});
-	});
-
-	describe('project selector', () => {
-		it('should call onProjectChange when clicked', () => {
-			const onProjectChange = vi.fn();
-			renderWithRouter(<TopBar onProjectChange={onProjectChange} />);
-
-			const projectSelector = screen.getByText('Test Project').closest('button');
-			fireEvent.click(projectSelector!);
-
-			expect(onProjectChange).toHaveBeenCalledOnce();
-		});
-
-		it('should have folder icon', () => {
-			renderWithRouter(<TopBar />);
-			const projectSelector = screen.getByText('Test Project').closest('button');
-			// Check for SVG icons (folder and chevron-down)
-			const svgs = projectSelector?.querySelectorAll('svg');
-			expect(svgs?.length).toBe(2);
-		});
 	});
 
 	describe('keyboard shortcuts', () => {
@@ -269,101 +236,3 @@ describe('TopBar', () => {
 	});
 });
 
-// Tests for right panel toggle button (TASK-514)
-describe('right panel toggle button', () => {
-	it('should render the right panel toggle button with correct aria-label', async () => {
-		const { AppShellProvider } = await import('./AppShellContext');
-		const { TooltipProvider } = await import('@/components/ui/Tooltip');
-
-		render(
-			<MemoryRouter initialEntries={['/board']}>
-				<TooltipProvider>
-					<AppShellProvider>
-						<TopBar />
-					</AppShellProvider>
-				</TooltipProvider>
-			</MemoryRouter>
-		);
-
-		const toggleBtn = screen.getByRole('button', { name: /toggle.*panel/i });
-		expect(toggleBtn).toBeInTheDocument();
-	});
-
-	it('should have aria-expanded reflecting panel state', async () => {
-		const { AppShellProvider } = await import('./AppShellContext');
-		const { TooltipProvider } = await import('@/components/ui/Tooltip');
-
-		render(
-			<MemoryRouter initialEntries={['/board']}>
-				<TooltipProvider>
-					<AppShellProvider>
-						<TopBar />
-					</AppShellProvider>
-				</TooltipProvider>
-			</MemoryRouter>
-		);
-
-		const toggleBtn = screen.getByRole('button', { name: /toggle.*panel/i });
-		// Default state is open (isRightPanelOpen: true on desktop)
-		expect(toggleBtn).toHaveAttribute('aria-expanded');
-	});
-
-	it('should call toggleRightPanel when clicked', async () => {
-		const { AppShellProvider } = await import('./AppShellContext');
-		const { TooltipProvider } = await import('@/components/ui/Tooltip');
-
-		function TestWrapper({ children }: { children: React.ReactNode }) {
-			return (
-				<MemoryRouter initialEntries={['/board']}>
-					<TooltipProvider>
-						<AppShellProvider>{children}</AppShellProvider>
-					</TooltipProvider>
-				</MemoryRouter>
-			);
-		}
-
-		render(
-			<TestWrapper>
-				<TopBar />
-			</TestWrapper>
-		);
-
-		const toggleBtn = screen.getByRole('button', { name: /toggle.*panel/i });
-		const initialExpanded = toggleBtn.getAttribute('aria-expanded');
-
-		fireEvent.click(toggleBtn);
-
-		await waitFor(() => {
-			// After click, aria-expanded should have toggled
-			const newExpanded = toggleBtn.getAttribute('aria-expanded');
-			expect(newExpanded).not.toBe(initialExpanded);
-		});
-	});
-
-	it('should show tooltip with keyboard shortcut hint', async () => {
-		const { AppShellProvider } = await import('./AppShellContext');
-		const { TooltipProvider } = await import('@/components/ui/Tooltip');
-		const { userEvent } = await import('@testing-library/user-event');
-
-		render(
-			<MemoryRouter initialEntries={['/board']}>
-				<TooltipProvider delayDuration={0}>
-					<AppShellProvider>
-						<TopBar />
-					</AppShellProvider>
-				</TooltipProvider>
-			</MemoryRouter>
-		);
-
-		const toggleBtn = screen.getByRole('button', { name: /toggle.*panel/i });
-		const user = userEvent.setup();
-		await user.hover(toggleBtn);
-
-		await waitFor(() => {
-			// Tooltip should mention the keyboard shortcut
-			// Radix tooltips render both visible and aria-hidden content with same text
-			const elements = screen.getAllByText(/Shift.*Alt.*R/i);
-			expect(elements.length).toBeGreaterThan(0);
-		});
-	});
-});

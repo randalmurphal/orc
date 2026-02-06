@@ -25,10 +25,7 @@ import {
 import './TopBar.css';
 
 interface TopBarProps {
-	projectName?: string;
-	onProjectChange?: () => void;
 	onNewTask?: () => void;
-	onSearch?: (query: string) => void;
 	className?: string;
 }
 

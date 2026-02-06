@@ -295,20 +295,18 @@ describe('Routes', () => {
 		it('renders MyWorkPage at /', async () => {
 			renderWithRouter('/');
 			await waitFor(() => {
-				// Root route renders MyWorkPage, which shows "My Work" heading
-				expect(screen.getByText('My Work')).toBeInTheDocument();
+				// Root route renders MyWorkPage - with empty projects, shows empty state
+				expect(screen.getByText('No projects found')).toBeInTheDocument();
 			});
 		});
 
-		it('renders sidebar navigation', async () => {
+		it('renders navigation tabs in TopBar', async () => {
 			renderWithRouter('/');
 			await waitFor(() => {
-				// Check sidebar nav links exist by href attribute - use getAllByRole for multiple matches
-				const navs = screen.getAllByRole('navigation', { name: 'Main navigation' });
-				const nav = navs[0];
-				expect(nav.querySelector('a[href="/board"]')).toBeInTheDocument();
-				expect(nav.querySelector('a[href="/initiatives"]')).toBeInTheDocument();
-				expect(nav.querySelector('a[href="/stats"]')).toBeInTheDocument();
+				// Navigation tabs are now in the TopBar, not the sidebar
+				const banner = screen.getByRole('banner');
+				expect(banner.querySelector('a[href="/board"]')).toBeInTheDocument();
+				expect(banner.querySelector('a[href="/settings"]')).toBeInTheDocument();
 			});
 		});
 	});

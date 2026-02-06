@@ -1,0 +1,106 @@
+/* =============================================================================
+   TerminalDrawer Styles
+   Collapsible bottom drawer with keyboard shortcut toggle
+   ============================================================================= */
+
+/* =============================================================================
+   DRAWER CONTAINER
+   ============================================================================= */
+
+.terminal-drawer {
+	border-top: 1px solid var(--border-light);
+	background: var(--bg-surface);
+}
+
+/* =============================================================================
+   TOGGLE BUTTON
+   ============================================================================= */
+
+.terminal-drawer__toggle {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 6px 16px;
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 12px;
+	cursor: pointer;
+	transition: background-color 0.15s, color 0.15s;
+}
+
+.terminal-drawer__toggle:hover {
+	background: var(--bg-elevated);
+	color: var(--text-secondary);
+}
+
+.terminal-drawer__toggle:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: -2px;
+}
+
+.terminal-drawer__toggle-label {
+	font-weight: 500;
+}
+
+.terminal-drawer__shortcut-hint {
+	font-size: 10px;
+	color: var(--text-muted);
+	background: var(--bg-elevated);
+	padding: 1px 5px;
+	border-radius: 3px;
+	border: 1px solid var(--border-light);
+}
+
+/* =============================================================================
+   CONTENT AREA
+   ============================================================================= */
+
+.terminal-drawer__content {
+	height: 200px;
+	overflow-y: auto;
+	background: var(--bg-base);
+	border-top: 1px solid var(--border-light);
+}
+
+.terminal-drawer__placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+/* =============================================================================
+   SCROLLBAR
+   ============================================================================= */
+
+.terminal-drawer__content::-webkit-scrollbar {
+	width: 4px;
+}
+
+.terminal-drawer__content::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.terminal-drawer__content::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 2px;
+}
+
+.terminal-drawer__content {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-light) transparent;
+}
+
+/* =============================================================================
+   REDUCED MOTION
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+	.terminal-drawer__toggle {
+		transition: none;
+	}
+}

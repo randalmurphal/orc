@@ -94,17 +94,15 @@ afterEach(() => {
 
 describe('AppShell', () => {
 	describe('rendering', () => {
-		it('should render IconNav, TopBar, and children', () => {
-			renderWithProviders(
+		it('should render ProjectSidebar, TopBar, and children', () => {
+			const { container } = renderWithProviders(
 				<AppShell>
 					<div data-testid="content">Main Content</div>
 				</AppShell>
 			);
 
-			// IconNav is rendered (check for logo)
-			expect(screen.getByText('O')).toBeInTheDocument();
-
-			// TopBar is rendered (check for project name from store)
+			// ProjectSidebar is rendered (check for sidebar class and project name)
+			expect(container.querySelector('.project-sidebar')).toBeInTheDocument();
 			expect(screen.getByText('Test Project')).toBeInTheDocument();
 
 			// Children are rendered
@@ -147,32 +145,30 @@ describe('AppShell', () => {
 		});
 	});
 
-	describe('right panel', () => {
-		it('should toggle right panel visibility on button click', async () => {
+	describe('context panel', () => {
+		it('should render ContextPanel with mode tabs', () => {
 			const { container } = renderWithProviders(
-				<AppShell defaultPanelContent={<div>Panel</div>}>
+				<AppShell>
 					<div>Content</div>
 				</AppShell>
 			);
 
-			const shell = container.querySelector('.app-shell');
+			// ContextPanel renders as complementary landmark
+			expect(screen.getByRole('complementary', { name: 'Context Panel' })).toBeInTheDocument();
 
-			// Initial state - panel should be open (at desktop viewport)
-			expect(shell).toHaveClass('app-shell--panel-open');
-
-			// Find and click the panel toggle (in TopBar or wherever it's located)
-			// Since RightPanel has onClose callback, we simulate closing via the context
+			// Context panel section exists in DOM
+			expect(container.querySelector('.app-shell__context-panel')).toBeInTheDocument();
 		});
 
-		it('should render default panel content when provided', () => {
+		it('should render ContextPanel with tab list', () => {
 			renderWithProviders(
-				<AppShell defaultPanelContent={<div data-testid="panel-content">Panel Content</div>}>
+				<AppShell>
 					<div>Main Content</div>
 				</AppShell>
 			);
 
-			// Panel content should be rendered (when panel is open)
-			expect(screen.getByTestId('panel-content')).toBeInTheDocument();
+			// ContextPanel renders its tablist
+			expect(screen.getByRole('tablist')).toBeInTheDocument();
 		});
 	});
 
@@ -225,11 +221,9 @@ describe('AppShell', () => {
 // =============================================================================
 
 describe('AppShell.css', () => {
-	it('should have grid values matching spec (56px, 1fr, 300px, 48px)', () => {
-		// This test verifies the CSS file contains the correct values
-		// In a real test, we'd check computed styles, but for static analysis:
+	it('should have grid layout with sidebar, content, and context panel (240px 1fr auto)', () => {
 		const { container } = renderWithProviders(
-			<AppShell defaultPanelContent={<div>Panel</div>}>
+			<AppShell>
 				<div>Content</div>
 			</AppShell>
 		);
@@ -237,24 +231,33 @@ describe('AppShell.css', () => {
 		const shell = container.querySelector('.app-shell');
 		expect(shell).toBeInTheDocument();
 
-		// The component should have the correct class structure
-		expect(container.querySelector('.app-shell__nav')).toBeInTheDocument();
+		// The component should have the correct class structure for new layout
+		expect(container.querySelector('.app-shell__sidebar')).toBeInTheDocument();
 		expect(container.querySelector('.app-shell__topbar')).toBeInTheDocument();
 		expect(container.querySelector('.app-shell__main')).toBeInTheDocument();
-		expect(container.querySelector('.app-shell__panel')).toBeInTheDocument();
+		expect(container.querySelector('.app-shell__context-panel')).toBeInTheDocument();
+		expect(container.querySelector('.app-shell__terminal-drawer')).toBeInTheDocument();
 	});
 
-	it('should have panel-open class toggle grid-template-columns', () => {
+	it('should render all grid sections in correct structure', () => {
 		const { container } = renderWithProviders(
-			<AppShell defaultPanelContent={<div>Panel</div>}>
+			<AppShell>
 				<div>Content</div>
 			</AppShell>
 		);
 
-		const shell = container.querySelector('.app-shell');
+		// Verify the grid structure: sidebar + topbar + main + terminal-drawer + context-panel
+		const sidebar = container.querySelector('.app-shell__sidebar');
+		const topbar = container.querySelector('.app-shell__topbar');
+		const main = container.querySelector('.app-shell__main');
+		const terminal = container.querySelector('.app-shell__terminal-drawer');
+		const contextPanel = container.querySelector('.app-shell__context-panel');
 
-		// When panel is open, should have the panel-open class
-		expect(shell).toHaveClass('app-shell--panel-open');
+		expect(sidebar).toBeInTheDocument();
+		expect(topbar).toBeInTheDocument();
+		expect(main).toBeInTheDocument();
+		expect(terminal).toBeInTheDocument();
+		expect(contextPanel).toBeInTheDocument();
 	});
 });
 
@@ -465,15 +468,16 @@ describe('AppShell accessibility', () => {
 		expect(main).toBeInTheDocument();
 	});
 
-	it('should have navigation element from IconNav', () => {
-		renderWithProviders(
+	it('should have navigation element from ProjectSidebar', () => {
+		const { container } = renderWithProviders(
 			<AppShell>
 				<div>Content</div>
 			</AppShell>
 		);
 
-		const nav = screen.getByRole('navigation', { name: 'Main navigation' });
-		expect(nav).toBeInTheDocument();
+		// ProjectSidebar renders as <nav> with class "project-sidebar"
+		const sidebarNav = container.querySelector('nav.project-sidebar');
+		expect(sidebarNav).toBeInTheDocument();
 	});
 
 	it('should have banner element from TopBar', () => {

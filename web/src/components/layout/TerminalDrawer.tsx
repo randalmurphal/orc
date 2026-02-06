@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import './TerminalDrawer.css';
 
 const STORAGE_KEY = 'orc-terminal-drawer-open';
 

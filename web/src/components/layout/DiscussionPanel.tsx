@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { create } from '@bufbuild/protobuf';
 import { SendThreadMessageRequestSchema, type ThreadMessage } from '@/gen/orc/v1/thread_pb';
 import { threadClient } from '@/lib/client';
+import './DiscussionPanel.css';
 
 interface DiscussionPanelProps {
 	threadId: string;
@@ -9,17 +10,20 @@ interface DiscussionPanelProps {
 	messages?: ThreadMessage[];
 }
 
-export function DiscussionPanel({ threadId, projectId, messages: initialMessages = [] }: DiscussionPanelProps) {
-	const [messages, setMessages] = useState<ThreadMessage[]>(initialMessages);
+const EMPTY_MESSAGES: ThreadMessage[] = [];
+
+export function DiscussionPanel({ threadId, projectId, messages: initialMessages }: DiscussionPanelProps) {
+	const stableMessages = initialMessages ?? EMPTY_MESSAGES;
+	const [messages, setMessages] = useState<ThreadMessage[]>(stableMessages);
 	const [input, setInput] = useState('');
 	const [sending, setSending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
-	// Sync initial messages when prop changes
+	// Sync initial messages when prop changes (stable reference prevents loops)
 	useEffect(() => {
-		setMessages(initialMessages);
-	}, [initialMessages]);
+		setMessages(stableMessages);
+	}, [stableMessages]);
 
 	// Scroll to bottom on new messages
 	useEffect(() => {

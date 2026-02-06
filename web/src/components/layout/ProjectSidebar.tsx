@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useCurrentProject, useCurrentProjectId, useRunningTasks } from '@/stores';
 import { useThreadStore } from '@/stores/threadStore';
+import './ProjectSidebar.css';
 
 interface ProjectSidebarProps {
 	onProjectChange?: () => void;
@@ -31,7 +32,7 @@ export function ProjectSidebar({ onProjectChange }: ProjectSidebarProps) {
 
 	if (!project) {
 		return (
-			<nav className="project-sidebar" role="navigation">
+			<nav className="project-sidebar" role="navigation" aria-label="Main navigation">
 				<div className="project-sidebar__empty">
 					Select a project
 				</div>
@@ -40,7 +41,7 @@ export function ProjectSidebar({ onProjectChange }: ProjectSidebarProps) {
 	}
 
 	return (
-		<nav className="project-sidebar" role="navigation">
+		<nav className="project-sidebar" role="navigation" aria-label="Main navigation">
 			<div className="project-sidebar__header">
 				<button
 					className="project-sidebar__project-button"

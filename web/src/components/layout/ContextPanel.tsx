@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCurrentProjectId } from '@/stores';
 import { DiscussionPanel } from './DiscussionPanel';
+import './ContextPanel.css';
 
 export type ContextPanelMode = 'discussion' | 'diff' | 'terminal' | 'knowledge' | 'task';
 
