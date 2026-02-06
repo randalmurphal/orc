@@ -1,73 +1,54 @@
 # Budget Enforcement Specification
 
-**Status**: Executor Integration Implemented (TASK-787)
+**Status**: Implemented (TASK-787)
 **Last Updated**: 2026-02-05
 
 ## Overview
 
-Budget enforcement prevents runaway costs by checking spending limits before task execution. It uses store interfaces for cost data and budget limits, scoped by user and project with daily/weekly/monthly periods.
-
-## Implementation Status
-
-### Completed (TASK-787)
-
-| Component | Status | Location |
-|-----------|--------|----------|
-| `Enforcer` struct | Done | `internal/budgets/enforcement.go` |
-| `CostStore` interface | Done | `internal/budgets/enforcement.go` |
-| `BudgetStore` interface | Done | `internal/budgets/enforcement.go` |
-| `EnforcementResult` type | Done | `internal/budgets/enforcement.go` |
-| `BudgetPeriod` enum (daily/weekly/monthly) | Done | `internal/budgets/enforcement.go` |
-| `periodRange()` helper | Done | `internal/budgets/enforcement.go` |
-| Executor integration (once-per-run check) | Done | `internal/executor/executor.go` |
-| `CurrentUsername` export for cost user ID | Done | `internal/executor/executor.go` |
-| Unit tests (12 tests) | Done | `internal/budgets/enforcement_test.go` |
-| Integration tests (2 tests) | Done | `internal/executor/executor_test.go` |
-
-### Pending (Future Tasks)
-
-| Component | Depends On |
-|-----------|------------|
-| Wire `BudgetStore`/`CostStore` to real GlobalDB queries | DB query methods |
-| CLI `--ignore-budget` flag | Executor integration |
-| Budget warning threshold (warn before exceeding) | Enforcer |
-| Budget management CLI (`orc budget`) | API endpoints |
-| Web UI budget display | API endpoints |
+Budget enforcement prevents runaway costs by checking spending limits before task execution. It uses `GlobalDB.GetBudgetStatus()` to check monthly spending against configured limits per project.
 
 ## Architecture
 
+Budget checking is implemented directly in the executor, not as a separate package:
+
 ```
-┌──────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Executor   │────▶│   Enforcer   │────▶│  CostStore  │
-│ (before run) │     │              │     │  (globaldb)  │
-└──────────────┘     └──────────────┘     └─────────────┘
-                            │
-                            ▼
-                     ┌──────────────┐
-                     │ BudgetStore  │
-                     │ (globaldb)   │
-                     └──────────────┘
+┌──────────────────────┐     ┌─────────────────────┐
+│  WorkflowExecutor    │────▶│  GlobalDB            │
+│  checkBudget()       │     │  GetBudgetStatus()   │
+│  (before first phase)│     │  GetBudget()         │
+└──────────────────────┘     └─────────────────────┘
 ```
 
-### Key Types (`internal/budgets/enforcement.go`)
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `internal/executor/cost_tracking.go` | `checkBudget()` method, `RecordCostEntry()` helper |
+| `internal/executor/workflow_state.go` | User ID extraction from context for cost attribution |
+| `internal/executor/workflow_executor.go` | Integration point (`Run()` calls `checkBudget()`) |
+| `internal/cli/cmd_run.go` | `--ignore-budget` CLI flag |
+| `internal/cli/cmd_resume.go` | `--ignore-budget` CLI flag |
+| `internal/db/global.go` | `BudgetStatus`, `GetBudgetStatus()`, `GetBudget()`, `SetBudget()` |
+
+### Key Types
 
 ```go
-type Enforcer struct { costs CostStore; budgets BudgetStore; now func() time.Time }
-type BudgetPeriod string  // "daily", "weekly", "monthly"
-type BudgetLimit struct { UserID, ProjectID string; Period BudgetPeriod; LimitUSD float64 }
-type CostRecord struct { UserID, ProjectID string; CostUSD float64; Timestamp time.Time }
-type EnforcementResult struct { Allowed bool; LimitUSD, SpentUSD float64; Period BudgetPeriod; Reason string }
-```
-
-### Store Interfaces
-
-```go
-type CostStore interface {
-    GetCostsInRange(ctx context.Context, userID, projectID string, from, to time.Time) ([]CostRecord, error)
+// db.BudgetStatus (internal/db/global.go)
+type BudgetStatus struct {
+    ProjectID         string
+    MonthlyLimitUSD   float64
+    CurrentMonthSpent float64
+    CurrentMonth      string
+    PercentUsed       float64
+    AlertThreshold    int
+    OverBudget        bool        // true when CurrentMonthSpent > MonthlyLimitUSD (strict >)
+    AtAlertThreshold  bool
 }
 
-type BudgetStore interface {
-    GetBudgetLimits(ctx context.Context, userID, projectID string) ([]BudgetLimit, error)
+// executor.WorkflowRunOptions (internal/executor/workflow_executor.go)
+type WorkflowRunOptions struct {
+    // ... other fields
+    IgnoreBudget bool  // Bypasses budget enforcement when true
 }
 ```
 
@@ -75,39 +56,38 @@ type BudgetStore interface {
 
 | Scenario | Result |
 |----------|--------|
-| Empty userID | Enforcement skipped (allowed) |
-| No budget limits configured | Allowed |
+| No GlobalDB available | Allowed (skip check) |
+| No budget configured for project | Allowed |
+| Limit set to 0 | Allowed (enforcement disabled) |
 | Spent < limit | Allowed |
-| Spent >= limit (exact-at-limit) | **Denied** |
-| Multiple periods configured | All checked; first exceeded blocks |
-| Store error | **Error propagated** (fail-closed) |
+| Spent == limit (exact-at-limit) | Allowed (uses strict `>`) |
+| Spent > limit | **Denied** (returns error) |
+| Spent > limit + `--ignore-budget` | Allowed (logs warning) |
+| Approaching alert threshold | Allowed (logs warning) |
+| DB error during check | Allowed (logs warning, fail-open) |
 
-### Period Ranges
-
-| Period | Start | End |
-|--------|-------|-----|
-| `daily` | Midnight today | Midnight tomorrow |
-| `weekly` | Monday 00:00 | Next Monday 00:00 |
-| `monthly` | 1st of month 00:00 | 1st of next month 00:00 |
+**Design choice: fail-open.** Budget enforcement is best-effort. DB errors during the check log a warning but don't block execution. This prevents infrastructure issues from stopping all work.
 
 ### Executor Integration
 
 Budget is checked **once per run** (before the first phase), not per-phase:
 
 ```go
-// In executor.executePhase(), guarded by budgetChecked flag
-if e.BudgetEnforcer != nil && !e.budgetChecked {
-    e.budgetChecked = true
-    result, err := e.BudgetEnforcer.CheckBudget(ctx, costUserID, e.ProjectID)
-    // err → propagated; !result.Allowed → fmt.Errorf("budget limit reached: %s", result.Reason)
+// In WorkflowExecutor.Run(), before phase execution begins
+if err := we.checkBudget(opts.IgnoreBudget); err != nil {
+    return err  // Task not claimed, no state mutation
 }
 ```
 
-Cost user ID falls back to OS username via `currentUsername()` if `CostUserID` is empty.
+The check runs BEFORE task claiming and phase execution. If budget is exceeded, no task state is mutated and there's no orphan risk.
+
+### CLI Integration
+
+Both `orc run` and `orc resume` accept `--ignore-budget` which maps to `WorkflowRunOptions.IgnoreBudget`.
 
 ## Testing
 
 | Test File | Tests | Coverage |
 |-----------|-------|----------|
-| `internal/budgets/enforcement_test.go` | 12 | No user, no limits, within/exceeds/exact limit, multiple periods, store errors, period range (daily/weekly/monthly/Sunday) |
-| `internal/executor/executor_test.go` | 2 | Budget enforcement denied, cost user ID fallback |
+| `internal/executor/budget_enforcement_test.go` | 13 | Over-budget blocks, ignore-budget bypasses, alert threshold warning, no budget configured, ignore-budget field exists, nil globalDB, DB error proceeds, spent==limit not over budget, limit=0 disabled, exact-at-threshold, ignore-budget with no budget |
+| `internal/executor/cost_user_id_test.go` | 2 | User ID from context, empty user ID fallback |

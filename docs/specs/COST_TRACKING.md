@@ -704,11 +704,13 @@ Cache usage reduces costs significantly:
 - [x] Test coverage exists (`internal/db/global_test.go`)
 
 ### Budget Enforcement (Completed - TASK-787)
-- [x] `Enforcer` with `CostStore`/`BudgetStore` interfaces (`internal/budgets/enforcement.go`)
-- [x] Daily/weekly/monthly period checks
-- [x] Executor integration (once-per-run pre-execution check)
-- [x] Cost user ID fallback to OS username
-- [x] Test coverage (14 tests: `internal/budgets/enforcement_test.go`, `internal/executor/executor_test.go`)
+- [x] Pre-execution budget check via `GlobalDB.GetBudgetStatus()` (`internal/executor/cost_tracking.go`)
+- [x] Executor integration (once-per-run check before first phase)
+- [x] `--ignore-budget` CLI flag on `orc run` and `orc resume`
+- [x] Alert threshold warning when approaching limit
+- [x] Cost user ID from context with OS username fallback
+- [x] Test coverage (15 tests: `internal/executor/budget_enforcement_test.go`, `cost_user_id_test.go`)
+- See `docs/specs/BUDGET_ENFORCEMENT.md` for full details
 
 ### Pending (Future Tasks)
 - [ ] Costs displayed on task cards and details
@@ -716,7 +718,5 @@ Cache usage reduces costs significantly:
 - [ ] API endpoints implemented (`/api/cost/*`)
 - [ ] Web UI shows token widget on dashboard
 - [ ] Budget alerting logic triggers notifications
-- [ ] Wire `BudgetStore`/`CostStore` to real GlobalDB queries
-- [ ] CLI `--ignore-budget` flag
 - [ ] Cache savings highlighted in UI
 - [ ] E2E tests for cost display
