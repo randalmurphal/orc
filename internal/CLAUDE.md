@@ -23,7 +23,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `gate/` | Quality gates, approval workflow (auto/human/AI/skip) | `Gate`, `Evaluator`, `Resolver`, `GateAgentResponse`, `PendingDecisionStore` |
 | `git/` | Git operations, worktrees (thread-safe) | `Git`, `Checkpoint` |
 | `hosting/` | Multi-provider git hosting (GitHub, GitLab), PR lifecycle (create/find/update/merge) | `Provider`, `PR`, `PRStatusSummary`, `ErrNoPRFound` |
-| `initiative/` | Initiative/feature grouping | `Initiative`, `Store`, `Manifest` |
+| `initiative/` | Initiative/feature grouping, acceptance criteria | `Initiative`, `Criterion`, `CoverageReport`, `Store`, `Manifest` |
 | `jira/` | Jira Cloud import (API client, issue mapping, ADF conversion) | `Client`, `Importer`, `Mapper`, `Issue`, `ImportResult` |
 | `knowledge/` | Knowledge layer: Docker infra, graph/vector/cache stores, embeddings | `Service`, `Components`, `ServiceConfig` |
 | `knowledge/infra/` | Docker container lifecycle management | `Manager`, `DockerClient`, `Config` |
@@ -129,6 +129,24 @@ Orc uses two database tiers for multi-project support, with driver abstraction (
 | `ProjectDB` | `db.ProjectDB` | `~/.orc/projects/<id>/orc.db` (SQLite) or shared PG | Tasks, initiatives, transcripts, events |
 
 All runtime state lives in `~/.orc/`, keeping project `.orc/` directories config-only (git-tracked). API services resolve the correct `ProjectDB` via `getBackend(projectID)`, which routes through `ProjectCache` (`api/project_cache.go`) -- an LRU cache of open database connections. Server startup seeds the `GlobalDB` with built-in workflows and agents. Dialect configured via `database.dialect` in config (`internal/config/config_types.go`).
+
+### Initiative Acceptance Criteria
+
+Initiatives support structured acceptance criteria (`initiative/criterion.go`) that track whether an initiative's goals are met. Criteria are stored in `initiative_criteria` table (migration `project_059.sql`) and managed through `Initiative` domain methods.
+
+**Status lifecycle:**
+
+| Status | Meaning | Transition |
+|--------|---------|------------|
+| `uncovered` | No tasks mapped | Initial state |
+| `covered` | At least one task mapped | Automatic on `MapCriterionToTask()` |
+| `satisfied` | Verified as met | Manual via `VerifyCriterion()` |
+| `regressed` | Previously satisfied, now broken | Manual via `VerifyCriterion()` |
+
+**Key operations:** `AddCriterion()` (auto-generates `AC-NNN` IDs), `MapCriterionToTask()`, `VerifyCriterion()`, `GetCoverageReport()`. Criterion sequence is not persisted; it is reconstructed from existing IDs via `RecomputeCriterionSeq()` on load.
+
+**CLI:** `orc initiative criteria INIT-001 [add|map|verify|coverage]`
+**API:** `AddCriterion`, `RemoveCriterion`, `MapCriterionToTask`, `VerifyCriterion`, `GetCoverageReport` RPCs on `InitiativeService`.
 
 ### Interface-Based Design
 

@@ -110,8 +110,15 @@ type Initiative struct {
 	// Only set when MergeStatus is "merged".
 	MergeCommit string `yaml:"merge_commit,omitempty" json:"merge_commit,omitempty"`
 
+	// Criteria is the list of acceptance criteria for the initiative.
+	Criteria []*Criterion `yaml:"criteria,omitempty" json:"criteria,omitempty"`
+
 	CreatedAt time.Time `yaml:"created_at" json:"created_at"`
 	UpdatedAt time.Time `yaml:"updated_at" json:"updated_at"`
+
+	// criterionSeq tracks the next auto-ID sequence number for criteria.
+	// Not persisted directly; reconstructed from existing criteria on load.
+	criterionSeq int `yaml:"-" json:"-"`
 }
 
 // Directory constants
