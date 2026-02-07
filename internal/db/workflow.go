@@ -1017,7 +1017,7 @@ func (p *ProjectDB) GetRunningWorkflowsByTask() (map[string]*WorkflowRun, error)
 		SELECT id, workflow_id, context_type, context_data, task_id,
 			prompt, instructions, status, current_phase, started_at, completed_at,
 			variables_snapshot, total_cost_usd, total_input_tokens, total_output_tokens,
-			error, created_at, updated_at
+			error, created_at, updated_at, started_by
 		FROM workflow_runs
 		WHERE status = 'running' AND task_id IS NOT NULL
 	`)

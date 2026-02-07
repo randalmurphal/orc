@@ -474,6 +474,7 @@ message CreatePhaseTemplateRequest {
   optional string claude_config = 17;    // Per-phase settings JSON
   optional string output_var_name = 18;  // Variable name for phase output
   repeated string input_variables = 19;  // Input variable names used by this template
+  optional string provider = 20;         // LLM provider: "claude", "codex", "ollama"
 }
 
 message CreatePhaseTemplateResponse {
@@ -500,6 +501,7 @@ message UpdatePhaseTemplateRequest {
   optional string claude_config = 17;    // Per-phase settings JSON
   optional string output_var_name = 18;  // Variable name for phase output
   repeated string input_variables = 19;  // Input variable names
+  optional string provider = 20;         // LLM provider: "claude", "codex", "ollama"
 }
 
 message UpdatePhaseTemplateResponse {

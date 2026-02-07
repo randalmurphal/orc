@@ -281,6 +281,9 @@ func (s *workflowServer) UpdateWorkflow(
 	if req.Msg.TargetBranch != nil {
 		wf.TargetBranch = *req.Msg.TargetBranch
 	}
+	if req.Msg.DefaultProvider != nil {
+		wf.DefaultProvider = *req.Msg.DefaultProvider
+	}
 
 	// Write back to file
 	writeLevel := workflow.SourceToWriteLevel(resolved.Source)
@@ -908,6 +911,9 @@ func (s *workflowServer) CreatePhaseTemplate(
 	if req.Msg.ClaudeConfig != nil {
 		tmpl.ClaudeConfig = *req.Msg.ClaudeConfig
 	}
+	if req.Msg.Provider != nil {
+		tmpl.Provider = *req.Msg.Provider
+	}
 
 	if tmpl.PromptSource == "" {
 		tmpl.PromptSource = "db"
@@ -1001,6 +1007,9 @@ func (s *workflowServer) UpdatePhaseTemplate(
 	if req.Msg.Checkpoint != nil {
 		pt.Checkpoint = *req.Msg.Checkpoint
 	}
+	if req.Msg.Provider != nil {
+		pt.Provider = *req.Msg.Provider
+	}
 
 	// Write back to file if source is file-based (not embedded/database)
 	writeLevel := workflow.SourceToWriteLevel(resolved.Source)
@@ -1081,6 +1090,9 @@ func (s *workflowServer) updateDBOnlyPhaseTemplate(
 	}
 	if req.Checkpoint != nil {
 		tmpl.Checkpoint = *req.Checkpoint
+	}
+	if req.Provider != nil {
+		tmpl.Provider = *req.Provider
 	}
 
 	// Save updated template to DB
@@ -1597,6 +1609,16 @@ func dbWorkflowPhasesToProto(phases []*db.WorkflowPhase) []*orcv1.WorkflowPhase 
 		}
 		if p.ClaudeConfigOverride != "" {
 			result[i].ClaudeConfigOverride = &p.ClaudeConfigOverride
+		}
+		if p.GateTypeOverride != "" {
+			gt := stringToProtoGateType(p.GateTypeOverride)
+			result[i].GateTypeOverride = &gt
+		}
+		if p.Condition != "" {
+			result[i].Condition = &p.Condition
+		}
+		if p.ProviderOverride != "" {
+			result[i].ProviderOverride = &p.ProviderOverride
 		}
 	}
 	return result

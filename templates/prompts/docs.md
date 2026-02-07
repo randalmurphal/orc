@@ -303,6 +303,7 @@ If this task established patterns, decisions, or gotchas — place them by scope
 </validation_checklist>
 
 {{#if INITIATIVE_ID}}
+{{#if SUPPORTS_SUBAGENTS}}
 <knowledge_curator>
 ## Initiative Knowledge Extraction (MANDATORY)
 
@@ -355,4 +356,5 @@ If no notes are worth extracting, return empty array with rationale explaining w
 
 **If the sub-agent finds no notes worth extracting**, that's valid - include the empty array and rationale in your output.
 </knowledge_curator>
+{{/if}}
 {{/if}}

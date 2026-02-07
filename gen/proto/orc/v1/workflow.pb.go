@@ -3365,6 +3365,7 @@ type CreatePhaseTemplateRequest struct {
 	ClaudeConfig    *string  `protobuf:"bytes,17,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"`      // Per-phase settings JSON
 	OutputVarName   *string  `protobuf:"bytes,18,opt,name=output_var_name,json=outputVarName,proto3,oneof" json:"output_var_name,omitempty"` // Variable name for phase output
 	InputVariables  []string `protobuf:"bytes,19,rep,name=input_variables,json=inputVariables,proto3" json:"input_variables,omitempty"`      // Input variable names used by this template
+	Provider        *string  `protobuf:"bytes,20,opt,name=provider,proto3,oneof" json:"provider,omitempty"`                                  // LLM provider: "claude", "codex", "ollama"
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3518,6 +3519,13 @@ func (x *CreatePhaseTemplateRequest) GetInputVariables() []string {
 	return nil
 }
 
+func (x *CreatePhaseTemplateRequest) GetProvider() string {
+	if x != nil && x.Provider != nil {
+		return *x.Provider
+	}
+	return ""
+}
+
 type CreatePhaseTemplateResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Template      *PhaseTemplate         `protobuf:"bytes,1,opt,name=template,proto3" json:"template,omitempty"`
@@ -3582,6 +3590,7 @@ type UpdatePhaseTemplateRequest struct {
 	ClaudeConfig    *string   `protobuf:"bytes,17,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"`      // Per-phase settings JSON
 	OutputVarName   *string   `protobuf:"bytes,18,opt,name=output_var_name,json=outputVarName,proto3,oneof" json:"output_var_name,omitempty"` // Variable name for phase output
 	InputVariables  []string  `protobuf:"bytes,19,rep,name=input_variables,json=inputVariables,proto3" json:"input_variables,omitempty"`      // Input variable names
+	Provider        *string   `protobuf:"bytes,20,opt,name=provider,proto3,oneof" json:"provider,omitempty"`                                  // LLM provider: "claude", "codex", "ollama"
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3733,6 +3742,13 @@ func (x *UpdatePhaseTemplateRequest) GetInputVariables() []string {
 		return x.InputVariables
 	}
 	return nil
+}
+
+func (x *UpdatePhaseTemplateRequest) GetProvider() string {
+	if x != nil && x.Provider != nil {
+		return *x.Provider
+	}
+	return ""
 }
 
 type UpdatePhaseTemplateResponse struct {
@@ -6000,7 +6016,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x17GetPhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"M\n" +
 	"\x18GetPhaseTemplateResponse\x121\n" +
-	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xdd\x06\n" +
+	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\x8b\a\n" +
 	"\x1aCreatePhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -6021,7 +6037,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIds\x12(\n" +
 	"\rclaude_config\x18\x11 \x01(\tH\aR\fclaudeConfig\x88\x01\x01\x12+\n" +
 	"\x0foutput_var_name\x18\x12 \x01(\tH\bR\routputVarName\x88\x01\x01\x12'\n" +
-	"\x0finput_variables\x18\x13 \x03(\tR\x0einputVariablesB\x0e\n" +
+	"\x0finput_variables\x18\x13 \x03(\tR\x0einputVariables\x12\x1f\n" +
+	"\bprovider\x18\x14 \x01(\tH\tR\bprovider\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\x11\n" +
 	"\x0f_prompt_contentB\x0e\n" +
 	"\f_prompt_pathB\x10\n" +
@@ -6030,10 +6047,11 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x11_thinking_enabledB\v\n" +
 	"\t_agent_idB\x10\n" +
 	"\x0e_claude_configB\x12\n" +
-	"\x10_output_var_nameJ\x04\b\n" +
+	"\x10_output_var_nameB\v\n" +
+	"\t_providerJ\x04\b\n" +
 	"\x10\v\"P\n" +
 	"\x1bCreatePhaseTemplateResponse\x121\n" +
-	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xc4\a\n" +
+	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xf2\a\n" +
 	"\x1aUpdatePhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -6055,7 +6073,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIds\x12(\n" +
 	"\rclaude_config\x18\x11 \x01(\tH\fR\fclaudeConfig\x88\x01\x01\x12+\n" +
 	"\x0foutput_var_name\x18\x12 \x01(\tH\rR\routputVarName\x88\x01\x01\x12'\n" +
-	"\x0finput_variables\x18\x13 \x03(\tR\x0einputVariablesB\a\n" +
+	"\x0finput_variables\x18\x13 \x03(\tR\x0einputVariables\x12\x1f\n" +
+	"\bprovider\x18\x14 \x01(\tH\x0eR\bprovider\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_prompt_sourceB\x11\n" +
@@ -6070,7 +6089,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\v_checkpointB\v\n" +
 	"\t_agent_idB\x10\n" +
 	"\x0e_claude_configB\x12\n" +
-	"\x10_output_var_nameJ\x04\b\n" +
+	"\x10_output_var_nameB\v\n" +
+	"\t_providerJ\x04\b\n" +
 	"\x10\v\"P\n" +
 	"\x1bUpdatePhaseTemplateResponse\x121\n" +
 	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\",\n" +

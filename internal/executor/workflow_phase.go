@@ -1126,9 +1126,15 @@ func (we *WorkflowExecutor) resolvePhaseProvider(tmpl *db.PhaseTemplate, phase *
 
 // resolvePhaseModel determines which model to use for a phase.
 // Priority: workflow phase override > workflow default_model > executor agent model > config default
+// If the model string contains a provider prefix (e.g., "codex:gpt-5"), the prefix is stripped
+// and only the model name is returned (e.g., "gpt-5"). Provider extraction is handled separately
+// by resolvePhaseProvider.
 func (we *WorkflowExecutor) resolvePhaseModel(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) string {
 	// Workflow phase override takes precedence (per-workflow customization)
 	if phase.ModelOverride != "" {
+		if _, m := ParseProviderModel(phase.ModelOverride); m != "" {
+			return m
+		}
 		return phase.ModelOverride
 	}
 
