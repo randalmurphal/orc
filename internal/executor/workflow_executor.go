@@ -708,6 +708,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 		// Update phase in resolution context
 		rctx.Phase = tmpl.ID
+		rctx.Provider = we.resolvePhaseProvider(tmpl, phase)
 
 		// Enrich context with phase-specific data (review findings, test results, etc.)
 		we.enrichContextForPhase(rctx, tmpl.ID, t)

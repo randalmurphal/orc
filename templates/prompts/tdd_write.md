@@ -284,7 +284,7 @@ Before outputting completion JSON, commit all test files to preserve them:
 git add -A
 git commit -m "[orc] {{TASK_ID}}: tdd_write - [brief description of tests]
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+Co-Authored-By: {{COMMIT_AUTHOR}}"
 ```
 
 **CRITICAL:** Always commit before claiming completion. Uncommitted tests may be lost if execution is interrupted or the task fails.

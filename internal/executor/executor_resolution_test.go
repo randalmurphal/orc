@@ -610,3 +610,154 @@ func TestShouldUseThinking_WorkflowDefaultThinking(t *testing.T) {
 		assert.True(t, result)
 	})
 }
+
+func TestResolvePhaseProvider(t *testing.T) {
+	t.Run("defaults to claude when nothing configured", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "claude", provider)
+	})
+
+	t.Run("phase provider override takes precedence", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		tmpl := &db.PhaseTemplate{ID: "implement", Provider: "claude"}
+		phase := &db.WorkflowPhase{ProviderOverride: "codex"}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("extracts provider from model override", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{ModelOverride: "codex:gpt-5"}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("uses template provider", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		tmpl := &db.PhaseTemplate{ID: "implement", Provider: "codex"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("uses workflow default provider", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+		env.executor.wf = &workflow.Workflow{
+			ID:              "test-workflow",
+			DefaultProvider: "codex",
+		}
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("uses agent provider", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		testAgent := &db.Agent{
+			ID:       "impl-executor",
+			Name:     "Implementation Executor",
+			Provider: "codex",
+		}
+		require.NoError(t, env.projectDB.SaveAgent(testAgent))
+
+		tmpl := &db.PhaseTemplate{ID: "implement", AgentID: "impl-executor"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("uses config provider", func(t *testing.T) {
+		cfg := config.Default()
+		cfg.Provider = "codex"
+		env := setupTestExecutor(t, cfg)
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("full priority chain: phase override > model prefix > template > workflow > agent > config", func(t *testing.T) {
+		cfg := config.Default()
+		cfg.Provider = "ollama"
+		env := setupTestExecutor(t, cfg)
+
+		testAgent := &db.Agent{
+			ID:       "impl-executor",
+			Name:     "Implementation Executor",
+			Provider: "codex",
+		}
+		require.NoError(t, env.projectDB.SaveAgent(testAgent))
+
+		env.executor.wf = &workflow.Workflow{
+			ID:              "test-workflow",
+			DefaultProvider: "codex",
+		}
+
+		tmpl := &db.PhaseTemplate{ID: "implement", AgentID: "impl-executor", Provider: "codex"}
+		phase := &db.WorkflowPhase{
+			ProviderOverride: "claude",                // Highest priority
+			ModelOverride:    "codex:gpt-5",           // Would be second
+		}
+
+		// Phase override wins
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "claude", provider)
+
+		// Remove phase override — model prefix wins
+		phase.ProviderOverride = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "codex", provider)
+
+		// Remove model override — template wins
+		phase.ModelOverride = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "codex", provider)
+
+		// Remove template provider — workflow default wins
+		tmpl.Provider = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "codex", provider)
+
+		// Remove workflow default — agent wins
+		env.executor.wf.DefaultProvider = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "codex", provider)
+
+		// Remove agent provider — config wins
+		testAgent.Provider = ""
+		require.NoError(t, env.projectDB.SaveAgent(testAgent))
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "ollama", provider)
+
+		// Remove config provider — defaults to claude
+		env.executor.orcConfig.Provider = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "claude", provider)
+	})
+}

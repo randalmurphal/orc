@@ -389,7 +389,7 @@ Before outputting completion JSON, commit all test files:
 git add -A
 git commit -m "[orc] {{TASK_ID}}: tdd_integrate - integration tests for production wiring
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+Co-Authored-By: {{COMMIT_AUTHOR}}"
 ```
 
 **CRITICAL:** Always commit before claiming completion. Uncommitted tests may be lost if execution is interrupted.

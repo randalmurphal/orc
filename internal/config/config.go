@@ -181,6 +181,10 @@ type Config struct {
 	Model         string `yaml:"model"`
 	FallbackModel string `yaml:"fallback_model,omitempty"`
 
+	// Provider is the default LLM provider for all phases (default: "claude")
+	// Supported: "claude", "codex", "ollama"
+	Provider string `yaml:"provider,omitempty"`
+
 	// Execution settings
 	MaxTurns int           `yaml:"max_turns"` // Claude CLI turn limit (default 150)
 	Timeout  time.Duration `yaml:"timeout"`

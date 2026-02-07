@@ -276,6 +276,9 @@ type ResolutionContext struct {
 	// Project brief (auto-generated context from task history)
 	ProjectBrief string
 
+	// Provider context (which LLM provider is executing this phase)
+	Provider string // "claude", "codex", "ollama", etc.
+
 	// QA E2E testing context
 	QAIteration      int    // Current QA iteration (1, 2, 3, ...)
 	QAMaxLoops  int    // Maximum QA iterations before stopping

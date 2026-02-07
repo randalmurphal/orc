@@ -181,6 +181,9 @@ type PhaseTemplate struct {
 	// Claude CLI configuration (JSON PhaseClaudeConfig)
 	ClaudeConfig string `json:"claude_config,omitempty" yaml:"claude_config" db:"claude_config"`
 
+	// LLM provider override (empty = inherit from workflow/config)
+	Provider string `json:"provider,omitempty" db:"provider"`
+
 	// Metadata
 	IsBuiltin bool      `json:"is_builtin" db:"is_builtin"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
@@ -194,6 +197,7 @@ type Workflow struct {
 	Name             string `json:"name" db:"name"`
 	Description      string `json:"description,omitempty" db:"description"`
 	DefaultModel     string `json:"default_model,omitempty" db:"default_model"`
+	DefaultProvider  string `json:"default_provider,omitempty" db:"default_provider"`
 	DefaultThinking  bool   `json:"default_thinking" db:"default_thinking"`
 	CompletionAction string `json:"completion_action,omitempty" yaml:"completion_action" db:"completion_action"` // "pr", "commit", "none", or "" (inherit)
 	TargetBranch         string       `json:"target_branch,omitempty" yaml:"target_branch" db:"target_branch"`             // Default PR target branch, or "" (inherit from config)
@@ -220,7 +224,8 @@ type WorkflowPhase struct {
 	DependsOn []string `json:"depends_on,omitempty"` // Parsed from JSON
 
 	// Per-workflow overrides (nil = use phase template defaults)
-	ModelOverride string `json:"model_override,omitempty" db:"model_override"`
+	ModelOverride    string `json:"model_override,omitempty" db:"model_override"`
+	ProviderOverride string `json:"provider_override,omitempty" db:"provider_override"`
 	ThinkingOverride      *bool    `json:"thinking_override,omitempty" db:"thinking_override"`
 	GateTypeOverride      GateType `json:"gate_type_override,omitempty" db:"gate_type_override"`
 	Condition             string   `json:"condition,omitempty" db:"condition"` // JSON skip conditions

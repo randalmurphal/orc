@@ -318,6 +318,7 @@ func (we *WorkflowExecutor) executeParallelPhase(
 
 	// Update phase in resolution context
 	rctx.Phase = tmpl.ID
+	rctx.Provider = we.resolvePhaseProvider(tmpl, phase)
 
 	// Enrich context with phase-specific data
 	we.enrichContextForPhase(rctx, tmpl.ID, t)

@@ -31,6 +31,7 @@ const MaxOrcRetries = 5
 type PhaseExecutionConfig struct {
 	Prompt     string
 	Model      string
+	Provider   string // "claude", "codex", "ollama", or empty (default: claude)
 	WorkingDir string
 	TaskID     string
 	PhaseID    string
@@ -337,11 +338,15 @@ func (we *WorkflowExecutor) executePhase(
 		return result, nil
 	}
 
-	// Build execution context for ClaudeExecutor (LLM path)
+	// Determine provider (workflow phase override > template > workflow default > config > "claude")
+	provider := we.resolvePhaseProvider(tmpl, phase)
+
+	// Build execution context for LLM provider
 	// Use worktree path if available, otherwise fall back to original working dir
 	execConfig := PhaseExecutionConfig{
 		Prompt:        renderedPrompt,
 		Model:         model,
+		Provider:      provider,
 		WorkingDir:    we.effectiveWorkingDir(),
 		TaskID:        rctx.TaskID,
 		PhaseID:       tmpl.ID,
@@ -353,8 +358,15 @@ func (we *WorkflowExecutor) executePhase(
 		ClaudeConfig:  claudeConfig,
 	}
 
-	// Execute with ClaudeExecutor
-	execResult, err := we.executeWithClaude(ctx, execConfig)
+	// Execute with provider-specific executor
+	var execResult *PhaseExecutionResult
+	switch provider {
+	case ProviderCodex:
+		execResult, err = we.executeWithCodex(ctx, execConfig)
+	default:
+		// Claude is the default provider (empty string or "claude")
+		execResult, err = we.executeWithClaude(ctx, execConfig)
+	}
 
 	// Post-reset: restore .claude/ for next phase (non-fatal)
 	if we.worktreePath != "" && we.globalDB != nil {
@@ -494,7 +506,8 @@ func (we *WorkflowExecutor) executePhase(
 
 	// Record cost to global database for cross-project analytics
 	phaseModel := we.resolvePhaseModel(tmpl, phase)
-	we.recordCostToGlobal(ctx, t, tmpl.ID, result, phaseModel, time.Since(startTime))
+	phaseProvider := we.resolvePhaseProvider(tmpl, phase)
+	we.recordCostToGlobal(ctx, t, tmpl.ID, result, phaseModel, phaseProvider, time.Since(startTime))
 
 	// Update execution state if available (Task-centric approach)
 	if we.task != nil {
@@ -751,6 +764,193 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 	return result, fmt.Errorf("max orc retries (%d) reached without completion", MaxOrcRetries)
 }
 
+// executeWithCodex runs a phase using the Codex CLI executor.
+// Mirrors executeWithClaude's retry/quality check pattern but uses CodexExecutor.
+func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecutionConfig) (*PhaseExecutionResult, error) {
+	result := &PhaseExecutionResult{}
+
+	prompt := cfg.Prompt
+
+	// Determine session ID
+	var sessionID string
+	shouldResume := false
+
+	if we.task != nil && we.isResuming {
+		if ps, ok := we.task.Execution.Phases[cfg.PhaseID]; ok {
+			storedSessionID := ""
+			if ps.SessionId != nil {
+				storedSessionID = *ps.SessionId
+			}
+			if storedSessionID != "" && ps.Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
+				sessionID = storedSessionID
+				shouldResume = true
+				we.logger.Info("resuming paused codex session",
+					"phase", cfg.PhaseID,
+					"session_id", sessionID,
+				)
+			}
+		}
+	}
+
+	if !shouldResume {
+		sessionID = uuid.New().String()
+		if we.task != nil {
+			task.SetPhaseSessionIDProto(we.task.Execution, cfg.PhaseID, sessionID)
+			if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
+				we.logger.Warn("failed to save session ID", "phase", cfg.PhaseID, "error", saveErr)
+			}
+		}
+	}
+	result.SessionID = sessionID
+
+	if shouldResume {
+		prompt = "Continue where you left off."
+		we.logger.Info("resuming codex session", "session_id", sessionID)
+	}
+
+	// Write AGENTS.md for codex context (equivalent of CLAUDE.md for Claude)
+	if we.worktreePath != "" {
+		agentsContent := we.buildAGENTSMDContent(cfg)
+		if err := WriteAGENTSMD(we.effectiveWorkingDir(), agentsContent); err != nil {
+			we.logger.Warn("failed to write AGENTS.md", "error", err)
+		}
+	}
+
+	// Use injected TurnExecutor for testing, or create real CodexExecutor
+	var turnExec TurnExecutor
+	if we.turnExecutor != nil {
+		turnExec = we.turnExecutor
+		turnExec.UpdateSessionID(sessionID)
+	} else {
+		// Parse model to extract local provider if present (e.g., "ollama/qwen2.5-14b")
+		model := cfg.Model
+		var localProvider string
+		if idx := len("ollama/"); len(model) > idx && model[:idx] == "ollama/" {
+			localProvider = "ollama"
+		}
+
+		execOpts := []CodexExecutorOption{
+			WithCodexWorkdir(cfg.WorkingDir),
+			WithCodexModel(model),
+			WithCodexSessionID(sessionID),
+			WithCodexLogger(we.logger),
+			WithCodexPhaseID(cfg.PhaseID),
+			WithCodexProducesArtifact(cfg.PhaseTemplate != nil && cfg.PhaseTemplate.ProducesArtifact),
+			WithCodexBackend(we.backend),
+			WithCodexTaskID(cfg.TaskID),
+			WithCodexRunID(cfg.RunID),
+		}
+
+		if cfg.PhaseID == "review" && cfg.ReviewRound > 0 {
+			execOpts = append(execOpts, WithCodexReviewRound(cfg.ReviewRound))
+		}
+
+		if localProvider != "" {
+			execOpts = append(execOpts, WithCodexLocalProvider(localProvider))
+		}
+
+		if shouldResume {
+			execOpts = append(execOpts, WithCodexResume(true))
+		}
+
+		turnExec = NewCodexExecutor(execOpts...)
+	}
+
+	// Execute turns until completion (same retry pattern as Claude)
+	for i := 0; i < MaxOrcRetries; i++ {
+		if ctx.Err() != nil {
+			return result, ctx.Err()
+		}
+
+		result.Iterations++
+
+		if cfg.RunID != "" && cfg.PhaseID != "" {
+			if err := we.backend.UpdatePhaseIterations(cfg.RunID, cfg.PhaseID, result.Iterations); err != nil {
+				we.logger.Warn("failed to update phase iterations", "phase", cfg.PhaseID, "error", err)
+			}
+		}
+
+		// Execute turn — CodexExecutor handles schema validation retries internally
+		turnResult, err := turnExec.ExecuteTurn(ctx, prompt)
+		if err != nil {
+			return result, fmt.Errorf("codex turn %d: %w", i+1, err)
+		}
+
+		if turnResult.SessionID != "" {
+			turnExec.UpdateSessionID(turnResult.SessionID)
+		}
+
+		// Accumulate tokens
+		if turnResult.Usage != nil {
+			result.InputTokens += int(turnResult.Usage.InputTokens)
+			result.OutputTokens += int(turnResult.Usage.OutputTokens)
+		}
+		result.CostUSD += turnResult.CostUSD
+
+		// Parse phase completion (CodexExecutor already parsed status in ExecuteTurn)
+		status := turnResult.Status
+		reason := turnResult.Reason
+
+		switch status {
+		case PhaseStatusComplete:
+			// Quality checks
+			if cfg.PhaseID == "implement" && we.turnExecutor == nil {
+				if verifyErr := ValidateImplementCompletion(turnResult.Content); verifyErr != nil {
+					we.logger.Info("implement verification gate failed, continuing iteration",
+						"phase", cfg.PhaseID,
+						"error", verifyErr.Error(),
+					)
+					prompt = FormatVerificationFeedback(verifyErr)
+					continue
+				}
+			}
+
+			if checkResult := we.runQualityChecks(ctx, cfg); checkResult != nil {
+				if checkResult.HasBlocks {
+					we.logger.Info("quality checks failed, continuing iteration",
+						"phase", cfg.PhaseID,
+						"failures", checkResult.FailureSummary(),
+					)
+					prompt = FormatQualityChecksForPrompt(checkResult)
+					continue
+				}
+			}
+
+			result.RawOutput = turnResult.Content
+			result.Content = extractPhaseOutput(turnResult.Content)
+			return result, nil
+
+		case PhaseStatusBlocked:
+			result.RawOutput = turnResult.Content
+			result.Content = extractPhaseOutput(turnResult.Content)
+			return result, &PhaseBlockedError{
+				Phase:  cfg.PhaseID,
+				Reason: reason,
+				Output: turnResult.Content,
+			}
+
+		case PhaseStatusContinue:
+			prompt = fmt.Sprintf("Continue working. Iteration %d/%d. %s",
+				i+2, MaxOrcRetries, reason)
+		}
+	}
+
+	return result, fmt.Errorf("max orc retries (%d) reached without completion (codex)", MaxOrcRetries)
+}
+
+// buildAGENTSMDContent generates AGENTS.md content for codex context.
+// This mirrors what CLAUDE.md provides to Claude — task context, constitution, etc.
+func (we *WorkflowExecutor) buildAGENTSMDContent(cfg PhaseExecutionConfig) string {
+	var content string
+	content += "# Task Context\n\n"
+	content += "Task: " + cfg.TaskID + "\n"
+	content += "Phase: " + cfg.PhaseID + "\n"
+	if we.task != nil && we.task.Description != nil {
+		content += "\n## Description\n\n" + *we.task.Description + "\n"
+	}
+	return content
+}
+
 // loadPhasePrompt loads the prompt content for a phase template.
 func (we *WorkflowExecutor) loadPhasePrompt(tmpl *db.PhaseTemplate) (string, error) {
 	switch tmpl.PromptSource {
@@ -877,6 +1077,46 @@ func (we *WorkflowExecutor) resolveExecutorAgent(tmpl *db.PhaseTemplate, phase *
 
 	// No agent configured - caller should use fallback defaults
 	return nil
+}
+
+// resolvePhaseProvider determines which LLM provider to use for a phase.
+// Priority: workflow phase override > phase template > workflow default > executor agent > config default > "claude"
+// Supports "provider:model" shorthand in model fields (e.g., "codex:gpt-5").
+func (we *WorkflowExecutor) resolvePhaseProvider(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) string {
+	// Workflow phase override takes precedence (per-workflow customization)
+	if phase.ProviderOverride != "" {
+		return phase.ProviderOverride
+	}
+
+	// Check if model override contains provider prefix (e.g., "codex:gpt-5")
+	if phase.ModelOverride != "" {
+		if p, _ := ParseProviderModel(phase.ModelOverride); p != "" {
+			return p
+		}
+	}
+
+	// Phase template default
+	if tmpl.Provider != "" {
+		return tmpl.Provider
+	}
+
+	// Workflow default_provider
+	if we.wf != nil && we.wf.DefaultProvider != "" {
+		return we.wf.DefaultProvider
+	}
+
+	// Executor agent provider
+	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.Provider != "" {
+		return agent.Provider
+	}
+
+	// Config default provider
+	if we.orcConfig != nil && we.orcConfig.Provider != "" {
+		return we.orcConfig.Provider
+	}
+
+	// Ultimate fallback
+	return "claude"
 }
 
 // resolvePhaseModel determines which model to use for a phase.
