@@ -219,6 +219,10 @@ func New(cfg *Config) *Executor {
 		cfg = DefaultConfig()
 	}
 
+	// Log version info at startup
+	vi := GetVersionInfo()
+	slog.Debug("executor version", "version", vi.Version, "go", vi.GoVersion, "vcs_rev", vi.VCSRev)
+
 	// Load orc config for gate resolution
 	orcCfg, err := config.Load()
 	if err != nil {
