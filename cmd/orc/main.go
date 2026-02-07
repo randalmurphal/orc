@@ -7,8 +7,8 @@ import (
 	"github.com/randalmurphal/orc/internal/cli"
 )
 
+// main is the CLI entry point for the orc binary.
 func main() {
-	// main is the CLI entry point for the orc binary.
 	if err := cli.Execute(); err != nil {
 		os.Exit(1)
 	}
