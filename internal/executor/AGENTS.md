@@ -30,10 +30,10 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `script_executor.go` | `ScriptPhaseExecutor` — runs shell commands as phases (command, workdir, timeout, success_pattern, output_var) |
 | `api_executor.go` | `APIPhaseExecutor` — makes HTTP requests as phases (method, URL, headers, body, success_status, output_var) |
 | `knowledge_executor.go` | `KnowledgePhaseExecutor`, `KnowledgeQueryService` interface — knowledge retrieval phase |
-| `retry.go` | Retry context building (`BuildRetryContextForFreshSession`, `CompressPreviousContext`, `BuildRetryPreview`) |
+| `retry.go` | Retry context building (`BuildRetryContextForFreshSession`, `CompressPreviousContext`, `BuildRetryPreview`) and `DefaultMaxRetries` constant (`3`) |
 | `review.go` | Review findings parsing, formatting for round 2 (`FormatFindingsForRound2`) |
 | `qa.go` | QA E2E types, parsing (`ParseQAE2ETestResult`, `ParseQAE2EFixResult`) |
-| `finalize.go` | Branch sync, test fixing with retry (see `docs/architecture/FINALIZE.md`) |
+| `finalize.go` | Branch sync, test fixing with retry (see `docs/architecture/EXECUTOR.md`) |
 | `conflict_resolver.go` | Automatic merge conflict resolution via provider-aware sub-agent (Claude or Codex) |
 | `ci_merge.go` | CI polling, auto-merge with retry logic, commit templates, SHA verification |
 | `cost_tracking.go` | `RecordCostEntry()` - global cost recording; `TokenRate`, `EstimateTokenCostUSD()` - provider-aware cost estimation |
