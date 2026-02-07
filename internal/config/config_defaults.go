@@ -270,8 +270,6 @@ func Default() *Config {
 		Providers: ProvidersConfig{
 			Codex: CodexProviderConfig{
 				Path:            "codex",
-				Sandbox:         "workspace-write",
-				Approval:        "never",
 				ReasoningEffort: "high",
 			},
 			Ollama: OllamaProviderConfig{

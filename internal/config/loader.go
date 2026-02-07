@@ -641,14 +641,6 @@ func mergeProvidersConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]i
 			cfg.Providers.Codex.Path = ExpandPath(fileCfg.Providers.Codex.Path)
 			tc.SetSourceWithPath("providers.codex.path", source, path)
 		}
-		if _, ok := rawCodex["sandbox"]; ok {
-			cfg.Providers.Codex.Sandbox = fileCfg.Providers.Codex.Sandbox
-			tc.SetSourceWithPath("providers.codex.sandbox", source, path)
-		}
-		if _, ok := rawCodex["approval"]; ok {
-			cfg.Providers.Codex.Approval = fileCfg.Providers.Codex.Approval
-			tc.SetSourceWithPath("providers.codex.approval", source, path)
-		}
 		if _, ok := rawCodex["reasoning_effort"]; ok {
 			cfg.Providers.Codex.ReasoningEffort = fileCfg.Providers.Codex.ReasoningEffort
 			tc.SetSourceWithPath("providers.codex.reasoning_effort", source, path)
@@ -699,7 +691,7 @@ func markDefaults(tc *TrackedConfig) {
 		"database.postgres.user", "database.postgres.password", "database.postgres.ssl_mode",
 		"database.postgres.pool_max",
 		"brief.max_tokens", "brief.stale_threshold",
-		"providers.codex.path", "providers.codex.sandbox", "providers.codex.approval", "providers.codex.reasoning_effort",
+		"providers.codex.path", "providers.codex.reasoning_effort",
 		"providers.ollama.base_url", "providers.ollama.default_model",
 		"providers.rates",
 	}

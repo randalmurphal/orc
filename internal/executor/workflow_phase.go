@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/randalmurphal/llmkit/codex"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
@@ -587,8 +586,9 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			if ps.SessionId != nil {
 				storedSessionID = *ps.SessionId
 			}
-			// Resume if: phase has a stored session ID AND phase not completed
-			if storedSessionID != "" && ps.Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
+			// Resume if: phase has a stored session ID AND phase was in progress (interrupted mid-work).
+			// Do NOT resume FAILED phases — the session may never have started or may be corrupted.
+			if storedSessionID != "" && ps.Status == orcv1.PhaseStatus_PHASE_STATUS_PENDING {
 				sessionID = storedSessionID
 				shouldResume = true
 				we.logger.Info("resuming paused session",
@@ -780,7 +780,10 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 
 	prompt := cfg.Prompt
 
-	// Determine session ID
+	// Determine session ID — either resume existing codex session or start fresh.
+	// Codex sessions ARE persisted to ~/.codex/sessions/ and CAN be resumed via
+	// `codex exec resume <thread_id>`. Unlike Claude (where orc pre-assigns a UUID),
+	// codex assigns its own thread_id — we capture it from the response and save it.
 	var sessionID string
 	shouldResume := false
 
@@ -790,31 +793,24 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 			if ps.SessionId != nil {
 				storedSessionID = *ps.SessionId
 			}
-			if storedSessionID != "" && ps.Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
+			// Resume if: has stored codex thread_id AND phase was in progress (interrupted mid-work).
+			// Don't resume if no session ID — codex never started (crashed during arg parsing).
+			// Do NOT resume FAILED phases — the session may never have started or may be corrupted.
+			if storedSessionID != "" && ps.Status == orcv1.PhaseStatus_PHASE_STATUS_PENDING {
 				sessionID = storedSessionID
 				shouldResume = true
-				we.logger.Info("resuming paused codex session",
-					"phase", cfg.PhaseID,
-					"session_id", sessionID,
-				)
+				we.logger.Info("resuming codex session", "phase", cfg.PhaseID, "session_id", sessionID)
 			}
 		}
 	}
 
-	if !shouldResume {
-		sessionID = uuid.New().String()
-		if we.task != nil {
-			task.SetPhaseSessionIDProto(we.task.Execution, cfg.PhaseID, sessionID)
-			if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
-				we.logger.Warn("failed to save session ID", "phase", cfg.PhaseID, "error", saveErr)
-			}
-		}
-	}
+	// For fresh calls: DON'T pre-assign a session ID.
+	// Codex assigns its own thread_id, which we capture from the response.
 	result.SessionID = sessionID
 
+	// When resuming, use a simple continue prompt.
 	if shouldResume {
 		prompt = "Continue where you left off."
-		we.logger.Info("resuming codex session", "session_id", sessionID)
 	}
 
 	// Apply Codex phase settings (AGENTS.md + .codex/instruction.md)
@@ -852,15 +848,12 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 			Logger:           we.logger,
 		}
 
+		// Always bypass approvals and sandbox — orc manages execution safety
+		teCfg.BypassApprovalsAndSandbox = true
+
 		// Apply config-level Codex defaults first (lowest precedence)
 		if we.orcConfig != nil {
 			pc := we.orcConfig.Providers.Codex
-			if pc.Sandbox != "" {
-				teCfg.SandboxMode = codex.SandboxMode(pc.Sandbox)
-			}
-			if pc.Approval != "" {
-				teCfg.ApprovalMode = codex.ApprovalMode(pc.Approval)
-			}
 			if pc.ReasoningEffort != "" {
 				teCfg.ReasoningEffort = pc.ReasoningEffort
 			}
@@ -869,12 +862,6 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 		// Wire Codex-specific settings from phase config (overrides config defaults)
 		if cfg.ClaudeConfig != nil && cfg.ClaudeConfig.Codex != nil {
 			cc := cfg.ClaudeConfig.Codex
-			if cc.SandboxMode != "" {
-				teCfg.SandboxMode = codex.SandboxMode(cc.SandboxMode)
-			}
-			if cc.ApprovalMode != "" {
-				teCfg.ApprovalMode = codex.ApprovalMode(cc.ApprovalMode)
-			}
 			if cc.ReasoningEffort != "" {
 				teCfg.ReasoningEffort = cc.ReasoningEffort
 			}
@@ -930,6 +917,14 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 
 		if turnResult.SessionID != "" {
 			turnExec.UpdateSessionID(turnResult.SessionID)
+			result.SessionID = turnResult.SessionID
+			// Persist codex thread_id for cross-process resume
+			if we.task != nil {
+				task.SetPhaseSessionIDProto(we.task.Execution, cfg.PhaseID, turnResult.SessionID)
+				if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
+					we.logger.Warn("failed to save codex session ID", "phase", cfg.PhaseID, "error", saveErr)
+				}
+			}
 		}
 
 		// Accumulate tokens

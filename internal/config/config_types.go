@@ -1039,10 +1039,10 @@ type ProvidersConfig struct {
 }
 
 // CodexProviderConfig defines default Codex CLI settings.
+// Note: sandbox/approval are not configurable — orc always uses
+// --dangerously-bypass-approvals-and-sandbox for all codex execution.
 type CodexProviderConfig struct {
 	Path            string `yaml:"path,omitempty"`
-	Sandbox         string `yaml:"sandbox,omitempty"`
-	Approval        string `yaml:"approval,omitempty"`
 	ReasoningEffort string `yaml:"reasoning_effort,omitempty"`
 }
 

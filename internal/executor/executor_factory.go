@@ -3,7 +3,6 @@ package executor
 import (
 	"log/slog"
 
-	"github.com/randalmurphal/llmkit/codex"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -29,9 +28,8 @@ type TurnExecutorConfig struct {
 	ClaudeConfig     *PhaseClaudeConfig
 
 	// Codex-specific
-	SandboxMode     codex.SandboxMode
-	ApprovalMode    codex.ApprovalMode
-	LocalProvider   string // "ollama" or "lmstudio" for local routing
+	BypassApprovalsAndSandbox bool   // Always true for orc execution
+	LocalProvider             string // "ollama" or "lmstudio" for local routing
 	ReasoningEffort string // Codex model_reasoning_effort
 	WebSearchMode   string // Codex web_search mode
 	Env             map[string]string // Additional env vars for codex process
@@ -101,11 +99,8 @@ func newCodexTurnExecutor(cfg TurnExecutorConfig) TurnExecutor {
 	if cfg.LocalProvider != "" {
 		opts = append(opts, WithCodexLocalProvider(cfg.LocalProvider))
 	}
-	if cfg.SandboxMode != "" {
-		opts = append(opts, WithCodexSandboxMode(cfg.SandboxMode))
-	}
-	if cfg.ApprovalMode != "" {
-		opts = append(opts, WithCodexApprovalMode(cfg.ApprovalMode))
+	if cfg.BypassApprovalsAndSandbox {
+		opts = append(opts, WithCodexBypassApprovalsAndSandbox(true))
 	}
 	if cfg.Resume {
 		opts = append(opts, WithCodexResume(true))

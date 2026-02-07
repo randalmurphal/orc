@@ -49,11 +49,8 @@ func TestCodexExecutor_Defaults(t *testing.T) {
 	if exec.schemaRetries != 2 {
 		t.Errorf("default schemaRetries = %d, want 2", exec.schemaRetries)
 	}
-	if exec.sandboxMode != "workspace-write" {
-		t.Errorf("default sandboxMode = %q, want %q", exec.sandboxMode, "workspace-write")
-	}
-	if exec.approvalMode != "never" {
-		t.Errorf("default approvalMode = %q, want %q", exec.approvalMode, "never")
+	if !exec.bypassApprovalsAndSandbox {
+		t.Error("default bypassApprovalsAndSandbox should be true")
 	}
 }
 

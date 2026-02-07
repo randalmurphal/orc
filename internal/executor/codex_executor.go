@@ -55,8 +55,7 @@ type CodexExecutor struct {
 	runID   string
 
 	// Codex-specific settings
-	sandboxMode  codex.SandboxMode
-	approvalMode codex.ApprovalMode
+	bypassApprovalsAndSandbox bool
 
 	// Local model routing (ollama, lmstudio)
 	localProvider string
@@ -144,14 +143,10 @@ func WithCodexRunID(id string) CodexExecutorOption {
 	return func(e *CodexExecutor) { e.runID = id }
 }
 
-// WithCodexSandboxMode sets the sandbox mode.
-func WithCodexSandboxMode(mode codex.SandboxMode) CodexExecutorOption {
-	return func(e *CodexExecutor) { e.sandboxMode = mode }
-}
-
-// WithCodexApprovalMode sets the approval mode.
-func WithCodexApprovalMode(mode codex.ApprovalMode) CodexExecutorOption {
-	return func(e *CodexExecutor) { e.approvalMode = mode }
+// WithCodexBypassApprovalsAndSandbox enables --dangerously-bypass-approvals-and-sandbox.
+// This is the default and only supported mode for orc execution.
+func WithCodexBypassApprovalsAndSandbox(bypass bool) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.bypassApprovalsAndSandbox = bypass }
 }
 
 // WithCodexLocalProvider sets the local model provider (ollama, lmstudio).
@@ -188,11 +183,10 @@ func WithCodexSchemaRetries(retries int) CodexExecutorOption {
 // NewCodexExecutor creates a new Codex executor.
 func NewCodexExecutor(opts ...CodexExecutorOption) *CodexExecutor {
 	e := &CodexExecutor{
-		codexPath:    "codex",
-		logger:       slog.Default(),
-		sandboxMode:  codex.SandboxWorkspaceWrite,
-		approvalMode: codex.ApprovalNever,
-		schemaRetries: 2,
+		codexPath:                 "codex",
+		logger:                    slog.Default(),
+		bypassApprovalsAndSandbox: true,
+		schemaRetries:             2,
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -336,16 +330,12 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 	var resp *codex.CompletionResponse
 	var err error
 
-	if e.resume && e.sessionID != "" {
-		// Resume existing session
-		resp, err = cli.Resume(ctx, e.sessionID, prompt)
-	} else {
-		// Fresh completion
-		req := codex.CompletionRequest{
-			Messages: []codex.Message{{Role: codex.RoleUser, Content: prompt}},
-		}
-		resp, err = cli.Complete(ctx, req)
+	// Always use Complete() — resume is handled via WithSessionID() which
+	// causes buildExecArgs() to emit `exec resume <thread_id>` with filtered flags.
+	req := codex.CompletionRequest{
+		Messages: []codex.Message{{Role: codex.RoleUser, Content: prompt}},
 	}
+	resp, err = cli.Complete(ctx, req)
 
 	if err != nil {
 		return &TurnResult{
@@ -385,8 +375,10 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 func (e *CodexExecutor) buildCLIOptions(schemaFile string) []codex.CodexOption {
 	opts := []codex.CodexOption{
 		codex.WithWorkdir(e.workdir),
-		codex.WithSandboxMode(e.sandboxMode),
-		codex.WithApprovalMode(e.approvalMode),
+	}
+
+	if e.bypassApprovalsAndSandbox {
+		opts = append(opts, codex.WithDangerouslyBypassApprovalsAndSandbox())
 	}
 
 	if e.codexPath != "" {
@@ -397,8 +389,9 @@ func (e *CodexExecutor) buildCLIOptions(schemaFile string) []codex.CodexOption {
 		opts = append(opts, codex.WithModel(e.model))
 	}
 
-	// Session handling — codex uses session ID for resume
-	if e.sessionID != "" && !e.resume {
+	// Session handling — only pass session ID when resuming (with a real codex thread_id).
+	// For fresh calls, codex assigns its own thread_id which we capture from the response.
+	if e.resume && e.sessionID != "" {
 		opts = append(opts, codex.WithSessionID(e.sessionID))
 	}
 

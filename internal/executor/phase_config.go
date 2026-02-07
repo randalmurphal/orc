@@ -60,9 +60,9 @@ type PhaseClaudeConfig struct {
 }
 
 // PhaseCodexConfig holds Codex-specific settings for a phase.
+// Note: sandbox/approval modes are not configurable — orc always uses
+// --dangerously-bypass-approvals-and-sandbox for all codex execution.
 type PhaseCodexConfig struct {
-	SandboxMode     string            `json:"sandbox_mode,omitempty"`
-	ApprovalMode    string            `json:"approval_mode,omitempty"`
 	ReasoningEffort string            `json:"reasoning_effort,omitempty"`
 	WebSearchMode   string            `json:"web_search_mode,omitempty"`
 	LocalProvider   string            `json:"local_provider,omitempty"`
