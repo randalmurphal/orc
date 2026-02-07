@@ -12,7 +12,7 @@ import (
 // Default retry constants
 const (
 	// DefaultMaxRetries is the default maximum number of retries per phase
-	DefaultMaxRetries = 5
+	DefaultMaxRetries = 3
 )
 
 // RetryOptions configures retry behavior for fresh session retries.
