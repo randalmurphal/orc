@@ -259,8 +259,14 @@ func (e *CodexExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnRe
 			continue
 		}
 
+		// Codex with --output-schema may return one JSON per turn, producing
+		// concatenated objects like "{json1}{json2}". Extract the last one
+		// and store it back so downstream consumers see clean JSON.
+		content := extractLastJSON(result.Content)
+		result.Content = content
+
 		// Validate that we got parseable phase completion JSON
-		status, reason, parseErr := ParsePhaseSpecificResponse(e.phaseID, e.reviewRound, result.Content)
+		status, reason, parseErr := ParsePhaseSpecificResponse(e.phaseID, e.reviewRound, content)
 		result.Status = status
 		result.Reason = reason
 
@@ -429,11 +435,17 @@ func (e *CodexExecutor) buildCLIOptions(schemaFile string) []codex.CodexOption {
 }
 
 // writeSchemaFile writes a JSON schema string to a temp file and returns the path.
+// OpenAI structured outputs require additionalProperties:false at every object level.
+// This is applied here so the shared schemas (used by both Claude and Codex) don't need modification.
 func (e *CodexExecutor) writeSchemaFile(schema string) (string, error) {
 	// Validate that it's valid JSON
 	if !json.Valid([]byte(schema)) {
 		return "", fmt.Errorf("invalid JSON schema: %s", truncate(schema, 100))
 	}
+
+	// OpenAI requires additionalProperties:false at every object level in the schema.
+	// Transform the schema to add it where missing.
+	schema = ensureAdditionalPropertiesFalse(schema)
 
 	dir := os.TempDir()
 	f, err := os.CreateTemp(dir, "orc-codex-schema-*.json")
@@ -453,6 +465,76 @@ func (e *CodexExecutor) writeSchemaFile(schema string) (string, error) {
 	}
 
 	return f.Name(), nil
+}
+
+// ensureAdditionalPropertiesFalse walks a JSON schema and adds
+// "additionalProperties": false to every object that has "properties"
+// but lacks "additionalProperties". OpenAI structured outputs require this.
+func ensureAdditionalPropertiesFalse(schema string) string {
+	var root map[string]any
+	if err := json.Unmarshal([]byte(schema), &root); err != nil {
+		return schema // return unchanged if unparseable
+	}
+	enforceOpenAISchemaRules(root)
+	out, err := json.Marshal(root)
+	if err != nil {
+		return schema
+	}
+	return string(out)
+}
+
+// enforceOpenAISchemaRules recursively fixes a JSON schema node for OpenAI compatibility:
+// 1. Adds "additionalProperties": false to any object with "properties"
+// 2. Ensures "required" lists ALL property keys (OpenAI rejects partial required)
+func enforceOpenAISchemaRules(node map[string]any) {
+	props, hasProps := node["properties"].(map[string]any)
+	if hasProps {
+		// Add additionalProperties: false if missing
+		if _, hasAP := node["additionalProperties"]; !hasAP {
+			node["additionalProperties"] = false
+		}
+
+		// Ensure required lists ALL property keys
+		allKeys := make([]string, 0, len(props))
+		for k := range props {
+			allKeys = append(allKeys, k)
+		}
+		node["required"] = allKeys
+
+		// Recurse into each property
+		for _, v := range props {
+			if obj, ok := v.(map[string]any); ok {
+				enforceOpenAISchemaRules(obj)
+			}
+		}
+	}
+	// Recurse into items (arrays of objects)
+	if items, ok := node["items"].(map[string]any); ok {
+		enforceOpenAISchemaRules(items)
+	}
+}
+
+// extractLastJSON extracts the last valid JSON object from a potentially
+// concatenated response. Codex with --output-schema returns one JSON object
+// per turn; multi-turn execution produces "{json1}{json2}{json3}".
+// We want only the final turn's result.
+func extractLastJSON(content string) string {
+	content = strings.TrimSpace(content)
+	if len(content) == 0 || json.Valid([]byte(content)) {
+		return content
+	}
+
+	// Scan backwards for the last '{' that starts a valid JSON object.
+	for i := len(content) - 1; i >= 0; i-- {
+		if content[i] == '{' {
+			candidate := content[i:]
+			if json.Valid([]byte(candidate)) {
+				return candidate
+			}
+		}
+	}
+
+	return content // Return as-is if no valid JSON found; caller will handle error.
 }
 
 // storeTranscript stores prompt and response as transcript entries.

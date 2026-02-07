@@ -1,9 +1,9 @@
 // Integration tests for provider dispatch: verifies that the full chain
-// resolvePhaseProvider → isCodexFamilyProvider → executeWithCodex/executeWithClaude
+// resolvePhaseProvider → providerAdapterFor → executeWithProvider
 // is actually wired together, not just unit-tested in isolation.
 //
-// Strategy: executeWithCodex writes AGENTS.md to the worktree (via ApplyCodexPhaseSettings),
-// executeWithClaude does not. This side effect is the distinguishing signal.
+// Strategy: codexAdapter writes AGENTS.md to the worktree (via ApplyCodexPhaseSettings),
+// claudeAdapter does not. This side effect is the distinguishing signal.
 package executor
 
 import (
@@ -63,7 +63,7 @@ func setupProviderDispatchTest(t *testing.T, cfg *config.Config, phaseProvider s
 		t.Fatalf("save workflow phase: %v", err)
 	}
 
-	// MockTurnExecutor with PhaseID set so executeWithCodex gets a parsed Status
+	// MockTurnExecutor with PhaseID set so codexAdapter gets a parsed Status
 	mockTurns := &MockTurnExecutor{
 		Responses: []string{
 			`{"status": "complete", "summary": "done", "content": "implemented"}`,
@@ -115,7 +115,7 @@ func setupProviderDispatchTest(t *testing.T, cfg *config.Config, phaseProvider s
 }
 
 // =============================================================================
-// Provider="codex" routes through executeWithCodex (writes AGENTS.md)
+// Provider="codex" routes through codexAdapter (writes AGENTS.md)
 // =============================================================================
 
 func TestProviderDispatch_CodexPhaseOverride_TakesCodexRoute(t *testing.T) {
@@ -142,15 +142,15 @@ func TestProviderDispatch_CodexPhaseOverride_TakesCodexRoute(t *testing.T) {
 		t.Errorf("status = %q, want COMPLETED", result.Status)
 	}
 
-	// AGENTS.md is the distinguishing side effect of executeWithCodex
+	// AGENTS.md is the distinguishing side effect of codexAdapter
 	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
 	if _, err := os.Stat(agentsMD); os.IsNotExist(err) {
-		t.Fatal("AGENTS.md not created — provider='codex' did NOT route through executeWithCodex")
+		t.Fatal("AGENTS.md not created — provider='codex' did NOT route through codexAdapter")
 	}
 }
 
 // =============================================================================
-// Default provider routes through executeWithClaude (no AGENTS.md)
+// Default provider routes through claudeAdapter (no AGENTS.md)
 // =============================================================================
 
 func TestProviderDispatch_DefaultProvider_TakesClaudeRoute(t *testing.T) {
@@ -177,10 +177,10 @@ func TestProviderDispatch_DefaultProvider_TakesClaudeRoute(t *testing.T) {
 		t.Errorf("status = %q, want COMPLETED", result.Status)
 	}
 
-	// executeWithClaude does NOT write AGENTS.md
+	// claudeAdapter does NOT write AGENTS.md
 	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
 	if _, err := os.Stat(agentsMD); err == nil {
-		t.Fatal("AGENTS.md was created — default provider should NOT route through executeWithCodex")
+		t.Fatal("AGENTS.md was created — default provider should NOT route through codexAdapter")
 	}
 }
 
@@ -215,7 +215,7 @@ func TestProviderDispatch_ConfigProvider_PropagatesCodexRoute(t *testing.T) {
 
 	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
 	if _, err := os.Stat(agentsMD); os.IsNotExist(err) {
-		t.Fatal("AGENTS.md not created — config provider='codex' did not propagate to executeWithCodex")
+		t.Fatal("AGENTS.md not created — config provider='codex' did not propagate to codexAdapter")
 	}
 }
 
@@ -253,7 +253,7 @@ func TestProviderDispatch_WorkflowDefaultProvider_PropagatesCodexRoute(t *testin
 
 	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
 	if _, err := os.Stat(agentsMD); os.IsNotExist(err) {
-		t.Fatal("AGENTS.md not created — workflow DefaultProvider='codex' did not propagate to executeWithCodex")
+		t.Fatal("AGENTS.md not created — workflow DefaultProvider='codex' did not propagate to codexAdapter")
 	}
 }
 
@@ -291,7 +291,7 @@ func TestProviderDispatch_RunProviderOverride_OverridesAll(t *testing.T) {
 
 	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
 	if _, err := os.Stat(agentsMD); os.IsNotExist(err) {
-		t.Fatal("AGENTS.md not created — runProvider='codex' override did not route to executeWithCodex")
+		t.Fatal("AGENTS.md not created — runProvider='codex' override did not route to codexAdapter")
 	}
 }
 
@@ -335,7 +335,7 @@ func TestProviderDispatch_PhaseOverrideBeatsWorkflowDefault(t *testing.T) {
 }
 
 // =============================================================================
-// Ollama (codex-family) also routes through executeWithCodex
+// Ollama (codex-family) also routes through codexAdapter
 // =============================================================================
 
 func TestProviderDispatch_Ollama_RoutesToCodex(t *testing.T) {
@@ -364,6 +364,6 @@ func TestProviderDispatch_Ollama_RoutesToCodex(t *testing.T) {
 
 	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
 	if _, err := os.Stat(agentsMD); os.IsNotExist(err) {
-		t.Fatal("AGENTS.md not created — provider='ollama' should route through executeWithCodex")
+		t.Fatal("AGENTS.md not created — provider='ollama' should route through codexAdapter")
 	}
 }

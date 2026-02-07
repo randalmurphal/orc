@@ -223,7 +223,7 @@ func WithWorkflowTokenRates(rates map[string]map[string]TokenRate) WorkflowExecu
 }
 
 // WithWorkflowTurnExecutor sets a TurnExecutor for testing.
-// When set, executeWithClaude uses this instead of creating a real ClaudeExecutor.
+// When set, executeWithProvider uses this instead of creating a real executor.
 func WithWorkflowTurnExecutor(te TurnExecutor) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
 		we.turnExecutor = te
@@ -1413,7 +1413,16 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		result.TaskID = t.Id
 	}
 	result.TotalCostUSD = run.TotalCostUSD
-	result.TotalTokens = run.TotalInputTokens + run.TotalOutputTokens
+	// Compute total tokens including cache from PhaseResults (run only tracks input+output)
+	totalCacheRead := 0
+	totalCacheCreation := 0
+	for _, pr := range result.PhaseResults {
+		totalCacheRead += pr.CacheReadTokens
+		totalCacheCreation += pr.CacheCreationTokens
+	}
+	result.TotalCacheReadTokens = totalCacheRead
+	result.TotalCacheCreationTokens = totalCacheCreation
+	result.TotalTokens = run.TotalInputTokens + run.TotalOutputTokens + totalCacheRead + totalCacheCreation
 	result.CompletedAt = run.CompletedAt
 	result.Success = true
 
@@ -1422,16 +1431,18 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 // WorkflowRunResult contains the result of a workflow execution.
 type WorkflowRunResult struct {
-	RunID        string
-	WorkflowID   string
-	TaskID       string
-	StartedAt    time.Time
-	CompletedAt  *time.Time
-	Success      bool
-	Error        string
-	PhaseResults []PhaseResult
-	TotalCostUSD float64
-	TotalTokens  int
+	RunID                  string
+	WorkflowID             string
+	TaskID                 string
+	StartedAt              time.Time
+	CompletedAt            *time.Time
+	Success                bool
+	Error                  string
+	PhaseResults           []PhaseResult
+	TotalCostUSD           float64
+	TotalTokens            int
+	TotalCacheReadTokens   int
+	TotalCacheCreationTokens int
 }
 
 // PhaseResult contains the result of a phase execution.

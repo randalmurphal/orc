@@ -71,7 +71,7 @@ func (r *PhaseTypeRegistry) Get(typeName string) (PhaseTypeExecutor, error) {
 
 // llmPhaseTypeExecutor is a sentinel executor for the "llm" type.
 // It is never actually called — the dispatch logic in executePhase() handles
-// LLM types by falling through to executeWithClaude(). This executor exists
+// LLM types by falling through to executeWithProvider(). This executor exists
 // so that Get("llm") succeeds and the registry validates the type.
 type llmPhaseTypeExecutor struct{}
 

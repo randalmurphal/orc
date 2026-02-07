@@ -27,7 +27,7 @@ import (
 // =============================================================================
 
 // TestPhaseDispatch_NonLLMExecutor verifies that executePhase() calls the
-// registered executor for a non-LLM phase type instead of executeWithClaude().
+// registered executor for a non-LLM phase type instead of executeWithProvider().
 // Uses a spy executor to verify the dispatch actually occurred.
 func TestPhaseDispatch_NonLLMExecutor(t *testing.T) {
 	t.Parallel()
@@ -111,7 +111,7 @@ func TestPhaseDispatch_NonLLMExecutor(t *testing.T) {
 		PhaseOutputVars: make(map[string]string),
 	}
 
-	// Call executePhase — should dispatch to spy, NOT executeWithClaude
+	// Call executePhase — should dispatch to spy, NOT executeWithProvider
 	result, err := we.executePhase(
 		context.Background(), tmpl, wfPhase, vars, rctx, run, runPhase, tsk,
 	)

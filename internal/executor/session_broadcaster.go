@@ -227,7 +227,7 @@ func (sb *SessionBroadcaster) buildUpdate() events.SessionUpdate {
 		if err != nil {
 			sb.logger.Debug("failed to get cost summary", "error", err)
 		} else if summary != nil {
-			update.TotalTokens = summary.TotalInput + summary.TotalOutput
+			update.TotalTokens = summary.TotalInput + summary.TotalOutput + summary.TotalCacheRead + summary.TotalCacheCreation
 			update.InputTokens = summary.TotalInput
 			update.OutputTokens = summary.TotalOutput
 			update.EstimatedCostUSD = summary.TotalCostUSD

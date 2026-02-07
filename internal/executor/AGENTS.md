@@ -10,7 +10,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 |------|-------|---------------|---------|
 | `workflow_executor.go` | ~400 | `NewWorkflowExecutor()`, `Run()`, `applyPhaseContentToVars()` | Core types, options, entry point, phase loop logic, gate action dispatch |
 | `workflow_context.go` | ~196 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
-| `workflow_phase.go` | ~195 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `executeWithCodex()`, `resolvePhaseProvider()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
+| `workflow_phase.go` | ~195 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithProvider()`, `resolvePhaseProvider()`, `checkSpecRequirements()` | Phase execution, timeout handling, provider-adapter dispatch, spec validation |
 | `workflow_completion.go` | ~380 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()`, `cleanupSyncFailure()`, `detectExistingWork()` | PR creation/reuse, merge, worktree setup/cleanup, sync, work-aware cleanup |
 | `workflow_state.go` | ~300 | `failRun()`, `failSetup()`, `interruptRun()`, `commitWIPOnInterrupt()`, `recordCostToGlobal()` | Failure/interrupt handling, work preservation, cost tracking |
 | `workflow_gates.go` | ~250 | `evaluatePhaseGate()`, `applyGateOutputToVars()`, `resolveGateType()`, `runGateScript()` | Gate evaluation (auto/human/AI), output variable pipeline, script execution, type resolution |
@@ -22,7 +22,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | File | Purpose |
 |------|---------|
 | `branch.go` | Branch resolution: `ResolveTargetBranch()`, `ResolveBranchName()`, `IsDefaultBranch()` |
-| `executor.go` | `PhaseState`, model resolution, path detection |
+| `executor.go` | `Result` struct, `ResolveClaudePath()`, `findClaudeInCommonLocations()` |
 | `claude_executor.go` | `TurnExecutor` interface, `MockTurnExecutor`, `ClaudeExecutor` wrapper |
 | `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
 | `phase_executor.go` | `PhaseExecutor` interface, weight-based executor config |
@@ -52,6 +52,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `scratchpad.go` | Scratchpad extraction, formatting, persistence, and context population |
 | `docs_response.go` | Docs phase response parsing: `ParseDocsResponse()`, `PersistInitiativeNotes()` (knowledge curator integration) |
 | `provider.go` | Provider resolution: `resolvePhaseProvider()`, `ParseProviderModel()`, `isCodexFamilyProvider()`, `normalizeProvider()`, `validateProviderCapabilities()` |
+| `provider_adapter.go` | `ProviderAdapter` interface, `claudeAdapter`, `codexAdapter` — isolate provider-specific behavior around shared `executeWithProvider()` loop |
 | `agents_md.go` | Structured AGENTS.md generation for Codex: `WriteAgentsMD()`, `AgentsMDContent`, 32KB truncation |
 | `codex_executor.go` | `CodexExecutor` — Codex CLI wrapper, session management, JSON event parsing |
 | `transcript_stream.go` | Transcript streaming; `StoreAssistantText()`, `OnCodexEvent()` for Codex transcript ingestion |
@@ -94,10 +95,8 @@ WorkflowExecutor.Run()
 │   │   │   ├── non-LLM → phaseTypeRegistry.Get(type).ExecutePhase()
 │   │   │   └── "llm" → fall through to LLM provider path
 │   │   ├── resolvePhaseProvider()    # Priority: run flag > phase > workflow > template > config > "claude"
-│   │   ├── if codex-family provider:
-│   │   │   └── executeWithCodex()    # CodexExecutor + AGENTS.md + .codex/instruction.md
-│   │   └── else:
-│   │       └── executeWithClaude()   # ClaudeExecutor (default)
+│   │   ├── providerAdapterFor()     # Returns claudeAdapter or codexAdapter
+│   │   └── executeWithProvider()    # Shared orchestration loop (all providers)
 │   ├── persistScratchpadEntries()     # Save scratchpad notes from phase output
 │   ├── applyPhaseContentToVars()     # Store output for subsequent phases
 │   ├── evaluateLoopConfig()          # Check loop_config: condition + max_loops → jump back
@@ -239,7 +238,7 @@ Non-LLM phase types bypass prompt loading and Claude execution. Instead, they di
 
 | Type | Executor | Behavior |
 |------|----------|----------|
-| `llm` | Sentinel (never called) | Falls through to provider dispatch (`executeWithClaude()` or `executeWithCodex()`) |
+| `llm` | Sentinel (never called) | Falls through to provider dispatch (`providerAdapterFor()` → `executeWithProvider()`) |
 | `knowledge` | `KnowledgePhaseExecutor` | Queries knowledge service, stores result in workflow variable |
 | `script` | `ScriptPhaseExecutor` | Runs shell command, captures stdout, optional regex validation |
 | `api` | `APIPhaseExecutor` | Makes HTTP request, captures response body, checks status code |
@@ -515,12 +514,12 @@ Determines which LLM provider executes each phase. Resolution in `resolvePhasePr
 
 **Provider families:**
 
-| Provider | Family | Executor | Side Effects |
-|----------|--------|----------|-------------|
-| `claude` | Claude | `executeWithClaude()` | `.claude/settings.json` |
-| `codex` | Codex | `executeWithCodex()` | `AGENTS.md` + `.codex/instruction.md` |
-| `ollama` | Codex | `executeWithCodex()` | Same as codex (routed via Codex CLI) |
-| `lmstudio` | Codex | `executeWithCodex()` | Same as codex (routed via Codex CLI) |
+| Provider | Family | Adapter | Side Effects |
+|----------|--------|---------|-------------|
+| `claude` | Claude | `claudeAdapter` | `.claude/settings.json`, thinking env |
+| `codex` | Codex | `codexAdapter` | `AGENTS.md` + `.codex/instruction.md` |
+| `ollama` | Codex | `codexAdapter` | Same as codex (routed via Codex CLI) |
+| `lmstudio` | Codex | `codexAdapter` | Same as codex (routed via Codex CLI) |
 
 **Key functions:**
 
@@ -585,7 +584,7 @@ Data flow:
 TurnResult.Usage → Result{InputTokens, OutputTokens, CostUSD} → recordCostToGlobal() → GlobalDB.RecordCostExtended()
 ```
 
-**Note:** Use `EffectiveInputTokens()` not raw `InputTokens` (includes cache tokens).
+**Note:** `TotalTokens` includes `InputTokens + OutputTokens + CacheReadTokens + CacheCreationTokens`. Raw `InputTokens` alone is misleading for Claude (cache tokens dominate). Cost estimation uses all four token types with provider-specific rates. Model name prefix matching resolves versioned model names (e.g., `gpt-5.3-codex` matches `gpt-5` rate).
 
 ### Token Rate Estimation (`cost_tracking.go`)
 
@@ -739,7 +738,7 @@ go test ./internal/executor/... -v
 
 | Issue | Solution |
 |-------|----------|
-| Raw InputTokens misleading | Use `EffectiveInputTokens()` |
+| Raw InputTokens misleading | `TotalTokens` includes cache; use it for display |
 | Ultrathink in system prompt | Must be user message |
 | User agents unavailable | Need `WithSettingSources` with "user" |
 | Worktree cleanup by path | Use `CleanupWorktreeAtPath(e.worktreePath)` |

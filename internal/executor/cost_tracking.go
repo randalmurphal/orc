@@ -115,9 +115,24 @@ func EstimateTokenCostUSDWithRates(rates map[string]map[string]TokenRate, provid
 
 	rate, ok := providerRateMap[m]
 	if !ok {
-		rate, ok = providerRateMap["*"]
+		// Try prefix matching: "gpt-5.3-codex" matches "gpt-5" rate entry.
+		// Longest prefix wins to avoid "gpt-4" matching when "gpt-4.1" exists.
+		bestLen := 0
+		for key, r := range providerRateMap {
+			if key == "*" {
+				continue
+			}
+			if strings.HasPrefix(m, key) && len(key) > bestLen {
+				rate = r
+				ok = true
+				bestLen = len(key)
+			}
+		}
 		if !ok {
-			return 0
+			rate, ok = providerRateMap["*"]
+			if !ok {
+				return 0
+			}
 		}
 	}
 

@@ -220,7 +220,7 @@ func (we *WorkflowExecutor) recordCostToGlobal(ctx context.Context, t *orcv1.Tas
 		OutputTokens:        result.OutputTokens,
 		CacheCreationTokens: result.CacheCreationTokens,
 		CacheReadTokens:     result.CacheReadTokens,
-		TotalTokens:         result.InputTokens + result.OutputTokens,
+		TotalTokens:         result.InputTokens + result.OutputTokens + result.CacheCreationTokens + result.CacheReadTokens,
 		InitiativeID:        initiativeID,
 		DurationMs:          duration.Milliseconds(),
 		UserID:              userID,

@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 )
@@ -64,13 +65,15 @@ func TestCodexExecutor_WriteSchemaFile(t *testing.T) {
 	}
 	defer os.Remove(path)
 
-	// Verify file exists and has correct content
+	// Verify file exists and has correct content.
+	// writeSchemaFile applies OpenAI schema rules (additionalProperties:false, required:all).
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("ReadFile failed: %v", err)
 	}
-	if string(data) != schema {
-		t.Errorf("schema file content = %q, want %q", string(data), schema)
+	want := `{"additionalProperties":false,"properties":{"status":{"type":"string"}},"required":["status"],"type":"object"}`
+	if string(data) != want {
+		t.Errorf("schema file content = %q, want %q", string(data), want)
 	}
 }
 
@@ -165,6 +168,161 @@ func TestTruncate(t *testing.T) {
 	}
 	if got := truncate("hello world", 5); got != "hello..." {
 		t.Errorf("truncate long = %q, want %q", got, "hello...")
+	}
+}
+
+func TestEnsureAdditionalPropertiesFalse(t *testing.T) {
+	t.Run("adds additionalProperties and required to root", func(t *testing.T) {
+		schema := `{"type":"object","properties":{"status":{"type":"string"},"reason":{"type":"string"}},"required":["status"]}`
+		result := ensureAdditionalPropertiesFalse(schema)
+
+		var parsed map[string]any
+		if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+			t.Fatalf("invalid JSON: %v", err)
+		}
+		if ap, ok := parsed["additionalProperties"]; !ok || ap != false {
+			t.Fatalf("expected additionalProperties:false at root, got %v", parsed)
+		}
+		// OpenAI requires ALL property keys in required
+		req, ok := parsed["required"].([]any)
+		if !ok {
+			t.Fatalf("expected required to be array, got %T", parsed["required"])
+		}
+		reqSet := map[string]bool{}
+		for _, v := range req {
+			reqSet[v.(string)] = true
+		}
+		if !reqSet["status"] || !reqSet["reason"] {
+			t.Fatalf("required should include all properties, got %v", req)
+		}
+	})
+
+	t.Run("adds to nested objects and array items", func(t *testing.T) {
+		schema := `{"type":"object","properties":{"items":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"}}}}}}`
+		result := ensureAdditionalPropertiesFalse(schema)
+
+		var parsed map[string]any
+		json.Unmarshal([]byte(result), &parsed)
+		props := parsed["properties"].(map[string]any)
+		items := props["items"].(map[string]any)
+		itemSchema := items["items"].(map[string]any)
+		if ap, ok := itemSchema["additionalProperties"]; !ok || ap != false {
+			t.Fatalf("expected additionalProperties:false on nested items object, got %v", itemSchema)
+		}
+		req := itemSchema["required"].([]any)
+		reqSet := map[string]bool{}
+		for _, v := range req {
+			reqSet[v.(string)] = true
+		}
+		if !reqSet["id"] || !reqSet["name"] {
+			t.Fatalf("required on nested items should include all properties, got %v", req)
+		}
+	})
+
+	t.Run("handles invalid JSON gracefully", func(t *testing.T) {
+		schema := `{not valid`
+		result := ensureAdditionalPropertiesFalse(schema)
+		if result != schema {
+			t.Fatal("should return unchanged for invalid JSON")
+		}
+	})
+
+	t.Run("works on real implement schema", func(t *testing.T) {
+		schema := ImplementCompletionSchema
+		result := ensureAdditionalPropertiesFalse(schema)
+
+		var parsed map[string]any
+		if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+			t.Fatalf("invalid JSON after transform: %v", err)
+		}
+		// Root should have additionalProperties: false
+		if ap := parsed["additionalProperties"]; ap != false {
+			t.Fatalf("root missing additionalProperties:false")
+		}
+		// Nested verification.build should also have additionalProperties and required
+		props := parsed["properties"].(map[string]any)
+		verif := props["verification"].(map[string]any)
+		verifProps := verif["properties"].(map[string]any)
+		build := verifProps["build"].(map[string]any)
+		if ap := build["additionalProperties"]; ap != false {
+			t.Fatalf("verification.build missing additionalProperties:false")
+		}
+		buildReq := build["required"].([]any)
+		if len(buildReq) != 1 || buildReq[0] != "status" {
+			t.Fatalf("verification.build.required should be [status], got %v", buildReq)
+		}
+	})
+}
+
+func TestExtractLastJSON(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "empty string",
+			in:   "",
+			want: "",
+		},
+		{
+			name: "single valid JSON object",
+			in:   `{"status":"complete","summary":"done"}`,
+			want: `{"status":"complete","summary":"done"}`,
+		},
+		{
+			name: "concatenated JSON objects returns last",
+			in:   `{"status":"continue"}{"status":"continue"}{"status":"complete","summary":"done"}`,
+			want: `{"status":"complete","summary":"done"}`,
+		},
+		{
+			name: "no valid JSON returns original",
+			in:   "this is not json at all",
+			want: "this is not json at all",
+		},
+		{
+			name: "whitespace only returns empty",
+			in:   "   \n\t  ",
+			want: "",
+		},
+		{
+			name: "nested braces in values",
+			in:   `{"a":1}{"msg":"use {x}","status":"complete"}`,
+			want: `{"msg":"use {x}","status":"complete"}`,
+		},
+		{
+			name: "single JSON with nested objects unchanged",
+			in:   `{"outer":{"inner":{"deep":"value"}},"status":"complete"}`,
+			want: `{"outer":{"inner":{"deep":"value"}},"status":"complete"}`,
+		},
+		{
+			name: "whitespace between concatenated objects",
+			in:   `{"status":"continue"}  {"status":"complete"}`,
+			want: `{"status":"complete"}`,
+		},
+		{
+			name: "three concatenated objects",
+			in:   `{"round":1}{"round":2}{"round":3}`,
+			want: `{"round":3}`,
+		},
+		{
+			name: "leading whitespace on valid JSON",
+			in:   "  \n  " + `{"status":"complete"}`,
+			want: `{"status":"complete"}`,
+		},
+		{
+			name: "trailing whitespace on valid JSON",
+			in:   `{"status":"complete"}` + "  \n  ",
+			want: `{"status":"complete"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractLastJSON(tt.in)
+			if got != tt.want {
+				t.Errorf("extractLastJSON(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
 	}
 }
 

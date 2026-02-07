@@ -206,12 +206,14 @@ type BudgetStatus struct {
 
 // CostSummary provides aggregated cost data.
 type CostSummary struct {
-	TotalCostUSD float64
-	TotalInput   int
-	TotalOutput  int
-	EntryCount   int
-	ByProject    map[string]float64
-	ByPhase      map[string]float64
+	TotalCostUSD           float64
+	TotalInput             int
+	TotalOutput            int
+	TotalCacheRead         int
+	TotalCacheCreation     int
+	EntryCount             int
+	ByProject              map[string]float64
+	ByPhase                map[string]float64
 }
 
 // GetCostSummary retrieves aggregated cost data since the given time.
@@ -234,7 +236,9 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 
 	query := `
 		WITH filtered AS (
-			SELECT project_id, phase, cost_usd, input_tokens, output_tokens
+			SELECT project_id, phase, cost_usd, input_tokens, output_tokens,
+				COALESCE(cache_read_tokens, 0) as cache_read_tokens,
+				COALESCE(cache_creation_tokens, 0) as cache_creation_tokens
 			FROM cost_log
 			WHERE timestamp >= ?`
 
@@ -248,16 +252,17 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 		)
 		SELECT 'total' as breakdown_type, '' as breakdown_key,
 			COALESCE(SUM(cost_usd), 0), COALESCE(SUM(input_tokens), 0),
-			COALESCE(SUM(output_tokens), 0), COUNT(*)
+			COALESCE(SUM(output_tokens), 0), COUNT(*),
+			COALESCE(SUM(cache_read_tokens), 0), COALESCE(SUM(cache_creation_tokens), 0)
 		FROM filtered
 		UNION ALL
 		SELECT 'project' as breakdown_type, project_id as breakdown_key,
-			COALESCE(SUM(cost_usd), 0), 0, 0, 0
+			COALESCE(SUM(cost_usd), 0), 0, 0, 0, 0, 0
 		FROM filtered
 		GROUP BY project_id
 		UNION ALL
 		SELECT 'phase' as breakdown_type, phase as breakdown_key,
-			COALESCE(SUM(cost_usd), 0), 0, 0, 0
+			COALESCE(SUM(cost_usd), 0), 0, 0, 0, 0, 0
 		FROM filtered
 		GROUP BY phase`
 
@@ -270,8 +275,8 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 	for rows.Next() {
 		var breakdownType, breakdownKey string
 		var cost float64
-		var input, output, count int
-		if err := rows.Scan(&breakdownType, &breakdownKey, &cost, &input, &output, &count); err != nil {
+		var input, output, count, cacheRead, cacheCreation int
+		if err := rows.Scan(&breakdownType, &breakdownKey, &cost, &input, &output, &count, &cacheRead, &cacheCreation); err != nil {
 			return nil, fmt.Errorf("scan cost summary row: %w", err)
 		}
 
@@ -280,6 +285,8 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 			summary.TotalCostUSD = cost
 			summary.TotalInput = input
 			summary.TotalOutput = output
+			summary.TotalCacheRead = cacheRead
+			summary.TotalCacheCreation = cacheCreation
 			summary.EntryCount = count
 		case "project":
 			if breakdownKey != "" {

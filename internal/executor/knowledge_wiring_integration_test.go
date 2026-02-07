@@ -416,7 +416,7 @@ func TestRunLoop_NonLLMPhaseVarPropagation(t *testing.T) {
 // WorkflowRunPhase record with correct status, content, and zero cost.
 //
 // Deletion test: If the post-processing code in executePhase() doesn't handle
-// non-LLM phase results (only handles executeWithClaude results), the run
+// non-LLM phase results (only handles executeWithProvider results), the run
 // phase record won't be updated.
 // =============================================================================
 

@@ -48,6 +48,31 @@ func TestEstimateTokenCostUSD_UnknownModelReturnsZero(t *testing.T) {
 	}
 }
 
+func TestEstimateTokenCostUSD_PrefixModelMatch(t *testing.T) {
+	// "gpt-5.3-codex" should match the "gpt-5" rate entry via prefix matching
+	got := EstimateTokenCostUSD("codex", "gpt-5.3-codex", 1_000_000, 1_000_000, 0, 0)
+	want := 10.0 // gpt-5 rates: 2.0 input + 8.0 output
+	if math.Abs(got-want) > 1e-9 {
+		t.Fatalf("prefix match gpt-5.3-codex = %f, want %f", got, want)
+	}
+}
+
+func TestEstimateTokenCostUSD_PrefixMatchLongestWins(t *testing.T) {
+	// When multiple prefixes match, longest wins
+	rates := map[string]map[string]TokenRate{
+		"test": {
+			"gpt-4":   {Input: 1.0, Output: 1.0},
+			"gpt-4.1": {Input: 5.0, Output: 5.0},
+		},
+	}
+	// "gpt-4.1-mini" should match "gpt-4.1" (longer), not "gpt-4"
+	got := EstimateTokenCostUSDWithRates(rates, "test", "gpt-4.1-mini", 1_000_000, 1_000_000, 0, 0)
+	want := 10.0 // 5.0 + 5.0 from gpt-4.1
+	if math.Abs(got-want) > 1e-9 {
+		t.Fatalf("longest prefix match = %f, want %f", got, want)
+	}
+}
+
 func TestEstimateTokenCostUSD_LocalProvidersAlwaysFree(t *testing.T) {
 	ollama := EstimateTokenCostUSD("ollama", "qwen2.5-14b", 5_000_000, 5_000_000, 0, 0)
 	if ollama != 0 {

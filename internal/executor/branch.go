@@ -72,50 +72,6 @@ func ResolveTargetBranch(t *orcv1.Task, init *initiative.Initiative, cfg *config
 	return branch
 }
 
-// ResolveTargetBranchSource returns both the resolved target branch and the source
-// of that resolution for debugging/logging purposes.
-//
-// Returns:
-//   - branch: The resolved target branch name
-//   - source: A human-readable description of where the branch came from
-//
-// If the resolved branch name is invalid, falls back to the default branch for safety.
-func ResolveTargetBranchSource(t *orcv1.Task, init *initiative.Initiative, cfg *config.Config) (branch, source string) {
-	// Level 1: Task explicit override
-	targetBranch := task.GetTargetBranchProto(t)
-	if t != nil && targetBranch != "" {
-		branch = targetBranch
-		source = "task override"
-	} else if init != nil && init.BranchBase != "" {
-		// Level 2: Initiative branch base
-		branch = init.BranchBase
-		source = "initiative branch"
-	} else if cfg != nil && cfg.Developer.StagingEnabled && cfg.Developer.StagingBranch != "" {
-		// Level 3: Developer staging branch (personal config)
-		branch = cfg.Developer.StagingBranch
-		source = "developer staging"
-	} else if cfg != nil && cfg.Completion.TargetBranch != "" {
-		// Level 4: Project config default
-		branch = cfg.Completion.TargetBranch
-		source = "project config"
-	} else {
-		// Level 5: Hardcoded fallback
-		return DefaultTargetBranch, "default"
-	}
-
-	// Defense-in-depth: validate resolved branch name
-	if err := git.ValidateBranchName(branch); err != nil {
-		slog.Warn("invalid branch name in resolution, using default",
-			"branch", branch,
-			"source", source,
-			"error", err,
-		)
-		return DefaultTargetBranch, "default (fallback from invalid " + source + ")"
-	}
-
-	return branch, source
-}
-
 // IsDefaultBranch returns true if the given branch name is a default/main branch
 // that typically already exists (main, master, develop).
 func IsDefaultBranch(branch string) bool {
@@ -125,44 +81,6 @@ func IsDefaultBranch(branch string) bool {
 	default:
 		return false
 	}
-}
-
-// ResolveTargetBranchForTask is a convenience function that loads the initiative
-// from the backend (if the task belongs to one) and then resolves the target branch.
-// This is useful when you have access to the storage backend but not a pre-loaded initiative.
-//
-// Parameters:
-//   - t: The task (may be nil)
-//   - backend: Storage backend for loading initiatives (may be nil)
-//   - cfg: The orc configuration (may be nil)
-//
-// Returns the resolved target branch name.
-func ResolveTargetBranchForTask(t *orcv1.Task, backend storage.Backend, cfg *config.Config) string {
-	branch, _ := ResolveTargetBranchForTaskWithSource(t, backend, cfg)
-	return branch
-}
-
-// ResolveTargetBranchForTaskWithSource is like ResolveTargetBranchForTask but also returns
-// the source of the resolution for debugging/logging purposes.
-func ResolveTargetBranchForTaskWithSource(t *orcv1.Task, backend storage.Backend, cfg *config.Config) (branch, source string) {
-	var init *initiative.Initiative
-
-	// Load initiative if task belongs to one
-	initiativeID := task.GetInitiativeIDProto(t)
-	if t != nil && initiativeID != "" && backend != nil {
-		var err error
-		init, err = backend.LoadInitiative(initiativeID)
-		if err != nil {
-			slog.Debug("failed to load initiative for branch resolution",
-				"task_id", t.Id,
-				"initiative_id", initiativeID,
-				"error", err,
-			)
-			// Continue with nil initiative - will fall through to other resolution levels
-		}
-	}
-
-	return ResolveTargetBranchSource(t, init, cfg)
 }
 
 // ResolveBranchName returns the branch name for a task.
