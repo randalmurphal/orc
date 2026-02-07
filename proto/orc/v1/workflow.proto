@@ -100,6 +100,7 @@ message PhaseTemplate {
   optional string agent_id = 22;              // Executor agent reference
   repeated string sub_agent_ids = 23;         // Sub-agent references
   optional string output_var_name = 24;       // Variable name for phase output (e.g., 'SPEC_CONTENT')
+  optional string provider = 25;              // LLM provider override: "claude", "codex", "ollama"
 }
 
 message Workflow {
@@ -116,6 +117,7 @@ message Workflow {
   optional string completion_action = 11; // "pr", "commit", "none", or "" (inherit from config)
   optional string target_branch = 12; // Default PR target branch for this workflow, or "" (inherit from config)
   reserved 13; // was default_max_iterations (removed)
+  optional string default_provider = 14; // Default LLM provider: "claude", "codex", "ollama"
 }
 
 message WorkflowPhase {
@@ -136,6 +138,7 @@ message WorkflowPhase {
   // NEW: Agent overrides
   optional string agent_override = 15;          // Override executor agent
   repeated string sub_agents_override = 16;     // Override sub-agents
+  optional string provider_override = 17;       // Override LLM provider: "claude", "codex", "ollama"
   PhaseTemplate template = 100;
 }
 
@@ -291,6 +294,7 @@ message CreateWorkflowRequest {
   optional string based_on = 7;
   optional string completion_action = 8; // "pr", "commit", "none", or "" (inherit from config)
   optional string target_branch = 9; // Default PR target branch for this workflow
+  optional string default_provider = 10; // Default LLM provider: "claude", "codex", "ollama"
 }
 
 message CreateWorkflowResponse {
@@ -306,6 +310,7 @@ message UpdateWorkflowRequest {
   optional string completion_action = 6; // "pr", "commit", "none", or "" (inherit from config)
   optional string target_branch = 7; // Default PR target branch for this workflow
   reserved 8; // was default_max_iterations (removed)
+  optional string default_provider = 9; // Default LLM provider: "claude", "codex", "ollama"
 }
 
 message UpdateWorkflowResponse {
@@ -345,6 +350,8 @@ message AddPhaseRequest {
   repeated string sub_agents_override = 11;     // Override sub-agents
   // Claude configuration override (JSON)
   optional string claude_config_override = 12;
+  // Provider override
+  optional string provider_override = 13;       // Override LLM provider: "claude", "codex", "ollama"
 }
 
 message AddPhaseResponse {
@@ -369,6 +376,8 @@ message UpdatePhaseRequest {
   optional string claude_config_override = 12;
   // Loop configuration (JSON)
   optional string loop_config = 14;
+  // Provider override
+  optional string provider_override = 15;       // Override LLM provider: "claude", "codex", "ollama"
 }
 
 message UpdatePhaseResponse {

@@ -187,6 +187,9 @@ func (s *workflowServer) CreateWorkflow(
 	if req.Msg.TargetBranch != nil {
 		w.TargetBranch = *req.Msg.TargetBranch
 	}
+	if req.Msg.DefaultProvider != nil {
+		w.DefaultProvider = *req.Msg.DefaultProvider
+	}
 
 	if err := s.globalDB.SaveWorkflow(w); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save workflow: %w", err))
@@ -232,6 +235,9 @@ func (s *workflowServer) UpdateWorkflow(
 		}
 		if req.Msg.TargetBranch != nil {
 			dbWf.TargetBranch = *req.Msg.TargetBranch
+		}
+		if req.Msg.DefaultProvider != nil {
+			dbWf.DefaultProvider = *req.Msg.DefaultProvider
 		}
 
 		// Save to database
@@ -493,6 +499,9 @@ func (s *workflowServer) AddPhase(
 	if len(req.Msg.SubAgentsOverride) > 0 {
 		phase.SubAgentsOverride = dependsOnToJSON(req.Msg.SubAgentsOverride)
 	}
+	if req.Msg.ProviderOverride != nil {
+		phase.ProviderOverride = *req.Msg.ProviderOverride
+	}
 
 	if err := s.globalDB.SaveWorkflowPhase(phase); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save phase: %w", err))
@@ -568,6 +577,9 @@ func (s *workflowServer) UpdatePhase(
 	}
 	if req.Msg.LoopConfig != nil {
 		existingPhase.LoopConfig = *req.Msg.LoopConfig
+	}
+	if req.Msg.ProviderOverride != nil {
+		existingPhase.ProviderOverride = *req.Msg.ProviderOverride
 	}
 
 	if err := s.globalDB.SaveWorkflowPhase(existingPhase); err != nil {
@@ -1530,6 +1542,9 @@ func dbWorkflowToProto(w *db.Workflow) *orcv1.Workflow {
 	if w.BasedOn != "" {
 		result.BasedOn = &w.BasedOn
 	}
+	if w.DefaultProvider != "" {
+		result.DefaultProvider = &w.DefaultProvider
+	}
 	// Always set completion_action, even if empty (empty means inherit from config)
 	result.CompletionAction = &w.CompletionAction
 	// Always set target_branch, even if empty (empty means inherit from config)
@@ -1739,6 +1754,9 @@ func dbWorkflowPhaseToProto(p *db.WorkflowPhase) *orcv1.WorkflowPhase {
 	if p.ClaudeConfigOverride != "" {
 		result.ClaudeConfigOverride = &p.ClaudeConfigOverride
 	}
+	if p.ProviderOverride != "" {
+		result.ProviderOverride = &p.ProviderOverride
+	}
 	return result
 }
 
@@ -1830,6 +1848,9 @@ func dbPhaseTemplateToProto(t *db.PhaseTemplate) *orcv1.PhaseTemplate {
 	}
 	if t.ClaudeConfig != "" {
 		result.ClaudeConfig = &t.ClaudeConfig
+	}
+	if t.Provider != "" {
+		result.Provider = &t.Provider
 	}
 	return result
 }
