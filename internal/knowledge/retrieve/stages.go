@@ -45,7 +45,7 @@ func (s *SemanticStage) Execute(ctx context.Context, query string, _ []ScoredDoc
 	for _, r := range results {
 		candidates = append(candidates, ScoredDocument{
 			Document: Document{
-				ID:      r.ID,
+				ID:       r.ID,
 				Metadata: r.Payload,
 			},
 			Signals: map[string]float64{"semantic": float64(r.Score)},
@@ -90,8 +90,8 @@ func (s *HydrateStage) Execute(ctx context.Context, _ string, candidates []Score
 		c.FilePath = doc.FilePath
 		c.Tokens = doc.Tokens
 		c.UpdatedAt = doc.UpdatedAt
-		if c.Document.Metadata == nil {
-			c.Document.Metadata = doc.Metadata
+		if c.Metadata == nil {
+			c.Metadata = doc.Metadata
 		}
 		result = append(result, c)
 	}

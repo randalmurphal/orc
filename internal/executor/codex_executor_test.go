@@ -62,7 +62,11 @@ func TestCodexExecutor_WriteSchemaFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("writeSchemaFile failed: %v", err)
 	}
-	defer os.Remove(path)
+	defer func() {
+		if rmErr := os.Remove(path); rmErr != nil && !os.IsNotExist(rmErr) {
+			t.Fatalf("cleanup schema file: %v", rmErr)
+		}
+	}()
 
 	// Verify file exists and has correct content
 	data, err := os.ReadFile(path)

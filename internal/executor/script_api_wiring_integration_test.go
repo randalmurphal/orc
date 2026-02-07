@@ -7,15 +7,15 @@
 // is REACHABLE from production entry points.
 //
 // Wiring points verified:
-//   1. NewDefaultPhaseTypeRegistry() registers *ScriptPhaseExecutor for "script"
-//   2. NewDefaultPhaseTypeRegistry() registers *APIPhaseExecutor for "api"
-//   3. executePhase() dispatches type="script" → ScriptPhaseExecutor.ExecutePhase()
-//      → command actually executes (not just registered)
-//   4. executePhase() dispatches type="api" → APIPhaseExecutor.ExecutePhase()
-//      → HTTP request actually reaches the server
-//   5. Run() with script phase → output propagates to next LLM phase via variables
-//   6. Run() with API phase → output propagates to next LLM phase via variables
-//   7. Script/API phase results persisted to WorkflowRunPhase with zero cost
+//  1. NewDefaultPhaseTypeRegistry() registers *ScriptPhaseExecutor for "script"
+//  2. NewDefaultPhaseTypeRegistry() registers *APIPhaseExecutor for "api"
+//  3. executePhase() dispatches type="script" → ScriptPhaseExecutor.ExecutePhase()
+//     → command actually executes (not just registered)
+//  4. executePhase() dispatches type="api" → APIPhaseExecutor.ExecutePhase()
+//     → HTTP request actually reaches the server
+//  5. Run() with script phase → output propagates to next LLM phase via variables
+//  6. Run() with API phase → output propagates to next LLM phase via variables
+//  7. Script/API phase results persisted to WorkflowRunPhase with zero cost
 //
 // Deletion test: Remove "script"/"api" registration from NewDefaultPhaseTypeRegistry()
 // → tests 1-7 all fail. Remove ExecutePhase() implementation → tests 3-7 fail.
@@ -227,7 +227,9 @@ func TestExecutePhase_APIType_RequestMade(t *testing.T) {
 		requestReceived = true
 		gotMethod = r.Method
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"status": "deployed"}`)
+		if _, err := fmt.Fprint(w, `{"status": "deployed"}`); err != nil {
+			panic(fmt.Sprintf("write response: %v", err))
+		}
 	}))
 	defer server.Close()
 
@@ -476,7 +478,9 @@ func TestRunLoop_APIPhaseOutputPropagation(t *testing.T) {
 	// API server that returns a known response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"deploy_id": "deploy-789", "status": "success"}`)
+		if _, err := fmt.Fprint(w, `{"deploy_id": "deploy-789", "status": "success"}`); err != nil {
+			panic(fmt.Sprintf("write response: %v", err))
+		}
 	}))
 	defer server.Close()
 

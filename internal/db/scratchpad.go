@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -47,9 +48,15 @@ func (p *ProjectDB) GetScratchpadEntries(taskID string) ([]ScratchpadEntry, erro
 	if err != nil {
 		return nil, fmt.Errorf("get scratchpad entries: %w", err)
 	}
-	defer rows.Close()
 
-	return scanScratchpadEntries(rows)
+	entries, scanErr := scanScratchpadEntries(rows)
+	if closeErr := rows.Close(); closeErr != nil {
+		if scanErr != nil {
+			return nil, errors.Join(scanErr, fmt.Errorf("close scratchpad rows: %w", closeErr))
+		}
+		return nil, fmt.Errorf("close scratchpad rows: %w", closeErr)
+	}
+	return entries, scanErr
 }
 
 // GetScratchpadEntriesByPhase returns entries for a task filtered by phase.
@@ -63,9 +70,15 @@ func (p *ProjectDB) GetScratchpadEntriesByPhase(taskID, phaseID string) ([]Scrat
 	if err != nil {
 		return nil, fmt.Errorf("get scratchpad entries by phase: %w", err)
 	}
-	defer rows.Close()
 
-	return scanScratchpadEntries(rows)
+	entries, scanErr := scanScratchpadEntries(rows)
+	if closeErr := rows.Close(); closeErr != nil {
+		if scanErr != nil {
+			return nil, errors.Join(scanErr, fmt.Errorf("close scratchpad rows by phase: %w", closeErr))
+		}
+		return nil, fmt.Errorf("close scratchpad rows by phase: %w", closeErr)
+	}
+	return entries, scanErr
 }
 
 // GetScratchpadEntriesByAttempt returns entries for a task, phase, and attempt.
@@ -79,9 +92,15 @@ func (p *ProjectDB) GetScratchpadEntriesByAttempt(taskID, phaseID string, attemp
 	if err != nil {
 		return nil, fmt.Errorf("get scratchpad entries by attempt: %w", err)
 	}
-	defer rows.Close()
 
-	return scanScratchpadEntries(rows)
+	entries, scanErr := scanScratchpadEntries(rows)
+	if closeErr := rows.Close(); closeErr != nil {
+		if scanErr != nil {
+			return nil, errors.Join(scanErr, fmt.Errorf("close scratchpad rows by attempt: %w", closeErr))
+		}
+		return nil, fmt.Errorf("close scratchpad rows by attempt: %w", closeErr)
+	}
+	return entries, scanErr
 }
 
 func scanScratchpadEntries(rows *sql.Rows) ([]ScratchpadEntry, error) {

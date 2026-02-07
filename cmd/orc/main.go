@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
+	// main runs the orc CLI command tree and exits non-zero on execution errors.
 	if err := cli.Execute(); err != nil {
 		os.Exit(1)
 	}

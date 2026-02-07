@@ -6,6 +6,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -219,7 +220,11 @@ func (e *CodexExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnRe
 			ErrorText: err.Error(),
 		}, fmt.Errorf("write schema file: %w", err)
 	}
-	defer os.Remove(schemaFile)
+	defer func() {
+		if rmErr := os.Remove(schemaFile); rmErr != nil && !os.IsNotExist(rmErr) {
+			e.logger.Warn("failed to remove schema file", "path", schemaFile, "error", rmErr)
+		}
+	}()
 
 	// Retry loop for schema validation (codex doesn't guarantee structured output)
 	var lastResult *TurnResult
@@ -442,13 +447,23 @@ func (e *CodexExecutor) writeSchemaFile(schema string) (string, error) {
 	}
 
 	if _, err := f.WriteString(schema); err != nil {
-		f.Close()
-		os.Remove(f.Name())
-		return "", fmt.Errorf("write schema: %w", err)
+		writeErr := fmt.Errorf("write schema: %w", err)
+		if closeErr := f.Close(); closeErr != nil {
+			writeErr = errors.Join(writeErr, fmt.Errorf("close schema file after write failure: %w", closeErr))
+		}
+		if rmErr := os.Remove(f.Name()); rmErr != nil && !os.IsNotExist(rmErr) {
+			writeErr = errors.Join(writeErr, fmt.Errorf("remove schema file after write failure: %w", rmErr))
+		}
+		return "", writeErr
 	}
 
 	if err := f.Close(); err != nil {
-		os.Remove(f.Name())
+		if rmErr := os.Remove(f.Name()); rmErr != nil && !os.IsNotExist(rmErr) {
+			return "", errors.Join(
+				fmt.Errorf("close schema file: %w", err),
+				fmt.Errorf("remove schema file after close failure: %w", rmErr),
+			)
+		}
 		return "", fmt.Errorf("close schema file: %w", err)
 	}
 
@@ -513,4 +528,3 @@ func truncate(s string, maxLen int) string {
 	}
 	return s[:maxLen] + "..."
 }
-
