@@ -160,6 +160,18 @@ type Publisher interface {
 }
 ```
 
+### Wiring Contracts
+
+**Every declared field must flow to its consumer.** A config field, struct field, or validation gate that exists but doesn't affect runtime behavior is a bug — not a TODO. These rules prevent "declared but dead" code:
+
+1. **Declared → consumed:** Every struct/config field must have a non-test consumer. Grep for it — zero hits outside the definition = dead field.
+2. **Pipeline coverage:** When a field passes through multiple layers, every layer must map it. A field added at the top but missing at the bottom is silently ignored.
+3. **Validation → behavior:** If you validate something, the guarded behavior must exist. A gate that passes but does nothing is worse than no gate.
+4. **Dispatch → reject unknowns:** Any routing by string value must error on unrecognized values. Silent fallthrough masks bugs.
+5. **Fallbacks → context-aware:** Hard-coded defaults must make sense for all callers/contexts that hit them.
+
+**Self-check:** Before marking a feature complete, grep for every new struct field and config key. Each must appear in: (1) definition, (2) at least one non-test consumer, (3) test coverage.
+
 ## Testing
 
 ```bash

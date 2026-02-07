@@ -105,7 +105,7 @@ func EstimateTokenCostUSDWithRates(rates map[string]map[string]TokenRate, provid
 
 	m := strings.ToLower(strings.TrimSpace(model))
 	if p == "claude" {
-		m = strings.ToLower(db.DetectModel(m))
+		m = strings.ToLower(db.DetectModel(p, m))
 	}
 
 	providerRateMap, ok := rates[p]

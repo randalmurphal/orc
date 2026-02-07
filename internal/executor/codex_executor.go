@@ -61,6 +61,12 @@ type CodexExecutor struct {
 	// Local model routing (ollama, lmstudio)
 	localProvider string
 
+	// Additional Codex CLI settings
+	reasoningEffort string            // model_reasoning_effort
+	webSearchMode   string            // web_search mode
+	env             map[string]string // extra env vars for process
+	addDirs         []string          // additional accessible directories
+
 	// Schema validation retry limit for non-guaranteed structured output
 	schemaRetries int
 }
@@ -151,6 +157,26 @@ func WithCodexApprovalMode(mode codex.ApprovalMode) CodexExecutorOption {
 // WithCodexLocalProvider sets the local model provider (ollama, lmstudio).
 func WithCodexLocalProvider(provider string) CodexExecutorOption {
 	return func(e *CodexExecutor) { e.localProvider = provider }
+}
+
+// WithCodexReasoningEffort sets the model reasoning effort level.
+func WithCodexReasoningEffort(effort string) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.reasoningEffort = effort }
+}
+
+// WithCodexWebSearchMode sets the web search mode.
+func WithCodexWebSearchMode(mode string) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.webSearchMode = mode }
+}
+
+// WithCodexEnv sets additional environment variables for the codex process.
+func WithCodexEnv(env map[string]string) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.env = env }
+}
+
+// WithCodexAddDirs sets additional accessible directories.
+func WithCodexAddDirs(dirs []string) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.addDirs = dirs }
 }
 
 // WithCodexSchemaRetries sets the number of schema validation retries.
@@ -384,6 +410,26 @@ func (e *CodexExecutor) buildCLIOptions(schemaFile string) []codex.CodexOption {
 	// Local model routing
 	if e.localProvider != "" {
 		opts = append(opts, codex.WithLocalProvider(e.localProvider))
+	}
+
+	// Reasoning effort (model_reasoning_effort)
+	if e.reasoningEffort != "" {
+		opts = append(opts, codex.WithReasoningEffort(e.reasoningEffort))
+	}
+
+	// Web search mode
+	if e.webSearchMode != "" {
+		opts = append(opts, codex.WithWebSearchMode(codex.WebSearchMode(e.webSearchMode)))
+	}
+
+	// Additional environment variables
+	if len(e.env) > 0 {
+		opts = append(opts, codex.WithEnv(e.env))
+	}
+
+	// Additional accessible directories
+	if len(e.addDirs) > 0 {
+		opts = append(opts, codex.WithAddDirs(e.addDirs))
 	}
 
 	return opts

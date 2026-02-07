@@ -29,9 +29,13 @@ type TurnExecutorConfig struct {
 	ClaudeConfig     *PhaseClaudeConfig
 
 	// Codex-specific
-	SandboxMode   codex.SandboxMode
-	ApprovalMode  codex.ApprovalMode
-	LocalProvider string // "ollama" or "lmstudio" for local routing
+	SandboxMode     codex.SandboxMode
+	ApprovalMode    codex.ApprovalMode
+	LocalProvider   string // "ollama" or "lmstudio" for local routing
+	ReasoningEffort string // Codex model_reasoning_effort
+	WebSearchMode   string // Codex web_search mode
+	Env             map[string]string // Additional env vars for codex process
+	AddDirs         []string          // Additional accessible directories
 
 	// Shared
 	Backend storage.Backend
@@ -105,6 +109,18 @@ func newCodexTurnExecutor(cfg TurnExecutorConfig) TurnExecutor {
 	}
 	if cfg.Resume {
 		opts = append(opts, WithCodexResume(true))
+	}
+	if cfg.ReasoningEffort != "" {
+		opts = append(opts, WithCodexReasoningEffort(cfg.ReasoningEffort))
+	}
+	if cfg.WebSearchMode != "" {
+		opts = append(opts, WithCodexWebSearchMode(cfg.WebSearchMode))
+	}
+	if len(cfg.Env) > 0 {
+		opts = append(opts, WithCodexEnv(cfg.Env))
+	}
+	if len(cfg.AddDirs) > 0 {
+		opts = append(opts, WithCodexAddDirs(cfg.AddDirs))
 	}
 
 	return NewCodexExecutor(opts...)

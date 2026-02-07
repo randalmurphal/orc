@@ -530,7 +530,10 @@ Determines which LLM provider executes each phase. Resolution in `resolvePhasePr
 | `isCodexFamilyProvider()` | `provider.go:33` | Returns true for codex/ollama/lmstudio |
 | `normalizeProvider()` | `provider.go:19` | Lowercases, maps aliases (anthropic→claude, openai→codex) |
 | `ParseProviderModel()` | `provider.go:85` | Splits "provider:model" tuples (bare models default to "claude") |
-| `validateProviderCapabilities()` | `provider.go:189` | Checks provider supports phase requirements (e.g., inline agents) |
+| `validateProviderCapabilities()` | `provider.go:206` | Checks provider supports phase requirements (e.g., inline agents) |
+| `validateProvider()` | `provider.go:200` | Rejects unknown providers (must be claude/codex/ollama/lmstudio) |
+| `providerDefaultModel()` | `provider.go:185` | Returns default model per provider |
+| `resolveCodexPath()` | `workflow_executor.go:180` | Codex path fallback chain |
 
 ## Claude Call Patterns
 
@@ -745,6 +748,7 @@ go test ./internal/executor/... -v
 | Validation can't see files | Create clients dynamically with correct workdir |
 | Provider not dispatching to codex | Check `resolvePhaseProvider()` priority chain; empty string defaults to "claude" |
 | AGENTS.md not written for codex | `worktreePath` must be set; `ApplyCodexPhaseSettings` only runs when `worktreePath != ""` |
+| Declared field has no effect | Every struct/config field must flow to a runtime consumer — see `internal/AGENTS.md` "Wiring Contracts" |
 
 ## Task/Execution State Consistency
 

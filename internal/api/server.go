@@ -874,6 +874,9 @@ func (s *Server) prepareExecutorDeps(projectDir string) (*git.Git, string, strin
 
 	codexPath := cfg.CodexPath
 	if codexPath == "" {
+		codexPath = cfg.Providers.Codex.Path
+	}
+	if codexPath == "" {
 		codexPath = "codex"
 	}
 

@@ -220,6 +220,9 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 			codexPath := cfg.CodexPath
 			if codexPath == "" {
+				codexPath = cfg.Providers.Codex.Path
+			}
+			if codexPath == "" {
 				codexPath = "codex"
 			}
 

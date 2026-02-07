@@ -342,6 +342,11 @@ func (we *WorkflowExecutor) executePhase(
 	// Determine provider (workflow phase override > template > workflow default > config > "claude")
 	provider := we.resolvePhaseProvider(tmpl, phase)
 
+	// Validate provider is known (reject typos and unsupported providers)
+	if err := validateProvider(provider); err != nil {
+		return result, fmt.Errorf("execute phase %s: %w", tmpl.ID, err)
+	}
+
 	// Validate provider capabilities before execution
 	if err := we.validateProviderCapabilities(provider, tmpl.ID, claudeConfig); err != nil {
 		return result, fmt.Errorf("provider validation: %w", err)
@@ -832,7 +837,7 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 	} else {
 		teCfg := TurnExecutorConfig{
 			Provider:         cfg.Provider,
-			CodexPath:        we.codexPath,
+			CodexPath:        we.resolveCodexPath(),
 			Model:            cfg.Model,
 			WorkingDir:       cfg.WorkingDir,
 			SessionID:        sessionID,
@@ -846,7 +851,22 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 			Backend:          we.backend,
 			Logger:           we.logger,
 		}
-		// Wire Codex-specific settings from phase config
+
+		// Apply config-level Codex defaults first (lowest precedence)
+		if we.orcConfig != nil {
+			pc := we.orcConfig.Providers.Codex
+			if pc.Sandbox != "" {
+				teCfg.SandboxMode = codex.SandboxMode(pc.Sandbox)
+			}
+			if pc.Approval != "" {
+				teCfg.ApprovalMode = codex.ApprovalMode(pc.Approval)
+			}
+			if pc.ReasoningEffort != "" {
+				teCfg.ReasoningEffort = pc.ReasoningEffort
+			}
+		}
+
+		// Wire Codex-specific settings from phase config (overrides config defaults)
 		if cfg.ClaudeConfig != nil && cfg.ClaudeConfig.Codex != nil {
 			cc := cfg.ClaudeConfig.Codex
 			if cc.SandboxMode != "" {
@@ -854,6 +874,18 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 			}
 			if cc.ApprovalMode != "" {
 				teCfg.ApprovalMode = codex.ApprovalMode(cc.ApprovalMode)
+			}
+			if cc.ReasoningEffort != "" {
+				teCfg.ReasoningEffort = cc.ReasoningEffort
+			}
+			if cc.WebSearchMode != "" {
+				teCfg.WebSearchMode = cc.WebSearchMode
+			}
+			if len(cc.Env) > 0 {
+				teCfg.Env = cc.Env
+			}
+			if len(cc.AddDirs) > 0 {
+				teCfg.AddDirs = cc.AddDirs
 			}
 		}
 		turnExec = NewTurnExecutor(teCfg)
@@ -943,6 +975,8 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 
 // buildAgentsMDContent generates structured AGENTS.md content for codex context.
 // This mirrors what CLAUDE.md provides to Claude -- task context, constitution, etc.
+// When AllowAgentFolding is true and inline agents are defined, their prompts are
+// folded into the AGENTS.md so Codex can see them (since Codex doesn't support --agents).
 func (we *WorkflowExecutor) buildAgentsMDContent(cfg PhaseExecutionConfig) AgentsMDContent {
 	// Build phase context: task ID, phase, and description
 	var phaseCtx strings.Builder
@@ -960,7 +994,20 @@ func (we *WorkflowExecutor) buildAgentsMDContent(cfg PhaseExecutionConfig) Agent
 		}
 	}
 
-	return BuildAgentsMDContent(constitution, phaseCtx.String(), nil, "")
+	// Fold inline agent prompts when AllowAgentFolding is enabled
+	var agentPrompts []string
+	if cfg.ClaudeConfig != nil && cfg.ClaudeConfig.AllowAgentFolding && len(cfg.ClaudeConfig.InlineAgents) > 0 {
+		for name, agent := range cfg.ClaudeConfig.InlineAgents {
+			prompt := "### " + name + "\n"
+			if agent.Description != "" {
+				prompt += agent.Description + "\n\n"
+			}
+			prompt += agent.Prompt
+			agentPrompts = append(agentPrompts, prompt)
+		}
+	}
+
+	return BuildAgentsMDContent(constitution, phaseCtx.String(), agentPrompts, "")
 }
 
 // loadPhasePrompt loads the prompt content for a phase template.
@@ -1129,7 +1176,19 @@ func (we *WorkflowExecutor) resolvePhaseModel(tmpl *db.PhaseTemplate, phase *db.
 		return we.orcConfig.Model
 	}
 
-	// Ultimate fallback
+	// Provider-aware fallback: use provider-specific defaults instead of hard-coded "opus".
+	// Resolve provider here (cheap lookup chain) to pick the right model family.
+	provider := we.resolvePhaseProvider(tmpl, phase)
+	if we.orcConfig != nil && (provider == ProviderOllama || provider == ProviderLMStudio) {
+		if m := we.orcConfig.Providers.Ollama.DefaultModel; m != "" {
+			return m
+		}
+	}
+	if m := providerDefaultModel(provider); m != "" {
+		return m
+	}
+
+	// Ultimate fallback (should only hit if providerDefaultModel returns "")
 	return "opus"
 }
 

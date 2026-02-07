@@ -274,7 +274,7 @@ Persisted executor events for timeline reconstruction. `event_log.go`
 | Time series | `GetCostTimeseries(projectID, since, granularity)` |
 | Cost report | `GetCostReport(CostReportFilter)` — aggregated costs with group-by (user/project/model) |
 | Budget | `SetBudget()`, `GetBudget()`, `GetBudgetStatus()` |
-| Model detect | `DetectModel(modelID)` returns "opus", "sonnet", "haiku", "unknown" |
+| Model detect | `DetectModel(provider, modelID)` — Claude: opus/sonnet/haiku/unknown; non-Claude: preserves raw model name |
 
 ## User Management (GlobalDB)
 

@@ -299,8 +299,16 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 }
 
 // DetectModel returns a simplified model name from a full model identifier.
-// Maps model IDs to simplified names: opus, sonnet, haiku, or unknown.
-func DetectModel(modelID string) string {
+// For Claude provider (or empty provider), maps to opus/sonnet/haiku/unknown.
+// For non-Claude providers, preserves the raw model name for analytics precision.
+func DetectModel(provider, modelID string) string {
+	if provider != "" && provider != "claude" {
+		// Non-Claude providers: preserve raw model name (e.g., "gpt-5.3-codex", "qwen2.5-14b")
+		if modelID == "" {
+			return "unknown"
+		}
+		return modelID
+	}
 	lower := strings.ToLower(modelID)
 	switch {
 	case strings.Contains(lower, "opus"):

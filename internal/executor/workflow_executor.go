@@ -251,6 +251,18 @@ func WithWorkflowTriggerRunner(runner trigger.Runner) WorkflowExecutorOption {
 	}
 }
 
+// resolveCodexPath returns the effective codex binary path using fallback chain:
+// explicit codexPath > config.Providers.Codex.Path > "codex"
+func (we *WorkflowExecutor) resolveCodexPath() string {
+	if we.codexPath != "" {
+		return we.codexPath
+	}
+	if we.orcConfig != nil && we.orcConfig.Providers.Codex.Path != "" {
+		return we.orcConfig.Providers.Codex.Path
+	}
+	return "codex"
+}
+
 // WithSkipGates configures the executor to skip all gate evaluations.
 func WithSkipGates(skip bool) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {

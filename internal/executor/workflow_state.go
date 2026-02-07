@@ -212,7 +212,7 @@ func (we *WorkflowExecutor) recordCostToGlobal(ctx context.Context, t *orcv1.Tas
 		ProjectID:           projectPath,
 		TaskID:              taskID,
 		Phase:               phaseID,
-		Model:               db.DetectModel(model),
+		Model:               db.DetectModel(provider, model),
 		Provider:            provider,
 		Iteration:           result.Iterations,
 		CostUSD:             result.CostUSD,

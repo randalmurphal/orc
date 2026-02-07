@@ -166,6 +166,22 @@ func TestLocalCodexProvider(t *testing.T) {
 	}
 }
 
+func TestValidateProvider(t *testing.T) {
+	valid := []string{"claude", "codex", "ollama", "lmstudio"}
+	for _, p := range valid {
+		if err := validateProvider(p); err != nil {
+			t.Errorf("validateProvider(%q) returned error: %v", p, err)
+		}
+	}
+
+	invalid := []string{"foobar", "gpt", "mistral", "bedrock", "vertex"}
+	for _, p := range invalid {
+		if err := validateProvider(p); err == nil {
+			t.Errorf("validateProvider(%q) should have returned error", p)
+		}
+	}
+}
+
 func TestValidateProviderCapabilities(t *testing.T) {
 	we := &WorkflowExecutor{}
 

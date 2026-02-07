@@ -182,6 +182,39 @@ func (we *WorkflowExecutor) resolvePhaseProvider(tmpl *db.PhaseTemplate, phase *
 	return "claude"
 }
 
+// validProviders is the set of known LLM providers. Used by validateProvider to reject unknowns.
+var validProviders = map[string]bool{
+	ProviderClaude:   true,
+	ProviderCodex:    true,
+	ProviderOllama:   true,
+	ProviderLMStudio: true,
+}
+
+// validateProvider returns an error if the provider is not a known LLM provider.
+// Must be called after normalizeProvider (which maps aliases like "anthropic" → "claude").
+func validateProvider(provider string) error {
+	if validProviders[provider] {
+		return nil
+	}
+	return fmt.Errorf("unknown provider %q (supported: claude, codex, ollama, lmstudio)", provider)
+}
+
+// providerDefaultModel returns the sensible default model for a provider.
+// Used as the final fallback in model resolution before the hard-coded "opus".
+func providerDefaultModel(provider string) string {
+	switch normalizeProvider(provider) {
+	case ProviderClaude:
+		return "opus"
+	case ProviderCodex:
+		return "gpt-5.3-codex"
+	case ProviderOllama, ProviderLMStudio:
+		// No universal default — caller should check config.Providers.Ollama.DefaultModel
+		return ""
+	default:
+		return ""
+	}
+}
+
 // validateProviderCapabilities checks that the resolved provider supports the
 // features required by the phase configuration. Returns an error if the provider
 // cannot handle the phase's requirements (e.g., codex-family providers don't

@@ -249,6 +249,9 @@ func runRun(cmd *cobra.Command, args []string) error {
 
 	codexPath := orcConfig.CodexPath
 	if codexPath == "" {
+		codexPath = orcConfig.Providers.Codex.Path
+	}
+	if codexPath == "" {
 		codexPath = "codex"
 	}
 

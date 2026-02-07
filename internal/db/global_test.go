@@ -10,27 +10,37 @@ import (
 func TestDetectModel(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
+		provider string
 		input    string
 		expected string
 	}{
-		{"claude-opus-4-5-20251101", "opus"},
-		{"claude-3-opus-20240229", "opus"},
-		{"anthropic.claude-opus-4", "opus"},
-		{"claude-sonnet-4-20250514", "sonnet"},
-		{"claude-3-5-sonnet-20241022", "sonnet"},
-		{"claude-3-haiku-20240307", "haiku"},
-		{"claude-haiku-3-5", "haiku"},
-		{"gpt-4-turbo", "unknown"},
-		{"", "unknown"},
-		{"CLAUDE-OPUS-4", "opus"},   // case insensitive
-		{"Claude-Sonnet", "sonnet"}, // case insensitive
+		// Claude provider (or empty) normalizes to opus/sonnet/haiku/unknown
+		{"claude", "claude-opus-4-5-20251101", "opus"},
+		{"claude", "claude-3-opus-20240229", "opus"},
+		{"claude", "anthropic.claude-opus-4", "opus"},
+		{"claude", "claude-sonnet-4-20250514", "sonnet"},
+		{"claude", "claude-3-5-sonnet-20241022", "sonnet"},
+		{"claude", "claude-3-haiku-20240307", "haiku"},
+		{"claude", "claude-haiku-3-5", "haiku"},
+		{"claude", "gpt-4-turbo", "unknown"},
+		{"claude", "", "unknown"},
+		{"claude", "CLAUDE-OPUS-4", "opus"},   // case insensitive
+		{"claude", "Claude-Sonnet", "sonnet"}, // case insensitive
+		{"", "claude-opus-4", "opus"},         // empty provider = claude
+		// Non-Claude providers preserve raw model name
+		{"codex", "gpt-5.3-codex", "gpt-5.3-codex"},
+		{"codex", "gpt-4-turbo", "gpt-4-turbo"},
+		{"ollama", "qwen2.5-14b", "qwen2.5-14b"},
+		{"lmstudio", "llama3", "llama3"},
+		{"codex", "", "unknown"},              // empty model still unknown
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.input, func(t *testing.T) {
-			got := DetectModel(tc.input)
+		name := tc.provider + "/" + tc.input
+		t.Run(name, func(t *testing.T) {
+			got := DetectModel(tc.provider, tc.input)
 			if got != tc.expected {
-				t.Errorf("DetectModel(%q) = %q, want %q", tc.input, got, tc.expected)
+				t.Errorf("DetectModel(%q, %q) = %q, want %q", tc.provider, tc.input, got, tc.expected)
 			}
 		})
 	}
