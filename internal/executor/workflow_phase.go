@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/randalmurphal/llmkit/codex"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
@@ -341,6 +342,11 @@ func (we *WorkflowExecutor) executePhase(
 	// Determine provider (workflow phase override > template > workflow default > config > "claude")
 	provider := we.resolvePhaseProvider(tmpl, phase)
 
+	// Validate provider capabilities before execution
+	if err := we.validateProviderCapabilities(provider, tmpl.ID, claudeConfig); err != nil {
+		return result, fmt.Errorf("provider validation: %w", err)
+	}
+
 	// Build execution context for LLM provider
 	// Use worktree path if available, otherwise fall back to original working dir
 	execConfig := PhaseExecutionConfig{
@@ -358,12 +364,16 @@ func (we *WorkflowExecutor) executePhase(
 		ClaudeConfig:  claudeConfig,
 	}
 
+	// Record session metadata on task for monitoring (provider:model per phase)
+	if t != nil {
+		setTaskSessionMetadata(t, tmpl.ID, provider, model)
+	}
+
 	// Execute with provider-specific executor
 	var execResult *PhaseExecutionResult
-	switch provider {
-	case ProviderCodex:
+	if isCodexFamilyProvider(provider) {
 		execResult, err = we.executeWithCodex(ctx, execConfig)
-	default:
+	} else {
 		// Claude is the default provider (empty string or "claude")
 		execResult, err = we.executeWithClaude(ctx, execConfig)
 	}
@@ -402,6 +412,13 @@ func (we *WorkflowExecutor) executePhase(
 	result.CacheCreationTokens = execResult.CacheCreationTokens
 	result.CacheReadTokens = execResult.CacheReadTokens
 	result.CostUSD = execResult.CostUSD
+
+	// Estimate cost from token rates when provider doesn't return cost natively
+	if result.CostUSD == 0 && we.tokenRates != nil && (result.InputTokens+result.OutputTokens) > 0 {
+		result.CostUSD = EstimateTokenCostUSDWithRates(we.tokenRates, provider, model,
+			int64(result.InputTokens), int64(result.OutputTokens),
+			int64(result.CacheReadTokens), int64(result.CacheCreationTokens))
+	}
 
 	// Capture phase output content for loop condition evaluation and variable propagation.
 	// All phases store their output in result.Content so that applyPhaseContentToVars
@@ -607,39 +624,23 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		turnExec = we.turnExecutor
 		turnExec.UpdateSessionID(sessionID)
 	} else {
-		// Build executor options
-		// MaxTurns comes from config (default 150) - this is Claude's internal turn limit
-		execOpts := []ClaudeExecutorOption{
-			WithClaudePath(we.claudePath),
-			WithClaudeWorkdir(cfg.WorkingDir),
-			WithClaudeModel(cfg.Model),
-			WithClaudeSessionID(sessionID),
-			WithClaudeMaxTurns(we.orcConfig.MaxTurns),
-			WithClaudeLogger(we.logger),
-			WithClaudePhaseID(cfg.PhaseID),
-			WithClaudeProducesArtifact(cfg.PhaseTemplate != nil && cfg.PhaseTemplate.ProducesArtifact),
-			// Transcript storage options - handled internally
-			WithClaudeBackend(we.backend),
-			WithClaudeTaskID(cfg.TaskID),
-			WithClaudeRunID(cfg.RunID),
-		}
-
-		// Add review round for schema selection (Round 1 = findings, Round 2 = decision)
-		if cfg.PhaseID == "review" && cfg.ReviewRound > 0 {
-			execOpts = append(execOpts, WithClaudeReviewRound(cfg.ReviewRound))
-		}
-
-		// Add phase-specific Claude configuration if set
-		if cfg.ClaudeConfig != nil {
-			execOpts = append(execOpts, WithPhaseClaudeConfig(cfg.ClaudeConfig))
-		}
-
-		// Enable resume mode if we're continuing an interrupted phase
-		if shouldResume {
-			execOpts = append(execOpts, WithClaudeResume(true))
-		}
-
-		turnExec = NewClaudeExecutor(execOpts...)
+		turnExec = NewTurnExecutor(TurnExecutorConfig{
+			Provider:         "claude",
+			ClaudePath:       we.claudePath,
+			Model:            cfg.Model,
+			WorkingDir:       cfg.WorkingDir,
+			SessionID:        sessionID,
+			Resume:           shouldResume,
+			PhaseID:          cfg.PhaseID,
+			TaskID:           cfg.TaskID,
+			RunID:            cfg.RunID,
+			ReviewRound:      cfg.ReviewRound,
+			MaxTurns:         we.orcConfig.MaxTurns,
+			ProducesArtifact: cfg.PhaseTemplate != nil && cfg.PhaseTemplate.ProducesArtifact,
+			ClaudeConfig:     cfg.ClaudeConfig,
+			Backend:          we.backend,
+			Logger:           we.logger,
+		})
 	}
 
 	// Execute turns until completion (MaxOrcRetries is the orc retry loop limit, not Claude's turn limit)
@@ -769,6 +770,9 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecutionConfig) (*PhaseExecutionResult, error) {
 	result := &PhaseExecutionResult{}
 
+	// Normalize model for Codex execution (strip provider prefix like "ollama/qwen2.5" -> "qwen2.5")
+	cfg.Model = normalizeCodexExecutionModel(cfg.Provider, cfg.Model)
+
 	prompt := cfg.Prompt
 
 	// Determine session ID
@@ -808,11 +812,15 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 		we.logger.Info("resuming codex session", "session_id", sessionID)
 	}
 
-	// Write AGENTS.md for codex context (equivalent of CLAUDE.md for Claude)
+	// Apply Codex phase settings (AGENTS.md + .codex/instruction.md)
 	if we.worktreePath != "" {
-		agentsContent := we.buildAGENTSMDContent(cfg)
-		if err := WriteAGENTSMD(we.effectiveWorkingDir(), agentsContent); err != nil {
-			we.logger.Warn("failed to write AGENTS.md", "error", err)
+		agentsContent := we.buildAgentsMDContent(cfg)
+		var codexCfg *PhaseCodexConfig
+		if cfg.ClaudeConfig != nil {
+			codexCfg = cfg.ClaudeConfig.Codex
+		}
+		if err := ApplyCodexPhaseSettings(we.effectiveWorkingDir(), agentsContent, codexCfg); err != nil {
+			we.logger.Warn("failed to apply codex phase settings", "error", err)
 		}
 	}
 
@@ -822,38 +830,33 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 		turnExec = we.turnExecutor
 		turnExec.UpdateSessionID(sessionID)
 	} else {
-		// Parse model to extract local provider if present (e.g., "ollama/qwen2.5-14b")
-		model := cfg.Model
-		var localProvider string
-		if strings.HasPrefix(model, "ollama/") {
-			localProvider = "ollama"
+		teCfg := TurnExecutorConfig{
+			Provider:         cfg.Provider,
+			CodexPath:        we.codexPath,
+			Model:            cfg.Model,
+			WorkingDir:       cfg.WorkingDir,
+			SessionID:        sessionID,
+			Resume:           shouldResume,
+			PhaseID:          cfg.PhaseID,
+			TaskID:           cfg.TaskID,
+			RunID:            cfg.RunID,
+			ReviewRound:      cfg.ReviewRound,
+			ProducesArtifact: cfg.PhaseTemplate != nil && cfg.PhaseTemplate.ProducesArtifact,
+			LocalProvider:    localCodexProvider(cfg.Provider),
+			Backend:          we.backend,
+			Logger:           we.logger,
 		}
-
-		execOpts := []CodexExecutorOption{
-			WithCodexWorkdir(cfg.WorkingDir),
-			WithCodexModel(model),
-			WithCodexSessionID(sessionID),
-			WithCodexLogger(we.logger),
-			WithCodexPhaseID(cfg.PhaseID),
-			WithCodexProducesArtifact(cfg.PhaseTemplate != nil && cfg.PhaseTemplate.ProducesArtifact),
-			WithCodexBackend(we.backend),
-			WithCodexTaskID(cfg.TaskID),
-			WithCodexRunID(cfg.RunID),
+		// Wire Codex-specific settings from phase config
+		if cfg.ClaudeConfig != nil && cfg.ClaudeConfig.Codex != nil {
+			cc := cfg.ClaudeConfig.Codex
+			if cc.SandboxMode != "" {
+				teCfg.SandboxMode = codex.SandboxMode(cc.SandboxMode)
+			}
+			if cc.ApprovalMode != "" {
+				teCfg.ApprovalMode = codex.ApprovalMode(cc.ApprovalMode)
+			}
 		}
-
-		if cfg.PhaseID == "review" && cfg.ReviewRound > 0 {
-			execOpts = append(execOpts, WithCodexReviewRound(cfg.ReviewRound))
-		}
-
-		if localProvider != "" {
-			execOpts = append(execOpts, WithCodexLocalProvider(localProvider))
-		}
-
-		if shouldResume {
-			execOpts = append(execOpts, WithCodexResume(true))
-		}
-
-		turnExec = NewCodexExecutor(execOpts...)
+		turnExec = NewTurnExecutor(teCfg)
 	}
 
 	// Execute turns until completion (same retry pattern as Claude)
@@ -938,17 +941,26 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 	return result, fmt.Errorf("max orc retries (%d) reached without completion (codex)", MaxOrcRetries)
 }
 
-// buildAGENTSMDContent generates AGENTS.md content for codex context.
-// This mirrors what CLAUDE.md provides to Claude — task context, constitution, etc.
-func (we *WorkflowExecutor) buildAGENTSMDContent(cfg PhaseExecutionConfig) string {
-	var content string
-	content += "# Task Context\n\n"
-	content += "Task: " + cfg.TaskID + "\n"
-	content += "Phase: " + cfg.PhaseID + "\n"
+// buildAgentsMDContent generates structured AGENTS.md content for codex context.
+// This mirrors what CLAUDE.md provides to Claude -- task context, constitution, etc.
+func (we *WorkflowExecutor) buildAgentsMDContent(cfg PhaseExecutionConfig) AgentsMDContent {
+	// Build phase context: task ID, phase, and description
+	var phaseCtx strings.Builder
+	phaseCtx.WriteString("Task: " + cfg.TaskID + "\n")
+	phaseCtx.WriteString("Phase: " + cfg.PhaseID + "\n")
 	if we.task != nil && we.task.Description != nil {
-		content += "\n## Description\n\n" + *we.task.Description + "\n"
+		phaseCtx.WriteString("\n## Description\n\n" + *we.task.Description + "\n")
 	}
-	return content
+
+	// Load constitution from backend if available
+	var constitution string
+	if we.backend != nil {
+		if content, _, err := we.backend.LoadConstitution(); err == nil {
+			constitution = content
+		}
+	}
+
+	return BuildAgentsMDContent(constitution, phaseCtx.String(), nil, "")
 }
 
 // loadPhasePrompt loads the prompt content for a phase template.
@@ -1079,51 +1091,6 @@ func (we *WorkflowExecutor) resolveExecutorAgent(tmpl *db.PhaseTemplate, phase *
 	return nil
 }
 
-// resolvePhaseProvider determines which LLM provider to use for a phase.
-// Priority: workflow phase override > model prefix > phase template > workflow default > executor agent > run-level override > config default > "claude"
-// Supports "provider:model" shorthand in model fields (e.g., "codex:gpt-5").
-func (we *WorkflowExecutor) resolvePhaseProvider(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) string {
-	// Workflow phase override takes precedence (per-workflow customization)
-	if phase.ProviderOverride != "" {
-		return phase.ProviderOverride
-	}
-
-	// Check if model override contains provider prefix (e.g., "codex:gpt-5")
-	if phase.ModelOverride != "" {
-		if p, _ := ParseProviderModel(phase.ModelOverride); p != "" {
-			return p
-		}
-	}
-
-	// Phase template default
-	if tmpl.Provider != "" {
-		return tmpl.Provider
-	}
-
-	// Workflow default_provider
-	if we.wf != nil && we.wf.DefaultProvider != "" {
-		return we.wf.DefaultProvider
-	}
-
-	// Executor agent provider
-	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.Provider != "" {
-		return agent.Provider
-	}
-
-	// Run-level provider override (--provider flag)
-	if we.runProvider != "" {
-		return we.runProvider
-	}
-
-	// Config default provider
-	if we.orcConfig != nil && we.orcConfig.Provider != "" {
-		return we.orcConfig.Provider
-	}
-
-	// Ultimate fallback
-	return "claude"
-}
-
 // resolvePhaseModel determines which model to use for a phase.
 // Priority: workflow phase override > workflow default_model > executor agent model > config default
 // If the model string contains a provider prefix (e.g., "codex:gpt-5"), the prefix is stripped
@@ -1140,16 +1107,25 @@ func (we *WorkflowExecutor) resolvePhaseModel(tmpl *db.PhaseTemplate, phase *db.
 
 	// Workflow default_model (workflow-level default)
 	if we.wf != nil && we.wf.DefaultModel != "" {
+		if _, m := ParseProviderModel(we.wf.DefaultModel); m != "" {
+			return m
+		}
 		return we.wf.DefaultModel
 	}
 
 	// Executor agent model
 	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.Model != "" {
+		if _, m := ParseProviderModel(agent.Model); m != "" {
+			return m
+		}
 		return agent.Model
 	}
 
 	// Config default model
 	if we.orcConfig != nil && we.orcConfig.Model != "" {
+		if _, m := ParseProviderModel(we.orcConfig.Model); m != "" {
+			return m
+		}
 		return we.orcConfig.Model
 	}
 
@@ -1523,4 +1499,31 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 	}
 
 	return cfg
+}
+
+// normalizeCodexExecutionModel strips the provider prefix from model names
+// when routing through Codex CLI (e.g., "ollama/qwen2.5" -> "qwen2.5").
+func normalizeCodexExecutionModel(provider, model string) string {
+	// Strip "provider/" prefix if the model string includes it
+	if idx := strings.Index(model, "/"); idx >= 0 {
+		prefix := model[:idx]
+		if normalizeProvider(prefix) == normalizeProvider(provider) {
+			return model[idx+1:]
+		}
+	}
+	return model
+}
+
+// setTaskSessionMetadata records session metadata on the task for monitoring.
+// Stores provider and model as task-level metadata keyed by phase ID since
+// PhaseState does not have a metadata field.
+func setTaskSessionMetadata(t *orcv1.Task, phaseID, provider, model string) {
+	if t == nil {
+		return
+	}
+	if t.Metadata == nil {
+		t.Metadata = make(map[string]string)
+	}
+	t.Metadata["phase:"+phaseID+":provider"] = provider
+	t.Metadata["phase:"+phaseID+":model"] = model
 }

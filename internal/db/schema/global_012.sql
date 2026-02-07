@@ -11,3 +11,6 @@ ALTER TABLE phase_templates ADD COLUMN provider TEXT DEFAULT '';
 ALTER TABLE workflow_phases ADD COLUMN provider_override TEXT DEFAULT '';
 ALTER TABLE agents ADD COLUMN provider TEXT DEFAULT '';
 ALTER TABLE cost_log ADD COLUMN provider TEXT DEFAULT 'claude';
+
+CREATE INDEX IF NOT EXISTS idx_cost_provider ON cost_log(provider);
+CREATE INDEX IF NOT EXISTS idx_cost_provider_timestamp ON cost_log(provider, timestamp);

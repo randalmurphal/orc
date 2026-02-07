@@ -83,13 +83,15 @@ Both `--branch` and `--target-branch` are validated via `git.ValidateBranchName(
 
 ### `orc run TASK-ID`
 
-Executes phases: setup worktree -> load plan -> execute phases -> create PR/merge. Auto-migrates stale plans before execution. Flags: `--force`, `--profile`, `--auto-skip`, `--skip-gates`
+Executes phases: setup worktree -> load plan -> execute phases -> create PR/merge. Auto-migrates stale plans before execution. Flags: `--force`, `--profile`, `--auto-skip`, `--skip-gates`, `--provider`
 
 `--skip-gates` bypasses all gate evaluations (auto-approves every phase). Useful for dev/testing iterations.
 
+`--provider` overrides the LLM provider for all phases in this run (e.g., `--provider codex`). Highest priority in provider resolution chain.
+
 ### `orc resume TASK-ID`
 
-Resumes paused/blocked/failed/orphaned tasks from last incomplete phase.
+Resumes paused/blocked/failed/orphaned tasks from last incomplete phase. Supports `--provider` flag for provider override.
 
 ### `orc close TASK-ID`
 
@@ -143,7 +145,7 @@ Displays task details including phases from actual workflow (not weight-derived)
 
 ### `orc costs`
 
-View cost report across projects. Queries GlobalDB `cost_log` table. Flags: `--user`, `--project`, `--since YYYY-MM-DD`, `--by user|project|model`. Default: current month, grouped by project and model.
+View cost report across projects. Queries GlobalDB `cost_log` table. Flags: `--user`, `--project`, `--since YYYY-MM-DD`, `--by user|project|model|provider`. Default: current month, grouped by project and model.
 
 ### Gate Commands
 

@@ -640,7 +640,7 @@ type CostReportFilter struct {
 	UserID    string
 	ProjectID string
 	Since     time.Time
-	GroupBy   string // "user", "project", "model", or "" for total only
+	GroupBy   string // "user", "project", "model", "provider", or "" for total only
 }
 
 // CostReportResult contains the aggregated cost report data.
@@ -694,6 +694,8 @@ func (g *GlobalDB) GetCostReport(filter CostReportFilter) (CostReportResult, err
 			groupCol = "project_id"
 		case "model":
 			groupCol = "CASE WHEN model = '' OR model IS NULL THEN 'unknown' ELSE model END"
+		case "provider":
+			groupCol = "CASE WHEN provider = '' OR provider IS NULL THEN 'claude' ELSE provider END"
 		default:
 			return result, fmt.Errorf("invalid group_by value: %s", filter.GroupBy)
 		}

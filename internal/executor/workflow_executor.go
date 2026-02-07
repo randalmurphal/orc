@@ -136,6 +136,8 @@ type WorkflowExecutor struct {
 	logger        *slog.Logger
 	workingDir    string
 	claudePath    string
+	codexPath     string                            // Path to codex binary
+	tokenRates    map[string]map[string]TokenRate    // Provider token rates for cost estimation
 
 	// Optional components
 	gitOps             *git.Git
@@ -203,6 +205,20 @@ func WithWorkflowLogger(l *slog.Logger) WorkflowExecutorOption {
 func WithWorkflowClaudePath(path string) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
 		we.claudePath = path
+	}
+}
+
+// WithWorkflowCodexPath sets the path to the Codex CLI executable.
+func WithWorkflowCodexPath(path string) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.codexPath = path
+	}
+}
+
+// WithWorkflowTokenRates sets the provider token rates for cost estimation.
+func WithWorkflowTokenRates(rates map[string]map[string]TokenRate) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.tokenRates = rates
 	}
 }
 

@@ -87,6 +87,7 @@ func (e *Evaluator) evaluateAI(ctx context.Context, phaseOutput string, opts *Ev
 		e.costRecorder.RecordCost(db.CostEntry{
 			TaskID:       opts.TaskID,
 			Phase:        "gate:" + opts.Phase,
+			Provider:     "claude", // AI gates use claude
 			Model:        result.Response.Model,
 			InputTokens:  result.Response.Usage.InputTokens,
 			OutputTokens: result.Response.Usage.OutputTokens,

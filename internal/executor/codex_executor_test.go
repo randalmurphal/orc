@@ -171,44 +171,6 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-func TestWriteAGENTSMD(t *testing.T) {
-	dir := t.TempDir()
-	content := "# Test Agent\nDo things."
-
-	if err := WriteAGENTSMD(dir, content); err != nil {
-		t.Fatalf("WriteAGENTSMD failed: %v", err)
-	}
-
-	data, err := os.ReadFile(dir + "/AGENTS.md")
-	if err != nil {
-		t.Fatalf("ReadFile failed: %v", err)
-	}
-	if string(data) != content {
-		t.Errorf("AGENTS.md content = %q, want %q", string(data), content)
-	}
-}
-
-func TestWriteAGENTSMD_Truncation(t *testing.T) {
-	dir := t.TempDir()
-	// Create content larger than 32KiB
-	bigContent := make([]byte, 40*1024)
-	for i := range bigContent {
-		bigContent[i] = 'A'
-	}
-
-	if err := WriteAGENTSMD(dir, string(bigContent)); err != nil {
-		t.Fatalf("WriteAGENTSMD failed: %v", err)
-	}
-
-	data, err := os.ReadFile(dir + "/AGENTS.md")
-	if err != nil {
-		t.Fatalf("ReadFile failed: %v", err)
-	}
-	if len(data) != 32*1024 {
-		t.Errorf("AGENTS.md size = %d, want %d", len(data), 32*1024)
-	}
-}
-
 // errString is a simple error type for testing.
 type errString string
 

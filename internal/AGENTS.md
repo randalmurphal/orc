@@ -20,7 +20,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `enhance/` | Task enhancement via AI | `Enhancer` |
 | `errors/` | Custom error types | `OrcError` |
 | `events/` | Event publishing for real-time updates | `Publisher`, `Event` |
-| `executor/` | Phase execution engine | `WorkflowExecutor`, `Result` |
+| `executor/` | Multi-provider phase execution engine (Claude, Codex, Ollama, LM Studio) | `WorkflowExecutor`, `Result` |
 | `gate/` | Quality gates, approval workflow (auto/human/AI/skip) | `Gate`, `Evaluator`, `Resolver`, `GateAgentResponse`, `PendingDecisionStore` |
 | `git/` | Git operations, worktrees (thread-safe) | `Git`, `Checkpoint` |
 | `hosting/` | Multi-provider git hosting (GitHub, GitLab), PR lifecycle (create/find/update/merge) | `Provider`, `PR`, `PRStatusSummary`, `ErrNoPRFound` |

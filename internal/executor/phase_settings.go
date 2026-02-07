@@ -390,6 +390,45 @@ func resetClaudeDir(worktreePath, sourceBranch string) error {
 	return nil
 }
 
+// ApplyCodexPhaseSettings writes Codex-specific configuration for a phase.
+// For Codex, this writes:
+//   - AGENTS.md (via WriteAgentsMD) with constitution + phase context
+//   - .codex/ directory with instruction.md (phase-specific instructions)
+//
+// This is the Codex equivalent of ApplyPhaseSettings (which writes .claude/ config).
+func ApplyCodexPhaseSettings(
+	worktreePath string,
+	agentsContent AgentsMDContent,
+	codexCfg *PhaseCodexConfig,
+) error {
+	if _, err := os.Stat(worktreePath); err != nil {
+		return fmt.Errorf("worktree path: %w", err)
+	}
+
+	// Write AGENTS.md
+	if err := WriteAgentsMD(worktreePath, agentsContent); err != nil {
+		return fmt.Errorf("write AGENTS.md: %w", err)
+	}
+
+	// Write .codex/ configuration if codex-specific config exists
+	if codexCfg != nil {
+		codexDir := filepath.Join(worktreePath, ".codex")
+		if err := os.MkdirAll(codexDir, 0755); err != nil {
+			return fmt.Errorf("create .codex dir: %w", err)
+		}
+
+		// Write instruction.md with any extra instructions
+		if codexCfg.Instructions != "" {
+			instrPath := filepath.Join(codexDir, "instruction.md")
+			if err := os.WriteFile(instrPath, []byte(codexCfg.Instructions), 0644); err != nil {
+				return fmt.Errorf("write instruction.md: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // writeIsolationScript writes the worktree isolation hook script to .claude/hooks/.
 // This is always written for every phase as a safety measure.
 func writeIsolationScript(worktreePath string, hsGetter HookScriptGetter) error {

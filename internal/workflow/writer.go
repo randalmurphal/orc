@@ -253,6 +253,7 @@ func marshalWorkflowYAML(workflow *Workflow) ([]byte, error) {
 		Name:             workflow.Name,
 		Description:      workflow.Description,
 		DefaultModel:     workflow.DefaultModel,
+		DefaultProvider:  workflow.DefaultProvider,
 		DefaultThinking:  workflow.DefaultThinking,
 		CompletionAction: workflow.CompletionAction,
 		BasedOn:          workflow.BasedOn,
@@ -264,6 +265,7 @@ func marshalWorkflowYAML(workflow *Workflow) ([]byte, error) {
 			Sequence:  p.Sequence,
 			DependsOn: p.DependsOn,
 			Model:     p.ModelOverride,
+			Provider:  p.ProviderOverride,
 			Condition: p.Condition,
 		}
 		if p.ThinkingOverride != nil {
@@ -311,6 +313,7 @@ func marshalPhaseYAML(phase *PhaseTemplate) ([]byte, error) {
 		Checkpoint:       phase.Checkpoint,
 		RetryFromPhase:   phase.RetryFromPhase,
 		RetryPromptPath:  phase.RetryPromptPath,
+		Provider:         phase.Provider,
 	}
 
 	return yaml.Marshal(pt)

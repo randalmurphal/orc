@@ -21,6 +21,7 @@ import (
 type ConflictResolver struct {
 	gitOps       *git.Git
 	claudePath   string
+	codexPath    string
 	workingDir   string
 	backend      storage.Backend
 	logger       *slog.Logger
@@ -38,6 +39,11 @@ func WithConflictGitOps(g *git.Git) ConflictResolverOption {
 // WithConflictClaudePath sets the path to Claude CLI.
 func WithConflictClaudePath(path string) ConflictResolverOption {
 	return func(r *ConflictResolver) { r.claudePath = path }
+}
+
+// WithConflictCodexPath sets the path to Codex CLI.
+func WithConflictCodexPath(path string) ConflictResolverOption {
+	return func(r *ConflictResolver) { r.codexPath = path }
 }
 
 // WithConflictWorkingDir sets the working directory for Claude.
@@ -131,21 +137,18 @@ func (r *ConflictResolver) Resolve(
 		if r.turnExecutor != nil {
 			turnExec = r.turnExecutor
 		} else {
-			claudeOpts := []ClaudeExecutorOption{
-				WithClaudePath(r.claudePath),
-				WithClaudeWorkdir(r.workingDir),
-				WithClaudeModel(model),
-				WithClaudeSessionID(sessionID),
-				WithClaudeMaxTurns(5),
-				WithClaudeLogger(r.logger),
-			}
-			if r.backend != nil {
-				claudeOpts = append(claudeOpts,
-					WithClaudeBackend(r.backend),
-					WithClaudeTaskID(t.Id),
-				)
-			}
-			turnExec = NewClaudeExecutor(claudeOpts...)
+			turnExec = NewTurnExecutor(TurnExecutorConfig{
+				Provider:   "claude", // Conflict resolution always uses claude for now
+				ClaudePath: r.claudePath,
+				CodexPath:  r.codexPath,
+				Model:      model,
+				WorkingDir: r.workingDir,
+				SessionID:  sessionID,
+				MaxTurns:   5,
+				Backend:    r.backend,
+				TaskID:     t.Id,
+				Logger:     r.logger,
+			})
 		}
 
 		// Execute conflict resolution

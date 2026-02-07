@@ -6,10 +6,13 @@ Configurable workflow system for orc. Replaces weight-based task execution with 
 
 | File | Purpose |
 |------|---------|
-| `types.go` | Domain types (Workflow, PhaseTemplate, WorkflowRun, etc.) |
+| `types.go` | Domain types (Workflow, PhaseTemplate, WorkflowRun, etc.) — includes `DefaultProvider` on Workflow, `Provider` on PhaseTemplate, `ProviderOverride` on WorkflowPhase |
 | `defaults.go` | Workflow defaults system with hierarchical resolution |
 | `seed.go` | Built-in workflow/phase definitions and seeding |
 | `seed_agents.go` | Agent definitions, parsing, seeding to GlobalDB |
+| `resolver.go` | YAML parsing, workflow resolution — includes `DefaultProvider` and phase `Provider` fields |
+| `writer.go` | YAML output — marshals provider fields to `default_provider` / `provider` |
+| `cache.go` | DB↔domain type conversion — maps provider fields between `db.Workflow` and `workflow.Workflow` |
 
 ## Core Concepts
 

@@ -16,15 +16,17 @@ export function DashboardCostSummary({ projectId }: DashboardCostSummaryProps) {
 	const [data, setData] = useState<CostData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [groupBy, setGroupBy] = useState<'model' | 'provider'>('model');
 
 	useEffect(() => {
 		let cancelled = false;
+		setLoading(true);
 
 		async function fetchCosts() {
 			try {
 				const resp = await dashboardClient.getCostReport({
 					projectId,
-					groupBy: 'model',
+					groupBy,
 				});
 				if (!cancelled) {
 					setData(resp);
@@ -40,7 +42,7 @@ export function DashboardCostSummary({ projectId }: DashboardCostSummaryProps) {
 
 		fetchCosts();
 		return () => { cancelled = true; };
-	}, [projectId]);
+	}, [projectId, groupBy]);
 
 	if (loading) {
 		return (
@@ -76,6 +78,38 @@ export function DashboardCostSummary({ projectId }: DashboardCostSummaryProps) {
 			)}
 			{breakdowns.length > 0 && (
 				<div className="cost-breakdowns">
+					<div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+						<button
+							className={`cost-group-btn ${groupBy === 'model' ? 'active' : ''}`}
+							onClick={() => setGroupBy('model')}
+							style={{
+								fontSize: '0.75rem',
+								padding: '2px 8px',
+								border: '1px solid var(--color-border, #444)',
+								borderRadius: '4px',
+								background: groupBy === 'model' ? 'var(--color-accent, #666)' : 'transparent',
+								color: 'inherit',
+								cursor: 'pointer',
+							}}
+						>
+							By Model
+						</button>
+						<button
+							className={`cost-group-btn ${groupBy === 'provider' ? 'active' : ''}`}
+							onClick={() => setGroupBy('provider')}
+							style={{
+								fontSize: '0.75rem',
+								padding: '2px 8px',
+								border: '1px solid var(--color-border, #444)',
+								borderRadius: '4px',
+								background: groupBy === 'provider' ? 'var(--color-accent, #666)' : 'transparent',
+								color: 'inherit',
+								cursor: 'pointer',
+							}}
+						>
+							By Provider
+						</button>
+					</div>
 					{breakdowns.map((b) => (
 						<div key={b.key} className="cost-breakdown-item">
 							<span className="cost-breakdown-key">{b.key}</span>

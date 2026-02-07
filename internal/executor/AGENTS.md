@@ -10,7 +10,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 |------|-------|---------------|---------|
 | `workflow_executor.go` | ~400 | `NewWorkflowExecutor()`, `Run()`, `applyPhaseContentToVars()` | Core types, options, entry point, phase loop logic, gate action dispatch |
 | `workflow_context.go` | ~196 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
-| `workflow_phase.go` | ~195 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
+| `workflow_phase.go` | ~195 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `executeWithCodex()`, `resolvePhaseProvider()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
 | `workflow_completion.go` | ~380 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()`, `cleanupSyncFailure()`, `detectExistingWork()` | PR creation/reuse, merge, worktree setup/cleanup, sync, work-aware cleanup |
 | `workflow_state.go` | ~300 | `failRun()`, `failSetup()`, `interruptRun()`, `commitWIPOnInterrupt()`, `recordCostToGlobal()` | Failure/interrupt handling, work preservation, cost tracking |
 | `workflow_gates.go` | ~250 | `evaluatePhaseGate()`, `applyGateOutputToVars()`, `resolveGateType()`, `runGateScript()` | Gate evaluation (auto/human/AI), output variable pipeline, script execution, type resolution |
@@ -22,8 +22,8 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | File | Purpose |
 |------|---------|
 | `branch.go` | Branch resolution: `ResolveTargetBranch()`, `ResolveBranchName()`, `IsDefaultBranch()` |
-| `executor.go` | `PhaseState`, model resolution, Claude path detection |
-| `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
+| `executor.go` | `PhaseState`, model resolution, path detection |
+| `claude_executor.go` | `TurnExecutor` interface, `MockTurnExecutor`, `ClaudeExecutor` wrapper |
 | `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
 | `phase_executor.go` | `PhaseExecutor` interface, weight-based executor config |
 | `phase_registry.go` | `PhaseTypeRegistry`, `PhaseTypeExecutor` interface — maps type strings to executors |
@@ -34,13 +34,13 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `review.go` | Review findings parsing, formatting for round 2 (`FormatFindingsForRound2`) |
 | `qa.go` | QA E2E types, parsing (`ParseQAE2ETestResult`, `ParseQAE2EFixResult`) |
 | `finalize.go` | Branch sync, test fixing with retry (see `docs/architecture/FINALIZE.md`) |
-| `conflict_resolver.go` | Automatic merge conflict resolution via Claude sub-agent |
+| `conflict_resolver.go` | Automatic merge conflict resolution via provider-aware sub-agent (Claude or Codex) |
 | `ci_merge.go` | CI polling, auto-merge with retry logic, commit templates, SHA verification |
-| `cost_tracking.go` | `RecordCostEntry()` - global cost recording to `~/.orc/orc.db` |
+| `cost_tracking.go` | `RecordCostEntry()` - global cost recording; `TokenRate`, `EstimateTokenCostUSD()` - provider-aware cost estimation |
 | `resource_tracker.go` | `RunResourceAnalysis()` - orphan process detection |
 | `quality_checks.go` | Phase-level quality checks (tests, lint, build, typecheck) |
 | `checklist_validation.go` | Spec and criteria validation |
-| `phase_settings.go` | Unified `ApplyPhaseSettings()` entry point: hooks + skills + hook scripts |
+| `phase_settings.go` | Unified `ApplyPhaseSettings()` (Claude) + `ApplyCodexPhaseSettings()` (Codex AGENTS.md + .codex/instruction.md) |
 | `claude_hooks.go` | `applyPhaseHooks()` - writes hooks to `.claude/settings.local.json` |
 | `hook_scripts.go` | `applyPhaseHookScripts()` - copies scripts to `.claude/hooks/` |
 | `heartbeat.go` | `HeartbeatRunner` - periodic heartbeat updates during execution (`DefaultHeartbeatInterval=2m`) |
@@ -51,6 +51,10 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `phase_loop_test.go` | Phase loop integration tests (10 success criteria + failure modes) |
 | `scratchpad.go` | Scratchpad extraction, formatting, persistence, and context population |
 | `docs_response.go` | Docs phase response parsing: `ParseDocsResponse()`, `PersistInitiativeNotes()` (knowledge curator integration) |
+| `provider.go` | Provider resolution: `resolvePhaseProvider()`, `ParseProviderModel()`, `isCodexFamilyProvider()`, `normalizeProvider()`, `validateProviderCapabilities()` |
+| `agents_md.go` | Structured AGENTS.md generation for Codex: `WriteAgentsMD()`, `AgentsMDContent`, 32KB truncation |
+| `codex_executor.go` | `CodexExecutor` — Codex CLI wrapper, session management, JSON event parsing |
+| `transcript_stream.go` | Transcript streaming; `StoreAssistantText()`, `OnCodexEvent()` for Codex transcript ingestion |
 
 ## Two-Tier Database Access
 
@@ -88,8 +92,12 @@ WorkflowExecutor.Run()
 │   ├── executePhaseWithTimeout()     # Run with timeout
 │   │   ├── [phase type dispatch]     # TypeOverride > Template.Type > "llm"
 │   │   │   ├── non-LLM → phaseTypeRegistry.Get(type).ExecutePhase()
-│   │   │   └── "llm" → fall through to Claude path
-│   │   └── executeWithClaude()       # ClaudeExecutor (LLM path only)
+│   │   │   └── "llm" → fall through to LLM provider path
+│   │   ├── resolvePhaseProvider()    # Priority: run flag > phase > workflow > template > config > "claude"
+│   │   ├── if codex-family provider:
+│   │   │   └── executeWithCodex()    # CodexExecutor + AGENTS.md + .codex/instruction.md
+│   │   └── else:
+│   │       └── executeWithClaude()   # ClaudeExecutor (default)
 │   ├── persistScratchpadEntries()     # Save scratchpad notes from phase output
 │   ├── applyPhaseContentToVars()     # Store output for subsequent phases
 │   ├── evaluateLoopConfig()          # Check loop_config: condition + max_loops → jump back
@@ -231,7 +239,7 @@ Non-LLM phase types bypass prompt loading and Claude execution. Instead, they di
 
 | Type | Executor | Behavior |
 |------|----------|----------|
-| `llm` | Sentinel (never called) | Falls through to `executeWithClaude()` |
+| `llm` | Sentinel (never called) | Falls through to provider dispatch (`executeWithClaude()` or `executeWithCodex()`) |
 | `knowledge` | `KnowledgePhaseExecutor` | Queries knowledge service, stores result in workflow variable |
 | `script` | `ScriptPhaseExecutor` | Runs shell command, captures stdout, optional regex validation |
 | `api` | `APIPhaseExecutor` | Makes HTTP request, captures response body, checks status code |
@@ -484,10 +492,45 @@ Phase = Agent (WHO) + Prompt (WHAT). Resolution functions in `workflow_phase.go`
 |----------|------|------------------|
 | `resolveExecutorAgent()` | 658 | phase.AgentOverride → tmpl.AgentID → nil |
 | `resolvePhaseModel()` | 693 | phase.ModelOverride → workflow.DefaultModel → agent.Model → config.Model → "opus" |
-| `getEffectivePhaseClaudeConfig()` | 970 | Merge agent + phase config → nil if empty |
+| `getEffectivePhaseClaudeConfig()` | 970 | Merge agent + phase config → nil if empty (`AllowAgentFolding` bool on `PhaseClaudeConfig`) |
+| `getEffectivePhaseCodexConfig()` | — | Merge agent + phase Codex config (`PhaseCodexConfig`: sandbox_mode, approval_mode, reasoning_effort, instructions) |
 | `shouldUseThinking()` | 724 | phase.ThinkingOverride → workflow.DefaultThinking (true only) → tmpl.ThinkingEnabled → phase defaults |
 
 **Phase defaults:** spec/review → thinking=true, implement → thinking=false
+
+### Provider Resolution (`provider.go`)
+
+Determines which LLM provider executes each phase. Resolution in `resolvePhaseProvider()`:
+
+| Priority | Source | Description |
+|----------|--------|-------------|
+| 1 | `runProvider` | `--provider` CLI flag |
+| 2 | `phase.ProviderOverride` | Per-workflow phase override |
+| 3 | `workflow.DefaultProvider` | Workflow-level default |
+| 4 | `tmpl.Provider` | Phase template default |
+| 5 | `agent.Provider` | Executor agent's provider |
+| 6 | `config.Provider` | Project config default |
+| 7 | Model tuple extraction | Provider prefix from model string (e.g., `codex:gpt-5`) |
+| 8 | `"claude"` | Ultimate fallback |
+
+**Provider families:**
+
+| Provider | Family | Executor | Side Effects |
+|----------|--------|----------|-------------|
+| `claude` | Claude | `executeWithClaude()` | `.claude/settings.json` |
+| `codex` | Codex | `executeWithCodex()` | `AGENTS.md` + `.codex/instruction.md` |
+| `ollama` | Codex | `executeWithCodex()` | Same as codex (routed via Codex CLI) |
+| `lmstudio` | Codex | `executeWithCodex()` | Same as codex (routed via Codex CLI) |
+
+**Key functions:**
+
+| Function | File:Line | Purpose |
+|----------|-----------|---------|
+| `resolvePhaseProvider()` | `provider.go:128` | Priority-chain provider resolution |
+| `isCodexFamilyProvider()` | `provider.go:33` | Returns true for codex/ollama/lmstudio |
+| `normalizeProvider()` | `provider.go:19` | Lowercases, maps aliases (anthropic→claude, openai→codex) |
+| `ParseProviderModel()` | `provider.go:85` | Splits "provider:model" tuples (bare models default to "claude") |
+| `validateProviderCapabilities()` | `provider.go:189` | Checks provider supports phase requirements (e.g., inline agents) |
 
 ## Claude Call Patterns
 
@@ -540,6 +583,18 @@ TurnResult.Usage → Result{InputTokens, OutputTokens, CostUSD} → recordCostTo
 ```
 
 **Note:** Use `EffectiveInputTokens()` not raw `InputTokens` (includes cache tokens).
+
+### Token Rate Estimation (`cost_tracking.go`)
+
+Provider-aware cost estimation with configurable rates:
+
+| Function | Purpose |
+|----------|---------|
+| `EstimateTokenCostUSD()` | Estimates cost from token counts using provider rates |
+| `EstimateTokenCostUSDWithRates()` | Same with custom rate table |
+| `providerRatesForConfig()` | Builds rate table from config overrides + defaults |
+
+Default rates are defined per provider/model pair. Config overrides via `providers.codex.rates` etc.
 
 ## Quality Checks & Validation
 
@@ -672,6 +727,8 @@ go test ./internal/executor/... -v
 | `api_executor_test.go` | APIPhaseExecutor: HTTP requests, status codes, headers, body, response limits, output vars, empty URL |
 | `script_api_wiring_integration_test.go` | Integration: script/API executor registration, dispatch through phase loop, variable propagation |
 | `phase_dispatch_test.go` | Phase type dispatch: non-LLM routing, type override precedence, error propagation, event publishing |
+| `provider_test.go` | Provider resolution: `ParseProviderModel`, `normalizeProvider`, `isCodexFamilyProvider`, priority chain (18 cases) |
+| `provider_dispatch_test.go` | Provider dispatch integration: codex route via AGENTS.md side effect, priority chain propagation, ollama routing (7 cases) |
 
 **Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `WithPhaseTypeExecutor(name, mock)` (for script/api/knowledge/custom), `WithWorkflowKnowledgeService(mock)`, `hostingProvider` field for PR tests
 
@@ -686,6 +743,8 @@ go test ./internal/executor/... -v
 | Spec not found in templates | Use `WithSpecFromDatabase()` |
 | Invalid session ID errors | Only pass custom session IDs when `Persistence: true` |
 | Validation can't see files | Create clients dynamically with correct workdir |
+| Provider not dispatching to codex | Check `resolvePhaseProvider()` priority chain; empty string defaults to "claude" |
+| AGENTS.md not written for codex | `worktreePath` must be set; `ApplyCodexPhaseSettings` only runs when `worktreePath != ""` |
 
 ## Task/Execution State Consistency
 

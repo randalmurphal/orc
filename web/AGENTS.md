@@ -51,7 +51,7 @@ web/src/
 ├── stores/               # Zustand stores (11 stores — see State Management)
 ├── hooks/                # Custom hooks (useShortcuts, useEvents, useDocumentTitle, etc.)
 ├── pages/                # Route pages
-├── lib/                  # Utilities (client.ts, time.ts, format.ts, claudeConfigUtils.ts)
+├── lib/                  # Utilities (client.ts, time.ts, format.ts, claudeConfigUtils.ts, providerUtils.ts)
 ├── gen/                  # Generated protobuf types (orc/v1/)
 └── test/                 # Test utilities and mock factories
 ```

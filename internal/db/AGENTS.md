@@ -47,6 +47,7 @@ SQLite migrations in `schema/`. PostgreSQL equivalents in `schema/postgres/` (em
 | `schema/project_058.sql` | **Atomic user claims**: `claimed_by`/`claimed_at` columns on `tasks`, `task_claim_history` table (append-only with `stolen_from` tracking) |
 | `schema/global_011.sql` | **Phase type columns**: `phase_templates.type` (executor type, default `"llm"`), `workflow_phases.type_override` (per-workflow override) |
 | `schema/project_063.sql` | **Phase scratchpad table**: `phase_scratchpad` (task_id, phase_id, category, content, attempt) for persistent note-taking |
+| `schema/global_012.sql` | **Provider cost indexes**: `idx_cost_provider`, `idx_cost_provider_timestamp` on `cost_log` for provider-grouped cost reports |
 
 ### FK-Disabling Migrations
 

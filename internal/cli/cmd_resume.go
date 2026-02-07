@@ -214,8 +214,20 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 
 			// Build executor options
+			claudePath := cfg.ClaudePath
+			if claudePath == "" {
+				claudePath = "claude"
+			}
+			codexPath := cfg.CodexPath
+			if codexPath == "" {
+				codexPath = "codex"
+			}
+
 			execOpts := []executor.WorkflowExecutorOption{
 				executor.WithWorkflowGitOps(gitOps),
+				executor.WithWorkflowClaudePath(claudePath),
+				executor.WithWorkflowCodexPath(codexPath),
+				executor.WithWorkflowTokenRates(executor.ProviderRatesForConfig(cfg)),
 			}
 
 			// Create persistent publisher for database event logging

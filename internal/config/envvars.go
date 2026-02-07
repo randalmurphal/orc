@@ -10,8 +10,10 @@ import (
 // EnvVarMapping defines the mapping between environment variables and config paths.
 var EnvVarMapping = map[string]string{
 	"ORC_PROFILE":              "profile",
+	"ORC_PROVIDER":             "provider",
 	"ORC_MODEL":                "model",
-	"ORC_MAX_TURNS": "max_turns",
+	"ORC_MAX_TURNS":            "max_turns",
+	"ORC_CODEX_PATH":           "codex_path",
 	"ORC_TIMEOUT":              "timeout",
 	"ORC_CLAUDE_PATH":          "claude_path",
 	"ORC_RETRY_ENABLED":        "retry.enabled",
@@ -100,6 +102,8 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 	switch path {
 	case "profile":
 		cfg.Profile = AutomationProfile(value)
+	case "provider":
+		cfg.Provider = value
 	case "model":
 		cfg.Model = value
 	case "max_turns":
@@ -112,6 +116,8 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 		}
 	case "claude_path":
 		cfg.ClaudePath = ExpandPath(value)
+	case "codex_path":
+		cfg.CodexPath = ExpandPath(value)
 	case "retry.enabled":
 		cfg.Retry.Enabled = parseBool(value)
 	case "retry.max_retries":

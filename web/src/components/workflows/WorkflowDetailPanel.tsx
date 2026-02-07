@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { RightPanel } from '@/components/layout/RightPanel';
 import { Button, Icon } from '@/components/ui';
 import { workflowClient } from '@/lib/client';
+import { providerLabel } from '@/lib/providerUtils';
 import type {
 	Workflow,
 	WorkflowWithDetails,
@@ -215,6 +216,12 @@ export function WorkflowDetailPanel({
 				)}
 
 				<div className="workflow-detail-meta">
+					{displayWorkflow.defaultProvider && (
+						<span className="workflow-detail-meta-item">
+							<Icon name="globe" size={12} />
+							{providerLabel(displayWorkflow.defaultProvider)}
+						</span>
+					)}
 					{displayWorkflow.defaultModel && (
 						<span className="workflow-detail-meta-item">
 							<Icon name="robot" size={12} />

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -476,15 +475,3 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen] + "..."
 }
 
-// WriteAGENTSMD writes an AGENTS.md file to the given directory.
-// Codex CLI reads AGENTS.md (not CLAUDE.md) from the git root for context.
-// The file is capped at 32KiB per codex's limit.
-func WriteAGENTSMD(dir string, content string) error {
-	const maxSize = 32 * 1024 // 32KiB codex limit
-	if len(content) > maxSize {
-		content = content[:maxSize]
-	}
-
-	path := filepath.Join(dir, "AGENTS.md")
-	return os.WriteFile(path, []byte(content), 0644)
-}

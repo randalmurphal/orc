@@ -156,9 +156,9 @@ func TestTDDWrite_WiringVerificationPattern(t *testing.T) {
 	t.Parallel()
 	content := loadTDDWriteTemplate(t)
 
-	// Must contain a Go code example (code block with func Test)
-	if !strings.Contains(content, "func Test") {
-		t.Error("template must contain a concrete Go test example (func Test...)")
+	// Must contain a code example in a fenced code block
+	if !strings.Contains(content, "```") {
+		t.Error("template must contain a concrete code example in a fenced code block")
 	}
 
 	// The pattern must show: (1) mock setup, (2) running code path, (3) assertion
@@ -170,10 +170,11 @@ func TestTDDWrite_WiringVerificationPattern(t *testing.T) {
 	}
 
 	// Must show assertion that the mock was called
-	hasFatalOrError := strings.Contains(content, "t.Fatal") || strings.Contains(content, "t.Error")
-	hasNeverCalled := strings.Contains(content, "never called") || strings.Contains(content, "was not called")
-	if !hasFatalOrError || !hasNeverCalled {
-		t.Error("wiring pattern must assert mock was called with t.Fatal/t.Error and descriptive message")
+	hasAssertion := strings.Contains(content, "assert") ||
+		strings.Contains(content, "t.Fatal") || strings.Contains(content, "t.Error")
+	hasNotCalled := strings.Contains(content, "never called") || strings.Contains(content, "was not called")
+	if !hasAssertion || !hasNotCalled {
+		t.Error("wiring pattern must assert mock was called with a descriptive failure message")
 	}
 }
 

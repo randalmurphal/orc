@@ -34,6 +34,7 @@ Examples:
   orc costs --by user            # Group by user
   orc costs --by project         # Group by project
   orc costs --by model           # Group by model
+  orc costs --by provider         # Group by provider
   orc costs --user alice         # Filter to specific user
   orc costs --since 2026-01-01   # Filter by date
   orc costs --project proj-orc   # Filter to specific project`,
@@ -45,7 +46,7 @@ Examples:
 	cmd.Flags().StringVar(&userFilter, "user", "", "filter to specific user name")
 	cmd.Flags().StringVar(&projectFilter, "project", "", "filter to specific project ID")
 	cmd.Flags().StringVar(&sinceFilter, "since", "", "filter by date (YYYY-MM-DD)")
-	cmd.Flags().StringVar(&byFilter, "by", "", "group by dimension: user, project, model")
+	cmd.Flags().StringVar(&byFilter, "by", "", "group by dimension: user, project, model, provider")
 
 	return cmd
 }

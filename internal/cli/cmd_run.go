@@ -247,10 +247,17 @@ func runRun(cmd *cobra.Command, args []string) error {
 		claudePath = "claude"
 	}
 
+	codexPath := orcConfig.CodexPath
+	if codexPath == "" {
+		codexPath = "codex"
+	}
+
 	// Build executor options
 	execOpts := []executor.WorkflowExecutorOption{
 		executor.WithWorkflowGitOps(gitOps),
 		executor.WithWorkflowClaudePath(claudePath),
+		executor.WithWorkflowCodexPath(codexPath),
+		executor.WithWorkflowTokenRates(executor.ProviderRatesForConfig(orcConfig)),
 	}
 
 	if skipGates {

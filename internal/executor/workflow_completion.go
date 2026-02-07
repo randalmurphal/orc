@@ -735,11 +735,15 @@ func (we *WorkflowExecutor) attemptConflictResolution(
 		gitOps = we.worktreeGit
 	}
 
-	claudePath := ResolveClaudePath("claude")
+	claudePath := we.claudePath
+	if claudePath == "" {
+		claudePath = ResolveClaudePath("claude")
+	}
 
 	resolver := NewConflictResolver(
 		WithConflictGitOps(gitOps),
 		WithConflictClaudePath(claudePath),
+		WithConflictCodexPath(we.codexPath),
 		WithConflictWorkingDir(we.effectiveWorkingDir()),
 		WithConflictBackend(we.backend),
 		WithConflictLogger(we.logger),

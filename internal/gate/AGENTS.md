@@ -82,7 +82,7 @@ When `EvaluateOptions.Headless` is true and a human/AI gate blocks:
 
 - **Executor**: `workflow_gates.go:25` calls `evaluatePhaseGate()`
 - **Variable system**: `Decision.OutputData` flows via `Decision.OutputVar`
-- **Cost tracking**: Records to GlobalDB with label `"gate:" + phaseID`
+- **Cost tracking**: Records to GlobalDB with label `"gate:" + phaseID` and provider field
 - **Config**: `internal/db/gate_config.go` defines `GateInputConfig`/`GateOutputConfig`
 
 ## Architecture Docs
