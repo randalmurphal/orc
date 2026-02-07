@@ -158,6 +158,7 @@ Pay special attention to whether the issues from the previous review have been a
 {{/if}}
 </context>
 
+{{#if SUPPORTS_SUBAGENTS}}
 <mandatory_subagent_review>
 ## MANDATORY: Spawn Specialist Reviewers
 
@@ -187,9 +188,10 @@ Focus on: integration completeness, dead code, behavioral correctness"
 
 **If you skip this step, your review is incomplete and will miss issues.**
 </mandatory_subagent_review>
+{{/if}}
 
 <instructions>
-Thorough validation before test phase. Spawn specialist reviewers, run linting, review changed files against the spec, then decide on one of the three outcomes.
+Thorough validation before test phase. {{#if SUPPORTS_SUBAGENTS}}Spawn specialist reviewers, {{/if}}Run linting, review changed files against the spec, then decide on one of the three outcomes.
 
 ## Check 1: Completeness (CRITICAL)
 
@@ -337,12 +339,20 @@ If you find over-engineering, flag it. The spec defines what should be built —
 
 ## Process
 
+{{#if SUPPORTS_SUBAGENTS}}
 1. **Spawn specialist sub-agents** (MANDATORY - see `<mandatory_subagent_review>` above)
+{{/if}}
 2. Run linting and check changed files
 3. Review each changed file against the spec using the eight checks above
-4. Wait for sub-agent results and incorporate their findings
-5. If you made small fixes, commit them
-6. Output your structured response with the appropriate outcome
+4. Perform security review (OWASP Top 10, injection, auth bypass)
+5. Perform code quality review (guidelines compliance, patterns, dead code)
+{{#if SUPPORTS_SUBAGENTS}}
+6. Wait for sub-agent results and incorporate their findings
+{{/if}}
+7. If you made small fixes, commit them
+8. Output your structured response with the appropriate outcome
+{{#if SUPPORTS_SUBAGENTS}}
 
 **Your final decision must account for ALL sub-agent findings.** If a sub-agent found a high-severity issue, you must block even if your own review found nothing.
+{{/if}}
 </instructions>

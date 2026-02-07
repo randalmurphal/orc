@@ -312,6 +312,7 @@ message Agent {
   bool is_builtin = 16;                  // Whether this is a built-in agent
   google.protobuf.Timestamp created_at = 17;
   google.protobuf.Timestamp updated_at = 18;
+  optional string provider = 19;         // LLM provider: "claude", "codex", "ollama"
   // Note: NO thinking_enabled - that's a phase-level concern, not agent
 }
 
@@ -740,6 +741,7 @@ message CreateAgentRequest {
   repeated string skill_refs = 11;
   optional string timeout = 12;
   SettingsScope scope = 13;
+  optional string provider = 14;         // LLM provider: "claude", "codex", "ollama"
 }
 
 message CreateAgentResponse {
@@ -759,6 +761,7 @@ message UpdateAgentRequest {
   optional string work_dir = 10;
   repeated string skill_refs = 11;
   optional string timeout = 12;
+  optional string provider = 13;         // LLM provider: "claude", "codex", "ollama"
 }
 
 message UpdateAgentResponse {

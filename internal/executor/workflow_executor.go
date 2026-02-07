@@ -110,6 +110,12 @@ type WorkflowRunOptions struct {
 	// IgnoreBudget bypasses budget enforcement when true.
 	// Maps to the --ignore-budget CLI flag.
 	IgnoreBudget bool
+
+	// Provider overrides the default LLM provider for this run.
+	// Values: "claude" (default), "codex", "ollama".
+	// When set, overrides config.Provider for all phases in this run
+	// (individual phase/workflow overrides still take precedence).
+	Provider string
 }
 
 // GateEvaluatorInterface abstracts gate evaluation for testability.
@@ -130,6 +136,8 @@ type WorkflowExecutor struct {
 	logger        *slog.Logger
 	workingDir    string
 	claudePath    string
+	codexPath     string                            // Path to codex binary
+	tokenRates    map[string]map[string]TokenRate    // Provider token rates for cost estimation
 
 	// Optional components
 	gitOps             *git.Git
@@ -147,9 +155,10 @@ type WorkflowExecutor struct {
 	heartbeat    *HeartbeatRunner
 	idleGuard    *IdleGuard
 	fileWatcher  *FileWatcher
-	isResuming      bool // True if resuming a paused/failed/blocked task
-	skipGates       bool // When true, bypass all gate evaluations
-	inParallelLevel bool //nolint:unused // True when executing phases in parallel (prepared for parallel execution)
+	isResuming      bool   // True if resuming a paused/failed/blocked task
+	skipGates       bool   // When true, bypass all gate evaluations
+	inParallelLevel bool   //nolint:unused // True when executing phases in parallel (prepared for parallel execution)
+	runProvider     string // Run-level provider override (from WorkflowRunOptions.Provider)
 
 	// briefGenerator is lazily created for project brief generation across phases.
 	briefGenerator *brief.Generator
@@ -199,6 +208,20 @@ func WithWorkflowClaudePath(path string) WorkflowExecutorOption {
 	}
 }
 
+// WithWorkflowCodexPath sets the path to the Codex CLI executable.
+func WithWorkflowCodexPath(path string) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.codexPath = path
+	}
+}
+
+// WithWorkflowTokenRates sets the provider token rates for cost estimation.
+func WithWorkflowTokenRates(rates map[string]map[string]TokenRate) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.tokenRates = rates
+	}
+}
+
 // WithWorkflowTurnExecutor sets a TurnExecutor for testing.
 // When set, executeWithClaude uses this instead of creating a real ClaudeExecutor.
 func WithWorkflowTurnExecutor(te TurnExecutor) WorkflowExecutorOption {
@@ -226,6 +249,18 @@ func WithWorkflowTriggerRunner(runner trigger.Runner) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
 		we.triggerRunner = runner
 	}
+}
+
+// resolveCodexPath returns the effective codex binary path using fallback chain:
+// explicit codexPath > config.Providers.Codex.Path > "codex"
+func (we *WorkflowExecutor) resolveCodexPath() string {
+	if we.codexPath != "" {
+		return we.codexPath
+	}
+	if we.orcConfig != nil && we.orcConfig.Providers.Codex.Path != "" {
+		return we.orcConfig.Providers.Codex.Path
+	}
+	return "codex"
 }
 
 // WithSkipGates configures the executor to skip all gate evaluations.
@@ -600,6 +635,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		return nil, fmt.Errorf("save workflow run: %w", err)
 	}
 
+	// Store run-level provider override (applies to all phases unless overridden per-phase)
+	we.runProvider = opts.Provider
+
 	// Sync task status to Running
 	// Note: Use opts.IsResume since TryClaimTaskExecution already changed status to running
 	if t != nil {
@@ -708,6 +746,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 		// Update phase in resolution context
 		rctx.Phase = tmpl.ID
+		rctx.Provider = we.resolvePhaseProvider(tmpl, phase)
 
 		// Enrich context with phase-specific data (review findings, test results, etc.)
 		we.enrichContextForPhase(rctx, tmpl.ID, t)

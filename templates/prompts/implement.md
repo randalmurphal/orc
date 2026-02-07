@@ -324,7 +324,7 @@ Before outputting completion JSON, commit all work to preserve it:
 git add -A
 git commit -m "[orc] {{TASK_ID}}: implement - [brief description]
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+Co-Authored-By: {{COMMIT_AUTHOR}}"
 ```
 
 **CRITICAL:** Always commit before claiming completion. Uncommitted work may be lost if execution is interrupted or the task fails.

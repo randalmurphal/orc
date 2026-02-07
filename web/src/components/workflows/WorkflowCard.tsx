@@ -7,6 +7,7 @@ import { DefinitionSource as DS } from '@/gen/orc/v1/workflow_pb';
 import { Badge } from '@/components/core/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { providerLabel } from '@/lib/providerUtils';
 
 /** Get display name for a definition source */
 function getSourceLabel(source?: DefinitionSource): string {
@@ -101,6 +102,12 @@ export function WorkflowCard({ workflow, phaseCount, source, onSelect, onClone }
 					<Icon name="layers" size={14} />
 					<span>{phaseCount ?? 0} phases</span>
 				</div>
+				{workflow.defaultProvider && workflow.defaultProvider !== 'claude' && (
+					<div className="workflow-card-stat">
+						<Icon name="globe" size={14} />
+						<span>{providerLabel(workflow.defaultProvider)}</span>
+					</div>
+				)}
 				{workflow.defaultModel && (
 					<div className="workflow-card-stat">
 						<Icon name="cpu" size={14} />

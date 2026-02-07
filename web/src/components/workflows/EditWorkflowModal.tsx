@@ -14,6 +14,7 @@ import { Modal } from '@/components/overlays/Modal';
 import { Button, Icon } from '@/components/ui';
 import { workflowClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
+import { PROVIDERS, PROVIDER_MODELS } from '@/lib/providerUtils';
 import { PhaseListEditor, type PhaseOverrides, type AddPhaseRequest } from './PhaseListEditor';
 import type { Workflow, WorkflowPhase, PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
 import './EditWorkflowModal.css';
@@ -28,13 +29,6 @@ export interface EditWorkflowModalProps {
 	/** Callback when workflow is successfully updated */
 	onUpdated: (workflow: Workflow) => void;
 }
-
-const MODEL_OPTIONS = [
-	{ value: '', label: 'Default (inherit)' },
-	{ value: 'sonnet', label: 'Sonnet' },
-	{ value: 'opus', label: 'Opus' },
-	{ value: 'haiku', label: 'Haiku' },
-];
 
 const COMPLETION_ACTION_OPTIONS = [
 	{ value: '', label: 'Inherit from config' },
@@ -58,6 +52,7 @@ export function EditWorkflowModal({
 	// Form state
 	const [name, setName] = useState('');
 	const [description, setDescription] = useState('');
+	const [defaultProvider, setDefaultProvider] = useState('');
 	const [defaultModel, setDefaultModel] = useState('');
 	const [defaultThinking, setDefaultThinking] = useState(false);
 	const [completionAction, setCompletionAction] = useState('');
@@ -87,6 +82,7 @@ export function EditWorkflowModal({
 			setWorkflow(null);
 			setName('');
 			setDescription('');
+			setDefaultProvider('');
 			setDefaultModel('');
 			setDefaultThinking(false);
 			setCompletionAction('');
@@ -105,6 +101,7 @@ export function EditWorkflowModal({
 							setWorkflow(details.workflow);
 							setName(details.workflow.name || '');
 							setDescription(details.workflow.description || '');
+							setDefaultProvider(details.workflow.defaultProvider || '');
 							setDefaultModel(details.workflow.defaultModel || '');
 							setDefaultThinking(details.workflow.defaultThinking || false);
 							setCompletionAction(details.workflow.completionAction || '');
@@ -147,6 +144,7 @@ export function EditWorkflowModal({
 				id: workflowId,
 				name: name.trim() || undefined,
 				description: description.trim() || undefined,
+				defaultProvider: defaultProvider || undefined,
 				defaultModel: defaultModel || undefined,
 				defaultThinking: defaultThinking,
 				completionAction: completionAction,
@@ -163,7 +161,7 @@ export function EditWorkflowModal({
 		} finally {
 			setSaving(false);
 		}
-	}, [workflowId, name, description, defaultModel, defaultThinking, completionAction, targetBranch, onUpdated, onClose]);
+	}, [workflowId, name, description, defaultProvider, defaultModel, defaultThinking, completionAction, targetBranch, onUpdated, onClose]);
 
 	// Handle add phase
 	const handleAddPhase = useCallback(
@@ -303,6 +301,7 @@ export function EditWorkflowModal({
 						setWorkflow(details.workflow);
 						setName(details.workflow.name || '');
 						setDescription(details.workflow.description || '');
+						setDefaultProvider(details.workflow.defaultProvider || '');
 						setDefaultModel(details.workflow.defaultModel || '');
 						setDefaultThinking(details.workflow.defaultThinking || false);
 						setCompletionAction(details.workflow.completionAction || '');
@@ -436,24 +435,56 @@ export function EditWorkflowModal({
 							/>
 						</div>
 
+						{/* Provider */}
+						<div className="form-group">
+							<label htmlFor="edit-workflow-provider" className="form-label">
+								Default Provider
+							</label>
+							<select
+								id="edit-workflow-provider"
+								className="form-select"
+								value={defaultProvider}
+								onChange={(e) => {
+									const newProvider = e.target.value;
+									setDefaultProvider(newProvider);
+									setDefaultModel('');
+								}}
+							>
+								<option value="">Claude (default)</option>
+								{PROVIDERS.map(p => (
+									<option key={p.value} value={p.value}>{p.label}</option>
+								))}
+							</select>
+						</div>
+
 						{/* Model and Thinking */}
 						<div className="form-row">
 							<div className="form-group form-group-half">
 								<label htmlFor="edit-workflow-model" className="form-label">
-									Default LLM
+									Default Model
 								</label>
-								<select
-									id="edit-workflow-model"
-									className="form-select"
-									value={defaultModel}
-									onChange={(e) => setDefaultModel(e.target.value)}
-								>
-									{MODEL_OPTIONS.map((option) => (
-										<option key={option.value} value={option.value}>
-											{option.label}
-										</option>
-									))}
-								</select>
+								{(PROVIDER_MODELS[defaultProvider || 'claude'] ?? []).length > 0 ? (
+									<select
+										id="edit-workflow-model"
+										className="form-select"
+										value={defaultModel}
+										onChange={(e) => setDefaultModel(e.target.value)}
+									>
+										<option value="">Default (inherit)</option>
+										{(PROVIDER_MODELS[defaultProvider || 'claude'] ?? []).map(m => (
+											<option key={m.value} value={m.value}>{m.label}</option>
+										))}
+									</select>
+								) : (
+									<input
+										id="edit-workflow-model"
+										type="text"
+										className="form-input"
+										value={defaultModel}
+										onChange={(e) => setDefaultModel(e.target.value)}
+										placeholder="Type model name..."
+									/>
+								)}
 							</div>
 
 							<div className="form-group form-group-half">

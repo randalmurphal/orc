@@ -266,12 +266,26 @@ func Default() *Config {
 				EmbeddingModel: "voyage-4",
 			},
 		},
-		Model: "opus",
-		MaxTurns: 150,              // Claude CLI turn limit - reasonable default for complex phases
-		Timeout:  60 * time.Minute, // 60 minutes minimum - complex phases take time
+		Provider: "claude",
+		Providers: ProvidersConfig{
+			Codex: CodexProviderConfig{
+				Path:            "codex",
+				Sandbox:         "workspace-write",
+				Approval:        "never",
+				ReasoningEffort: "high",
+			},
+			Ollama: OllamaProviderConfig{
+				BaseURL:      "http://localhost:11434",
+				DefaultModel: "qwen2.5-14b",
+			},
+		},
+		Model:                      "opus",
+		MaxTurns:                   150,              // Claude CLI turn limit - reasonable default for complex phases
+		Timeout:                    60 * time.Minute, // 60 minutes minimum - complex phases take time
 		BranchPrefix:               "orc/",
 		CommitPrefix:               "[orc]",
 		ClaudePath:                 "claude",
+		CodexPath:                  "codex",
 		DangerouslySkipPermissions: true,
 		TemplatesDir:               "templates",
 		EnableCheckpoints:          true,

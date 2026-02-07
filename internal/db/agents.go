@@ -18,6 +18,7 @@ type Agent struct {
 	Prompt      string   `json:"prompt"`      // Context prompt for sub-agent role (what this agent does)
 	Tools       []string `json:"tools"`       // Allowed tools: ["Read", "Grep", "Edit"]
 	Model       string   `json:"model"`       // 'opus', 'sonnet', 'haiku' (optional override)
+	Provider string `json:"provider,omitempty"` // "claude", "codex", "ollama", etc.
 
 	// Executor role fields (used when agent is the main executor for a phase)
 	SystemPrompt string `json:"system_prompt,omitempty"` // Role framing for executor
@@ -45,14 +46,15 @@ func (pdb *ProjectDB) SaveAgent(a *Agent) error {
 	// The 'agents' VIEW (created by migration 052) filters out executor-* pattern
 	// but doesn't support UPSERT directly.
 	query := `
-		INSERT INTO _agents_storage (id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO _agents_storage (id, name, description, prompt, tools, model, provider, system_prompt, claude_config, is_builtin, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
 			prompt = excluded.prompt,
 			tools = excluded.tools,
 			model = excluded.model,
+			provider = excluded.provider,
 			system_prompt = excluded.system_prompt,
 			claude_config = excluded.claude_config,
 			is_builtin = excluded.is_builtin,
@@ -61,7 +63,7 @@ func (pdb *ProjectDB) SaveAgent(a *Agent) error {
 
 	_, err = pdb.Exec(query,
 		a.ID, a.Name, a.Description, a.Prompt, string(toolsJSON),
-		a.Model, a.SystemPrompt, a.ClaudeConfig, a.IsBuiltin, a.CreatedAt, a.UpdatedAt,
+		a.Model, a.Provider, a.SystemPrompt, a.ClaudeConfig, a.IsBuiltin, a.CreatedAt, a.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("save agent %s: %w", a.ID, err)
@@ -73,18 +75,18 @@ func (pdb *ProjectDB) SaveAgent(a *Agent) error {
 // GetAgent retrieves an agent by ID.
 func (pdb *ProjectDB) GetAgent(id string) (*Agent, error) {
 	query := `
-		SELECT id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at
+		SELECT id, name, description, prompt, tools, model, provider, system_prompt, claude_config, is_builtin, created_at, updated_at
 		FROM agents
 		WHERE id = ?
 	`
 
 	var a Agent
 	var toolsJSON string
-	var model, systemPrompt, claudeConfig sql.NullString
+	var model, provider, systemPrompt, claudeConfig sql.NullString
 
 	err := pdb.QueryRow(query, id).Scan(
 		&a.ID, &a.Name, &a.Description, &a.Prompt, &toolsJSON,
-		&model, &systemPrompt, &claudeConfig, &a.IsBuiltin, &a.CreatedAt, &a.UpdatedAt,
+		&model, &provider, &systemPrompt, &claudeConfig, &a.IsBuiltin, &a.CreatedAt, &a.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -95,6 +97,9 @@ func (pdb *ProjectDB) GetAgent(id string) (*Agent, error) {
 
 	if model.Valid {
 		a.Model = model.String
+	}
+	if provider.Valid {
+		a.Provider = provider.String
 	}
 	if systemPrompt.Valid {
 		a.SystemPrompt = systemPrompt.String
@@ -115,7 +120,7 @@ func (pdb *ProjectDB) GetAgent(id string) (*Agent, error) {
 // ListAgents returns all agents.
 func (pdb *ProjectDB) ListAgents() ([]*Agent, error) {
 	query := `
-		SELECT id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at
+		SELECT id, name, description, prompt, tools, model, provider, system_prompt, claude_config, is_builtin, created_at, updated_at
 		FROM agents
 		ORDER BY is_builtin DESC, name ASC
 	`
@@ -130,17 +135,20 @@ func (pdb *ProjectDB) ListAgents() ([]*Agent, error) {
 	for rows.Next() {
 		var a Agent
 		var toolsJSON string
-		var model, systemPrompt, claudeConfig sql.NullString
+		var model, provider, systemPrompt, claudeConfig sql.NullString
 
 		if err := rows.Scan(
 			&a.ID, &a.Name, &a.Description, &a.Prompt, &toolsJSON,
-			&model, &systemPrompt, &claudeConfig, &a.IsBuiltin, &a.CreatedAt, &a.UpdatedAt,
+			&model, &provider, &systemPrompt, &claudeConfig, &a.IsBuiltin, &a.CreatedAt, &a.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan agent: %w", err)
 		}
 
 		if model.Valid {
 			a.Model = model.String
+		}
+		if provider.Valid {
+			a.Provider = provider.String
 		}
 		if systemPrompt.Valid {
 			a.SystemPrompt = systemPrompt.String

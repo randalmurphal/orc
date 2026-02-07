@@ -391,6 +391,13 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	vars["CHANGELOG_CONTENT"] = rctx.ChangelogContent
 	vars["CLAUDEMD_CONTENT"] = rctx.ClaudeMDContent
 
+	// Provider context
+	vars["PROVIDER"] = rctx.Provider
+	vars["COMMIT_AUTHOR"] = commitAuthorForProvider(rctx.Provider)
+	if providerSupportsSubagents(rctx.Provider) {
+		vars["SUPPORTS_SUBAGENTS"] = "true"
+	}
+
 	// QA E2E testing context
 	if rctx.QAIteration > 0 {
 		vars["QA_ITERATION"] = fmt.Sprintf("%d", rctx.QAIteration)
@@ -501,6 +508,24 @@ func processConditionals(content string, vars VariableSet) string {
 		// Variable missing or empty - remove entire block
 		return ""
 	})
+}
+
+// commitAuthorForProvider returns the commit co-author string for a given LLM provider.
+func commitAuthorForProvider(provider string) string {
+	switch provider {
+	case "codex":
+		return "OpenAI Codex <noreply@openai.com>"
+	case "ollama":
+		return "Ollama Local Model <noreply@ollama.ai>"
+	default:
+		return "Claude Sonnet 4.5 <noreply@anthropic.com>"
+	}
+}
+
+// providerSupportsSubagents returns whether a provider supports spawning sub-agents.
+// Currently only Claude Code supports the Task tool for sub-agent dispatch.
+func providerSupportsSubagents(provider string) bool {
+	return provider == "" || provider == "claude"
 }
 
 // RenderTemplateStrict is like RenderTemplate but returns an error for missing variables.

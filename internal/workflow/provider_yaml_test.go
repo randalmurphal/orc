@@ -1,0 +1,239 @@
+package workflow
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
+)
+
+func TestProviderYAML_WorkflowDefaultProvider(t *testing.T) {
+	t.Parallel()
+
+	yamlData := []byte(`
+id: test-provider
+name: Provider Test
+default_provider: codex
+phases:
+  - template: implement
+    sequence: 1
+`)
+
+	wf, err := parseWorkflowYAML(yamlData)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test-provider", wf.ID)
+	assert.Equal(t, "codex", wf.DefaultProvider)
+}
+
+func TestProviderYAML_PhaseProviderOverride(t *testing.T) {
+	t.Parallel()
+
+	yamlData := []byte(`
+id: test-phase-provider
+name: Phase Provider Test
+phases:
+  - template: implement
+    sequence: 1
+    provider: ollama
+  - template: review
+    sequence: 2
+`)
+
+	wf, err := parseWorkflowYAML(yamlData)
+	require.NoError(t, err)
+
+	require.Len(t, wf.Phases, 2)
+	assert.Equal(t, "ollama", wf.Phases[0].ProviderOverride)
+	assert.Equal(t, "", wf.Phases[1].ProviderOverride)
+}
+
+func TestProviderYAML_WorkflowAndPhaseProviders(t *testing.T) {
+	t.Parallel()
+
+	yamlData := []byte(`
+id: mixed-provider
+name: Mixed Provider Test
+default_provider: codex
+phases:
+  - template: spec
+    sequence: 1
+  - template: implement
+    sequence: 2
+    provider: ollama
+  - template: review
+    sequence: 3
+    provider: claude
+`)
+
+	wf, err := parseWorkflowYAML(yamlData)
+	require.NoError(t, err)
+
+	assert.Equal(t, "codex", wf.DefaultProvider)
+	require.Len(t, wf.Phases, 3)
+	assert.Equal(t, "", wf.Phases[0].ProviderOverride)
+	assert.Equal(t, "ollama", wf.Phases[1].ProviderOverride)
+	assert.Equal(t, "claude", wf.Phases[2].ProviderOverride)
+}
+
+func TestProviderYAML_EmptyProviderOmittedFromOutput(t *testing.T) {
+	t.Parallel()
+
+	wf := &Workflow{
+		ID:   "test-wf",
+		Name: "Test Workflow",
+		Phases: []WorkflowPhase{
+			{
+				PhaseTemplateID: "implement",
+				Sequence:        1,
+			},
+		},
+	}
+
+	data, err := marshalWorkflowYAML(wf)
+	require.NoError(t, err)
+
+	// Unmarshal to map to check raw keys
+	var raw map[string]any
+	require.NoError(t, yaml.Unmarshal(data, &raw))
+	_, hasDefaultProvider := raw["default_provider"]
+	assert.False(t, hasDefaultProvider, "empty default_provider should be omitted from YAML output")
+
+	// Check phases don't have provider key
+	phases, ok := raw["phases"].([]any)
+	require.True(t, ok)
+	for i, p := range phases {
+		phaseMap, ok := p.(map[string]any)
+		require.True(t, ok)
+		_, hasProvider := phaseMap["provider"]
+		assert.False(t, hasProvider, "phase %d: empty provider should be omitted from YAML output", i)
+	}
+}
+
+func TestProviderYAML_RoundTrip_Workflow(t *testing.T) {
+	t.Parallel()
+
+	original := &Workflow{
+		ID:              "round-trip",
+		Name:            "Round Trip",
+		DefaultModel:    "opus",
+		DefaultProvider: "codex",
+		Phases: []WorkflowPhase{
+			{
+				PhaseTemplateID:  "spec",
+				Sequence:         1,
+				ProviderOverride: "ollama",
+			},
+			{
+				PhaseTemplateID: "implement",
+				Sequence:        2,
+			},
+			{
+				PhaseTemplateID:  "review",
+				Sequence:         3,
+				ProviderOverride: "claude",
+			},
+		},
+	}
+
+	// Write to YAML
+	data, err := marshalWorkflowYAML(original)
+	require.NoError(t, err)
+
+	// Read back
+	parsed, err := parseWorkflowYAML(data)
+	require.NoError(t, err)
+
+	assert.Equal(t, original.DefaultProvider, parsed.DefaultProvider)
+	require.Len(t, parsed.Phases, 3)
+	assert.Equal(t, "ollama", parsed.Phases[0].ProviderOverride)
+	assert.Equal(t, "", parsed.Phases[1].ProviderOverride)
+	assert.Equal(t, "claude", parsed.Phases[2].ProviderOverride)
+}
+
+func TestProviderYAML_RoundTrip_Phase(t *testing.T) {
+	t.Parallel()
+
+	original := &PhaseTemplate{
+		ID:           "test-phase",
+		Name:         "Test Phase",
+		PromptSource: PromptSourceEmbedded,
+		GateType:     GateAuto,
+		Provider:     "ollama",
+	}
+
+	// Write to YAML
+	data, err := marshalPhaseYAML(original)
+	require.NoError(t, err)
+
+	// Read back
+	parsed, err := parsePhaseYAML(data)
+	require.NoError(t, err)
+
+	assert.Equal(t, "ollama", parsed.Provider)
+}
+
+func TestProviderYAML_PhaseTemplate_EmptyProviderOmitted(t *testing.T) {
+	t.Parallel()
+
+	phase := &PhaseTemplate{
+		ID:           "no-provider-phase",
+		Name:         "No Provider Phase",
+		PromptSource: PromptSourceEmbedded,
+		GateType:     GateAuto,
+	}
+
+	data, err := marshalPhaseYAML(phase)
+	require.NoError(t, err)
+
+	// Unmarshal to a map to check raw keys
+	var raw map[string]any
+	require.NoError(t, yaml.Unmarshal(data, &raw))
+	_, hasProvider := raw["provider"]
+	assert.False(t, hasProvider, "empty provider should be omitted from YAML output")
+}
+
+func TestProviderYAML_DefaultProviderOmittedWhenEmpty(t *testing.T) {
+	t.Parallel()
+
+	wf := &Workflow{
+		ID:   "no-default-provider",
+		Name: "No Default Provider",
+		Phases: []WorkflowPhase{
+			{
+				PhaseTemplateID:  "implement",
+				Sequence:         1,
+				ProviderOverride: "codex",
+			},
+		},
+	}
+
+	data, err := marshalWorkflowYAML(wf)
+	require.NoError(t, err)
+
+	// Unmarshal to a map to check raw keys
+	var raw map[string]any
+	require.NoError(t, yaml.Unmarshal(data, &raw))
+	_, hasDefault := raw["default_provider"]
+	assert.False(t, hasDefault, "empty default_provider should be omitted from YAML output")
+}
+
+func TestProviderYAML_NoProviderFieldsDefault(t *testing.T) {
+	t.Parallel()
+
+	yamlData := []byte(`
+id: legacy-workflow
+name: Legacy Workflow
+phases:
+  - template: implement
+    sequence: 1
+`)
+
+	wf, err := parseWorkflowYAML(yamlData)
+	require.NoError(t, err)
+
+	assert.Equal(t, "", wf.DefaultProvider)
+	require.Len(t, wf.Phases, 1)
+	assert.Equal(t, "", wf.Phases[0].ProviderOverride)
+}

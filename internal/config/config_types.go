@@ -1031,6 +1031,35 @@ type HostingConfig struct {
 	TokenEnvVar string `yaml:"token_env_var" json:"token_env_var,omitempty"`
 }
 
+// ProvidersConfig defines provider-specific defaults.
+type ProvidersConfig struct {
+	Codex  CodexProviderConfig                      `yaml:"codex,omitempty"`
+	Ollama OllamaProviderConfig                     `yaml:"ollama,omitempty"`
+	Rates  map[string]map[string]ProviderRateConfig `yaml:"rates,omitempty"`
+}
+
+// CodexProviderConfig defines default Codex CLI settings.
+type CodexProviderConfig struct {
+	Path            string `yaml:"path,omitempty"`
+	Sandbox         string `yaml:"sandbox,omitempty"`
+	Approval        string `yaml:"approval,omitempty"`
+	ReasoningEffort string `yaml:"reasoning_effort,omitempty"`
+}
+
+// OllamaProviderConfig defines local Ollama defaults.
+type OllamaProviderConfig struct {
+	BaseURL      string `yaml:"base_url,omitempty"`
+	DefaultModel string `yaml:"default_model,omitempty"`
+}
+
+// ProviderRateConfig defines per-1M-token pricing in USD for a provider/model.
+type ProviderRateConfig struct {
+	Input      float64 `yaml:"input,omitempty"`
+	Output     float64 `yaml:"output,omitempty"`
+	CacheRead  float64 `yaml:"cache_read,omitempty"`
+	CacheWrite float64 `yaml:"cache_write,omitempty"`
+}
+
 // JiraConfig defines Jira Cloud import settings.
 type JiraConfig struct {
 	// URL is the Jira Cloud base URL (e.g., "https://acme.atlassian.net").
@@ -1350,6 +1379,9 @@ var (
 
 	// DefaultProtectedBranches are branches that cannot be directly merged to
 	DefaultProtectedBranches = []string{"main", "master", "develop", "release"}
+
+	// ValidLLMProviders are the allowed values for provider (LLM execution provider)
+	ValidLLMProviders = []string{"claude", "codex", "ollama", "lmstudio", ""}
 
 	// ValidHostingProviders are the allowed values for hosting.provider
 	ValidHostingProviders = []string{"auto", "github", "gitlab", ""}

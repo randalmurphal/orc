@@ -160,6 +160,20 @@ Classify each test you write into one of two types:
 **Sociable tests**: Test a unit with its real collaborators. Preferred when collaborators are fast, deterministic, and side-effect free. Gives higher confidence that units work together correctly.
 
 **Note:** Integration tests verifying production wiring are written in the separate `tdd_integrate` phase. Focus here on testing behavioral correctness of the new code.
+
+**When to include wiring verification:** If the task creates a new function or new interface that MUST be called from an existing code path, you MUST write an integration test proving the wiring works. Use the recording mock pattern:
+
+```
+// Pseudocode — adapt to your project's language and test framework
+test existing_caller_uses_new_handler:
+    called = false
+    mock = create_mock(on_handle: () => { called = true })
+    caller = ExistingCaller(mock)
+    caller.run()
+    assert(called, "new handler was not called from existing code path")
+```
+
+This pattern ensures new code is reachable — not just correct in isolation.
 </test_classification>
 
 <context>
@@ -284,7 +298,7 @@ Before outputting completion JSON, commit all test files to preserve them:
 git add -A
 git commit -m "[orc] {{TASK_ID}}: tdd_write - [brief description of tests]
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+Co-Authored-By: {{COMMIT_AUTHOR}}"
 ```
 
 **CRITICAL:** Always commit before claiming completion. Uncommitted tests may be lost if execution is interrupted or the task fails.

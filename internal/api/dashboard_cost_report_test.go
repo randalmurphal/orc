@@ -274,6 +274,64 @@ func TestGetCostReport_GroupByModel(t *testing.T) {
 	}
 }
 
+func TestGetCostReport_GroupByProvider(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	globalDB := storage.NewTestGlobalDB(t)
+
+	// Seed cost data with different providers
+	entries := []db.CostEntry{
+		// claude provider
+		{ProjectID: "proj-orc", TaskID: "TASK-001", Phase: "implement", Model: "opus", Provider: "claude", CostUSD: 50.00, UserID: "user-alice", InputTokens: 10000, OutputTokens: 5000, TotalTokens: 15000},
+		// codex provider
+		{ProjectID: "proj-orc", TaskID: "TASK-002", Phase: "review", Model: "codex-mini", Provider: "codex", CostUSD: 20.00, UserID: "user-alice", InputTokens: 8000, OutputTokens: 3000, TotalTokens: 11000},
+		// ollama provider
+		{ProjectID: "proj-llmkit", TaskID: "TASK-003", Phase: "implement", Model: "llama3", Provider: "ollama", CostUSD: 30.00, UserID: "user-bob", InputTokens: 6000, OutputTokens: 2000, TotalTokens: 8000},
+	}
+	for _, e := range entries {
+		if err := globalDB.RecordCostExtended(e); err != nil {
+			t.Fatalf("seed cost: %v", err)
+		}
+	}
+
+	server := NewDashboardServerWithDiff(backend, nil, nil)
+	server.SetGlobalDB(globalDB)
+
+	groupBy := "provider"
+	resp, err := server.GetCostReport(
+		context.Background(),
+		connect.NewRequest(&orcv1.GetCostReportRequest{
+			GroupBy: &groupBy,
+		}),
+	)
+	if err != nil {
+		t.Fatalf("GetCostReport failed: %v", err)
+	}
+
+	byKey := make(map[string]float64)
+	for _, b := range resp.Msg.Breakdowns {
+		byKey[b.Key] = b.CostUsd
+	}
+
+	// claude: 50
+	if byKey["claude"] != 50.00 {
+		t.Errorf("claude = %f, want 50", byKey["claude"])
+	}
+	// codex: 20
+	if byKey["codex"] != 20.00 {
+		t.Errorf("codex = %f, want 20", byKey["codex"])
+	}
+	// ollama: 30
+	if byKey["ollama"] != 30.00 {
+		t.Errorf("ollama = %f, want 30", byKey["ollama"])
+	}
+
+	if len(resp.Msg.Breakdowns) != 3 {
+		t.Errorf("expected 3 breakdowns, got %d", len(resp.Msg.Breakdowns))
+	}
+}
+
 func TestGetCostReport_NoGroupBy_ReturnsTotalOnly(t *testing.T) {
 	t.Parallel()
 

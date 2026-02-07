@@ -207,6 +207,10 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 		cfg.Model = fileCfg.Model
 		tc.SetSourceWithPath("model", source, path)
 	}
+	if _, ok := raw["provider"]; ok {
+		cfg.Provider = fileCfg.Provider
+		tc.SetSourceWithPath("provider", source, path)
+	}
 	if _, ok := raw["fallback_model"]; ok {
 		cfg.FallbackModel = fileCfg.FallbackModel
 		tc.SetSourceWithPath("fallback_model", source, path)
@@ -230,6 +234,10 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 	if _, ok := raw["claude_path"]; ok {
 		cfg.ClaudePath = ExpandPath(fileCfg.ClaudePath)
 		tc.SetSourceWithPath("claude_path", source, path)
+	}
+	if _, ok := raw["codex_path"]; ok {
+		cfg.CodexPath = ExpandPath(fileCfg.CodexPath)
+		tc.SetSourceWithPath("codex_path", source, path)
 	}
 	if _, ok := raw["dangerously_skip_permissions"]; ok {
 		cfg.DangerouslySkipPermissions = fileCfg.DangerouslySkipPermissions
@@ -287,6 +295,9 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 	}
 	if rawBrief, ok := raw["brief"].(map[string]interface{}); ok {
 		mergeBriefConfigWithPath(cfg, fileCfg, rawBrief, tc, source, path)
+	}
+	if rawProviders, ok := raw["providers"].(map[string]interface{}); ok {
+		mergeProvidersConfigWithPath(cfg, fileCfg, rawProviders, tc, source, path)
 	}
 }
 
@@ -624,11 +635,46 @@ func mergeBriefConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]inter
 	}
 }
 
+func mergeProvidersConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
+	if rawCodex, ok := raw["codex"].(map[string]interface{}); ok {
+		if _, ok := rawCodex["path"]; ok {
+			cfg.Providers.Codex.Path = ExpandPath(fileCfg.Providers.Codex.Path)
+			tc.SetSourceWithPath("providers.codex.path", source, path)
+		}
+		if _, ok := rawCodex["sandbox"]; ok {
+			cfg.Providers.Codex.Sandbox = fileCfg.Providers.Codex.Sandbox
+			tc.SetSourceWithPath("providers.codex.sandbox", source, path)
+		}
+		if _, ok := rawCodex["approval"]; ok {
+			cfg.Providers.Codex.Approval = fileCfg.Providers.Codex.Approval
+			tc.SetSourceWithPath("providers.codex.approval", source, path)
+		}
+		if _, ok := rawCodex["reasoning_effort"]; ok {
+			cfg.Providers.Codex.ReasoningEffort = fileCfg.Providers.Codex.ReasoningEffort
+			tc.SetSourceWithPath("providers.codex.reasoning_effort", source, path)
+		}
+	}
+	if rawOllama, ok := raw["ollama"].(map[string]interface{}); ok {
+		if _, ok := rawOllama["base_url"]; ok {
+			cfg.Providers.Ollama.BaseURL = fileCfg.Providers.Ollama.BaseURL
+			tc.SetSourceWithPath("providers.ollama.base_url", source, path)
+		}
+		if _, ok := rawOllama["default_model"]; ok {
+			cfg.Providers.Ollama.DefaultModel = fileCfg.Providers.Ollama.DefaultModel
+			tc.SetSourceWithPath("providers.ollama.default_model", source, path)
+		}
+	}
+	if _, ok := raw["rates"]; ok {
+		cfg.Providers.Rates = fileCfg.Providers.Rates
+		tc.SetSourceWithPath("providers.rates", source, path)
+	}
+}
+
 // markDefaults marks all config paths as having SourceDefault.
 func markDefaults(tc *TrackedConfig) {
 	paths := []string{
-		"version", "profile", "model", "fallback_model", "max_turns", "timeout",
-		"branch_prefix", "commit_prefix", "claude_path", "dangerously_skip_permissions",
+		"version", "profile", "provider", "model", "fallback_model", "max_turns", "timeout",
+		"branch_prefix", "commit_prefix", "claude_path", "codex_path", "dangerously_skip_permissions",
 		"templates_dir", "enable_checkpoints",
 		"gates.default_type", "gates.auto_approve_on_success", "gates.retry_on_failure", "gates.max_retries",
 		"retry.enabled", "retry.max_retries", "retry.retry_map",
@@ -653,6 +699,9 @@ func markDefaults(tc *TrackedConfig) {
 		"database.postgres.user", "database.postgres.password", "database.postgres.ssl_mode",
 		"database.postgres.pool_max",
 		"brief.max_tokens", "brief.stale_threshold",
+		"providers.codex.path", "providers.codex.sandbox", "providers.codex.approval", "providers.codex.reasoning_effort",
+		"providers.ollama.base_url", "providers.ollama.default_model",
+		"providers.rates",
 	}
 
 	for _, path := range paths {

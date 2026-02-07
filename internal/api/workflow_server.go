@@ -53,6 +53,20 @@ func NewWorkflowServer(
 	}
 }
 
+// validLLMProviders is the set of accepted provider strings for workflow storage.
+var validLLMProviders = map[string]bool{
+	"claude": true, "codex": true, "ollama": true, "lmstudio": true, "": true,
+}
+
+// validateProviderString returns an InvalidArgument error if the provider is not recognized.
+func validateProviderString(provider string) error {
+	if validLLMProviders[strings.ToLower(strings.TrimSpace(provider))] {
+		return nil
+	}
+	return connect.NewError(connect.CodeInvalidArgument,
+		fmt.Errorf("invalid provider %q (supported: claude, codex, ollama, lmstudio)", provider))
+}
+
 // SetProjectCache sets the project cache for multi-project support.
 func (s *workflowServer) SetProjectCache(cache *ProjectCache) {
 	s.projectCache = cache
@@ -187,6 +201,12 @@ func (s *workflowServer) CreateWorkflow(
 	if req.Msg.TargetBranch != nil {
 		w.TargetBranch = *req.Msg.TargetBranch
 	}
+	if req.Msg.DefaultProvider != nil {
+		if err := validateProviderString(*req.Msg.DefaultProvider); err != nil {
+			return nil, err
+		}
+		w.DefaultProvider = *req.Msg.DefaultProvider
+	}
 
 	if err := s.globalDB.SaveWorkflow(w); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save workflow: %w", err))
@@ -233,6 +253,12 @@ func (s *workflowServer) UpdateWorkflow(
 		if req.Msg.TargetBranch != nil {
 			dbWf.TargetBranch = *req.Msg.TargetBranch
 		}
+		if req.Msg.DefaultProvider != nil {
+			if err := validateProviderString(*req.Msg.DefaultProvider); err != nil {
+				return nil, err
+			}
+			dbWf.DefaultProvider = *req.Msg.DefaultProvider
+		}
 
 		// Save to database
 		if err := s.globalDB.SaveWorkflow(dbWf); err != nil {
@@ -274,6 +300,12 @@ func (s *workflowServer) UpdateWorkflow(
 	}
 	if req.Msg.TargetBranch != nil {
 		wf.TargetBranch = *req.Msg.TargetBranch
+	}
+	if req.Msg.DefaultProvider != nil {
+		if err := validateProviderString(*req.Msg.DefaultProvider); err != nil {
+			return nil, err
+		}
+		wf.DefaultProvider = *req.Msg.DefaultProvider
 	}
 
 	// Write back to file
@@ -493,6 +525,12 @@ func (s *workflowServer) AddPhase(
 	if len(req.Msg.SubAgentsOverride) > 0 {
 		phase.SubAgentsOverride = dependsOnToJSON(req.Msg.SubAgentsOverride)
 	}
+	if req.Msg.ProviderOverride != nil {
+		if err := validateProviderString(*req.Msg.ProviderOverride); err != nil {
+			return nil, err
+		}
+		phase.ProviderOverride = *req.Msg.ProviderOverride
+	}
 
 	if err := s.globalDB.SaveWorkflowPhase(phase); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save phase: %w", err))
@@ -568,6 +606,12 @@ func (s *workflowServer) UpdatePhase(
 	}
 	if req.Msg.LoopConfig != nil {
 		existingPhase.LoopConfig = *req.Msg.LoopConfig
+	}
+	if req.Msg.ProviderOverride != nil {
+		if err := validateProviderString(*req.Msg.ProviderOverride); err != nil {
+			return nil, err
+		}
+		existingPhase.ProviderOverride = *req.Msg.ProviderOverride
 	}
 
 	if err := s.globalDB.SaveWorkflowPhase(existingPhase); err != nil {
@@ -896,6 +940,12 @@ func (s *workflowServer) CreatePhaseTemplate(
 	if req.Msg.ClaudeConfig != nil {
 		tmpl.ClaudeConfig = *req.Msg.ClaudeConfig
 	}
+	if req.Msg.Provider != nil {
+		if err := validateProviderString(*req.Msg.Provider); err != nil {
+			return nil, err
+		}
+		tmpl.Provider = *req.Msg.Provider
+	}
 
 	if tmpl.PromptSource == "" {
 		tmpl.PromptSource = "db"
@@ -989,6 +1039,12 @@ func (s *workflowServer) UpdatePhaseTemplate(
 	if req.Msg.Checkpoint != nil {
 		pt.Checkpoint = *req.Msg.Checkpoint
 	}
+	if req.Msg.Provider != nil {
+		if err := validateProviderString(*req.Msg.Provider); err != nil {
+			return nil, err
+		}
+		pt.Provider = *req.Msg.Provider
+	}
 
 	// Write back to file if source is file-based (not embedded/database)
 	writeLevel := workflow.SourceToWriteLevel(resolved.Source)
@@ -1069,6 +1125,12 @@ func (s *workflowServer) updateDBOnlyPhaseTemplate(
 	}
 	if req.Checkpoint != nil {
 		tmpl.Checkpoint = *req.Checkpoint
+	}
+	if req.Provider != nil {
+		if err := validateProviderString(*req.Provider); err != nil {
+			return nil, err
+		}
+		tmpl.Provider = *req.Provider
 	}
 
 	// Save updated template to DB
@@ -1530,6 +1592,9 @@ func dbWorkflowToProto(w *db.Workflow) *orcv1.Workflow {
 	if w.BasedOn != "" {
 		result.BasedOn = &w.BasedOn
 	}
+	if w.DefaultProvider != "" {
+		result.DefaultProvider = &w.DefaultProvider
+	}
 	// Always set completion_action, even if empty (empty means inherit from config)
 	result.CompletionAction = &w.CompletionAction
 	// Always set target_branch, even if empty (empty means inherit from config)
@@ -1582,6 +1647,16 @@ func dbWorkflowPhasesToProto(phases []*db.WorkflowPhase) []*orcv1.WorkflowPhase 
 		}
 		if p.ClaudeConfigOverride != "" {
 			result[i].ClaudeConfigOverride = &p.ClaudeConfigOverride
+		}
+		if p.GateTypeOverride != "" {
+			gt := stringToProtoGateType(p.GateTypeOverride)
+			result[i].GateTypeOverride = &gt
+		}
+		if p.Condition != "" {
+			result[i].Condition = &p.Condition
+		}
+		if p.ProviderOverride != "" {
+			result[i].ProviderOverride = &p.ProviderOverride
 		}
 	}
 	return result
@@ -1739,6 +1814,9 @@ func dbWorkflowPhaseToProto(p *db.WorkflowPhase) *orcv1.WorkflowPhase {
 	if p.ClaudeConfigOverride != "" {
 		result.ClaudeConfigOverride = &p.ClaudeConfigOverride
 	}
+	if p.ProviderOverride != "" {
+		result.ProviderOverride = &p.ProviderOverride
+	}
 	return result
 }
 
@@ -1830,6 +1908,9 @@ func dbPhaseTemplateToProto(t *db.PhaseTemplate) *orcv1.PhaseTemplate {
 	}
 	if t.ClaudeConfig != "" {
 		result.ClaudeConfig = &t.ClaudeConfig
+	}
+	if t.Provider != "" {
+		result.Provider = &t.Provider
 	}
 	return result
 }

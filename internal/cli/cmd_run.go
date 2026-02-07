@@ -85,6 +85,7 @@ See also:
 	cmd.Flags().StringP("instructions", "i", "", "Additional instructions for this run")
 	cmd.Flags().StringP("category", "c", "feature", "Task category (feature, bug, refactor, chore, docs, test)")
 	cmd.Flags().StringP("profile", "p", "", "Automation profile (auto, fast, safe, strict)")
+	cmd.Flags().String("provider", "", "LLM provider override for this run (claude, codex, ollama)")
 	cmd.Flags().Bool("stream", false, "Stream Claude output in real-time")
 	cmd.Flags().Bool("force", false, "Run despite incomplete dependencies")
 	cmd.Flags().Bool("skip-gates", false, "Skip all gate evaluations during execution")
@@ -119,6 +120,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	instructions, _ := cmd.Flags().GetString("instructions")
 	categoryStr, _ := cmd.Flags().GetString("category")
 	profile, _ := cmd.Flags().GetString("profile")
+	providerOverride, _ := cmd.Flags().GetString("provider")
 	stream, _ := cmd.Flags().GetBool("stream")
 	force, _ := cmd.Flags().GetBool("force")
 	skipGates, _ := cmd.Flags().GetBool("skip-gates")
@@ -245,10 +247,20 @@ func runRun(cmd *cobra.Command, args []string) error {
 		claudePath = "claude"
 	}
 
+	codexPath := orcConfig.CodexPath
+	if codexPath == "" {
+		codexPath = orcConfig.Providers.Codex.Path
+	}
+	if codexPath == "" {
+		codexPath = "codex"
+	}
+
 	// Build executor options
 	execOpts := []executor.WorkflowExecutorOption{
 		executor.WithWorkflowGitOps(gitOps),
 		executor.WithWorkflowClaudePath(claudePath),
+		executor.WithWorkflowCodexPath(codexPath),
+		executor.WithWorkflowTokenRates(executor.ProviderRatesForConfig(orcConfig)),
 	}
 
 	if skipGates {
@@ -293,6 +305,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		Category:     category,
 		Stream:       stream,
 		IgnoreBudget: ignoreBudget,
+		Provider:     providerOverride,
 	}
 
 	// Setup signal handling
