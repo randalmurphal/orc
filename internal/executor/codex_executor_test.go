@@ -62,7 +62,9 @@ func TestCodexExecutor_WriteSchemaFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("writeSchemaFile failed: %v", err)
 	}
-	defer os.Remove(path)
+	defer func() {
+		_ = os.Remove(path)
+	}()
 
 	// Verify file exists and has correct content
 	data, err := os.ReadFile(path)

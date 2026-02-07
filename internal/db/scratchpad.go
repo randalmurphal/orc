@@ -47,7 +47,9 @@ func (p *ProjectDB) GetScratchpadEntries(taskID string) ([]ScratchpadEntry, erro
 	if err != nil {
 		return nil, fmt.Errorf("get scratchpad entries: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	return scanScratchpadEntries(rows)
 }
@@ -63,7 +65,9 @@ func (p *ProjectDB) GetScratchpadEntriesByPhase(taskID, phaseID string) ([]Scrat
 	if err != nil {
 		return nil, fmt.Errorf("get scratchpad entries by phase: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	return scanScratchpadEntries(rows)
 }
@@ -79,7 +83,9 @@ func (p *ProjectDB) GetScratchpadEntriesByAttempt(taskID, phaseID string, attemp
 	if err != nil {
 		return nil, fmt.Errorf("get scratchpad entries by attempt: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	return scanScratchpadEntries(rows)
 }

@@ -2,19 +2,22 @@
 // status validation and response capture.
 //
 // Coverage mapping:
-//   SC-5:  TestAPI_SuccessStatusMatch
-//   SC-6:  TestAPI_StatusMismatchError
-//   SC-7:  TestAPI_NetworkError
-//   SC-8:  TestAPI_Defaults
-//   SC-9:  TestAPI_VariableInterpolation
-//   SC-10: TestAPI_OutputVar
-//   SC-12: TestAPI_ZeroCostAndDuration
+//
+//	SC-5:  TestAPI_SuccessStatusMatch
+//	SC-6:  TestAPI_StatusMismatchError
+//	SC-7:  TestAPI_NetworkError
+//	SC-8:  TestAPI_Defaults
+//	SC-9:  TestAPI_VariableInterpolation
+//	SC-10: TestAPI_OutputVar
+//	SC-12: TestAPI_ZeroCostAndDuration
 //
 // Edge cases:
-//   TestAPI_EmptyBody, TestAPI_DefaultSuccessStatus, TestAPI_LargeResponse
+//
+//	TestAPI_EmptyBody, TestAPI_DefaultSuccessStatus, TestAPI_LargeResponse
 //
 // Failure modes:
-//   TestAPI_StatusMismatchError, TestAPI_NetworkError, TestAPI_EmptyURL
+//
+//	TestAPI_StatusMismatchError, TestAPI_NetworkError, TestAPI_EmptyURL
 package executor
 
 import (
@@ -45,7 +48,7 @@ func TestAPI_SuccessStatusMatch(t *testing.T) {
 		body, _ := io.ReadAll(r.Body)
 		gotBody = string(body)
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"id": "deploy-123"}`)
+		_, _ = fmt.Fprint(w, `{"id": "deploy-123"}`)
 	}))
 	defer server.Close()
 
@@ -98,7 +101,7 @@ func TestAPI_SuccessStatusMultiple(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated) // 201
-		fmt.Fprint(w, `{"created": true}`)
+		_, _ = fmt.Fprint(w, `{"created": true}`)
 	}))
 	defer server.Close()
 
@@ -137,7 +140,7 @@ func TestAPI_StatusMismatchError(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "internal error")
+		_, _ = fmt.Fprint(w, "internal error")
 	}))
 	defer server.Close()
 
@@ -207,7 +210,7 @@ func TestAPI_Defaults(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotMethod = r.Method
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "ok")
+		_, _ = fmt.Fprint(w, "ok")
 	}))
 	defer server.Close()
 
@@ -282,7 +285,7 @@ func TestAPI_VariableInterpolation(t *testing.T) {
 		body, _ := io.ReadAll(r.Body)
 		gotBody = string(body)
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "ok")
+		_, _ = fmt.Fprint(w, "ok")
 	}))
 	defer server.Close()
 
@@ -330,7 +333,7 @@ func TestAPI_OutputVar(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"id": "deploy-123"}`)
+		_, _ = fmt.Fprint(w, `{"id": "deploy-123"}`)
 	}))
 	defer server.Close()
 
@@ -380,7 +383,7 @@ func TestAPI_ZeroCostAndDuration(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "ok")
+		_, _ = fmt.Fprint(w, "ok")
 	}))
 	defer server.Close()
 
@@ -496,7 +499,7 @@ func TestAPI_LargeResponse(t *testing.T) {
 	largeBody := strings.Repeat("x", 1024*1024+1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, largeBody)
+		_, _ = fmt.Fprint(w, largeBody)
 	}))
 	defer server.Close()
 

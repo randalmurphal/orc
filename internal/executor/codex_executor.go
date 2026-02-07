@@ -219,7 +219,9 @@ func (e *CodexExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnRe
 			ErrorText: err.Error(),
 		}, fmt.Errorf("write schema file: %w", err)
 	}
-	defer os.Remove(schemaFile)
+	defer func() {
+		_ = os.Remove(schemaFile)
+	}()
 
 	// Retry loop for schema validation (codex doesn't guarantee structured output)
 	var lastResult *TurnResult
@@ -442,13 +444,13 @@ func (e *CodexExecutor) writeSchemaFile(schema string) (string, error) {
 	}
 
 	if _, err := f.WriteString(schema); err != nil {
-		f.Close()
-		os.Remove(f.Name())
+		_ = f.Close()
+		_ = os.Remove(f.Name())
 		return "", fmt.Errorf("write schema: %w", err)
 	}
 
 	if err := f.Close(); err != nil {
-		os.Remove(f.Name())
+		_ = os.Remove(f.Name())
 		return "", fmt.Errorf("close schema file: %w", err)
 	}
 
@@ -513,4 +515,3 @@ func truncate(s string, maxLen int) string {
 	}
 	return s[:maxLen] + "..."
 }
-
