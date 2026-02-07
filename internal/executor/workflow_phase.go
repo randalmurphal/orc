@@ -1080,7 +1080,7 @@ func (we *WorkflowExecutor) resolveExecutorAgent(tmpl *db.PhaseTemplate, phase *
 }
 
 // resolvePhaseProvider determines which LLM provider to use for a phase.
-// Priority: workflow phase override > phase template > workflow default > executor agent > config default > "claude"
+// Priority: workflow phase override > model prefix > phase template > workflow default > executor agent > run-level override > config default > "claude"
 // Supports "provider:model" shorthand in model fields (e.g., "codex:gpt-5").
 func (we *WorkflowExecutor) resolvePhaseProvider(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) string {
 	// Workflow phase override takes precedence (per-workflow customization)
@@ -1108,6 +1108,11 @@ func (we *WorkflowExecutor) resolvePhaseProvider(tmpl *db.PhaseTemplate, phase *
 	// Executor agent provider
 	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.Provider != "" {
 		return agent.Provider
+	}
+
+	// Run-level provider override (--provider flag)
+	if we.runProvider != "" {
+		return we.runProvider
 	}
 
 	// Config default provider

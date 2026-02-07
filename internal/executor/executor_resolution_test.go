@@ -689,6 +689,46 @@ func TestResolvePhaseProvider(t *testing.T) {
 		assert.Equal(t, "codex", provider)
 	})
 
+	t.Run("uses run-level provider override", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+		env.executor.runProvider = "codex"
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("run-level provider overrides config but not agent", func(t *testing.T) {
+		cfg := config.Default()
+		cfg.Provider = "ollama"
+		env := setupTestExecutor(t, cfg)
+		env.executor.runProvider = "codex"
+
+		// Agent provider should still win over run-level
+		testAgent := &db.Agent{
+			ID:       "impl-executor",
+			Name:     "Implementation Executor",
+			Provider: "claude",
+		}
+		require.NoError(t, env.projectDB.SaveAgent(testAgent))
+
+		tmpl := &db.PhaseTemplate{ID: "implement", AgentID: "impl-executor"}
+		phase := &db.WorkflowPhase{}
+
+		// Agent wins over run-level
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "claude", provider)
+
+		// Remove agent provider — run-level wins over config
+		testAgent.Provider = ""
+		require.NoError(t, env.projectDB.SaveAgent(testAgent))
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "codex", provider)
+	})
+
 	t.Run("uses config provider", func(t *testing.T) {
 		cfg := config.Default()
 		cfg.Provider = "codex"

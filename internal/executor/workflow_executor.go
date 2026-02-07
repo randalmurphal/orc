@@ -110,6 +110,12 @@ type WorkflowRunOptions struct {
 	// IgnoreBudget bypasses budget enforcement when true.
 	// Maps to the --ignore-budget CLI flag.
 	IgnoreBudget bool
+
+	// Provider overrides the default LLM provider for this run.
+	// Values: "claude" (default), "codex", "ollama".
+	// When set, overrides config.Provider for all phases in this run
+	// (individual phase/workflow overrides still take precedence).
+	Provider string
 }
 
 // GateEvaluatorInterface abstracts gate evaluation for testability.
@@ -147,9 +153,10 @@ type WorkflowExecutor struct {
 	heartbeat    *HeartbeatRunner
 	idleGuard    *IdleGuard
 	fileWatcher  *FileWatcher
-	isResuming      bool // True if resuming a paused/failed/blocked task
-	skipGates       bool // When true, bypass all gate evaluations
-	inParallelLevel bool //nolint:unused // True when executing phases in parallel (prepared for parallel execution)
+	isResuming      bool   // True if resuming a paused/failed/blocked task
+	skipGates       bool   // When true, bypass all gate evaluations
+	inParallelLevel bool   //nolint:unused // True when executing phases in parallel (prepared for parallel execution)
+	runProvider     string // Run-level provider override (from WorkflowRunOptions.Provider)
 
 	// briefGenerator is lazily created for project brief generation across phases.
 	briefGenerator *brief.Generator
@@ -599,6 +606,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	if err := we.backend.SaveWorkflowRun(run); err != nil {
 		return nil, fmt.Errorf("save workflow run: %w", err)
 	}
+
+	// Store run-level provider override (applies to all phases unless overridden per-phase)
+	we.runProvider = opts.Provider
 
 	// Sync task status to Running
 	// Note: Use opts.IsResume since TryClaimTaskExecution already changed status to running

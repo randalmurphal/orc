@@ -246,6 +246,7 @@ Use --force to resume a task even if it appears to still be running.`,
 
 			// Build run options
 			ignoreBudget, _ := cmd.Flags().GetBool("ignore-budget")
+			providerOverride, _ := cmd.Flags().GetString("provider")
 			opts := executor.WorkflowRunOptions{
 				ContextType:  executor.ContextTask,
 				TaskID:       id,
@@ -253,6 +254,7 @@ Use --force to resume a task even if it appears to still be running.`,
 				Category:     t.Category,
 				IsResume:     true, // This is a resume operation
 				IgnoreBudget: ignoreBudget,
+				Provider:     providerOverride,
 			}
 
 			// Execute workflow (WorkflowExecutor handles resume internally via state)
@@ -293,6 +295,7 @@ Use --force to resume a task even if it appears to still be running.`,
 	cmd.Flags().Bool("stream", false, "stream Claude transcript to stdout")
 	cmd.Flags().BoolVarP(&forceResume, "force", "f", false, "force resume even if task appears to be running")
 	cmd.Flags().Bool("ignore-budget", false, "Proceed even if monthly budget is exceeded")
+	cmd.Flags().String("provider", "", "LLM provider override for this run (claude, codex, ollama)")
 	return cmd
 }
 
