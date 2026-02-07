@@ -160,7 +160,7 @@ func (c *OutputTransformConfig) Validate() error {
 // based on output conditions (e.g., review finds issues → fix → re-review).
 //
 // Condition supports two formats:
-//   - JSON object (new): {"field":"phase_output.review.status","op":"eq","value":"needs_changes"}
+//   - JSON object (new): {"field":"phase_output.review.needs_changes","op":"eq","value":"true"}
 //   - JSON string (legacy): "has_findings", "not_empty", "status_needs_fix"
 type LoopConfig struct {
 	// LoopToPhase is the phase to loop back to (must be earlier in sequence).

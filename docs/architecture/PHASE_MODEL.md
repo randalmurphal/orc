@@ -555,7 +555,7 @@ Phases can loop back to earlier phases based on configurable conditions. Stored 
 ```json
 {
   "loop_to_phase": "implement",
-  "condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+  "condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
   "max_loops": 3
 }
 ```

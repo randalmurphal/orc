@@ -30,7 +30,7 @@ func TestLoopConfig_ParseLoopTemplates(t *testing.T) {
 
 	input := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3,
 		"loop_templates": {
 			"1": "review.md",
@@ -89,7 +89,7 @@ func TestLoopConfig_ParseLoopSchemas(t *testing.T) {
 
 	input := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3,
 		"loop_schemas": {
 			"1": "findings",
@@ -460,7 +460,7 @@ func TestLoopConfig_JSONRoundtrip(t *testing.T) {
 		LoopToPhase:   "implement",
 		MaxLoops:      3,
 		MaxIterations: 0,
-		Condition:     json.RawMessage(`{"field":"phase_output.review.status","op":"eq","value":"needs_changes"}`),
+		Condition:     json.RawMessage(`{"field":"phase_output.review.needs_changes","op":"eq","value":"true"}`),
 		LoopTemplates: map[string]string{
 			"1":       "review.md",
 			"default": "review_round2.md",
