@@ -20,6 +20,9 @@ import (
 	"github.com/randalmurphal/orc/internal/tokenpool"
 )
 
+// PackageName is the canonical package identifier for executor.
+const PackageName = "executor"
+
 // PhaseState holds state during phase execution.
 type PhaseState struct {
 	// Task context
@@ -388,4 +391,3 @@ func (e *Executor) publishState(taskID string, s *orcv1.ExecutionState) {
 
 // PR and completion methods (runCompletion, syncWithTarget, directMerge, createPR, buildPRBody)
 // are defined in pr.go
-
