@@ -34,7 +34,7 @@ func TestPrepareExecutorDeps_CreatesGitOps(t *testing.T) {
 	cfg := config.Default()
 	s := &Server{orcConfig: cfg}
 
-	gitOps, _, err := s.prepareExecutorDeps(tmpDir)
+	gitOps, _, _, err := s.prepareExecutorDeps(tmpDir)
 	if err != nil {
 		t.Fatalf("prepareExecutorDeps: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestPrepareExecutorDeps_ReturnsConfiguredClaudePath(t *testing.T) {
 	cfg.ClaudePath = "/custom/bin/claude-stable"
 	s := &Server{orcConfig: cfg}
 
-	_, claudePath, err := s.prepareExecutorDeps(tmpDir)
+	_, claudePath, _, err := s.prepareExecutorDeps(tmpDir)
 	if err != nil {
 		t.Fatalf("prepareExecutorDeps: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestPrepareExecutorDeps_DefaultsClaudePathWhenEmpty(t *testing.T) {
 	cfg.ClaudePath = "" // Explicitly empty
 	s := &Server{orcConfig: cfg}
 
-	_, claudePath, err := s.prepareExecutorDeps(tmpDir)
+	_, claudePath, _, err := s.prepareExecutorDeps(tmpDir)
 	if err != nil {
 		t.Fatalf("prepareExecutorDeps: %v", err)
 	}
