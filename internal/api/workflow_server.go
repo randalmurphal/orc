@@ -53,6 +53,20 @@ func NewWorkflowServer(
 	}
 }
 
+// validLLMProviders is the set of accepted provider strings for workflow storage.
+var validLLMProviders = map[string]bool{
+	"claude": true, "codex": true, "ollama": true, "lmstudio": true, "": true,
+}
+
+// validateProviderString returns an InvalidArgument error if the provider is not recognized.
+func validateProviderString(provider string) error {
+	if validLLMProviders[strings.ToLower(strings.TrimSpace(provider))] {
+		return nil
+	}
+	return connect.NewError(connect.CodeInvalidArgument,
+		fmt.Errorf("invalid provider %q (supported: claude, codex, ollama, lmstudio)", provider))
+}
+
 // SetProjectCache sets the project cache for multi-project support.
 func (s *workflowServer) SetProjectCache(cache *ProjectCache) {
 	s.projectCache = cache
@@ -188,6 +202,9 @@ func (s *workflowServer) CreateWorkflow(
 		w.TargetBranch = *req.Msg.TargetBranch
 	}
 	if req.Msg.DefaultProvider != nil {
+		if err := validateProviderString(*req.Msg.DefaultProvider); err != nil {
+			return nil, err
+		}
 		w.DefaultProvider = *req.Msg.DefaultProvider
 	}
 
@@ -237,6 +254,9 @@ func (s *workflowServer) UpdateWorkflow(
 			dbWf.TargetBranch = *req.Msg.TargetBranch
 		}
 		if req.Msg.DefaultProvider != nil {
+			if err := validateProviderString(*req.Msg.DefaultProvider); err != nil {
+				return nil, err
+			}
 			dbWf.DefaultProvider = *req.Msg.DefaultProvider
 		}
 
@@ -282,6 +302,9 @@ func (s *workflowServer) UpdateWorkflow(
 		wf.TargetBranch = *req.Msg.TargetBranch
 	}
 	if req.Msg.DefaultProvider != nil {
+		if err := validateProviderString(*req.Msg.DefaultProvider); err != nil {
+			return nil, err
+		}
 		wf.DefaultProvider = *req.Msg.DefaultProvider
 	}
 
@@ -503,6 +526,9 @@ func (s *workflowServer) AddPhase(
 		phase.SubAgentsOverride = dependsOnToJSON(req.Msg.SubAgentsOverride)
 	}
 	if req.Msg.ProviderOverride != nil {
+		if err := validateProviderString(*req.Msg.ProviderOverride); err != nil {
+			return nil, err
+		}
 		phase.ProviderOverride = *req.Msg.ProviderOverride
 	}
 
@@ -582,6 +608,9 @@ func (s *workflowServer) UpdatePhase(
 		existingPhase.LoopConfig = *req.Msg.LoopConfig
 	}
 	if req.Msg.ProviderOverride != nil {
+		if err := validateProviderString(*req.Msg.ProviderOverride); err != nil {
+			return nil, err
+		}
 		existingPhase.ProviderOverride = *req.Msg.ProviderOverride
 	}
 
@@ -912,6 +941,9 @@ func (s *workflowServer) CreatePhaseTemplate(
 		tmpl.ClaudeConfig = *req.Msg.ClaudeConfig
 	}
 	if req.Msg.Provider != nil {
+		if err := validateProviderString(*req.Msg.Provider); err != nil {
+			return nil, err
+		}
 		tmpl.Provider = *req.Msg.Provider
 	}
 
@@ -1008,6 +1040,9 @@ func (s *workflowServer) UpdatePhaseTemplate(
 		pt.Checkpoint = *req.Msg.Checkpoint
 	}
 	if req.Msg.Provider != nil {
+		if err := validateProviderString(*req.Msg.Provider); err != nil {
+			return nil, err
+		}
 		pt.Provider = *req.Msg.Provider
 	}
 
@@ -1092,6 +1127,9 @@ func (s *workflowServer) updateDBOnlyPhaseTemplate(
 		tmpl.Checkpoint = *req.Checkpoint
 	}
 	if req.Provider != nil {
+		if err := validateProviderString(*req.Provider); err != nil {
+			return nil, err
+		}
 		tmpl.Provider = *req.Provider
 	}
 

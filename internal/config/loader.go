@@ -638,7 +638,7 @@ func mergeBriefConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]inter
 func mergeProvidersConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
 	if rawCodex, ok := raw["codex"].(map[string]interface{}); ok {
 		if _, ok := rawCodex["path"]; ok {
-			cfg.Providers.Codex.Path = fileCfg.Providers.Codex.Path
+			cfg.Providers.Codex.Path = ExpandPath(fileCfg.Providers.Codex.Path)
 			tc.SetSourceWithPath("providers.codex.path", source, path)
 		}
 		if _, ok := rawCodex["sandbox"]; ok {

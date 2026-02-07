@@ -887,7 +887,24 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 			if len(cc.AddDirs) > 0 {
 				teCfg.AddDirs = cc.AddDirs
 			}
+			if cc.LocalProvider != "" {
+				teCfg.LocalProvider = cc.LocalProvider
+			}
 		}
+
+		// Wire Ollama base_url as OLLAMA_HOST env var when using local provider
+		if we.orcConfig != nil && we.orcConfig.Providers.Ollama.BaseURL != "" {
+			if teCfg.LocalProvider == "ollama" || cfg.Provider == ProviderOllama {
+				if teCfg.Env == nil {
+					teCfg.Env = make(map[string]string)
+				}
+				// Only set if not already overridden by phase config
+				if _, ok := teCfg.Env["OLLAMA_HOST"]; !ok {
+					teCfg.Env["OLLAMA_HOST"] = we.orcConfig.Providers.Ollama.BaseURL
+				}
+			}
+		}
+
 		turnExec = NewTurnExecutor(teCfg)
 	}
 
