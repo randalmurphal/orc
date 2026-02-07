@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	// main runs the orc CLI command tree and exits non-zero on execution errors.
+	// main is the CLI entry point for the orc binary.
 	if err := cli.Execute(); err != nil {
 		os.Exit(1)
 	}
