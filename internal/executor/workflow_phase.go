@@ -825,7 +825,7 @@ func (we *WorkflowExecutor) executeWithCodex(ctx context.Context, cfg PhaseExecu
 		// Parse model to extract local provider if present (e.g., "ollama/qwen2.5-14b")
 		model := cfg.Model
 		var localProvider string
-		if idx := len("ollama/"); len(model) > idx && model[:idx] == "ollama/" {
+		if strings.HasPrefix(model, "ollama/") {
 			localProvider = "ollama"
 		}
 

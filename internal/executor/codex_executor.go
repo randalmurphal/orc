@@ -224,8 +224,17 @@ func (e *CodexExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnRe
 		if err != nil {
 			lastResult = result
 			lastErr = err
-			// Only retry on JSON parse errors, not transport/execution errors
-			if result != nil && !isJSONParseError(err) {
+			// Only retry on JSON parse errors, not transport/execution errors.
+			// If result is nil (transport error, auth failure, etc.), fail immediately
+			// rather than silently retrying.
+			if result == nil || !isJSONParseError(err) {
+				if result == nil {
+					result = &TurnResult{
+						Duration:  time.Since(start),
+						IsError:   true,
+						ErrorText: err.Error(),
+					}
+				}
 				return result, err
 			}
 			continue
