@@ -743,7 +743,6 @@ func (we *WorkflowExecutor) attemptConflictResolution(
 	resolver := NewConflictResolver(
 		WithConflictGitOps(gitOps),
 		WithConflictClaudePath(claudePath),
-		WithConflictCodexPath(we.codexPath),
 		WithConflictWorkingDir(we.effectiveWorkingDir()),
 		WithConflictBackend(we.backend),
 		WithConflictLogger(we.logger),

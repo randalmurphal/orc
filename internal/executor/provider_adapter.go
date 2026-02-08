@@ -162,15 +162,14 @@ func (a *codexAdapter) PrepareExecution(cfg *PhaseExecutionConfig, we *WorkflowE
 	// Fresh call: DON'T pre-assign a session ID.
 	// Codex assigns its own thread_id, which we capture from the response.
 
-	// Apply Codex phase settings (AGENTS.md + .codex/instruction.md)
+	// Write .codex/instruction.md if phase has custom instructions
 	if we.worktreePath != "" {
-		agentsContent := we.buildAgentsMDContent(*cfg)
 		var codexCfg *PhaseCodexConfig
 		if cfg.ClaudeConfig != nil {
 			codexCfg = cfg.ClaudeConfig.Codex
 		}
-		if err := ApplyCodexPhaseSettings(we.effectiveWorkingDir(), agentsContent, codexCfg); err != nil {
-			we.logger.Warn("failed to apply codex phase settings", "error", err)
+		if err := applyCodexInstructions(we.effectiveWorkingDir(), codexCfg); err != nil {
+			we.logger.Warn("failed to write codex instructions", "error", err)
 		}
 	}
 

@@ -694,43 +694,6 @@ func (we *WorkflowExecutor) updatePhaseIterations(cfg PhaseExecutionConfig, iter
 	}
 }
 
-// buildAgentsMDContent generates structured AGENTS.md content for codex context.
-// This mirrors what CLAUDE.md provides to Claude -- task context, constitution, etc.
-// When AllowAgentFolding is true and inline agents are defined, their prompts are
-// folded into the AGENTS.md so Codex can see them (since Codex doesn't support --agents).
-func (we *WorkflowExecutor) buildAgentsMDContent(cfg PhaseExecutionConfig) AgentsMDContent {
-	// Build phase context: task ID, phase, and description
-	var phaseCtx strings.Builder
-	phaseCtx.WriteString("Task: " + cfg.TaskID + "\n")
-	phaseCtx.WriteString("Phase: " + cfg.PhaseID + "\n")
-	if we.task != nil && we.task.Description != nil {
-		phaseCtx.WriteString("\n## Description\n\n" + *we.task.Description + "\n")
-	}
-
-	// Load constitution from backend if available
-	var constitution string
-	if we.backend != nil {
-		if content, _, err := we.backend.LoadConstitution(); err == nil {
-			constitution = content
-		}
-	}
-
-	// Fold inline agent prompts when AllowAgentFolding is enabled
-	var agentPrompts []string
-	if cfg.ClaudeConfig != nil && cfg.ClaudeConfig.AllowAgentFolding && len(cfg.ClaudeConfig.InlineAgents) > 0 {
-		for name, agent := range cfg.ClaudeConfig.InlineAgents {
-			prompt := "### " + name + "\n"
-			if agent.Description != "" {
-				prompt += agent.Description + "\n\n"
-			}
-			prompt += agent.Prompt
-			agentPrompts = append(agentPrompts, prompt)
-		}
-	}
-
-	return BuildAgentsMDContent(constitution, phaseCtx.String(), agentPrompts, "")
-}
-
 // loadPhasePrompt loads the prompt content for a phase template.
 func (we *WorkflowExecutor) loadPhasePrompt(tmpl *db.PhaseTemplate) (string, error) {
 	switch tmpl.PromptSource {

@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/randalmurphal/llmkit/codex"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -90,42 +89,3 @@ func TestStoreAssistantText_NilBackend(t *testing.T) {
 	h.StoreAssistantText("test", "gpt-5", "msg-1", 10, 5)
 }
 
-func TestOnCodexResponse_Basic(t *testing.T) {
-	backend := &mockTranscriptBackend{}
-	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil)
-
-	resp := &codex.CompletionResponse{
-		Content:   "Implementation complete",
-		SessionID: "codex-session-123",
-		Model:     "gpt-5",
-		Usage: codex.TokenUsage{
-			InputTokens:  200,
-			OutputTokens: 100,
-			TotalTokens:  300,
-		},
-	}
-
-	h.OnCodexResponse(resp)
-
-	if len(backend.transcripts) != 1 {
-		t.Fatalf("expected 1 transcript, got %d", len(backend.transcripts))
-	}
-	tr := backend.transcripts[0]
-	if tr.Content != "Implementation complete" {
-		t.Errorf("content = %q, want %q", tr.Content, "Implementation complete")
-	}
-	if tr.TaskID != "TASK-001" {
-		t.Errorf("task_id = %q, want TASK-001", tr.TaskID)
-	}
-}
-
-func TestOnCodexResponse_NilResponse(t *testing.T) {
-	backend := &mockTranscriptBackend{}
-	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil)
-
-	h.OnCodexResponse(nil) // should not panic
-
-	if len(backend.transcripts) != 0 {
-		t.Errorf("expected 0 transcripts for nil response, got %d", len(backend.transcripts))
-	}
-}

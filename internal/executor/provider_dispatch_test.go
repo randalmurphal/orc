@@ -2,15 +2,14 @@
 // resolvePhaseProvider → providerAdapterFor → executeWithProvider
 // is actually wired together, not just unit-tested in isolation.
 //
-// Strategy: codexAdapter writes AGENTS.md to the worktree (via ApplyCodexPhaseSettings),
-// claudeAdapter does not. This side effect is the distinguishing signal.
+// Strategy: claudeAdapter pre-assigns a UUID session ID to the task before
+// execution. codexAdapter does NOT (it captures thread_id from the response).
+// This session ID presence/absence is the distinguishing signal.
 package executor
 
 import (
 	"context"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"testing"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -31,7 +30,6 @@ func setupProviderDispatchTest(t *testing.T, cfg *config.Config, phaseProvider s
 	run *db.WorkflowRun,
 	runPhase *db.WorkflowRunPhase,
 	tsk *orcv1.Task,
-	worktreeDir string,
 ) {
 	t.Helper()
 
@@ -71,14 +69,14 @@ func setupProviderDispatchTest(t *testing.T, cfg *config.Config, phaseProvider s
 		PhaseID: "implement",
 	}
 
-	worktreeDir = t.TempDir()
+	worktreeDir := t.TempDir()
 	we = NewWorkflowExecutor(
 		backend, nil, gdb, cfg, worktreeDir,
 		WithWorkflowTurnExecutor(mockTurns),
 		WithWorkflowLogger(slog.Default()),
 		WithSkipGates(true),
 	)
-	// Set worktreePath directly (same package) so ApplyCodexPhaseSettings writes files.
+	// Set worktreePath so codex adapter path is exercised.
 	// Nil out globalDB to skip ApplyPhaseSettings (which needs hook_scripts table from
 	// real global schema). We're testing provider dispatch, not phase settings.
 	we.worktreePath = worktreeDir
@@ -89,6 +87,8 @@ func setupProviderDispatchTest(t *testing.T, cfg *config.Config, phaseProvider s
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
+	// Wire task into executor so adapters can read/write session state
+	we.task = tsk
 
 	run = &db.WorkflowRun{
 		ID:          "run-001",
@@ -111,17 +111,30 @@ func setupProviderDispatchTest(t *testing.T, cfg *config.Config, phaseProvider s
 		t.Fatalf("save run phase: %v", err)
 	}
 
-	return we, tmpl, wfPhase, run, runPhase, tsk, worktreeDir
+	return we, tmpl, wfPhase, run, runPhase, tsk
+}
+
+// hasPreAssignedSessionID checks if the task's phase has a pre-assigned session ID.
+// Claude adapter pre-assigns a UUID before execution; codex adapter does not.
+func hasPreAssignedSessionID(tsk *orcv1.Task, phaseID string) bool {
+	if tsk.Execution == nil || tsk.Execution.Phases == nil {
+		return false
+	}
+	ps, ok := tsk.Execution.Phases[phaseID]
+	if !ok {
+		return false
+	}
+	return ps.SessionId != nil && *ps.SessionId != ""
 }
 
 // =============================================================================
-// Provider="codex" routes through codexAdapter (writes AGENTS.md)
+// Provider="codex" routes through codexAdapter (no pre-assigned session ID)
 // =============================================================================
 
 func TestProviderDispatch_CodexPhaseOverride_TakesCodexRoute(t *testing.T) {
 	t.Parallel()
 
-	we, tmpl, wfPhase, run, runPhase, tsk, worktreeDir := setupProviderDispatchTest(
+	we, tmpl, wfPhase, run, runPhase, tsk := setupProviderDispatchTest(
 		t, &config.Config{}, "codex",
 	)
 
@@ -142,21 +155,20 @@ func TestProviderDispatch_CodexPhaseOverride_TakesCodexRoute(t *testing.T) {
 		t.Errorf("status = %q, want COMPLETED", result.Status)
 	}
 
-	// AGENTS.md is the distinguishing side effect of codexAdapter
-	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
-	if _, err := os.Stat(agentsMD); os.IsNotExist(err) {
-		t.Fatal("AGENTS.md not created — provider='codex' did NOT route through codexAdapter")
+	// codexAdapter does NOT pre-assign session ID (captures from response)
+	if hasPreAssignedSessionID(tsk, "implement") {
+		t.Fatal("session ID was pre-assigned — provider='codex' should NOT route through claudeAdapter")
 	}
 }
 
 // =============================================================================
-// Default provider routes through claudeAdapter (no AGENTS.md)
+// Default provider routes through claudeAdapter (pre-assigns session ID)
 // =============================================================================
 
 func TestProviderDispatch_DefaultProvider_TakesClaudeRoute(t *testing.T) {
 	t.Parallel()
 
-	we, tmpl, wfPhase, run, runPhase, tsk, worktreeDir := setupProviderDispatchTest(
+	we, tmpl, wfPhase, run, runPhase, tsk := setupProviderDispatchTest(
 		t, &config.Config{}, "", // Empty provider = default = claude
 	)
 
@@ -177,10 +189,9 @@ func TestProviderDispatch_DefaultProvider_TakesClaudeRoute(t *testing.T) {
 		t.Errorf("status = %q, want COMPLETED", result.Status)
 	}
 
-	// claudeAdapter does NOT write AGENTS.md
-	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
-	if _, err := os.Stat(agentsMD); err == nil {
-		t.Fatal("AGENTS.md was created — default provider should NOT route through codexAdapter")
+	// claudeAdapter pre-assigns a UUID session ID before execution
+	if !hasPreAssignedSessionID(tsk, "implement") {
+		t.Fatal("no session ID pre-assigned — default provider should route through claudeAdapter")
 	}
 }
 
@@ -192,7 +203,7 @@ func TestProviderDispatch_ConfigProvider_PropagatesCodexRoute(t *testing.T) {
 	t.Parallel()
 
 	// Provider set in config (lowest priority), no phase/workflow override
-	we, tmpl, wfPhase, run, runPhase, tsk, worktreeDir := setupProviderDispatchTest(
+	we, tmpl, wfPhase, run, runPhase, tsk := setupProviderDispatchTest(
 		t, &config.Config{Provider: "codex"}, "", // No phase override
 	)
 
@@ -213,9 +224,8 @@ func TestProviderDispatch_ConfigProvider_PropagatesCodexRoute(t *testing.T) {
 		t.Errorf("status = %q, want COMPLETED", result.Status)
 	}
 
-	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
-	if _, err := os.Stat(agentsMD); os.IsNotExist(err) {
-		t.Fatal("AGENTS.md not created — config provider='codex' did not propagate to codexAdapter")
+	if hasPreAssignedSessionID(tsk, "implement") {
+		t.Fatal("session ID pre-assigned — config provider='codex' did not propagate to codexAdapter")
 	}
 }
 
@@ -227,7 +237,7 @@ func TestProviderDispatch_WorkflowDefaultProvider_PropagatesCodexRoute(t *testin
 	t.Parallel()
 
 	// No config or phase override — workflow default is the only source
-	we, tmpl, wfPhase, run, runPhase, tsk, worktreeDir := setupProviderDispatchTest(
+	we, tmpl, wfPhase, run, runPhase, tsk := setupProviderDispatchTest(
 		t, &config.Config{}, "", // No phase override
 	)
 
@@ -251,9 +261,8 @@ func TestProviderDispatch_WorkflowDefaultProvider_PropagatesCodexRoute(t *testin
 		t.Errorf("status = %q, want COMPLETED", result.Status)
 	}
 
-	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
-	if _, err := os.Stat(agentsMD); os.IsNotExist(err) {
-		t.Fatal("AGENTS.md not created — workflow DefaultProvider='codex' did not propagate to codexAdapter")
+	if hasPreAssignedSessionID(tsk, "implement") {
+		t.Fatal("session ID pre-assigned — workflow DefaultProvider='codex' did not propagate to codexAdapter")
 	}
 }
 
@@ -265,7 +274,7 @@ func TestProviderDispatch_RunProviderOverride_OverridesAll(t *testing.T) {
 	t.Parallel()
 
 	// Config says "claude", phase says nothing, but run-level override says "codex"
-	we, tmpl, wfPhase, run, runPhase, tsk, worktreeDir := setupProviderDispatchTest(
+	we, tmpl, wfPhase, run, runPhase, tsk := setupProviderDispatchTest(
 		t, &config.Config{}, "", // No phase override
 	)
 
@@ -289,9 +298,8 @@ func TestProviderDispatch_RunProviderOverride_OverridesAll(t *testing.T) {
 		t.Errorf("status = %q, want COMPLETED", result.Status)
 	}
 
-	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
-	if _, err := os.Stat(agentsMD); os.IsNotExist(err) {
-		t.Fatal("AGENTS.md not created — runProvider='codex' override did not route to codexAdapter")
+	if hasPreAssignedSessionID(tsk, "implement") {
+		t.Fatal("session ID pre-assigned — runProvider='codex' override did not route to codexAdapter")
 	}
 }
 
@@ -303,7 +311,7 @@ func TestProviderDispatch_PhaseOverrideBeatsWorkflowDefault(t *testing.T) {
 	t.Parallel()
 
 	// Phase override says "claude", workflow default says "codex" — phase wins
-	we, tmpl, wfPhase, run, runPhase, tsk, worktreeDir := setupProviderDispatchTest(
+	we, tmpl, wfPhase, run, runPhase, tsk := setupProviderDispatchTest(
 		t, &config.Config{}, "claude", // Phase explicitly overrides to claude
 	)
 
@@ -327,10 +335,9 @@ func TestProviderDispatch_PhaseOverrideBeatsWorkflowDefault(t *testing.T) {
 		t.Errorf("status = %q, want COMPLETED", result.Status)
 	}
 
-	// Phase says "claude", so AGENTS.md should NOT exist
-	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
-	if _, err := os.Stat(agentsMD); err == nil {
-		t.Fatal("AGENTS.md was created — phase override='claude' should have beaten workflow default='codex'")
+	// Phase says "claude", so session ID SHOULD be pre-assigned
+	if !hasPreAssignedSessionID(tsk, "implement") {
+		t.Fatal("no session ID pre-assigned — phase override='claude' should have beaten workflow default='codex'")
 	}
 }
 
@@ -341,7 +348,7 @@ func TestProviderDispatch_PhaseOverrideBeatsWorkflowDefault(t *testing.T) {
 func TestProviderDispatch_Ollama_RoutesToCodex(t *testing.T) {
 	t.Parallel()
 
-	we, tmpl, wfPhase, run, runPhase, tsk, worktreeDir := setupProviderDispatchTest(
+	we, tmpl, wfPhase, run, runPhase, tsk := setupProviderDispatchTest(
 		t, &config.Config{}, "ollama",
 	)
 
@@ -362,8 +369,7 @@ func TestProviderDispatch_Ollama_RoutesToCodex(t *testing.T) {
 		t.Errorf("status = %q, want COMPLETED", result.Status)
 	}
 
-	agentsMD := filepath.Join(worktreeDir, "AGENTS.md")
-	if _, err := os.Stat(agentsMD); os.IsNotExist(err) {
-		t.Fatal("AGENTS.md not created — provider='ollama' should route through codexAdapter")
+	if hasPreAssignedSessionID(tsk, "implement") {
+		t.Fatal("session ID pre-assigned — provider='ollama' should route through codexAdapter")
 	}
 }

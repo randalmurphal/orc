@@ -4,7 +4,6 @@ package executor
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"slices"
 	"sync"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/randalmurphal/llmkit/claude"
-	"github.com/randalmurphal/llmkit/codex"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -304,21 +302,3 @@ func (h *TranscriptStreamHandler) StoreAssistantText(text, model, messageID stri
 	}
 }
 
-// OnCodexResponse stores transcripts from a Codex completion response.
-// Codex returns complete responses (not streamed events), so this handles
-// the full response in one call.
-func (h *TranscriptStreamHandler) OnCodexResponse(resp *codex.CompletionResponse) {
-	if resp == nil || h.backend == nil || h.taskID == "" {
-		return
-	}
-
-	// Store the assistant response
-	messageID := fmt.Sprintf("codex-%s-%d", resp.SessionID, time.Now().UnixMilli())
-	h.StoreAssistantText(
-		resp.Content,
-		resp.Model,
-		messageID,
-		resp.Usage.InputTokens,
-		resp.Usage.OutputTokens,
-	)
-}

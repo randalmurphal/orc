@@ -25,15 +25,11 @@ func TestNewConflictResolver_Defaults(t *testing.T) {
 func TestNewConflictResolver_WithOptions(t *testing.T) {
 	r := NewConflictResolver(
 		WithConflictClaudePath("/custom/claude"),
-		WithConflictCodexPath("/custom/codex"),
 		WithConflictWorkingDir("/work/dir"),
 	)
 
 	if r.claudePath != "/custom/claude" {
 		t.Errorf("claudePath = %q, want %q", r.claudePath, "/custom/claude")
-	}
-	if r.codexPath != "/custom/codex" {
-		t.Errorf("codexPath = %q, want %q", r.codexPath, "/custom/codex")
 	}
 	if r.workingDir != "/work/dir" {
 		t.Errorf("workingDir = %q, want %q", r.workingDir, "/work/dir")

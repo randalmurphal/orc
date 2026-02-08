@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
 	"strings"
 
@@ -16,6 +17,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/workflow"
@@ -53,14 +55,10 @@ func NewWorkflowServer(
 	}
 }
 
-// validLLMProviders is the set of accepted provider strings for workflow storage.
-var validLLMProviders = map[string]bool{
-	"claude": true, "codex": true, "ollama": true, "lmstudio": true, "": true,
-}
-
 // validateProviderString returns an InvalidArgument error if the provider is not recognized.
+// Uses config.ValidLLMProviders as the single source of truth for known providers.
 func validateProviderString(provider string) error {
-	if validLLMProviders[strings.ToLower(strings.TrimSpace(provider))] {
+	if slices.Contains(config.ValidLLMProviders, strings.ToLower(strings.TrimSpace(provider))) {
 		return nil
 	}
 	return connect.NewError(connect.CodeInvalidArgument,

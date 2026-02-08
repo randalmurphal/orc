@@ -183,6 +183,7 @@ func (we *WorkflowExecutor) resolvePhaseProvider(tmpl *db.PhaseTemplate, phase *
 }
 
 // validProviders is the set of known LLM providers. Used by validateProvider to reject unknowns.
+// NOTE: Keep in sync with config.ValidLLMProviders (the canonical list for config validation).
 var validProviders = map[string]bool{
 	ProviderClaude:   true,
 	ProviderCodex:    true,

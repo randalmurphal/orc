@@ -34,13 +34,13 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `review.go` | Review findings parsing, formatting for round 2 (`FormatFindingsForRound2`) |
 | `qa.go` | QA E2E types, parsing (`ParseQAE2ETestResult`, `ParseQAE2EFixResult`) |
 | `finalize.go` | Branch sync, test fixing with retry (see `docs/architecture/FINALIZE.md`) |
-| `conflict_resolver.go` | Automatic merge conflict resolution via provider-aware sub-agent (Claude or Codex) |
+| `conflict_resolver.go` | Automatic merge conflict resolution via Claude sub-agent |
 | `ci_merge.go` | CI polling, auto-merge with retry logic, commit templates, SHA verification |
 | `cost_tracking.go` | `RecordCostEntry()` - global cost recording; `TokenRate`, `EstimateTokenCostUSD()` - provider-aware cost estimation |
 | `resource_tracker.go` | `RunResourceAnalysis()` - orphan process detection |
 | `quality_checks.go` | Phase-level quality checks (tests, lint, build, typecheck) |
 | `checklist_validation.go` | Spec and criteria validation |
-| `phase_settings.go` | Unified `ApplyPhaseSettings()` (Claude) + `ApplyCodexPhaseSettings()` (Codex AGENTS.md + .codex/instruction.md) |
+| `phase_settings.go` | Unified `ApplyPhaseSettings()` (Claude) + `applyCodexInstructions()` (.codex/instruction.md) |
 | `claude_hooks.go` | `applyPhaseHooks()` - writes hooks to `.claude/settings.local.json` |
 | `hook_scripts.go` | `applyPhaseHookScripts()` - copies scripts to `.claude/hooks/` |
 | `heartbeat.go` | `HeartbeatRunner` - periodic heartbeat updates during execution (`DefaultHeartbeatInterval=2m`) |
@@ -53,9 +53,8 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `docs_response.go` | Docs phase response parsing: `ParseDocsResponse()`, `PersistInitiativeNotes()` (knowledge curator integration) |
 | `provider.go` | Provider resolution: `resolvePhaseProvider()`, `ParseProviderModel()`, `isCodexFamilyProvider()`, `normalizeProvider()`, `validateProviderCapabilities()` |
 | `provider_adapter.go` | `ProviderAdapter` interface, `claudeAdapter`, `codexAdapter` — isolate provider-specific behavior around shared `executeWithProvider()` loop |
-| `agents_md.go` | Structured AGENTS.md generation for Codex: `WriteAgentsMD()`, `AgentsMDContent`, 32KB truncation |
 | `codex_executor.go` | `CodexExecutor` — Codex CLI wrapper, session management, JSON event parsing |
-| `transcript_stream.go` | Transcript streaming; `StoreAssistantText()`, `OnCodexEvent()` for Codex transcript ingestion |
+| `transcript_stream.go` | Transcript streaming; `StoreAssistantText()`, `OnCodexEvent()` for transcript ingestion |
 
 ## Two-Tier Database Access
 
@@ -217,9 +216,8 @@ Worktrees are created at `~/.orc/worktrees/<project-id>/orc-TASK-XXX/` (outside 
 | `resolveRejectedAction()` | `gate_actions.go:31` | Maps `OnRejected` config to `GateAction` (empty = legacy behavior) |
 | `resolveRetryFrom()` | `gate_actions.go:44` | Determines retry target: `OutputConfig.RetryFrom` > `tmpl.RetryFromPhase` |
 | `runGateScript()` | `workflow_gates.go:145` | Executes gate output script; script can override gate decision |
-| `ApplyPhaseSettings()` | `phase_settings.go:27` | Unified phase settings: reset → load config → hooks + skills + scripts |
-| `CleanupPhaseSettings()` | `phase_settings.go:215` | Removes all phase-specific Claude Code settings |
-| `DescribePhaseSettings()` | `phase_settings.go:225` | Human-readable description for logging/debugging |
+| `ApplyPhaseSettings()` | `phase_settings.go:34` | Unified phase settings: reset → load config → hooks + skills + scripts |
+| `applyCodexInstructions()` | `phase_settings.go:399` | Writes `.codex/instruction.md` when configured |
 
 ### Phase Execution
 
@@ -517,7 +515,7 @@ Determines which LLM provider executes each phase. Resolution in `resolvePhasePr
 | Provider | Family | Adapter | Side Effects |
 |----------|--------|---------|-------------|
 | `claude` | Claude | `claudeAdapter` | `.claude/settings.json`, thinking env |
-| `codex` | Codex | `codexAdapter` | `AGENTS.md` + `.codex/instruction.md` |
+| `codex` | Codex | `codexAdapter` | `.codex/instruction.md` (if configured) |
 | `ollama` | Codex | `codexAdapter` | Same as codex (routed via Codex CLI) |
 | `lmstudio` | Codex | `codexAdapter` | Same as codex (routed via Codex CLI) |
 
@@ -730,7 +728,7 @@ go test ./internal/executor/... -v
 | `script_api_wiring_integration_test.go` | Integration: script/API executor registration, dispatch through phase loop, variable propagation |
 | `phase_dispatch_test.go` | Phase type dispatch: non-LLM routing, type override precedence, error propagation, event publishing |
 | `provider_test.go` | Provider resolution: `ParseProviderModel`, `normalizeProvider`, `isCodexFamilyProvider`, priority chain (18 cases) |
-| `provider_dispatch_test.go` | Provider dispatch integration: codex route via AGENTS.md side effect, priority chain propagation, ollama routing (7 cases) |
+| `provider_dispatch_test.go` | Provider dispatch integration: codex route via session ID signal, priority chain propagation, ollama routing (7 cases) |
 
 **Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `WithPhaseTypeExecutor(name, mock)` (for script/api/knowledge/custom), `WithWorkflowKnowledgeService(mock)`, `hostingProvider` field for PR tests
 
@@ -746,7 +744,6 @@ go test ./internal/executor/... -v
 | Invalid session ID errors | Only pass custom session IDs when `Persistence: true` |
 | Validation can't see files | Create clients dynamically with correct workdir |
 | Provider not dispatching to codex | Check `resolvePhaseProvider()` priority chain; empty string defaults to "claude" |
-| AGENTS.md not written for codex | `worktreePath` must be set; `ApplyCodexPhaseSettings` only runs when `worktreePath != ""` |
 | Declared field has no effect | Every struct/config field must flow to a runtime consumer — see `internal/AGENTS.md` "Wiring Contracts" |
 
 ## Task/Execution State Consistency
