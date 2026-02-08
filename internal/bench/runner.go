@@ -231,7 +231,7 @@ func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, tr
 	r.logger.Debug("resolved workflow", "task", task.ID, "tier", task.Tier, "workflow", workflowID)
 
 	// Execute each phase
-	accumulatedVars := r.buildBaseVars(project, task, workDir)
+	accumulatedVars := r.buildBaseVars(project, task, runID, workDir)
 
 	for _, phase := range phases {
 		phaseID := phase.PhaseTemplateID
@@ -351,6 +351,9 @@ func (r *Runner) executePhase(
 
 	// Resolve model/provider for this phase
 	provider, model, reasoningEffort, thinking := r.resolvePhaseConfig(phaseID, variant, phase)
+
+	// Enrich variables with phase-specific context (e.g. REVIEW_ROUND)
+	enrichPhaseVars(vars, phaseID)
 
 	// Load and render prompt
 	prompt, err := r.loadAndRenderPrompt(phaseID, tmpl, vars)
@@ -482,20 +485,62 @@ func (r *Runner) loadAndRenderPrompt(phaseID string, tmpl *db.PhaseTemplate, var
 }
 
 // buildBaseVars creates the initial variable set for a benchmark task.
-func (r *Runner) buildBaseVars(project *Project, task *Task, workDir string) variable.VariableSet {
+// Provides all variables that prompt templates reference, so multi-phase
+// workflows (small/medium/large) render correctly.
+func (r *Runner) buildBaseVars(project *Project, task *Task, runID, workDir string) variable.VariableSet {
+	// Map tier to weight string (templates use WEIGHT for complexity hints)
+	weight := string(task.Tier)
+
 	vars := variable.VariableSet{
+		// Task metadata
 		"TASK_ID":          task.ID,
 		"TASK_TITLE":       task.Title,
 		"TASK_DESCRIPTION": task.Description,
 		"TASK_CATEGORY":    task.Category,
-		"LANGUAGE":         project.Language,
-		"TEST_COMMAND":     project.TestCmd,
-		"BUILD_COMMAND":    project.BuildCmd,
-		"LINT_COMMAND":     project.LintCmd,
-		"PROJECT_ROOT":     workDir,
-		"WORKTREE_PATH":    workDir,
+		"CATEGORY":         task.Category,
+		"WEIGHT":           weight,
+
+		// Project / build
+		"LANGUAGE":     project.Language,
+		"TEST_COMMAND":  project.TestCmd,
+		"BUILD_COMMAND": project.BuildCmd,
+		"LINT_COMMAND":  project.LintCmd,
+		"WORKTREE_PATH": workDir,
+		"PROJECT_ROOT":  workDir,
+
+		// Git context (synthesized for bench — no real PR)
+		"TASK_BRANCH":   fmt.Sprintf("bench/%s/%s", task.ID, runID[:8]),
+		"TARGET_BRANCH": "main",
+		"COMMIT_AUTHOR": "Benchmark Runner <bench@orc>",
+
+		// These are empty for bench but templates reference them
+		"HAS_FRONTEND":        "false",
+		"HAS_TESTS":           "true",
+		"FRAMEWORKS":          "",
+		"INITIATIVE_CONTEXT":  "",
+		"INITIATIVE_ID":       "",
+		"INITIATIVE_NOTES":    "",
+		"CONSTITUTION_CONTENT": "",
+		"COVERAGE_THRESHOLD":  "",
+
+		// Review/retry — populated per-phase by enrichPhaseVars
+		"REVIEW_ROUND":     "",
+		"REVIEW_FINDINGS":  "",
+		"PREVIOUS_FINDINGS": "",
+		"RETRY_ATTEMPT":    "",
+		"RETRY_FROM_PHASE": "",
+		"RETRY_REASON":     "",
 	}
 	return vars
+}
+
+// enrichPhaseVars adds phase-specific variables before rendering.
+func enrichPhaseVars(vars variable.VariableSet, phaseID string) {
+	switch phaseID {
+	case "review":
+		// First (and only) review round in bench — no multi-round review
+		vars["REVIEW_ROUND"] = "1"
+	}
 }
 
 // loadWorkflowPhases loads the ordered phases for a workflow from GlobalDB.

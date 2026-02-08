@@ -443,7 +443,7 @@ func listBenchRuns(cmd *cobra.Command, store *bench.Store, ctx context.Context) 
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVARIANT\tTASK\tTRIAL\tSTATUS\tTEST\tBUILD\tDIFF")
+	fmt.Fprintln(w, "ID\tVARIANT\tTASK\tTRIAL\tSTATUS\tTEST\tBUILD\tDURATION\tDIFF")
 	for _, r := range runs {
 		shortID := r.ID
 		if len(shortID) > 8 {
@@ -461,8 +461,12 @@ func listBenchRuns(cmd *cobra.Command, store *bench.Store, ctx context.Context) 
 		if r.ModelDiff != "" {
 			hasDiff = "yes"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\n",
-			shortID, r.VariantID, r.TaskID, r.TrialNumber, r.Status, test, build, hasDiff)
+		dur := ""
+		if !r.StartedAt.IsZero() && !r.CompletedAt.IsZero() {
+			dur = r.CompletedAt.Sub(r.StartedAt).Round(time.Second).String()
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\n",
+			shortID, r.VariantID, r.TaskID, r.TrialNumber, r.Status, test, build, dur, hasDiff)
 	}
 	return w.Flush()
 }
@@ -514,6 +518,30 @@ Examples:
 			}
 			if run.ErrorMessage != "" {
 				fmt.Fprintf(out, "Error:    %s\n", run.ErrorMessage)
+			}
+
+			// Show phase results (cost, tokens, duration)
+			phases, phaseErr := store.GetPhaseResults(ctx, run.ID)
+			if phaseErr == nil && len(phases) > 0 {
+				fmt.Fprintf(out, "\n--- Phase Results ---\n")
+				pw := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
+				fmt.Fprintln(pw, "PHASE\tMODEL\tCOST\tIN_TOK\tOUT_TOK\tDURATION\tFROZEN")
+				var totalCost float64
+				var totalIn, totalOut int
+				for _, p := range phases {
+					frozen := ""
+					if p.WasFrozen {
+						frozen = "yes"
+					}
+					dur := time.Duration(p.DurationMs) * time.Millisecond
+					fmt.Fprintf(pw, "%s\t%s\t$%.4f\t%d\t%d\t%s\t%s\n",
+						p.PhaseID, p.Model, p.CostUSD, p.InputTokens, p.OutputTokens, dur.Round(time.Second), frozen)
+					totalCost += p.CostUSD
+					totalIn += p.InputTokens
+					totalOut += p.OutputTokens
+				}
+				fmt.Fprintf(pw, "TOTAL\t\t$%.4f\t%d\t%d\t\t\n", totalCost, totalIn, totalOut)
+				_ = pw.Flush()
 			}
 
 			if showDiff {

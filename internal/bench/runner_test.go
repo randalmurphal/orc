@@ -53,7 +53,7 @@ func TestBuildBaseVars(t *testing.T) {
 		Description: "The page splitting algorithm fails on large keys",
 	}
 
-	vars := runner.buildBaseVars(project, task, "/tmp/bench/runs/abc")
+	vars := runner.buildBaseVars(project, task, "run-id-1234", "/tmp/bench/runs/abc")
 
 	if vars["TASK_ID"] != "bbolt-001" {
 		t.Errorf("expected bbolt-001, got %s", vars["TASK_ID"])

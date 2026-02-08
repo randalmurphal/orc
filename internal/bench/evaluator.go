@@ -3,6 +3,7 @@ package bench
 import (
 	"bufio"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -122,6 +123,10 @@ func patchFiles(patch string) []string {
 func (e *Evaluator) runCmd(workDir, cmdStr string) (bool, string) {
 	cmd := exec.Command("sh", "-c", cmdStr)
 	cmd.Dir = workDir
+	// Disable Go test caching so each trial's code is actually tested.
+	// Without this, Go reuses cached results across worktrees via ~/.cache/go-build/,
+	// meaning trial N+1 may report "pass (cached)" without testing its actual code.
+	cmd.Env = append(os.Environ(), "GOFLAGS=-count=1")
 	out, err := cmd.CombinedOutput()
 
 	output := string(out)
