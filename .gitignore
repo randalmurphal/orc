@@ -42,6 +42,8 @@ internal/api/static/*
 # All runtime state (DB, worktrees, exports) lives in ~/.orc/, not here.
 .mcp.json
 .claude/settings.json
+.worktrees/
+.orc/brief-cache.json
 
 # SQLite WAL files (should never be committed)
 *.db-shm
