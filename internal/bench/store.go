@@ -3,7 +3,6 @@ package bench
 import (
 	"context"
 	"embed"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -185,23 +184,20 @@ func (s *Store) DeleteProject(ctx context.Context, id string) error {
 
 // SaveTask creates or updates a task.
 func (s *Store) SaveTask(ctx context.Context, t *Task) error {
-	ftpJSON, _ := json.Marshal(t.FailToPassTests)
-	ptpJSON, _ := json.Marshal(t.PassToPassTests)
-
 	_, err := s.drv.Exec(ctx, `
-		INSERT INTO bench_tasks (id, project_id, tier, title, description, pre_fix_commit, reference_pr_url, reference_diff, fail_to_pass_tests, pass_to_pass_tests)
+		INSERT INTO bench_tasks (id, project_id, tier, category, title, description, pre_fix_commit, reference_pr_url, reference_diff, test_patch)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			project_id = excluded.project_id,
 			tier = excluded.tier,
+			category = excluded.category,
 			title = excluded.title,
 			description = excluded.description,
 			pre_fix_commit = excluded.pre_fix_commit,
 			reference_pr_url = excluded.reference_pr_url,
 			reference_diff = excluded.reference_diff,
-			fail_to_pass_tests = excluded.fail_to_pass_tests,
-			pass_to_pass_tests = excluded.pass_to_pass_tests
-	`, t.ID, t.ProjectID, string(t.Tier), t.Title, t.Description, t.PreFixCommit, t.ReferencePRURL, t.ReferenceDiff, string(ftpJSON), string(ptpJSON))
+			test_patch = excluded.test_patch
+	`, t.ID, t.ProjectID, string(t.Tier), t.Category, t.Title, t.Description, t.PreFixCommit, t.ReferencePRURL, t.ReferenceDiff, t.TestPatch)
 	if err != nil {
 		return fmt.Errorf("save task %s: %w", t.ID, err)
 	}
@@ -211,24 +207,22 @@ func (s *Store) SaveTask(ctx context.Context, t *Task) error {
 // GetTask returns a task by ID.
 func (s *Store) GetTask(ctx context.Context, id string) (*Task, error) {
 	row := s.drv.QueryRow(ctx, `
-		SELECT id, project_id, tier, title, description, pre_fix_commit, reference_pr_url, reference_diff, fail_to_pass_tests, pass_to_pass_tests, created_at
+		SELECT id, project_id, tier, category, title, description, pre_fix_commit, reference_pr_url, reference_diff, test_patch, created_at
 		FROM bench_tasks WHERE id = ?
 	`, id)
 
 	t := &Task{}
-	var createdAt, ftpJSON, ptpJSON string
-	if err := row.Scan(&t.ID, &t.ProjectID, &t.Tier, &t.Title, &t.Description, &t.PreFixCommit, &t.ReferencePRURL, &t.ReferenceDiff, &ftpJSON, &ptpJSON, &createdAt); err != nil {
+	var createdAt string
+	if err := row.Scan(&t.ID, &t.ProjectID, &t.Tier, &t.Category, &t.Title, &t.Description, &t.PreFixCommit, &t.ReferencePRURL, &t.ReferenceDiff, &t.TestPatch, &createdAt); err != nil {
 		return nil, fmt.Errorf("get task %s: %w", id, err)
 	}
 	t.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	_ = json.Unmarshal([]byte(ftpJSON), &t.FailToPassTests)
-	_ = json.Unmarshal([]byte(ptpJSON), &t.PassToPassTests)
 	return t, nil
 }
 
 // ListTasks returns all tasks, optionally filtered by project and/or tier.
 func (s *Store) ListTasks(ctx context.Context, projectID string, tier Tier) ([]*Task, error) {
-	query := `SELECT id, project_id, tier, title, description, pre_fix_commit, reference_pr_url, reference_diff, fail_to_pass_tests, pass_to_pass_tests, created_at FROM bench_tasks WHERE 1=1`
+	query := `SELECT id, project_id, tier, category, title, description, pre_fix_commit, reference_pr_url, reference_diff, test_patch, created_at FROM bench_tasks WHERE 1=1`
 	var args []any
 
 	if projectID != "" {
@@ -250,13 +244,11 @@ func (s *Store) ListTasks(ctx context.Context, projectID string, tier Tier) ([]*
 	var tasks []*Task
 	for rows.Next() {
 		t := &Task{}
-		var createdAt, ftpJSON, ptpJSON string
-		if err := rows.Scan(&t.ID, &t.ProjectID, &t.Tier, &t.Title, &t.Description, &t.PreFixCommit, &t.ReferencePRURL, &t.ReferenceDiff, &ftpJSON, &ptpJSON, &createdAt); err != nil {
+		var createdAt string
+		if err := rows.Scan(&t.ID, &t.ProjectID, &t.Tier, &t.Category, &t.Title, &t.Description, &t.PreFixCommit, &t.ReferencePRURL, &t.ReferenceDiff, &t.TestPatch, &createdAt); err != nil {
 			return nil, fmt.Errorf("scan task: %w", err)
 		}
 		t.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		_ = json.Unmarshal([]byte(ftpJSON), &t.FailToPassTests)
-		_ = json.Unmarshal([]byte(ptpJSON), &t.PassToPassTests)
 		tasks = append(tasks, t)
 	}
 	return tasks, rows.Err()
@@ -457,8 +449,9 @@ func (s *Store) SaveRun(ctx context.Context, r *Run) error {
 
 	_, err := s.drv.Exec(ctx, `
 		INSERT INTO bench_runs (id, variant_id, task_id, trial_number, status, started_at, completed_at, error_message,
-			test_pass, test_count, regression_count, lint_warnings, build_success, security_findings)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			test_pass, test_count, regression_count, lint_warnings, build_success, security_findings,
+			model_diff, test_output, build_output)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			status = excluded.status,
 			started_at = excluded.started_at,
@@ -469,11 +462,45 @@ func (s *Store) SaveRun(ctx context.Context, r *Run) error {
 			regression_count = excluded.regression_count,
 			lint_warnings = excluded.lint_warnings,
 			build_success = excluded.build_success,
-			security_findings = excluded.security_findings
+			security_findings = excluded.security_findings,
+			model_diff = excluded.model_diff,
+			test_output = excluded.test_output,
+			build_output = excluded.build_output
 	`, r.ID, r.VariantID, r.TaskID, r.TrialNumber, string(r.Status), startedAt, completedAt, r.ErrorMessage,
-		r.TestPass, r.TestCount, r.RegressionCount, r.LintWarnings, r.BuildSuccess, r.SecurityFindings)
+		r.TestPass, r.TestCount, r.RegressionCount, r.LintWarnings, r.BuildSuccess, r.SecurityFindings,
+		r.ModelDiff, r.TestOutput, r.BuildOutput)
 	if err != nil {
 		return fmt.Errorf("save run %s: %w", r.ID, err)
+	}
+	return nil
+}
+
+// DeleteRunByCombo removes any existing run for the same (variant, task, trial).
+// Used to allow clean retries — stale error/fail runs from previous attempts
+// would otherwise block the unique constraint.
+func (s *Store) DeleteRunByCombo(ctx context.Context, variantID, taskID string, trial int) error {
+	// Also clean up associated phase results and judgments
+	_, err := s.drv.Exec(ctx, `
+		DELETE FROM bench_phase_results WHERE run_id IN (
+			SELECT id FROM bench_runs WHERE variant_id = ? AND task_id = ? AND trial_number = ?
+		)`, variantID, taskID, trial)
+	if err != nil {
+		return fmt.Errorf("delete phase results for combo: %w", err)
+	}
+
+	_, err = s.drv.Exec(ctx, `
+		DELETE FROM bench_judgments WHERE run_id IN (
+			SELECT id FROM bench_runs WHERE variant_id = ? AND task_id = ? AND trial_number = ?
+		)`, variantID, taskID, trial)
+	if err != nil {
+		return fmt.Errorf("delete judgments for combo: %w", err)
+	}
+
+	_, err = s.drv.Exec(ctx, `
+		DELETE FROM bench_runs WHERE variant_id = ? AND task_id = ? AND trial_number = ?
+	`, variantID, taskID, trial)
+	if err != nil {
+		return fmt.Errorf("delete run for combo: %w", err)
 	}
 	return nil
 }
@@ -482,14 +509,16 @@ func (s *Store) SaveRun(ctx context.Context, r *Run) error {
 func (s *Store) GetRun(ctx context.Context, id string) (*Run, error) {
 	row := s.drv.QueryRow(ctx, `
 		SELECT id, variant_id, task_id, trial_number, status, started_at, completed_at, error_message, created_at,
-			test_pass, test_count, regression_count, lint_warnings, build_success, security_findings
+			test_pass, test_count, regression_count, lint_warnings, build_success, security_findings,
+			model_diff, test_output, build_output
 		FROM bench_runs WHERE id = ?
 	`, id)
 
 	r := &Run{}
 	var startedAt, completedAt, createdAt *string
 	if err := row.Scan(&r.ID, &r.VariantID, &r.TaskID, &r.TrialNumber, &r.Status, &startedAt, &completedAt, &r.ErrorMessage, &createdAt,
-		&r.TestPass, &r.TestCount, &r.RegressionCount, &r.LintWarnings, &r.BuildSuccess, &r.SecurityFindings); err != nil {
+		&r.TestPass, &r.TestCount, &r.RegressionCount, &r.LintWarnings, &r.BuildSuccess, &r.SecurityFindings,
+		&r.ModelDiff, &r.TestOutput, &r.BuildOutput); err != nil {
 		return nil, fmt.Errorf("get run %s: %w", id, err)
 	}
 	if startedAt != nil {
@@ -507,7 +536,7 @@ func (s *Store) GetRun(ctx context.Context, id string) (*Run, error) {
 // ListRuns returns runs filtered by variant and/or task and/or status.
 func (s *Store) ListRuns(ctx context.Context, variantID, taskID string, status RunStatus) ([]*Run, error) {
 	query := `SELECT id, variant_id, task_id, trial_number, status, started_at, completed_at, error_message, created_at,
-		test_pass, test_count, regression_count, lint_warnings, build_success, security_findings
+		test_pass, test_count, regression_count, lint_warnings, build_success, security_findings, model_diff
 		FROM bench_runs WHERE 1=1`
 	var args []any
 
@@ -536,7 +565,7 @@ func (s *Store) ListRuns(ctx context.Context, variantID, taskID string, status R
 		r := &Run{}
 		var startedAt, completedAt, createdAt *string
 		if err := rows.Scan(&r.ID, &r.VariantID, &r.TaskID, &r.TrialNumber, &r.Status, &startedAt, &completedAt, &r.ErrorMessage, &createdAt,
-			&r.TestPass, &r.TestCount, &r.RegressionCount, &r.LintWarnings, &r.BuildSuccess, &r.SecurityFindings); err != nil {
+			&r.TestPass, &r.TestCount, &r.RegressionCount, &r.LintWarnings, &r.BuildSuccess, &r.SecurityFindings, &r.ModelDiff); err != nil {
 			return nil, fmt.Errorf("scan run: %w", err)
 		}
 		if startedAt != nil {

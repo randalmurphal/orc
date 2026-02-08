@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -29,6 +30,15 @@ type Runner struct {
 	claudePath string
 	codexPath  string
 
+	// Model override: when set, ALL phases use this provider/model
+	// regardless of variant config. Used for cheap smoke testing (e.g. haiku).
+	overrideProvider        string
+	overrideModel           string
+	overrideReasoningEffort string
+
+	// Task filter: when non-empty, only run tasks with matching IDs.
+	taskFilter map[string]bool
+
 	// For testing: override executor creation
 	executorFactory func(cfg executor.TurnExecutorConfig) executor.TurnExecutor
 }
@@ -49,6 +59,28 @@ func WithClaudePath(path string) RunnerOption {
 // WithCodexPath sets the Codex CLI path.
 func WithCodexPath(path string) RunnerOption {
 	return func(r *Runner) { r.codexPath = path }
+}
+
+// WithModelOverride forces all phases to use a specific provider/model,
+// ignoring variant phase_overrides and defaults. Useful for cheap smoke
+// testing with haiku before spending on opus.
+// Optional reasoningEffort (e.g. "high", "medium", "low") for Codex models.
+func WithModelOverride(provider, model, reasoningEffort string) RunnerOption {
+	return func(r *Runner) {
+		r.overrideProvider = provider
+		r.overrideModel = model
+		r.overrideReasoningEffort = reasoningEffort
+	}
+}
+
+// WithTaskFilter limits execution to specific task IDs.
+func WithTaskFilter(taskIDs []string) RunnerOption {
+	return func(r *Runner) {
+		r.taskFilter = make(map[string]bool, len(taskIDs))
+		for _, id := range taskIDs {
+			r.taskFilter[id] = true
+		}
+	}
 }
 
 // WithExecutorFactory overrides executor creation (for testing).
@@ -88,6 +120,7 @@ func (r *Runner) RunBaseline(ctx context.Context, trials int) error {
 		return fmt.Errorf("get tasks for baseline: %w", err)
 	}
 
+	tasks = r.filterTasks(tasks)
 	r.logger.Info("starting baseline run", "variant", baseline.ID, "tasks", len(tasks), "trials", trials)
 
 	for _, task := range tasks {
@@ -115,6 +148,7 @@ func (r *Runner) RunVariant(ctx context.Context, variantID string, trials int) e
 		return fmt.Errorf("get tasks for variant: %w", err)
 	}
 
+	tasks = r.filterTasks(tasks)
 	r.logger.Info("starting variant run", "variant", variant.ID, "tasks", len(tasks), "trials", trials)
 
 	for _, task := range tasks {
@@ -130,7 +164,19 @@ func (r *Runner) RunVariant(ctx context.Context, variantID string, trials int) e
 
 // RunSingle executes one variant against one task for one trial.
 func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, trial int) error {
+	// Apply tier-based timeout so Codex/Claude CLI don't hit their short defaults
+	if timeout, ok := tierTimeout[task.Tier]; ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+
 	runID := uuid.New().String()
+
+	// Clean up any stale run from previous attempts (e.g. error/fail)
+	if err := r.store.DeleteRunByCombo(ctx, variant.ID, task.ID, trial); err != nil {
+		r.logger.Warn("failed to clean stale run", "error", err)
+	}
 
 	// Create run record
 	run := &Run{
@@ -176,11 +222,13 @@ func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, tr
 		}
 	}
 
-	// Load workflow phases from GlobalDB
-	phases, err := r.loadWorkflowPhases(variant.BaseWorkflow)
+	// Load workflow phases from GlobalDB — matched to task tier
+	workflowID := r.resolveWorkflow(task, variant)
+	phases, err := r.loadWorkflowPhases(workflowID)
 	if err != nil {
-		return r.failRun(ctx, run, fmt.Errorf("load workflow phases: %w", err))
+		return r.failRun(ctx, run, fmt.Errorf("load workflow %s phases: %w", workflowID, err))
 	}
+	r.logger.Debug("resolved workflow", "task", task.ID, "tier", task.Tier, "workflow", workflowID)
 
 	// Execute each phase
 	accumulatedVars := r.buildBaseVars(project, task, workDir)
@@ -243,6 +291,9 @@ func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, tr
 		}
 	}
 
+	// Capture model's diff before evaluation (evaluation may modify test files)
+	run.ModelDiff = captureModelDiff(workDir, task.PreFixCommit)
+
 	// Run automated evaluation
 	evalResult, err := r.evaluator.RunAll(workDir, project, task)
 	if err != nil {
@@ -252,11 +303,9 @@ func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, tr
 	// Populate run with eval metrics
 	if evalResult != nil {
 		run.TestPass = evalResult.TestPass
-		run.TestCount = evalResult.TestCount
-		run.RegressionCount = evalResult.RegressionCount
-		run.LintWarnings = evalResult.LintWarnings
 		run.BuildSuccess = evalResult.BuildSuccess
-		run.SecurityFindings = evalResult.SecurityFindings
+		run.TestOutput = evalResult.TestOutput
+		run.BuildOutput = evalResult.BuildOutput
 	}
 
 	// Update run status
@@ -265,7 +314,13 @@ func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, tr
 		run.Status = RunStatusPass
 	}
 	run.CompletedAt = time.Now()
-	if err := r.store.SaveRun(ctx, run); err != nil {
+
+	// Use a detached context for the final save — the tier timeout governs
+	// phase execution, not persistence. If we've done all the expensive work
+	// (LLM calls, evaluation), losing the results to a deadline is wasteful.
+	saveCtx, saveCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer saveCancel()
+	if err := r.store.SaveRun(saveCtx, run); err != nil {
 		return fmt.Errorf("update run: %w", err)
 	}
 
@@ -361,8 +416,13 @@ func (r *Runner) executePhase(
 }
 
 // resolvePhaseConfig determines the model configuration for a phase.
-// Priority: variant override > workflow default (opus + thinking)
+// Priority: runner model override > variant override > workflow default (opus + thinking)
 func (r *Runner) resolvePhaseConfig(phaseID string, variant *Variant, phase *db.WorkflowPhase) (provider, model, reasoningEffort string, thinking bool) {
+	// Global override takes precedence over everything
+	if r.overrideProvider != "" && r.overrideModel != "" {
+		return r.overrideProvider, r.overrideModel, r.overrideReasoningEffort, false
+	}
+
 	// Defaults: opus with thinking
 	provider = "claude"
 	model = "opus"
@@ -427,7 +487,7 @@ func (r *Runner) buildBaseVars(project *Project, task *Task, workDir string) var
 		"TASK_ID":          task.ID,
 		"TASK_TITLE":       task.Title,
 		"TASK_DESCRIPTION": task.Description,
-		"TASK_CATEGORY":    "feature",
+		"TASK_CATEGORY":    task.Category,
 		"LANGUAGE":         project.Language,
 		"TEST_COMMAND":     project.TestCmd,
 		"BUILD_COMMAND":    project.BuildCmd,
@@ -456,6 +516,32 @@ func (r *Runner) loadWorkflowPhases(workflowID string) ([]*db.WorkflowPhase, err
 	return phases, nil
 }
 
+// tierToWorkflow maps benchmark task tiers to orc workflow IDs.
+// Each tier gets the workflow that matches how orc would actually execute
+// a task of that complexity — trivial tasks don't need spec/tdd phases.
+var tierToWorkflow = map[Tier]string{
+	TierTrivial: "implement-trivial",
+	TierSmall:   "implement-small",
+	TierMedium:  "implement-medium",
+	TierLarge:   "implement-large",
+}
+
+var tierTimeout = map[Tier]time.Duration{
+	TierTrivial: 40 * time.Minute,
+	TierSmall:   45 * time.Minute,
+	TierMedium:  60 * time.Minute,
+	TierLarge:   90 * time.Minute,
+}
+
+// resolveWorkflow picks the workflow based on task tier, falling back
+// to the variant's base_workflow if the tier isn't recognized.
+func (r *Runner) resolveWorkflow(task *Task, variant *Variant) string {
+	if wf, ok := tierToWorkflow[task.Tier]; ok {
+		return wf
+	}
+	return variant.BaseWorkflow
+}
+
 // resolveOutputVarName determines the variable name for a phase's output.
 func (r *Runner) resolveOutputVarName(phase *db.WorkflowPhase) string {
 	// Try to get from phase template
@@ -469,6 +555,20 @@ func (r *Runner) resolveOutputVarName(phase *db.WorkflowPhase) string {
 	return "OUTPUT_" + strings.ToUpper(strings.ReplaceAll(phase.PhaseTemplateID, "-", "_"))
 }
 
+// filterTasks applies the task filter if set.
+func (r *Runner) filterTasks(tasks []*Task) []*Task {
+	if len(r.taskFilter) == 0 {
+		return tasks
+	}
+	var filtered []*Task
+	for _, t := range tasks {
+		if r.taskFilter[t.ID] {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
 // failRun marks a run as errored.
 func (r *Runner) failRun(ctx context.Context, run *Run, err error) error {
 	run.Status = RunStatusError
@@ -478,4 +578,17 @@ func (r *Runner) failRun(ctx context.Context, run *Run, err error) error {
 		r.logger.Error("failed to save error status for run", "run", run.ID, "error", saveErr)
 	}
 	return err
+}
+
+// captureModelDiff returns the git diff of all changes the model made
+// relative to the pre-fix commit. Called before evaluation (which modifies
+// test files) so we get the model's pure output.
+func captureModelDiff(workDir, preFixCommit string) string {
+	cmd := exec.Command("git", "diff", preFixCommit)
+	cmd.Dir = workDir
+	out, err := cmd.Output()
+	if err != nil {
+		return fmt.Sprintf("error capturing diff: %v", err)
+	}
+	return string(out)
 }

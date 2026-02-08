@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -41,6 +43,7 @@ Adding a new model = editing suite.yaml. No code changes needed.`,
 	cmd.AddCommand(newBenchRunCmd())
 	cmd.AddCommand(newBenchReportCmd())
 	cmd.AddCommand(newBenchJudgeCmd())
+	cmd.AddCommand(newBenchShowCmd())
 
 	return cmd
 }
@@ -146,30 +149,30 @@ Example:
 
 func newBenchCurateAddTaskCmd() *cobra.Command {
 	var (
-		projectID       string
-		tier            string
-		description     string
-		preFixCommit    string
-		referencePRURL  string
-		failToPassTests []string
-		passToPassTests []string
+		projectID      string
+		tier           string
+		category       string
+		description    string
+		preFixCommit   string
+		referencePRURL string
 	)
 
 	cmd := &cobra.Command{
 		Use:   "add-task <id> <title>",
 		Short: "Add a benchmark task",
-		Long: `Add a SWE-bench style task from a real PR.
+		Long: `Add a benchmark task from a real PR.
 
 Tasks represent real issues with known fixes. The model is given the issue
-description, checked out at the pre-fix commit, and success = tests pass.
+description, checked out at the pre-fix commit. After the model finishes,
+the test patch from the reference PR is applied and tests are run.
 
 Example:
-  orc bench curate add-task bbolt-001 "Fix page split on large keys" \
+  orc bench curate add-task bbolt-001 "Fix read-only file creation" \
     --project bbolt \
-    --tier medium \
+    --tier trivial \
+    --category bug \
     --pre-fix-commit abc123 \
-    --description "The page splitting algorithm fails when..." \
-    --fail-to-pass TestPageSplit,TestLargeKey`,
+    --description "bolt.Open in read-only mode creates the file..."`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := openBenchStore()
@@ -179,15 +182,14 @@ Example:
 			defer store.Close()
 
 			t := &bench.Task{
-				ID:              args[0],
-				ProjectID:       projectID,
-				Tier:            bench.Tier(tier),
-				Title:           args[1],
-				Description:     description,
-				PreFixCommit:    preFixCommit,
-				ReferencePRURL:  referencePRURL,
-				FailToPassTests: failToPassTests,
-				PassToPassTests: passToPassTests,
+				ID:             args[0],
+				ProjectID:      projectID,
+				Tier:           bench.Tier(tier),
+				Category:       category,
+				Title:          args[1],
+				Description:    description,
+				PreFixCommit:   preFixCommit,
+				ReferencePRURL: referencePRURL,
 			}
 			if err := t.Validate(); err != nil {
 				return err
@@ -207,8 +209,7 @@ Example:
 	cmd.Flags().StringVarP(&description, "description", "d", "", "Issue description (required)")
 	cmd.Flags().StringVar(&preFixCommit, "pre-fix-commit", "", "Commit before the fix (required)")
 	cmd.Flags().StringVar(&referencePRURL, "reference-pr", "", "Reference PR URL")
-	cmd.Flags().StringSliceVar(&failToPassTests, "fail-to-pass", nil, "Tests that should pass after fix (comma-separated)")
-	cmd.Flags().StringSliceVar(&passToPassTests, "pass-to-pass", nil, "Tests that should still pass (comma-separated)")
+	cmd.Flags().StringVar(&category, "category", "", "Task category: bug, feature, refactor, etc.")
 	_ = cmd.MarkFlagRequired("project")
 	_ = cmd.MarkFlagRequired("tier")
 	_ = cmd.MarkFlagRequired("description")
@@ -307,7 +308,7 @@ Examples:
   orc bench curate list tasks
   orc bench curate list variants`,
 		Args:      cobra.ExactArgs(1),
-		ValidArgs: []string{"projects", "tasks", "variants"},
+		ValidArgs: []string{"projects", "tasks", "variants", "runs"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := openBenchStore()
 			if err != nil {
@@ -324,8 +325,10 @@ Examples:
 				return listBenchTasks(cmd, store, ctx)
 			case "variants":
 				return listBenchVariants(cmd, store, ctx)
+			case "runs":
+				return listBenchRuns(cmd, store, ctx)
 			default:
-				return fmt.Errorf("unknown entity type: %s (use projects, tasks, or variants)", args[0])
+				return fmt.Errorf("unknown entity type: %s (use projects, tasks, variants, or runs)", args[0])
 			}
 		},
 	}
@@ -375,13 +378,17 @@ func listBenchTasks(cmd *cobra.Command, store *bench.Store, ctx context.Context)
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tPROJECT\tTIER\tTITLE\tF2P\tP2P")
+	fmt.Fprintln(w, "ID\tPROJECT\tTIER\tCATEGORY\tTITLE\tTEST_PATCH")
 	for _, t := range tasks {
 		title := t.Title
 		if len(title) > 40 {
 			title = title[:37] + "..."
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\n", t.ID, t.ProjectID, t.Tier, title, len(t.FailToPassTests), len(t.PassToPassTests))
+		hasPatch := "no"
+		if t.TestPatch != "" {
+			hasPatch = "yes"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", t.ID, t.ProjectID, t.Tier, t.Category, title, hasPatch)
 	}
 	return w.Flush()
 }
@@ -418,6 +425,150 @@ func listBenchVariants(cmd *cobra.Command, store *bench.Store, ctx context.Conte
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", v.ID, v.Name, v.BaseWorkflow, baseline, overrideSummary)
 	}
 	return w.Flush()
+}
+
+func listBenchRuns(cmd *cobra.Command, store *bench.Store, ctx context.Context) error {
+	runs, err := store.ListRuns(ctx, "", "", "")
+	if err != nil {
+		return err
+	}
+
+	if jsonOut {
+		return outputJSON(cmd, runs)
+	}
+
+	if len(runs) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "No runs yet. Use 'orc bench run --baseline' to start.")
+		return nil
+	}
+
+	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tVARIANT\tTASK\tTRIAL\tSTATUS\tTEST\tBUILD\tDIFF")
+	for _, r := range runs {
+		shortID := r.ID
+		if len(shortID) > 8 {
+			shortID = shortID[:8]
+		}
+		test := "fail"
+		if r.TestPass {
+			test = "pass"
+		}
+		build := "fail"
+		if r.BuildSuccess {
+			build = "pass"
+		}
+		hasDiff := "no"
+		if r.ModelDiff != "" {
+			hasDiff = "yes"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\n",
+			shortID, r.VariantID, r.TaskID, r.TrialNumber, r.Status, test, build, hasDiff)
+	}
+	return w.Flush()
+}
+
+func newBenchShowCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "show <run-id>",
+		Short: "Show run details including model diff",
+		Long: `Display details of a benchmark run including what the model changed.
+
+The run ID can be a prefix (first 8+ characters).
+
+Examples:
+  orc bench show 06888da7
+  orc bench show 06888da7 --diff`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			store, err := openBenchStore()
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+
+			ctx := context.Background()
+
+			// Support prefix matching
+			runID := args[0]
+			run, err := findRunByPrefix(ctx, store, runID)
+			if err != nil {
+				return err
+			}
+
+			showDiff, _ := cmd.Flags().GetBool("diff")
+
+			if jsonOut {
+				return outputJSON(cmd, run)
+			}
+
+			out := cmd.OutOrStdout()
+			fmt.Fprintf(out, "Run:      %s\n", run.ID)
+			fmt.Fprintf(out, "Variant:  %s\n", run.VariantID)
+			fmt.Fprintf(out, "Task:     %s\n", run.TaskID)
+			fmt.Fprintf(out, "Trial:    %d\n", run.TrialNumber)
+			fmt.Fprintf(out, "Status:   %s\n", run.Status)
+			fmt.Fprintf(out, "Test:     %v\n", run.TestPass)
+			fmt.Fprintf(out, "Build:    %v\n", run.BuildSuccess)
+			if !run.StartedAt.IsZero() && !run.CompletedAt.IsZero() {
+				fmt.Fprintf(out, "Duration: %s\n", run.CompletedAt.Sub(run.StartedAt).Round(time.Second))
+			}
+			if run.ErrorMessage != "" {
+				fmt.Fprintf(out, "Error:    %s\n", run.ErrorMessage)
+			}
+
+			if showDiff {
+				fmt.Fprintf(out, "\n--- Model Diff ---\n")
+				if run.ModelDiff == "" {
+					fmt.Fprintln(out, "(no diff captured)")
+				} else {
+					fmt.Fprintln(out, run.ModelDiff)
+				}
+			}
+
+			showTests, _ := cmd.Flags().GetBool("test-output")
+			if showTests && run.TestOutput != "" {
+				fmt.Fprintf(out, "\n--- Test Output ---\n")
+				fmt.Fprintln(out, run.TestOutput)
+			}
+			if showTests && run.BuildOutput != "" {
+				fmt.Fprintf(out, "\n--- Build Output ---\n")
+				fmt.Fprintln(out, run.BuildOutput)
+			}
+
+			return nil
+		},
+	}
+	cmd.Flags().Bool("diff", true, "Show the model's code diff")
+	cmd.Flags().Bool("test-output", false, "Show test and build output")
+	return cmd
+}
+
+func findRunByPrefix(ctx context.Context, store *bench.Store, prefix string) (*bench.Run, error) {
+	// Try exact match first
+	run, err := store.GetRun(ctx, prefix)
+	if err == nil {
+		return run, nil
+	}
+
+	// Try prefix match
+	runs, err := store.ListRuns(ctx, "", "", "")
+	if err != nil {
+		return nil, err
+	}
+	var matchIDs []string
+	for _, r := range runs {
+		if len(r.ID) >= len(prefix) && r.ID[:len(prefix)] == prefix {
+			matchIDs = append(matchIDs, r.ID)
+		}
+	}
+	if len(matchIDs) == 0 {
+		return nil, fmt.Errorf("no run found matching %q", prefix)
+	}
+	if len(matchIDs) > 1 {
+		return nil, fmt.Errorf("ambiguous prefix %q matches %d runs", prefix, len(matchIDs))
+	}
+	// Full fetch to get all fields (ListRuns omits large text fields)
+	return store.GetRun(ctx, matchIDs[0])
 }
 
 func newBenchCurateValidateCmd() *cobra.Command {
@@ -518,7 +669,8 @@ Example:
 			}
 			defer store.Close()
 
-			if err := cfg.ImportToStore(context.Background(), store); err != nil {
+			suiteDir := filepath.Dir(args[0])
+			if err := cfg.ImportToStore(context.Background(), store, suiteDir); err != nil {
 				return err
 			}
 

@@ -6,20 +6,24 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/bench"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 func newBenchRunCmd() *cobra.Command {
 	var (
-		baseline    bool
-		variantID   string
-		allVariants bool
-		trials      int
+		baseline      bool
+		variantID     string
+		allVariants   bool
+		trials        int
+		modelOverride string
+		taskIDs       []string
 	)
 
 	cmd := &cobra.Command{
@@ -37,10 +41,18 @@ Modes:
 Each run clones the project repo, checks out the pre-fix commit in a worktree,
 executes the workflow phases, and evaluates the result (tests, build, lint).
 
+Flags:
+  --model-override    Force all phases to use a specific model (provider:model[:effort]).
+                      Overrides variant config. Use for cheap smoke testing.
+                      Optional :effort suffix sets reasoning effort (e.g. high, medium, low).
+  --task              Limit to specific task ID(s). Repeatable.
+
 Examples:
   orc bench run --baseline --trials 2
   orc bench run --variant codex53-high-impl --trials 2
-  orc bench run --all-variants --trials 2`,
+  orc bench run --all-variants --trials 2
+  orc bench run --baseline --trials 1 --model-override claude:claude-haiku-4-5-20251001 --task bbolt-001
+  orc bench run --baseline --trials 1 --model-override codex:gpt-5.3-codex:high --task bbolt-001`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !baseline && variantID == "" && !allVariants {
 				return fmt.Errorf("specify --baseline, --variant <id>, or --all-variants")
@@ -61,6 +73,11 @@ Examples:
 			}
 			defer gdb.Close()
 
+			// Seed built-in workflows + phase templates (required for phase execution)
+			if _, err := workflow.SeedBuiltins(gdb); err != nil {
+				return fmt.Errorf("seed workflows: %w", err)
+			}
+
 			workspace, err := bench.DefaultWorkspace()
 			if err != nil {
 				return err
@@ -73,7 +90,28 @@ Examples:
 			}
 			logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
 
-			runner := bench.NewRunner(store, gdb, workspace, bench.WithRunnerLogger(logger))
+			// Build runner options
+			opts := []bench.RunnerOption{bench.WithRunnerLogger(logger)}
+
+			if modelOverride != "" {
+				parts := strings.SplitN(modelOverride, ":", 3)
+				if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+					return fmt.Errorf("--model-override must be provider:model[:effort] (e.g. codex:gpt-5.3-codex:high)")
+				}
+				var effort string
+				if len(parts) == 3 {
+					effort = parts[2]
+				}
+				opts = append(opts, bench.WithModelOverride(parts[0], parts[1], effort))
+				logger.Info("model override active", "provider", parts[0], "model", parts[1], "effort", effort)
+			}
+
+			if len(taskIDs) > 0 {
+				opts = append(opts, bench.WithTaskFilter(taskIDs))
+				logger.Info("task filter active", "tasks", taskIDs)
+			}
+
+			runner := bench.NewRunner(store, gdb, workspace, opts...)
 
 			// Handle interrupts gracefully
 			ctx, cancel := context.WithCancel(context.Background())
@@ -140,6 +178,8 @@ Examples:
 	cmd.Flags().StringVar(&variantID, "variant", "", "Run a specific variant by ID")
 	cmd.Flags().BoolVar(&allVariants, "all-variants", false, "Run all non-baseline variants")
 	cmd.Flags().IntVar(&trials, "trials", 2, "Number of trials per task")
+	cmd.Flags().StringVar(&modelOverride, "model-override", "", "Force all phases to provider:model (e.g. claude:claude-haiku-4-5-20251001)")
+	cmd.Flags().StringSliceVar(&taskIDs, "task", nil, "Limit to specific task ID(s) (repeatable)")
 
 	return cmd
 }

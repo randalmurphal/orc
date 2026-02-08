@@ -1,103 +1,78 @@
 package bench
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
-func TestExtractTestCount(t *testing.T) {
-	tests := []struct {
-		name   string
-		output string
-		want   int
-	}{
-		{
-			name: "go test verbose output",
-			output: `=== RUN   TestOpen
---- PASS: TestOpen (0.01s)
-=== RUN   TestBasicInsert
---- PASS: TestBasicInsert (0.02s)
-=== RUN   TestPageSplit
---- FAIL: TestPageSplit (0.01s)
-FAIL
-FAIL	github.com/etcd-io/bbolt	0.5s`,
-			want: 3,
-		},
-		{
-			name:   "pytest output",
-			output: "===== 12 passed, 3 failed in 1.5s =====",
-			want:   15,
-		},
-		{
-			name:   "rust cargo test",
-			output: "test result: ok. 8 passed; 2 failed; 0 ignored",
-			want:   10,
-		},
-		{
-			name:   "empty output",
-			output: "",
-			want:   0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractTestCount(tt.output)
-			if got != tt.want {
-				t.Errorf("extractTestCount() = %d, want %d", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestCountRegressions(t *testing.T) {
-	output := `
---- FAIL: TestBasicInsert (0.01s)
---- FAIL: TestPageSplit (0.02s)
---- PASS: TestOpen (0.01s)
-`
-	passToPass := []string{"TestBasicInsert", "TestOpen", "TestCreate"}
-
-	got := countRegressions(output, passToPass)
-	// TestBasicInsert appears on a FAIL line → regression
-	// TestOpen appears on a PASS line → NOT a regression (per-line check)
-	// TestCreate doesn't appear → not counted
-	if got != 1 {
-		t.Errorf("expected exactly 1 regression (TestBasicInsert), got %d", got)
-	}
-}
-
-func TestCountTestsRun(t *testing.T) {
-	output := `
-=== RUN   TestPageSplit
---- PASS: TestPageSplit (0.01s)
-=== RUN   TestBasicInsert
---- PASS: TestBasicInsert (0.02s)
-`
-	tests := []string{"TestPageSplit", "TestBasicInsert", "TestMissing"}
-
-	got := countTestsRun(output, tests)
-	if got != 2 {
-		t.Errorf("expected 2 tests found, got %d", got)
-	}
-}
-
-func TestExtractNumberBefore(t *testing.T) {
-	tests := []struct {
-		line    string
-		keyword string
-		want    int
-	}{
-		{"12 passed", "passed", 12},
-		{"3 failed", "failed", 3},
-		{"  42 passed, 3 failed", "passed", 42},
-		{"no numbers here", "passed", 0},
-		{"", "passed", 0},
-	}
-
-	for _, tt := range tests {
-		got := extractNumberBefore(tt.line, tt.keyword)
-		if got != tt.want {
-			t.Errorf("extractNumberBefore(%q, %q) = %d, want %d", tt.line, tt.keyword, got, tt.want)
+func TestApplyTestPatch(t *testing.T) {
+	// Create a temp git repo with a file
+	dir := t.TempDir()
+	run := func(args ...string) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@test.com",
+			"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@test.com")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s: %v", args, out, err)
 		}
 	}
+
+	run("init")
+	os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644)
+	run("add", ".")
+	run("commit", "-m", "init")
+
+	// Apply a patch that adds a test file
+	patch := `diff --git a/main_test.go b/main_test.go
+new file mode 100644
+--- /dev/null
++++ b/main_test.go
+@@ -0,0 +1,7 @@
++package main
++
++import "testing"
++
++func TestHello(t *testing.T) {
++	t.Log("hello")
++}
+`
+
+	eval := NewEvaluator()
+	if err := eval.applyTestPatch(dir, patch, "HEAD"); err != nil {
+		t.Fatalf("applyTestPatch: %v", err)
+	}
+
+	// Verify the test file was created
+	content, err := os.ReadFile(filepath.Join(dir, "main_test.go"))
+	if err != nil {
+		t.Fatalf("test file not created: %v", err)
+	}
+	if len(content) == 0 {
+		t.Error("test file is empty")
+	}
+}
+
+func TestRunCmd(t *testing.T) {
+	dir := t.TempDir()
+	eval := NewEvaluator()
+
+	// Command that succeeds
+	ok, out := eval.runCmd(dir, "echo hello")
+	if !ok {
+		t.Error("expected 'echo hello' to succeed")
+	}
+	if !strings.Contains(out, "hello") {
+		t.Errorf("expected output to contain 'hello', got %q", out)
+	}
+
+	// Command that fails
+	ok, out = eval.runCmd(dir, "false")
+	if ok {
+		t.Error("expected 'false' to fail")
+	}
+	_ = out
 }

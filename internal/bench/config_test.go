@@ -154,7 +154,7 @@ func TestImportToStore(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	if err := cfg.ImportToStore(ctx, store); err != nil {
+	if err := cfg.ImportToStore(ctx, store, t.TempDir()); err != nil {
 		t.Fatalf("import: %v", err)
 	}
 

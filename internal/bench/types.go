@@ -61,20 +61,22 @@ var ValidTiers = map[Tier]bool{
 }
 
 // Task is a curated benchmark task: a real issue from a real repo with a known solution.
-// SWE-bench style: check out pre-fix commit, give model the issue description,
-// success = tests pass including new tests from the reference PR.
+// The model gets the issue description and works on the pre-fix commit.
+// After the model finishes, TestPatch is applied and the test suite runs.
+// If tests pass, the model solved the problem.
 type Task struct {
-	ID              string   `yaml:"id" json:"id"`
-	ProjectID       string   `yaml:"project_id" json:"project_id"`
-	Tier            Tier     `yaml:"tier" json:"tier"`
-	Title           string   `yaml:"title" json:"title"`
-	Description     string   `yaml:"description" json:"description"`
-	PreFixCommit    string   `yaml:"pre_fix_commit" json:"pre_fix_commit"`
-	ReferencePRURL  string   `yaml:"reference_pr_url,omitempty" json:"reference_pr_url,omitempty"`
-	ReferenceDiff   string   `yaml:"reference_diff,omitempty" json:"reference_diff,omitempty"`
-	FailToPassTests []string `yaml:"fail_to_pass_tests,omitempty" json:"fail_to_pass_tests,omitempty"`
-	PassToPassTests []string `yaml:"pass_to_pass_tests,omitempty" json:"pass_to_pass_tests,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
+	ID             string `yaml:"id" json:"id"`
+	ProjectID      string `yaml:"project_id" json:"project_id"`
+	Tier           Tier   `yaml:"tier" json:"tier"`
+	Category       string `yaml:"category,omitempty" json:"category,omitempty"` // bug, feature, refactor, etc.
+	Title          string `yaml:"title" json:"title"`
+	Description    string `yaml:"description" json:"description"`
+	PreFixCommit   string `yaml:"pre_fix_commit" json:"pre_fix_commit"`
+	ReferencePRURL string `yaml:"reference_pr_url,omitempty" json:"reference_pr_url,omitempty"`
+	ReferenceDiff  string `yaml:"reference_diff,omitempty" json:"reference_diff,omitempty"`
+	TestPatch      string `yaml:"test_patch,omitempty" json:"test_patch,omitempty"`      // Test-only diff from reference PR — applied AFTER model finishes for evaluation
+	TestPatchFile  string `yaml:"test_patch_file,omitempty" json:"-"`                   // Path to .patch file (resolved during import, content goes into TestPatch)
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 // Validate checks that required fields are set.
@@ -190,6 +192,12 @@ type Run struct {
 	LintWarnings     int  `json:"lint_warnings"`
 	BuildSuccess     bool `json:"build_success"`
 	SecurityFindings int  `json:"security_findings"`
+
+	// ModelDiff is the git diff of the model's changes against the pre-fix commit.
+	// Captured before worktree cleanup so we can inspect what the model actually did.
+	ModelDiff   string `json:"model_diff,omitempty"`
+	TestOutput  string `json:"test_output,omitempty"`
+	BuildOutput string `json:"build_output,omitempty"`
 }
 
 // PhaseResult holds metrics for a single phase execution within a run.

@@ -126,7 +126,9 @@ func (c *SuiteConfig) Validate() error {
 }
 
 // ImportToStore saves all projects, tasks, and variants from config to the store.
-func (c *SuiteConfig) ImportToStore(ctx context.Context, store *Store) error {
+// suiteDir is the directory containing suite.yaml, used to resolve relative
+// test_patch_file paths.
+func (c *SuiteConfig) ImportToStore(ctx context.Context, store *Store, suiteDir string) error {
 	for i := range c.Projects {
 		if err := store.SaveProject(ctx, &c.Projects[i]); err != nil {
 			return fmt.Errorf("import project %s: %w", c.Projects[i].ID, err)
@@ -134,8 +136,23 @@ func (c *SuiteConfig) ImportToStore(ctx context.Context, store *Store) error {
 	}
 
 	for i := range c.Tasks {
-		if err := store.SaveTask(ctx, &c.Tasks[i]); err != nil {
-			return fmt.Errorf("import task %s: %w", c.Tasks[i].ID, err)
+		task := &c.Tasks[i]
+
+		// Load test_patch from file if test_patch_file is set
+		if task.TestPatchFile != "" && task.TestPatch == "" {
+			patchPath := task.TestPatchFile
+			if !filepath.IsAbs(patchPath) {
+				patchPath = filepath.Join(suiteDir, patchPath)
+			}
+			data, err := os.ReadFile(patchPath)
+			if err != nil {
+				return fmt.Errorf("task %s: read test_patch_file %s: %w", task.ID, patchPath, err)
+			}
+			task.TestPatch = string(data)
+		}
+
+		if err := store.SaveTask(ctx, task); err != nil {
+			return fmt.Errorf("import task %s: %w", task.ID, err)
 		}
 	}
 

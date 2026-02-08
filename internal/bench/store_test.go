@@ -80,15 +80,15 @@ func TestStoreTaskCRUD(t *testing.T) {
 	store.SaveProject(ctx, p)
 
 	task := &Task{
-		ID:              "zod-001",
-		ProjectID:       "zod",
-		Tier:            TierMedium,
-		Title:           "Fix schema parsing",
-		Description:     "The schema parser fails on nested objects...",
-		PreFixCommit:    "aaa111",
-		ReferencePRURL:  "https://github.com/colinhacks/zod/pull/42",
-		FailToPassTests: []string{"test_nested_parse"},
-		PassToPassTests: []string{"test_basic_schema", "test_string_schema"},
+		ID:             "zod-001",
+		ProjectID:      "zod",
+		Tier:           TierMedium,
+		Category:       "bug",
+		Title:          "Fix schema parsing",
+		Description:    "The schema parser fails on nested objects...",
+		PreFixCommit:   "aaa111",
+		ReferencePRURL: "https://github.com/colinhacks/zod/pull/42",
+		TestPatch:      "diff --git a/test.ts b/test.ts\n+test content",
 	}
 	if err := store.SaveTask(ctx, task); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -101,11 +101,11 @@ func TestStoreTaskCRUD(t *testing.T) {
 	if got.Tier != TierMedium {
 		t.Errorf("expected tier medium, got %s", got.Tier)
 	}
-	if len(got.FailToPassTests) != 1 || got.FailToPassTests[0] != "test_nested_parse" {
-		t.Errorf("fail_to_pass_tests mismatch: %v", got.FailToPassTests)
+	if got.Category != "bug" {
+		t.Errorf("expected category bug, got %s", got.Category)
 	}
-	if len(got.PassToPassTests) != 2 {
-		t.Errorf("pass_to_pass_tests mismatch: %v", got.PassToPassTests)
+	if got.TestPatch == "" {
+		t.Error("expected test_patch to be populated")
 	}
 
 	// List with filter
