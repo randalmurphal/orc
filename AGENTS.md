@@ -66,7 +66,7 @@ make dev-full               # API (:8080) + frontend (:5173)
 | `web/` | React 19 frontend | See `web/CLAUDE.md` |
 | `docs/` | Architecture, specs, ADRs | See `docs/CLAUDE.md` |
 
-**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite/PostgreSQL + GlobalDB/ProjectDB), `project/` (multi-project registry), `gate/` (quality gates: auto/human/AI/skip), `events/` (real-time event publishing), `trigger/` (lifecycle event triggers), `jira/` (Jira Cloud import)
+**Key packages:** `api/` (REST + WebSocket), `bench/` (model benchmarking), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite/PostgreSQL + GlobalDB/ProjectDB), `project/` (multi-project registry), `gate/` (quality gates: auto/human/AI/skip), `events/` (real-time event publishing), `trigger/` (lifecycle event triggers), `jira/` (Jira Cloud import)
 
 ## Task Model
 
@@ -323,6 +323,23 @@ Run `orc initiative --help` for full subcommand list.
 
 Auth: `--url`/`--email`/`--token` flags, `ORC_JIRA_*` env vars, or `jira:` config section. Run `orc import jira --help` for full setup guide.
 
+### Benchmarking
+
+| Command | Purpose |
+|---------|---------|
+| `orc bench curate import suite.yaml` | Bulk import projects, tasks, variants from YAML |
+| `orc bench curate add-project` | Add a benchmark project |
+| `orc bench curate add-task` | Add a benchmark task |
+| `orc bench curate list [projects\|tasks\|variants]` | List curated data |
+| `orc bench curate validate` | Health check all tasks |
+| `orc bench run --baseline --trials N` | Run all-Opus baseline |
+| `orc bench run --variant ID --trials N` | Run specific variant with frozen outputs |
+| `orc bench run --all-variants --trials N` | Run all variants |
+| `orc bench report` | Phase leaderboard + recommendations |
+| `orc bench judge` | Run cross-model judge panel |
+
+Config-driven: `~/.orc/bench/suite.yaml`. Data: `~/.orc/bench/bench.db`. See `internal/bench/CLAUDE.md`.
+
 ### Key Insight: Help Text = Documentation
 
 Each command's `--help` contains detailed guidance on:
@@ -384,6 +401,7 @@ make e2e        # E2E (Playwright)
 | Gates & Approvals | `docs/architecture/GATES.md` |
 | Config | `docs/specs/CONFIG_HIERARCHY.md` |
 | File Formats | `docs/specs/FILE_FORMATS.md` |
+| Benchmarking | `docs/specs/BENCHMARK_SYSTEM.md`, `internal/bench/CLAUDE.md` |
 | Constitution | `.orc/CONSTITUTION.md` |
 | Web Components | `web/CLAUDE.md` |
 

@@ -141,6 +141,7 @@ func init() {
 	addCmd(newPoolCmd(), groupAdvanced)
 	addCmd(newAutomationCmd(), groupAdvanced)
 	addCmd(newCommentCmd(), groupAdvanced)
+	addCmd(newBenchCmd(), groupAdvanced)
 	addCmd(newProjectsCmd(), groupAdvanced)
 	addCmd(newVersionCmd(), groupAdvanced)
 	addCmd(newGoodbyeCmd(), groupAdvanced)
