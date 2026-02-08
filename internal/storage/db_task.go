@@ -104,7 +104,10 @@ func (d *DatabaseBackend) LoadAutomationTasks() ([]*orcv1.Task, error) {
 
 	tasks := make([]*orcv1.Task, 0, len(dbTasks))
 	for _, dbTask := range dbTasks {
-		t := dbTaskToProtoTask(&dbTask)
+		t, err := dbTaskToProtoTask(&dbTask)
+		if err != nil {
+			return nil, fmt.Errorf("convert automation task %s: %w", dbTask.ID, err)
+		}
 		if deps, ok := allDeps[t.Id]; ok {
 			t.BlockedBy = deps
 		}
@@ -318,7 +321,10 @@ func (d *DatabaseBackend) loadTaskUnlocked(id string) (*orcv1.Task, error) {
 		return nil, fmt.Errorf("task %s not found", id)
 	}
 
-	t := dbTaskToProtoTask(dbTask)
+	t, err := dbTaskToProtoTask(dbTask)
+	if err != nil {
+		return nil, fmt.Errorf("convert task %s: %w", id, err)
+	}
 
 	// Load dependencies
 	deps, err := d.db.GetTaskDependencies(id)
@@ -385,7 +391,10 @@ func (d *DatabaseBackend) LoadAllTasks() ([]*orcv1.Task, error) {
 
 	tasks := make([]*orcv1.Task, 0, len(dbTasks))
 	for _, dbTask := range dbTasks {
-		t := dbTaskToProtoTask(&dbTask)
+		t, err := dbTaskToProtoTask(&dbTask)
+		if err != nil {
+			return nil, fmt.Errorf("convert task %s: %w", dbTask.ID, err)
+		}
 
 		// Apply pre-fetched dependencies
 		if deps, ok := allDeps[t.Id]; ok {

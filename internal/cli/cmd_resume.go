@@ -16,7 +16,6 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/progress"
@@ -283,7 +282,10 @@ Use --force to resume a task even if it appears to still be running.`,
 				// Check if task is blocked (phases succeeded but completion failed)
 				if errors.Is(err, executor.ErrTaskBlocked) {
 					// Reload task for summary (execution state is now in task.Execution)
-					t, _ = backend.LoadTask(id)
+					t, err = backend.LoadTask(id)
+					if err != nil {
+						return fmt.Errorf("reload task after blocked run: %w", err)
+					}
 					blockedCtx := buildBlockedContextProto(t, cfg, projectRoot)
 					disp.TaskBlockedWithContext(task.GetTotalTokensProto(t), taskElapsedProto(t), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
@@ -294,12 +296,15 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 
 			// Reload task for summary (execution state is in task.Execution)
-			t, _ = backend.LoadTask(id)
+			t, err = backend.LoadTask(id)
+			if err != nil {
+				return fmt.Errorf("reload task after resume: %w", err)
+			}
 
 			// Compute file change stats for completion summary
 			var fileStats *progress.FileChangeStats
 			if t.Branch != "" {
-				fileStats = getResumeFileChangeStats(ctx, projectRoot, t.Branch, cfg)
+				fileStats = getTaskFileChangeStats(ctx, projectRoot, t.Branch, cfg)
 			}
 
 			_ = result // Result contains run details but we use task.Execution for tokens
@@ -313,33 +318,3 @@ Use --force to resume a task even if it appears to still be running.`,
 	cmd.Flags().String("provider", "", "LLM provider override for this run (claude, codex, ollama)")
 	return cmd
 }
-
-// getResumeFileChangeStats computes diff statistics for the task branch vs target branch.
-// Returns nil if stats cannot be computed (not an error - just no stats to display).
-func getResumeFileChangeStats(ctx context.Context, projectRoot, taskBranch string, cfg *config.Config) *progress.FileChangeStats {
-	// Determine target branch from config
-	targetBranch := "main"
-	if cfg != nil && cfg.Completion.TargetBranch != "" {
-		targetBranch = cfg.Completion.TargetBranch
-	}
-
-	// Create diff service to compute stats
-	diffSvc := diff.NewService(projectRoot, nil)
-
-	// Resolve target branch (handles origin/main fallback)
-	resolvedBase := diffSvc.ResolveRef(ctx, targetBranch)
-
-	// Get diff stats between target branch and task branch
-	stats, err := diffSvc.GetStats(ctx, resolvedBase, taskBranch)
-	if err != nil {
-		// Diff stat computation is best-effort - don't fail task completion
-		return nil
-	}
-
-	return &progress.FileChangeStats{
-		FilesChanged: stats.FilesChanged,
-		Additions:    stats.Additions,
-		Deletions:    stats.Deletions,
-	}
-}
-

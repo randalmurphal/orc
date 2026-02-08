@@ -204,7 +204,12 @@ func (s *Service) GetFileList(ctx context.Context, base, head string) ([]FileDif
 	if err != nil && head != "" {
 		statusCmd = exec.CommandContext(ctx, "git", "diff", "--name-status", "-M", base, head)
 		statusCmd.Dir = s.repoPath
-		statusOutput, _ = statusCmd.Output()
+		statusOutput, err = statusCmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("git diff name-status: %w", err)
+		}
+	} else if err != nil {
+		return nil, fmt.Errorf("git diff name-status: %w", err)
 	}
 
 	statusMap := parseNameStatus(string(statusOutput))
@@ -256,7 +261,10 @@ func (s *Service) GetFileDiff(ctx context.Context, base, head, filePath string) 
 		return nil, fmt.Errorf("git diff file: %w", err)
 	}
 
-	diff := parseFileDiff(string(output), filePath)
+	diff, err := parseFileDiff(string(output), filePath)
+	if err != nil {
+		return nil, err
+	}
 	diff.Syntax = detectSyntax(filePath)
 
 	// Cache result if cache available (don't cache working tree diffs)

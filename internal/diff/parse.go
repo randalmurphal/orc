@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -23,13 +24,25 @@ func parseStats(output string) (*DiffStats, error) {
 	deleteRe := regexp.MustCompile(`(\d+)\s+deletions?\(-\)`)
 
 	if matches := filesRe.FindStringSubmatch(output); len(matches) > 1 {
-		stats.FilesChanged, _ = strconv.Atoi(matches[1])
+		parsed, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return nil, fmt.Errorf("parse files changed count %q: %w", matches[1], err)
+		}
+		stats.FilesChanged = parsed
 	}
 	if matches := insertRe.FindStringSubmatch(output); len(matches) > 1 {
-		stats.Additions, _ = strconv.Atoi(matches[1])
+		parsed, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return nil, fmt.Errorf("parse additions count %q: %w", matches[1], err)
+		}
+		stats.Additions = parsed
 	}
 	if matches := deleteRe.FindStringSubmatch(output); len(matches) > 1 {
-		stats.Deletions, _ = strconv.Atoi(matches[1])
+		parsed, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return nil, fmt.Errorf("parse deletions count %q: %w", matches[1], err)
+		}
+		stats.Deletions = parsed
 	}
 
 	return stats, nil
@@ -70,8 +83,15 @@ func parseNumstat(output string) ([]FileDiff, error) {
 
 		var additions, deletions int
 		if !binary {
-			additions, _ = strconv.Atoi(addStr)
-			deletions, _ = strconv.Atoi(delStr)
+			var err error
+			additions, err = strconv.Atoi(addStr)
+			if err != nil {
+				return nil, fmt.Errorf("parse additions for %s: %w", path, err)
+			}
+			deletions, err = strconv.Atoi(delStr)
+			if err != nil {
+				return nil, fmt.Errorf("parse deletions for %s: %w", path, err)
+			}
 		}
 
 		// Infer status from additions/deletions
@@ -120,7 +140,7 @@ func extractNewPath(path string) string {
 }
 
 // parseFileDiff parses unified diff output for a single file.
-func parseFileDiff(output, filePath string) *FileDiff {
+func parseFileDiff(output, filePath string) (*FileDiff, error) {
 	diff := &FileDiff{
 		Path:   filePath,
 		Status: "modified",
@@ -148,15 +168,27 @@ func parseFileDiff(output, filePath string) *FileDiff {
 				diff.Hunks = append(diff.Hunks, *currentHunk)
 			}
 
-			oldStart, _ := strconv.Atoi(matches[1])
+			oldStart, err := strconv.Atoi(matches[1])
+			if err != nil {
+				return nil, fmt.Errorf("parse old start line %q for %s: %w", matches[1], filePath, err)
+			}
 			oldLines := 1
 			if matches[2] != "" {
-				oldLines, _ = strconv.Atoi(matches[2])
+				oldLines, err = strconv.Atoi(matches[2])
+				if err != nil {
+					return nil, fmt.Errorf("parse old line count %q for %s: %w", matches[2], filePath, err)
+				}
 			}
-			newStart, _ := strconv.Atoi(matches[3])
+			newStart, err := strconv.Atoi(matches[3])
+			if err != nil {
+				return nil, fmt.Errorf("parse new start line %q for %s: %w", matches[3], filePath, err)
+			}
 			newLines := 1
 			if matches[4] != "" {
-				newLines, _ = strconv.Atoi(matches[4])
+				newLines, err = strconv.Atoi(matches[4])
+				if err != nil {
+					return nil, fmt.Errorf("parse new line count %q for %s: %w", matches[4], filePath, err)
+				}
 			}
 
 			currentHunk = &Hunk{
@@ -222,7 +254,7 @@ func parseFileDiff(output, filePath string) *FileDiff {
 		diff.Hunks = append(diff.Hunks, *currentHunk)
 	}
 
-	return diff
+	return diff, nil
 }
 
 // detectSyntax determines the syntax highlighting language from file extension.

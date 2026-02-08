@@ -772,7 +772,15 @@ func (we *WorkflowExecutor) resolveTargetBranch(t *orcv1.Task) string {
 	// Load initiative if task belongs to one
 	var init *initiative.Initiative
 	if initiativeID := task.GetInitiativeIDProto(t); initiativeID != "" {
-		init, _ = we.backend.LoadInitiative(initiativeID)
+		loadedInit, err := we.backend.LoadInitiative(initiativeID)
+		if err != nil {
+			we.logger.Warn("failed to load initiative for target branch resolution",
+				"task", t.Id,
+				"initiative_id", initiativeID,
+				"error", err)
+		} else {
+			init = loadedInit
+		}
 	}
 	return ResolveTargetBranchWithWorkflow(t, we.wf, init, we.orcConfig)
 }

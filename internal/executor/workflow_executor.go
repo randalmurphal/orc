@@ -136,29 +136,28 @@ type WorkflowExecutor struct {
 	logger        *slog.Logger
 	workingDir    string
 	claudePath    string
-	codexPath     string                            // Path to codex binary
-	tokenRates    map[string]map[string]TokenRate    // Provider token rates for cost estimation
+	codexPath     string                          // Path to codex binary
+	tokenRates    map[string]map[string]TokenRate // Provider token rates for cost estimation
 
 	// Optional components
 	gitOps             *git.Git
 	publisher          *events.PublishHelper
-	automationSvc      *automation.Service      // For automation event triggers
-	sessionBroadcaster *SessionBroadcaster      // For real-time session metrics
-	resourceTracker    *ResourceTracker         // For orphan process detection
-	hostingProvider    hosting.Provider         // Injected hosting provider (for testing)
+	automationSvc      *automation.Service // For automation event triggers
+	sessionBroadcaster *SessionBroadcaster // For real-time session metrics
+	resourceTracker    *ResourceTracker    // For orphan process detection
+	hostingProvider    hosting.Provider    // Injected hosting provider (for testing)
 
 	// Per-run state (set during Run)
-	worktreePath string            // Path to worktree (if created)
-	worktreeGit  *git.Git          // Git ops scoped to worktree
-	task         *orcv1.Task       // Task being executed (for task-based contexts)
+	worktreePath string             // Path to worktree (if created)
+	worktreeGit  *git.Git           // Git ops scoped to worktree
+	task         *orcv1.Task        // Task being executed (for task-based contexts)
 	wf           *workflow.Workflow // Workflow being executed (for lifecycle triggers in failRun)
 	heartbeat    *HeartbeatRunner
 	idleGuard    *IdleGuard
 	fileWatcher  *FileWatcher
-	isResuming      bool   // True if resuming a paused/failed/blocked task
-	skipGates       bool   // When true, bypass all gate evaluations
-	inParallelLevel bool   //nolint:unused // True when executing phases in parallel (prepared for parallel execution)
-	runProvider     string // Run-level provider override (from WorkflowRunOptions.Provider)
+	isResuming   bool   // True if resuming a paused/failed/blocked task
+	skipGates    bool   // When true, bypass all gate evaluations
+	runProvider  string // Run-level provider override (from WorkflowRunOptions.Provider)
 
 	// briefGenerator is lazily created for project brief generation across phases.
 	briefGenerator *brief.Generator
@@ -1274,7 +1273,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 							"phase", tmpl.ID)
 					}
 
-				// case workflow.GateActionContinue: default — no action needed
+					// case workflow.GateActionContinue: default — no action needed
 				}
 			}
 
@@ -1431,17 +1430,17 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 // WorkflowRunResult contains the result of a workflow execution.
 type WorkflowRunResult struct {
-	RunID                  string
-	WorkflowID             string
-	TaskID                 string
-	StartedAt              time.Time
-	CompletedAt            *time.Time
-	Success                bool
-	Error                  string
-	PhaseResults           []PhaseResult
-	TotalCostUSD           float64
-	TotalTokens            int
-	TotalCacheReadTokens   int
+	RunID                    string
+	WorkflowID               string
+	TaskID                   string
+	StartedAt                time.Time
+	CompletedAt              *time.Time
+	Success                  bool
+	Error                    string
+	PhaseResults             []PhaseResult
+	TotalCostUSD             float64
+	TotalTokens              int
+	TotalCacheReadTokens     int
 	TotalCacheCreationTokens int
 }
 
@@ -1623,4 +1622,3 @@ func extractPhaseOutput(output string) string {
 	// This handles qa_e2e_test (findings), qa_e2e_fix (fixes_applied), review, etc.
 	return output
 }
-
