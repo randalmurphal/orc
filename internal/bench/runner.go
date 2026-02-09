@@ -286,6 +286,11 @@ func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, tr
 	}
 
 	prePopulated := make(map[string]string)
+
+	// Skip docs phase — it generates changelogs/READMEs that are irrelevant
+	// for benchmarking and just waste tokens + time.
+	prePopulated["docs"] = ""
+
 	for i, phase := range phases {
 		phaseID := phase.PhaseTemplateID
 
