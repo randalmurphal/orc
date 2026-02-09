@@ -4,18 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/variable"
-	"github.com/randalmurphal/orc/templates"
+	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // Runner executes benchmark runs.
@@ -39,8 +37,15 @@ type Runner struct {
 	// Task filter: when non-empty, only run tasks with matching IDs.
 	taskFilter map[string]bool
 
-	// For testing: override executor creation
-	executorFactory func(cfg executor.TurnExecutorConfig) executor.TurnExecutor
+	// In-memory infrastructure for WorkflowExecutor (created once in NewRunner).
+	// The executor needs a backend + projectDB for workflow run records, but bench
+	// doesn't use that data — it lives in bench.db. So we give it an ephemeral
+	// in-memory store that gets discarded.
+	benchBackend *storage.DatabaseBackend
+	benchPDB     *db.ProjectDB
+
+	// For testing: override turn executor (injected into WorkflowExecutor).
+	turnExecutor executor.TurnExecutor
 }
 
 // RunnerOption configures a Runner.
@@ -83,27 +88,53 @@ func WithTaskFilter(taskIDs []string) RunnerOption {
 	}
 }
 
-// WithExecutorFactory overrides executor creation (for testing).
-func WithExecutorFactory(f func(cfg executor.TurnExecutorConfig) executor.TurnExecutor) RunnerOption {
-	return func(r *Runner) { r.executorFactory = f }
+// WithTurnExecutor overrides turn executor creation (for testing).
+// The executor is injected into WorkflowExecutor via WithWorkflowTurnExecutor.
+func WithTurnExecutor(te executor.TurnExecutor) RunnerOption {
+	return func(r *Runner) { r.turnExecutor = te }
 }
 
 // NewRunner creates a benchmark runner.
 func NewRunner(store *Store, globalDB *db.GlobalDB, workspace *Workspace, opts ...RunnerOption) *Runner {
 	r := &Runner{
-		store:     store,
-		globalDB:  globalDB,
-		workspace: workspace,
-		evaluator: NewEvaluator(),
-		logger:    slog.Default(),
+		store:      store,
+		globalDB:   globalDB,
+		workspace:  workspace,
+		evaluator:  NewEvaluator(),
+		logger:     slog.Default(),
 		claudePath: "claude",
 		codexPath:  "codex",
-		executorFactory: executor.NewTurnExecutor,
 	}
 	for _, opt := range opts {
 		opt(r)
 	}
+
+	// Create in-memory infrastructure for WorkflowExecutor.
+	// This is cheap (SQLite in-memory) and reusable across runs.
+	backend, pdb, err := initBenchInfra()
+	if err != nil {
+		r.logger.Error("failed to create bench infrastructure", "error", err)
+		// Non-fatal: RunSingle will fail when it tries to use nil backend
+	} else {
+		r.benchBackend = backend
+		r.benchPDB = pdb
+	}
+
 	return r
+}
+
+// initBenchInfra creates an in-memory storage backend and projectDB for
+// WorkflowExecutor. The executor needs these for workflow run records,
+// but bench doesn't consume that data — it's discarded.
+// Seeds phase templates so FK constraints on workflow_run_phases work.
+func initBenchInfra() (*storage.DatabaseBackend, *db.ProjectDB, error) {
+	// FK constraints disabled — bench discards executor run data anyway.
+	// Avoids needing to seed every referenced table (workflows, tasks, phase_templates).
+	backend, err := storage.NewInMemoryBackendNoFK()
+	if err != nil {
+		return nil, nil, fmt.Errorf("create in-memory backend: %w", err)
+	}
+	return backend, backend.DB(), nil
 }
 
 // RunBaseline executes the baseline variant against all applicable tasks.
@@ -136,7 +167,9 @@ func (r *Runner) RunBaseline(ctx context.Context, trials int) error {
 }
 
 // RunVariant executes a specific variant against all applicable tasks.
-// Uses frozen outputs from the baseline for phases not being tested.
+// Uses cascade mode: data-only phases (spec, tdd, breakdown) before the first
+// overridden phase are frozen from baseline. Everything from the override onwards
+// runs live — the variant's model change cascades through downstream phases.
 func (r *Runner) RunVariant(ctx context.Context, variantID string, trials int) error {
 	variant, err := r.store.GetVariant(ctx, variantID)
 	if err != nil {
@@ -164,6 +197,10 @@ func (r *Runner) RunVariant(ctx context.Context, variantID string, trials int) e
 
 // RunSingle executes one variant against one task for one trial.
 func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, trial int) error {
+	if r.benchBackend == nil {
+		return fmt.Errorf("bench infrastructure not initialized")
+	}
+
 	// Apply tier-based timeout so Codex/Claude CLI don't hit their short defaults
 	if timeout, ok := tierTimeout[task.Tier]; ok {
 		var cancel context.CancelFunc
@@ -222,73 +259,91 @@ func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, tr
 		}
 	}
 
-	// Load workflow phases from GlobalDB — matched to task tier
+	// Load workflow phases from GlobalDB for cascade decisions
 	workflowID := r.resolveWorkflow(task, variant)
-	phases, err := r.loadWorkflowPhases(workflowID)
+	phases, err := r.globalDB.GetWorkflowPhases(workflowID)
 	if err != nil {
 		return r.failRun(ctx, run, fmt.Errorf("load workflow %s phases: %w", workflowID, err))
 	}
 	r.logger.Debug("resolved workflow", "task", task.ID, "tier", task.Tier, "workflow", workflowID)
 
-	// Execute each phase
-	accumulatedVars := r.buildBaseVars(project, task, runID, workDir)
+	// --- Cascade mode: compute which phases get frozen outputs ---
+	//
+	// Find the first overridden phase. Data-only phases before this point
+	// get frozen from baseline (consistent inputs). Everything from the
+	// override onwards runs live — the model change cascades through all
+	// downstream phases, including implement, review, and docs.
+	firstOverrideIdx := len(phases)
+	if !variant.IsBaseline {
+		for i, p := range phases {
+			if _, ok := variant.PhaseOverrides[p.PhaseTemplateID]; ok {
+				firstOverrideIdx = i
+				break
+			}
+		}
+	}
 
-	for _, phase := range phases {
+	prePopulated := make(map[string]string)
+	for i, phase := range phases {
 		phaseID := phase.PhaseTemplateID
 
-		// Check if this phase has an override (should be executed, not frozen)
+		// Freeze decision — ALL conditions must hold:
+		// 1. Not baseline (baseline always runs everything live)
+		// 2. Not overridden by this variant
+		// 3. Frozen output exists from baseline
+		// 4. Phase is data-only (produces text artifacts, not filesystem changes)
+		// 5. Phase appears BEFORE the first override (cascade: live from override onwards)
 		_, hasOverride := variant.PhaseOverrides[phaseID]
 		hasFrozen := frozenOutputs[phaseID] != nil
+		shouldFreeze := !variant.IsBaseline && !hasOverride && hasFrozen &&
+			phasesAllowFreezing[phaseID] && i < firstOverrideIdx
 
-		if !variant.IsBaseline && !hasOverride && hasFrozen {
-			// Replay frozen output
-			fo := frozenOutputs[phaseID]
-			BuildVarsFromFrozen(accumulatedVars, FrozenOutputMap{phaseID: fo})
-
-			if err := r.store.SavePhaseResult(ctx, &PhaseResult{
-				RunID:          runID,
-				PhaseID:        phaseID,
-				WasFrozen:      true,
-				FrozenOutputID: fo.ID,
-				OutputContent:  fo.OutputContent,
-			}); err != nil {
-				return r.failRun(ctx, run, fmt.Errorf("save frozen phase result %s: %w", phaseID, err))
-			}
-
-			r.logger.Debug("replayed frozen output", "phase", phaseID, "var", fo.OutputVarName)
-			continue
+		if shouldFreeze {
+			prePopulated[phaseID] = frozenOutputs[phaseID].OutputContent
+			r.logger.Debug("will freeze phase", "phase", phaseID)
 		}
+	}
 
-		// Execute this phase for real
-		phaseResult, err := r.executePhase(ctx, runID, phaseID, phase, variant, project, task, workDir, accumulatedVars)
-		if err != nil {
-			r.logger.Error("phase execution failed", "phase", phaseID, "error", err)
-			if saveErr := r.store.SavePhaseResult(ctx, &PhaseResult{
-				RunID:   runID,
-				PhaseID: phaseID,
-			}); saveErr != nil {
-				r.logger.Error("save error phase result failed", "error", saveErr)
-			}
-			continue
-		}
+	// --- Build executor inputs ---
 
-		// Save phase result
-		if err := r.store.SavePhaseResult(ctx, phaseResult); err != nil {
-			r.logger.Error("save phase result failed", "error", err)
-		}
+	phaseOverrides := r.buildPhaseOverrides(variant, phases)
+	taskVars := r.buildTaskVariables(task, project, runID, workDir)
+	benchCfg := r.benchConfig()
 
-		// Save as frozen output for future variant runs
-		if phaseResult.OutputContent != "" {
-			outputVarName := r.resolveOutputVarName(phase)
-			if err := SaveFrozenFromResult(ctx, r.store, task.ID, phaseID, variant.ID, outputVarName, phaseResult.OutputContent, trial); err != nil {
-				r.logger.Error("save frozen output failed", "error", err)
-			}
+	// Build executor options
+	execOpts := []executor.WorkflowExecutorOption{
+		executor.WithPrePopulatedPhaseOutputs(prePopulated),
+		executor.WithPhaseModelOverrides(phaseOverrides),
+		executor.WithMaxLoopOverride(1),
+		executor.WithMaxTurnsOverride(0), // 0 = unlimited turns
+		executor.WithSkipGates(true),
+		executor.WithWorkflowClaudePath(r.claudePath),
+		executor.WithWorkflowCodexPath(r.codexPath),
+		executor.WithWorkflowLogger(r.logger),
+	}
+	if r.turnExecutor != nil {
+		execOpts = append(execOpts, executor.WithWorkflowTurnExecutor(r.turnExecutor))
+	}
 
-			// Add to accumulated vars for next phases
-			if outputVarName != "" {
-				accumulatedVars[outputVarName] = phaseResult.OutputContent
-			}
-		}
+	we := executor.NewWorkflowExecutor(
+		r.benchBackend, r.benchPDB, r.globalDB, benchCfg, workDir, execOpts...,
+	)
+
+	// --- Execute workflow ---
+
+	result, execErr := we.Run(ctx, workflowID, executor.WorkflowRunOptions{
+		ContextType: executor.ContextStandalone,
+		Variables:   taskVars,
+	})
+
+	// Save per-phase results to bench store (even on partial failure).
+	// The executor accumulates PhaseResults for all phases that ran.
+	if result != nil {
+		r.savePhaseResults(ctx, runID, result, variant, frozenOutputs, trial, task.ID)
+	}
+
+	if execErr != nil {
+		return r.failRun(ctx, run, fmt.Errorf("workflow execution: %w", execErr))
 	}
 
 	// Capture model's diff before evaluation (evaluation may modify test files)
@@ -330,168 +385,12 @@ func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, tr
 	return nil
 }
 
-// executePhase runs a single phase with the appropriate model configuration.
-func (r *Runner) executePhase(
-	ctx context.Context,
-	runID, phaseID string,
-	phase *db.WorkflowPhase,
-	variant *Variant,
-	project *Project,
-	task *Task,
-	workDir string,
-	vars variable.VariableSet,
-) (*PhaseResult, error) {
-	start := time.Now()
-
-	// Load phase template
-	tmpl, err := r.globalDB.GetPhaseTemplate(phaseID)
-	if err != nil {
-		return nil, fmt.Errorf("get phase template %s: %w", phaseID, err)
-	}
-
-	// Resolve model/provider for this phase
-	provider, model, reasoningEffort, thinking := r.resolvePhaseConfig(phaseID, variant, phase)
-
-	// Enrich variables with phase-specific context (e.g. REVIEW_ROUND)
-	enrichPhaseVars(vars, phaseID)
-
-	// Load and render prompt
-	prompt, err := r.loadAndRenderPrompt(phaseID, tmpl, vars)
-	if err != nil {
-		return nil, fmt.Errorf("render prompt for %s: %w", phaseID, err)
-	}
-
-	// Create executor
-	cfg := executor.TurnExecutorConfig{
-		Provider:        provider,
-		Model:           model,
-		WorkingDir:      workDir,
-		PhaseID:         phaseID,
-		TaskID:          task.ID,
-		RunID:           runID,
-		MaxTurns:        50, // Generous limit for benchmarks
-		ClaudePath:      r.claudePath,
-		CodexPath:       r.codexPath,
-		ReasoningEffort: reasoningEffort,
-		ProducesArtifact: tmpl.ProducesArtifact,
-		BypassApprovalsAndSandbox: true,
-	}
-
-	turnExec := r.executorFactory(cfg)
-
-	r.logger.Info("executing phase", "phase", phaseID, "provider", provider, "model", model)
-
-	// Execute
-	var result *executor.TurnResult
-	if tmpl.ProducesArtifact {
-		result, err = turnExec.ExecuteTurn(ctx, prompt)
-	} else {
-		result, err = turnExec.ExecuteTurnWithoutSchema(ctx, prompt)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("execute phase %s: %w", phaseID, err)
-	}
-
-	duration := time.Since(start)
-
-	// Build phase result
-	pr := &PhaseResult{
-		RunID:           runID,
-		PhaseID:         phaseID,
-		Provider:        provider,
-		Model:           model,
-		ReasoningEffort: reasoningEffort,
-		ThinkingEnabled: thinking,
-		DurationMs:      int(duration.Milliseconds()),
-		OutputContent:   result.Content,
-	}
-
-	// Token usage
-	if result.Usage != nil {
-		pr.InputTokens = int(result.Usage.InputTokens)
-		pr.OutputTokens = int(result.Usage.OutputTokens)
-		pr.CacheReadTokens = int(result.Usage.CacheReadInputTokens)
-		pr.CacheCreationTokens = int(result.Usage.CacheCreationInputTokens)
-	}
-	pr.CostUSD = result.CostUSD
-
-	return pr, nil
-}
-
-// resolvePhaseConfig determines the model configuration for a phase.
-// Priority: runner model override > variant override > workflow default (opus + thinking)
-func (r *Runner) resolvePhaseConfig(phaseID string, variant *Variant, phase *db.WorkflowPhase) (provider, model, reasoningEffort string, thinking bool) {
-	// Global override takes precedence over everything
-	if r.overrideProvider != "" && r.overrideModel != "" {
-		return r.overrideProvider, r.overrideModel, r.overrideReasoningEffort, false
-	}
-
-	// Defaults: opus with thinking
-	provider = "claude"
-	model = "opus"
-	thinking = true
-
-	// Check variant override
-	if override, ok := variant.PhaseOverrides[phaseID]; ok {
-		if override.Provider != "" {
-			provider = override.Provider
-		}
-		if override.Model != "" {
-			model = override.Model
-		}
-		if override.ReasoningEffort != "" {
-			reasoningEffort = override.ReasoningEffort
-		}
-		if override.Thinking != nil {
-			thinking = *override.Thinking
-		}
-	}
-
-	return provider, model, reasoningEffort, thinking
-}
-
-// loadAndRenderPrompt loads the phase prompt template and renders it with variables.
-func (r *Runner) loadAndRenderPrompt(phaseID string, tmpl *db.PhaseTemplate, vars variable.VariableSet) (string, error) {
-	var promptContent string
-
-	switch tmpl.PromptSource {
-	case "embedded", "":
-		// Load from embedded templates
-		data, err := templates.Prompts.ReadFile(fmt.Sprintf("prompts/%s.md", phaseID))
-		if err != nil {
-			return "", fmt.Errorf("read embedded prompt %s: %w", phaseID, err)
-		}
-		promptContent = string(data)
-
-	case "db":
-		// Template content is stored in the database
-		promptContent = tmpl.PromptContent
-
-	case "file":
-		// Load from file path
-		data, err := os.ReadFile(tmpl.PromptPath)
-		if err != nil {
-			return "", fmt.Errorf("read prompt file %s: %w", tmpl.PromptPath, err)
-		}
-		promptContent = string(data)
-
-	default:
-		return "", fmt.Errorf("unknown prompt source %q for phase %s", tmpl.PromptSource, phaseID)
-	}
-
-	// Render variables
-	rendered := variable.RenderTemplate(promptContent, vars)
-	return rendered, nil
-}
-
-// buildBaseVars creates the initial variable set for a benchmark task.
-// Provides all variables that prompt templates reference, so multi-phase
-// workflows (small/medium/large) render correctly.
-func (r *Runner) buildBaseVars(project *Project, task *Task, runID, workDir string) variable.VariableSet {
-	// Map tier to weight string (templates use WEIGHT for complexity hints)
+// buildTaskVariables creates a map of task metadata to inject as variable
+// overrides in ContextStandalone mode. These flow through opts.Variables →
+// rctx.Environment → addBuiltinVariables override (resolver.go).
+func (r *Runner) buildTaskVariables(task *Task, project *Project, runID, workDir string) map[string]string {
 	weight := string(task.Tier)
-
-	vars := variable.VariableSet{
+	return map[string]string{
 		// Task metadata
 		"TASK_ID":          task.ID,
 		"TASK_TITLE":       task.Title,
@@ -501,7 +400,7 @@ func (r *Runner) buildBaseVars(project *Project, task *Task, runID, workDir stri
 		"WEIGHT":           weight,
 
 		// Project / build
-		"LANGUAGE":     project.Language,
+		"LANGUAGE":      project.Language,
 		"TEST_COMMAND":  project.TestCmd,
 		"BUILD_COMMAND": project.BuildCmd,
 		"LINT_COMMAND":  project.LintCmd,
@@ -514,51 +413,133 @@ func (r *Runner) buildBaseVars(project *Project, task *Task, runID, workDir stri
 		"COMMIT_AUTHOR": "Benchmark Runner <bench@orc>",
 
 		// These are empty for bench but templates reference them
-		"HAS_FRONTEND":        "false",
-		"HAS_TESTS":           "true",
-		"FRAMEWORKS":          "",
-		"INITIATIVE_CONTEXT":  "",
-		"INITIATIVE_ID":       "",
-		"INITIATIVE_NOTES":    "",
+		"HAS_FRONTEND":         "false",
+		"HAS_TESTS":            "true",
+		"FRAMEWORKS":           "",
+		"INITIATIVE_CONTEXT":   "",
+		"INITIATIVE_ID":        "",
+		"INITIATIVE_NOTES":     "",
 		"CONSTITUTION_CONTENT": "",
-		"COVERAGE_THRESHOLD":  "",
-
-		// Review/retry — populated per-phase by enrichPhaseVars
-		"REVIEW_ROUND":     "",
-		"REVIEW_FINDINGS":  "",
-		"PREVIOUS_FINDINGS": "",
-		"RETRY_ATTEMPT":    "",
-		"RETRY_FROM_PHASE": "",
-		"RETRY_REASON":     "",
-	}
-	return vars
-}
-
-// enrichPhaseVars adds phase-specific variables before rendering.
-func enrichPhaseVars(vars variable.VariableSet, phaseID string) {
-	switch phaseID {
-	case "review":
-		// First (and only) review round in bench — no multi-round review
-		vars["REVIEW_ROUND"] = "1"
+		"COVERAGE_THRESHOLD":   "",
 	}
 }
 
-// loadWorkflowPhases loads the ordered phases for a workflow from GlobalDB.
-func (r *Runner) loadWorkflowPhases(workflowID string) ([]*db.WorkflowPhase, error) {
-	wf, err := r.globalDB.GetWorkflow(workflowID)
-	if err != nil {
-		return nil, fmt.Errorf("get workflow %s: %w", workflowID, err)
-	}
-	if wf == nil {
-		return nil, fmt.Errorf("workflow %s not found", workflowID)
+// buildPhaseOverrides converts variant config + global model override into
+// executor PhaseModelOverride maps.
+// Priority: global model override > variant phase override > default (opus + thinking).
+func (r *Runner) buildPhaseOverrides(variant *Variant, phases []*db.WorkflowPhase) map[string]executor.PhaseModelOverride {
+	overrides := make(map[string]executor.PhaseModelOverride, len(phases))
+	thinkingTrue := true
+
+	for _, phase := range phases {
+		phaseID := phase.PhaseTemplateID
+
+		// Global override takes precedence over everything (smoke testing)
+		if r.overrideProvider != "" && r.overrideModel != "" {
+			overrides[phaseID] = executor.PhaseModelOverride{
+				Provider:        r.overrideProvider,
+				Model:           r.overrideModel,
+				ReasoningEffort: r.overrideReasoningEffort,
+				Thinking:        nil, // Don't force thinking for global override
+			}
+			continue
+		}
+
+		// Start with defaults: opus + thinking
+		override := executor.PhaseModelOverride{
+			Provider: "claude",
+			Model:    "opus",
+			Thinking: &thinkingTrue,
+		}
+
+		// Apply variant-specific overrides
+		if vo, ok := variant.PhaseOverrides[phaseID]; ok {
+			if vo.Provider != "" {
+				override.Provider = vo.Provider
+			}
+			if vo.Model != "" {
+				override.Model = vo.Model
+			}
+			if vo.ReasoningEffort != "" {
+				override.ReasoningEffort = vo.ReasoningEffort
+			}
+			if vo.Thinking != nil {
+				override.Thinking = vo.Thinking
+			}
+		}
+
+		overrides[phaseID] = override
 	}
 
-	phases, err := r.globalDB.GetWorkflowPhases(workflowID)
-	if err != nil {
-		return nil, fmt.Errorf("get phases for workflow %s: %w", workflowID, err)
-	}
+	return overrides
+}
 
-	return phases, nil
+// benchConfig creates a minimal config.Config for bench execution.
+// No worktree management, no PR creation, no completion actions.
+func (r *Runner) benchConfig() *config.Config {
+	return &config.Config{
+		Worktree: config.WorktreeConfig{
+			Enabled: false,
+		},
+		Completion: config.CompletionConfig{
+			Action: "none",
+		},
+	}
+}
+
+// savePhaseResults maps executor WorkflowRunResult to bench PhaseResults and
+// saves them to bench.db. Also saves frozen outputs for future variant runs.
+func (r *Runner) savePhaseResults(
+	_ context.Context,
+	runID string,
+	result *executor.WorkflowRunResult,
+	variant *Variant,
+	frozenOutputs FrozenOutputMap,
+	trial int,
+	taskID string,
+) {
+	// Use detached context — the caller's may be canceled (timeout/interrupt),
+	// but phase results should still be persisted since the expensive work is done.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	for _, pr := range result.PhaseResults {
+		benchPR := &PhaseResult{
+			RunID:   runID,
+			PhaseID: pr.PhaseID,
+		}
+
+		if pr.WasPrePopulated {
+			// This phase was frozen from baseline
+			benchPR.WasFrozen = true
+			benchPR.OutputContent = pr.Content
+			if fo, ok := frozenOutputs[pr.PhaseID]; ok {
+				benchPR.FrozenOutputID = fo.ID
+			}
+		} else {
+			// This phase ran live — capture full metrics
+			benchPR.Provider = pr.Provider
+			benchPR.Model = pr.Model
+			benchPR.InputTokens = pr.InputTokens
+			benchPR.OutputTokens = pr.OutputTokens
+			benchPR.CacheReadTokens = pr.CacheReadTokens
+			benchPR.CacheCreationTokens = pr.CacheCreationTokens
+			benchPR.CostUSD = pr.CostUSD
+			benchPR.DurationMs = int(pr.DurationMS)
+			benchPR.OutputContent = pr.Content
+		}
+
+		if err := r.store.SavePhaseResult(ctx, benchPR); err != nil {
+			r.logger.Error("save phase result failed", "phase", pr.PhaseID, "error", err)
+		}
+
+		// Save as frozen output for future variant runs (non-frozen phases with content)
+		if !pr.WasPrePopulated && pr.Content != "" {
+			if err := SaveFrozenFromResult(ctx, r.store, taskID, pr.PhaseID, variant.ID, pr.OutputVarName, pr.Content, trial); err != nil {
+				r.logger.Error("save frozen output failed", "phase", pr.PhaseID, "error", err)
+			}
+		}
+	}
 }
 
 // tierToWorkflow maps benchmark task tiers to orc workflow IDs.
@@ -571,11 +552,41 @@ var tierToWorkflow = map[Tier]string{
 	TierLarge:   "implement-large",
 }
 
+// PhaseApplicableTiers maps each phase to the tiers whose workflows contain it.
+// Used by TasksForVariant to only run variants against tasks where the
+// overridden phase actually exists — no point running a spec-override variant
+// against trivial tasks that have no spec phase.
+var PhaseApplicableTiers = map[string][]Tier{
+	"implement":     {TierTrivial, TierSmall, TierMedium, TierLarge},
+	"tiny_spec":     {TierSmall},
+	"spec":          {TierMedium, TierLarge},
+	"tdd_write":     {TierMedium, TierLarge},
+	"tdd_integrate": {TierMedium, TierLarge},
+	"breakdown":     {TierLarge},
+	"review":        {TierSmall, TierMedium, TierLarge},
+	"docs":          {TierSmall, TierMedium, TierLarge},
+}
+
+// phasesAllowFreezing lists phases whose outputs are pure data artifacts
+// (text consumed by template variables). These CAN be frozen from baseline
+// when not overridden — they provide consistent inputs to downstream phases.
+//
+// Phases NOT in this set produce filesystem changes or evaluate state and
+// ALWAYS run live, even when not overridden by the variant. This ensures
+// every variant run produces actual code changes for evaluation.
+var phasesAllowFreezing = map[string]bool{
+	"spec":          true,
+	"tiny_spec":     true,
+	"tdd_write":     true,
+	"tdd_integrate": true,
+	"breakdown":     true,
+}
+
 var tierTimeout = map[Tier]time.Duration{
-	TierTrivial: 40 * time.Minute,
-	TierSmall:   45 * time.Minute,
-	TierMedium:  60 * time.Minute,
-	TierLarge:   90 * time.Minute,
+	TierTrivial: 45 * time.Minute,
+	TierSmall:   90 * time.Minute,
+	TierMedium:  105 * time.Minute,
+	TierLarge:   120 * time.Minute,
 }
 
 // resolveWorkflow picks the workflow based on task tier, falling back
@@ -585,19 +596,6 @@ func (r *Runner) resolveWorkflow(task *Task, variant *Variant) string {
 		return wf
 	}
 	return variant.BaseWorkflow
-}
-
-// resolveOutputVarName determines the variable name for a phase's output.
-func (r *Runner) resolveOutputVarName(phase *db.WorkflowPhase) string {
-	// Try to get from phase template
-	tmpl, err := r.globalDB.GetPhaseTemplate(phase.PhaseTemplateID)
-	if err != nil {
-		return "OUTPUT_" + strings.ToUpper(strings.ReplaceAll(phase.PhaseTemplateID, "-", "_"))
-	}
-	if tmpl.OutputVarName != "" {
-		return tmpl.OutputVarName
-	}
-	return "OUTPUT_" + strings.ToUpper(strings.ReplaceAll(phase.PhaseTemplateID, "-", "_"))
 }
 
 // filterTasks applies the task filter if set.
@@ -615,11 +613,15 @@ func (r *Runner) filterTasks(tasks []*Task) []*Task {
 }
 
 // failRun marks a run as errored.
-func (r *Runner) failRun(ctx context.Context, run *Run, err error) error {
+func (r *Runner) failRun(_ context.Context, run *Run, err error) error {
 	run.Status = RunStatusError
 	run.ErrorMessage = err.Error()
 	run.CompletedAt = time.Now()
-	if saveErr := r.store.SaveRun(ctx, run); saveErr != nil {
+	// Use detached context — the caller's context may be canceled (timeout/interrupt),
+	// but we still want to persist the error status.
+	saveCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if saveErr := r.store.SaveRun(saveCtx, run); saveErr != nil {
 		r.logger.Error("failed to save error status for run", "run", run.ID, "error", saveErr)
 	}
 	return err
@@ -628,12 +630,18 @@ func (r *Runner) failRun(ctx context.Context, run *Run, err error) error {
 // captureModelDiff returns the git diff of all changes the model made
 // relative to the pre-fix commit. Called before evaluation (which modifies
 // test files) so we get the model's pure output.
+//
+// Uses --no-binary to exclude binary artifacts (compiled objects, images, etc.)
+// that models sometimes generate as build side effects. Binary diffs break
+// git apply in downstream consumers (judge workspace setup) and aren't useful
+// for code review.
 func captureModelDiff(workDir, preFixCommit string) string {
-	cmd := exec.Command("git", "diff", preFixCommit)
+	cmd := exec.Command("git", "diff", "--no-binary", preFixCommit)
 	cmd.Dir = workDir
 	out, err := cmd.Output()
 	if err != nil {
-		return fmt.Sprintf("error capturing diff: %v", err)
+		slog.Warn("failed to capture model diff", "error", err, "workDir", workDir)
+		return "" // Empty diff — judge will skip this run
 	}
 	return string(out)
 }

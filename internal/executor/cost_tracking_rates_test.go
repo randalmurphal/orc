@@ -16,10 +16,10 @@ func TestEstimateTokenCostUSD_KnownProviders(t *testing.T) {
 		output   int64
 		want     float64
 	}{
-		{"claude opus 1M each", "claude", "opus", 1_000_000, 1_000_000, 90.0},
+		{"claude opus 1M each", "claude", "opus", 1_000_000, 1_000_000, 30.0},
 		{"claude sonnet 1M each", "claude", "sonnet", 1_000_000, 1_000_000, 18.0},
-		{"claude haiku 1M each", "claude", "haiku", 1_000_000, 1_000_000, 1.5},
-		{"codex gpt-5 1M each", "codex", "gpt-5", 1_000_000, 1_000_000, 10.0},
+		{"claude haiku 1M each", "claude", "haiku", 1_000_000, 1_000_000, 6.0},
+		{"codex gpt-5 1M each", "codex", "gpt-5", 1_000_000, 1_000_000, 15.75},
 		{"codex gpt-4.1 1M each", "codex", "gpt-4.1", 1_000_000, 1_000_000, 10.0},
 	}
 
@@ -51,7 +51,7 @@ func TestEstimateTokenCostUSD_UnknownModelReturnsZero(t *testing.T) {
 func TestEstimateTokenCostUSD_PrefixModelMatch(t *testing.T) {
 	// "gpt-5.3-codex" should match the "gpt-5" rate entry via prefix matching
 	got := EstimateTokenCostUSD("codex", "gpt-5.3-codex", 1_000_000, 1_000_000, 0, 0)
-	want := 10.0 // gpt-5 rates: 2.0 input + 8.0 output
+	want := 15.75 // gpt-5 rates: 1.75 input + 14.0 output
 	if math.Abs(got-want) > 1e-9 {
 		t.Fatalf("prefix match gpt-5.3-codex = %f, want %f", got, want)
 	}
@@ -86,9 +86,9 @@ func TestEstimateTokenCostUSD_LocalProvidersAlwaysFree(t *testing.T) {
 }
 
 func TestEstimateTokenCostUSD_CacheTokens(t *testing.T) {
-	// Claude opus: cache_read=1.5, cache_write=18.75 per 1M
+	// Claude opus: cache_read=0.5, cache_write=6.25 per 1M
 	got := EstimateTokenCostUSD("claude", "opus", 0, 0, 1_000_000, 1_000_000)
-	want := 1.5 + 18.75
+	want := 0.5 + 6.25
 	if math.Abs(got-want) > 1e-9 {
 		t.Fatalf("cache token cost = %f, want %f", got, want)
 	}
@@ -129,7 +129,7 @@ func TestEstimateTokenCostUSD_LargeTokenCounts(t *testing.T) {
 func TestProviderRatesForConfig_NilConfig(t *testing.T) {
 	merged := ProviderRatesForConfig(nil)
 	got := EstimateTokenCostUSDWithRates(merged, "codex", "gpt-5", 1_000_000, 1_000_000, 0, 0)
-	want := 10.0
+	want := 15.75
 	if math.Abs(got-want) > 1e-9 {
 		t.Fatalf("nil config cost = %f, want %f", got, want)
 	}
@@ -165,8 +165,8 @@ func TestProviderRatesForConfig_MergesOverrides(t *testing.T) {
 
 	// Default table must remain unchanged after merge
 	defaultCost := EstimateTokenCostUSD("codex", "gpt-5", 1_000_000, 1_000_000, 0, 0)
-	if math.Abs(defaultCost-10.0) > 1e-9 {
-		t.Fatalf("default cost table mutated: got %f, want 10.0", defaultCost)
+	if math.Abs(defaultCost-15.75) > 1e-9 {
+		t.Fatalf("default cost table mutated: got %f, want 15.75", defaultCost)
 	}
 }
 
@@ -185,7 +185,7 @@ func TestProviderRatesForConfig_PreservesNonOverriddenDefaults(t *testing.T) {
 
 	// Claude rates should still be present and unmodified
 	claudeCost := EstimateTokenCostUSDWithRates(merged, "claude", "opus", 1_000_000, 1_000_000, 0, 0)
-	want := 90.0 // 15 + 75
+	want := 30.0 // 5 + 25
 	if math.Abs(claudeCost-want) > 1e-9 {
 		t.Fatalf("claude rates changed after codex override: got %f, want %f", claudeCost, want)
 	}

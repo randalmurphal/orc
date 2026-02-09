@@ -12,7 +12,8 @@ import (
 
 // SQLiteDriver implements the Driver interface for SQLite.
 type SQLiteDriver struct {
-	db *sql.DB
+	db   *sql.DB
+	noFK bool // When true, foreign key constraints are disabled
 }
 
 // NewSQLite creates a new SQLite driver.
@@ -28,18 +29,40 @@ func (d *SQLiteDriver) Open(dsn string) error {
 	}
 
 	// Enable foreign keys, WAL mode, and busy timeout for concurrent access
-	if _, err := db.Exec(`
+	pragmas := `
 		PRAGMA foreign_keys = ON;
 		PRAGMA journal_mode = WAL;
 		PRAGMA synchronous = NORMAL;
 		PRAGMA busy_timeout = 5000;
-	`); err != nil {
+	`
+	if d.noFK {
+		pragmas = `
+			PRAGMA foreign_keys = OFF;
+			PRAGMA journal_mode = WAL;
+			PRAGMA synchronous = NORMAL;
+			PRAGMA busy_timeout = 5000;
+		`
+	}
+	// For NoFK mode, force a single connection so every operation reuses the
+	// connection where FK=OFF was set. Without this, the connection pool may
+	// hand out new connections that don't have the pragma applied.
+	if d.noFK {
+		db.SetMaxOpenConns(1)
+	}
+
+	if _, err := db.Exec(pragmas); err != nil {
 		_ = db.Close()
 		return fmt.Errorf("set pragmas: %w", err)
 	}
 
 	d.db = db
 	return nil
+}
+
+// NewSQLiteNoFK creates a SQLite driver with foreign key constraints disabled.
+// Used for scratch databases where FK violations don't matter.
+func NewSQLiteNoFK() *SQLiteDriver {
+	return &SQLiteDriver{noFK: true}
 }
 
 // Close closes the database connection.
@@ -194,10 +217,12 @@ func (d *SQLiteDriver) applyMigrationWithFKDisabled(ctx context.Context, name, c
 		return fmt.Errorf("disable foreign keys for %s: %w", name, err)
 	}
 
-	// Ensure we re-enable FKs even if migration fails
-	defer func() {
-		_, _ = d.db.ExecContext(ctx, "PRAGMA foreign_keys = ON")
-	}()
+	// Re-enable FKs after migration (unless permanently disabled)
+	if !d.noFK {
+		defer func() {
+			_, _ = d.db.ExecContext(ctx, "PRAGMA foreign_keys = ON")
+		}()
+	}
 
 	// Run migration in transaction for atomicity
 	tx, err := d.db.BeginTx(ctx, nil)
@@ -219,7 +244,10 @@ func (d *SQLiteDriver) applyMigrationWithFKDisabled(ctx context.Context, name, c
 		return fmt.Errorf("commit migration %s: %w", name, err)
 	}
 
-	// Re-enable foreign keys and verify integrity
+	// Re-enable foreign keys and verify integrity (skip if FK permanently disabled)
+	if d.noFK {
+		return nil
+	}
 	if _, err := d.db.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
 		return fmt.Errorf("re-enable foreign keys after %s: %w", name, err)
 	}

@@ -411,6 +411,9 @@ func (we *WorkflowExecutor) executePhase(
 	result.CacheCreationTokens = execResult.CacheCreationTokens
 	result.CacheReadTokens = execResult.CacheReadTokens
 	result.CostUSD = execResult.CostUSD
+	result.Provider = provider
+	result.Model = model
+	result.OutputVarName = tmpl.OutputVarName
 
 	// Estimate cost from token rates when provider doesn't return cost natively
 	if result.CostUSD == 0 && we.tokenRates != nil && (result.InputTokens+result.OutputTokens) > 0 {

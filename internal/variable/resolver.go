@@ -424,6 +424,15 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	for varName, content := range rctx.PhaseOutputVars {
 		vars[varName] = content
 	}
+
+	// Allow environment overrides of builtins (e.g., bench injecting TASK_ID
+	// for ContextStandalone mode). rctx.Environment is nil by default,
+	// so this is a no-op for all existing callers.
+	for k, v := range rctx.Environment {
+		if v != "" {
+			vars[k] = v
+		}
+	}
 }
 
 // formatInitiativeContext builds a complete initiative context section for templates.

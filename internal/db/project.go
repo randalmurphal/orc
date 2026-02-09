@@ -158,6 +158,22 @@ func OpenProjectInMemory() (*ProjectDB, error) {
 	return &ProjectDB{DB: db}, nil
 }
 
+// OpenProjectInMemoryNoFK opens an in-memory project database with foreign key
+// constraints disabled. Used by bench for scratch executor bookkeeping.
+func OpenProjectInMemoryNoFK() (*ProjectDB, error) {
+	db, err := OpenInMemoryNoFK()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.Migrate("project"); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("migrate project db: %w", err)
+	}
+
+	return &ProjectDB{DB: db}, nil
+}
+
 // RunInTx executes the given function within a database transaction.
 // If fn returns an error, the transaction is rolled back.
 // If fn returns nil, the transaction is committed.

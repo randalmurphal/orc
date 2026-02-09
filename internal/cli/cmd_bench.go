@@ -71,6 +71,7 @@ Subcommands:
 	cmd.AddCommand(newBenchCurateListCmd())
 	cmd.AddCommand(newBenchCurateValidateCmd())
 	cmd.AddCommand(newBenchCurateImportCmd())
+	cmd.AddCommand(newBenchCurateExtractPatchesCmd())
 
 	return cmd
 }

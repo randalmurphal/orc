@@ -194,6 +194,95 @@ func TestStoreVariantCRUD(t *testing.T) {
 	}
 }
 
+func TestTasksForVariant(t *testing.T) {
+	store, err := OpenInMemory()
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer store.Close()
+
+	ctx := context.Background()
+
+	// Create project and one task per tier
+	store.SaveProject(ctx, &Project{ID: "p", RepoURL: "http://p", CommitHash: "abc", Language: "go", TestCmd: "go test"})
+	for _, tier := range []Tier{TierTrivial, TierSmall, TierMedium, TierLarge} {
+		store.SaveTask(ctx, &Task{
+			ID: "t-" + string(tier), ProjectID: "p", Tier: tier,
+			Title: string(tier), Description: "d", PreFixCommit: "abc",
+		})
+	}
+
+	tests := []struct {
+		name       string
+		variant    *Variant
+		wantTiers  []Tier
+	}{
+		{
+			name: "baseline gets all tasks",
+			variant: &Variant{ID: "base", Name: "b", BaseWorkflow: "implement-medium", IsBaseline: true},
+			wantTiers: []Tier{TierTrivial, TierSmall, TierMedium, TierLarge},
+		},
+		{
+			name: "implement override gets all tiers",
+			variant: &Variant{ID: "v1", Name: "v", BaseWorkflow: "implement-medium",
+				PhaseOverrides: map[string]PhaseOverride{"implement": {Provider: "claude", Model: "sonnet"}}},
+			wantTiers: []Tier{TierTrivial, TierSmall, TierMedium, TierLarge},
+		},
+		{
+			name: "spec override gets medium+large only",
+			variant: &Variant{ID: "v2", Name: "v", BaseWorkflow: "implement-medium",
+				PhaseOverrides: map[string]PhaseOverride{"spec": {Provider: "codex", Model: "gpt-5.3"}}},
+			wantTiers: []Tier{TierMedium, TierLarge},
+		},
+		{
+			name: "review override gets small+medium+large",
+			variant: &Variant{ID: "v3", Name: "v", BaseWorkflow: "implement-medium",
+				PhaseOverrides: map[string]PhaseOverride{"review": {Provider: "codex", Model: "gpt-5.3"}}},
+			wantTiers: []Tier{TierSmall, TierMedium, TierLarge},
+		},
+		{
+			name: "tdd_write override gets medium+large",
+			variant: &Variant{ID: "v4", Name: "v", BaseWorkflow: "implement-medium",
+				PhaseOverrides: map[string]PhaseOverride{"tdd_write": {Provider: "codex", Model: "gpt-5.3"}}},
+			wantTiers: []Tier{TierMedium, TierLarge},
+		},
+		{
+			name: "breakdown override gets large only",
+			variant: &Variant{ID: "v5", Name: "v", BaseWorkflow: "implement-medium",
+				PhaseOverrides: map[string]PhaseOverride{"breakdown": {Provider: "codex", Model: "gpt-5.3"}}},
+			wantTiers: []Tier{TierLarge},
+		},
+		{
+			name: "empty overrides (non-baseline) gets all tasks",
+			variant: &Variant{ID: "v6", Name: "v", BaseWorkflow: "implement-medium"},
+			wantTiers: []Tier{TierTrivial, TierSmall, TierMedium, TierLarge},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tasks, err := store.TasksForVariant(ctx, tt.variant)
+			if err != nil {
+				t.Fatalf("TasksForVariant: %v", err)
+			}
+
+			gotTiers := make(map[Tier]bool)
+			for _, task := range tasks {
+				gotTiers[task.Tier] = true
+			}
+
+			if len(tasks) != len(tt.wantTiers) {
+				t.Errorf("got %d tasks, want %d", len(tasks), len(tt.wantTiers))
+			}
+			for _, tier := range tt.wantTiers {
+				if !gotTiers[tier] {
+					t.Errorf("missing expected tier %s", tier)
+				}
+			}
+		})
+	}
+}
+
 func TestStoreRunAndPhaseResults(t *testing.T) {
 	store, err := OpenInMemory()
 	if err != nil {

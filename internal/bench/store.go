@@ -284,31 +284,37 @@ func (s *Store) DeleteTask(ctx context.Context, id string) error {
 	return nil
 }
 
-// TasksForVariant returns all tasks applicable to a variant's base workflow.
-// Trivial workflow only runs trivial tasks, small runs trivial+small, etc.
+// TasksForVariant returns tasks applicable to a variant based on its phase overrides.
+// Baseline (no overrides) runs all tasks. Phase-override variants only run against
+// tasks whose tier's workflow actually contains the overridden phase. For example,
+// a spec-override variant only runs against medium+large tasks (trivial/small
+// workflows have no spec phase), avoiding wasteful runs identical to baseline.
 func (s *Store) TasksForVariant(ctx context.Context, v *Variant) ([]*Task, error) {
-	var tiers []Tier
-	switch v.BaseWorkflow {
-	case "trivial":
-		tiers = []Tier{TierTrivial}
-	case "small":
-		tiers = []Tier{TierTrivial, TierSmall}
-	case "medium":
-		tiers = []Tier{TierTrivial, TierSmall, TierMedium}
-	case "large":
-		tiers = []Tier{TierTrivial, TierSmall, TierMedium, TierLarge}
-	default:
-		// Unknown workflow: return all tasks
+	// Baseline runs all tasks across all tiers
+	if v.IsBaseline || len(v.PhaseOverrides) == 0 {
 		return s.ListTasks(ctx, "", "")
 	}
 
-	var allTasks []*Task
-	for _, t := range tiers {
-		tasks, err := s.ListTasks(ctx, "", t)
-		if err != nil {
-			return nil, err
+	// Determine applicable tiers from overridden phases
+	tierSet := make(map[Tier]bool)
+	for phaseID := range v.PhaseOverrides {
+		if tiers, ok := PhaseApplicableTiers[phaseID]; ok {
+			for _, t := range tiers {
+				tierSet[t] = true
+			}
 		}
-		allTasks = append(allTasks, tasks...)
+	}
+
+	// Collect tasks for applicable tiers (in order)
+	var allTasks []*Task
+	for _, tier := range []Tier{TierTrivial, TierSmall, TierMedium, TierLarge} {
+		if tierSet[tier] {
+			tasks, err := s.ListTasks(ctx, "", tier)
+			if err != nil {
+				return nil, err
+			}
+			allTasks = append(allTasks, tasks...)
+		}
 	}
 	return allTasks, nil
 }

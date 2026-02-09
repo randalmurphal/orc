@@ -781,6 +781,87 @@ func TestResolveAllRetryVariables_EmptyWhenNoRetry(t *testing.T) {
 	}
 }
 
+func TestEnvironmentOverridesBuiltins(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// Empty rctx with Environment overrides — simulates ContextStandalone
+	// where bench injects task metadata via opts.Variables
+	rctx := &ResolutionContext{
+		// TaskID is empty (standalone mode — no task loaded)
+		Environment: map[string]string{
+			"TASK_ID":          "BENCH-001",
+			"TASK_TITLE":       "Fix allocation bug",
+			"TASK_DESCRIPTION": "The allocator is broken",
+			"WORKFLOW_ID":      "medium",
+		},
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Environment entries should override empty builtins
+	tests := map[string]string{
+		"TASK_ID":          "BENCH-001",
+		"TASK_TITLE":       "Fix allocation bug",
+		"TASK_DESCRIPTION": "The allocator is broken",
+		"WORKFLOW_ID":      "medium",
+	}
+	for name, expected := range tests {
+		if vars[name] != expected {
+			t.Errorf("%s: expected %q, got %q", name, expected, vars[name])
+		}
+	}
+}
+
+func TestEnvironmentDoesNotOverrideWithEmpty(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// When rctx has a real TaskID and Environment has empty string,
+	// the builtin should NOT be overwritten (empty values are skipped)
+	rctx := &ResolutionContext{
+		TaskID: "REAL-TASK-001",
+		Environment: map[string]string{
+			"TASK_ID": "", // Empty — should not overwrite
+		},
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if vars["TASK_ID"] != "REAL-TASK-001" {
+		t.Errorf("TASK_ID: expected %q, got %q (empty env should not overwrite)", "REAL-TASK-001", vars["TASK_ID"])
+	}
+}
+
+func TestNilEnvironmentNoEffect(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// nil Environment — standard behavior, no override
+	rctx := &ResolutionContext{
+		TaskID: "TASK-001",
+		// Environment is nil (default)
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if vars["TASK_ID"] != "TASK-001" {
+		t.Errorf("TASK_ID: expected %q, got %q", "TASK-001", vars["TASK_ID"])
+	}
+}
+
 func TestResolveAllInitiativeNotesVariable(t *testing.T) {
 	t.Parallel()
 

@@ -109,7 +109,9 @@ func (a *claudeAdapter) PrepareExecution(cfg *PhaseExecutionConfig, we *Workflow
 
 func (a *claudeAdapter) BuildTurnExecutorConfig(cfg *PhaseExecutionConfig, pctx *ProviderExecContext, we *WorkflowExecutor) TurnExecutorConfig {
 	maxTurns := 0
-	if we.orcConfig != nil {
+	if we.maxTurnsOverride != nil {
+		maxTurns = *we.maxTurnsOverride
+	} else if we.orcConfig != nil {
 		maxTurns = we.orcConfig.MaxTurns
 	}
 
@@ -209,6 +211,16 @@ func (a *codexAdapter) BuildTurnExecutorConfig(cfg *PhaseExecutionConfig, pctx *
 		if cc.ReasoningEffort != "" {
 			teCfg.ReasoningEffort = cc.ReasoningEffort
 		}
+	}
+
+	// Apply bench phase-model override for reasoning effort (highest precedence)
+	if override, ok := we.phaseModelOverrides[cfg.PhaseID]; ok && override.ReasoningEffort != "" {
+		teCfg.ReasoningEffort = override.ReasoningEffort
+	}
+
+	// (continued from above — wire remaining Codex-specific settings)
+	if cfg.ClaudeConfig != nil && cfg.ClaudeConfig.Codex != nil {
+		cc := cfg.ClaudeConfig.Codex
 		if cc.WebSearchMode != "" {
 			teCfg.WebSearchMode = cc.WebSearchMode
 		}
