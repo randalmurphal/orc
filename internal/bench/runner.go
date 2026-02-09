@@ -368,6 +368,12 @@ func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, tr
 		run.BuildSuccess = evalResult.BuildSuccess
 		run.TestOutput = evalResult.TestOutput
 		run.BuildOutput = evalResult.BuildOutput
+		run.TestCount = evalResult.TestCount
+		run.RegressionCount = evalResult.RegressionCount
+		run.LintWarnings = evalResult.LintWarnings
+		run.LintOutput = evalResult.LintOutput
+		run.SecurityFindings = evalResult.SecurityFindings
+		run.SecurityOutput = evalResult.SecurityOutput
 	}
 
 	// Update run status

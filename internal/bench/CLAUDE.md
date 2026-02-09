@@ -44,7 +44,7 @@ Benchmarking system for comparing model configurations across workflow phases. D
 | `bench_frozen_outputs` | Cached phase outputs for replay | `task_id`, `phase_id`, `output_content` |
 | `bench_judgments` | Cross-model judge evaluations | `run_id`, `judge_model`, `scores` (JSON) |
 
-Schema: `schema/bench_001.sql` (initial), `schema/bench_002.sql` (eval metrics on runs, indexes)
+Schema: `schema/bench_001.sql` (initial), `schema/bench_002.sql` (eval metrics on runs, indexes), `schema/bench_006.sql` (lint/security output)
 
 ## File Structure
 
@@ -56,7 +56,7 @@ Schema: `schema/bench_001.sql` (initial), `schema/bench_002.sql` (eval metrics o
 | `workspace.go` | 109 | Git clone + `git worktree add` for per-run isolation |
 | `runner.go` | 636 | Core orchestration: baseline/variant modes, cascade logic, WorkflowExecutor delegation, eval wiring |
 | `frozen.go` | 53 | Frozen output load/save, variable injection |
-| `evaluator.go` | 270 | Automated evaluation: tests, lint, build, security |
+| `evaluator.go` | 377 | Automated evaluation: build, lint, security, regression detection, test count parsing |
 | `judge.go` | 468 | Cross-model judge panel: blinding, randomization, rubrics |
 | `stats.go` | 355 | Bootstrap BCa CI, Wilcoxon signed-rank, McNemar's, paired Cohen's d |
 | `report.go` | 533 | Phase leaderboard, optimal config recommendation |
@@ -79,8 +79,8 @@ Runner.RunSingle(ctx, variant, task, trial)
      - ContextStandalone            → no task lifecycle, claims, heartbeat
   7. savePhaseResults()             → map executor results to bench PhaseResults + save frozen
   8. captureModelDiff()             → diff before eval modifies test files
-  9. evaluator.RunAll()             → tests, lint, build, security
- 10. Populate run eval metrics      → TestPass, BuildSuccess, etc.
+  9. evaluator.RunAll()             → 6-step eval (see below)
+ 10. Populate run eval metrics      → TestPass, TestCount, RegressionCount, LintWarnings, etc.
  11. SaveRun() with status          → pass/fail/error
  12. workspace.CleanupRun()
 ```
@@ -95,6 +95,24 @@ buildTaskVariables() → map[string]string{TASK_ID, TASK_TITLE, ...}
       → environment override loop overwrites with non-empty values
         → {{TASK_ID}} etc. render correctly in templates
 ```
+
+### Evaluation Flow (`evaluator.go`)
+
+```
+evaluator.RunAll(workDir, project, task)
+  1. Build check              → project.BuildCmd (model's code compiles?)
+  2. Lint check               → project.LintCmd (before test patch, model's code only)
+  3. Security scan            → project.SecurityCmd (before test patch)
+  4. Pre-patch tests          → project.TestCmd (regression detection: original tests on model's code)
+  5. Apply test patch         → patchFileInfo() classifies new vs modified files
+  6. Post-patch tests         → project.TestCmd (main eval: reference tests on model's code)
+```
+
+**Test count parsing:** Language-aware (`parseTestCounts`): Go (`--- PASS/FAIL`), Python (pytest summary), TypeScript (jest), C++ (ctest). Best-effort — returns 0 if can't parse.
+
+**Git apply fix for new files:** `patchFileInfo()` classifies patch files as `modified` (reset via `git checkout preFixCommit`) or `created` (remove model's version via `os.Remove`). Prevents "already exists in working directory" errors.
+
+**Name mismatch handling:** Judges, not the evaluator. Test patch written to `.bench/test_patch.diff` in judge workspace. Judge prompt instructs: apply patch, detect undefined symbols, compare to model's code, try renaming.
 
 ## Tier-Aware Variant Scoping
 

@@ -456,8 +456,8 @@ func (s *Store) SaveRun(ctx context.Context, r *Run) error {
 	_, err := s.drv.Exec(ctx, `
 		INSERT INTO bench_runs (id, variant_id, task_id, trial_number, status, started_at, completed_at, error_message,
 			test_pass, test_count, regression_count, lint_warnings, build_success, security_findings,
-			model_diff, test_output, build_output)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			model_diff, test_output, build_output, lint_output, security_output)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			status = excluded.status,
 			started_at = excluded.started_at,
@@ -471,10 +471,12 @@ func (s *Store) SaveRun(ctx context.Context, r *Run) error {
 			security_findings = excluded.security_findings,
 			model_diff = excluded.model_diff,
 			test_output = excluded.test_output,
-			build_output = excluded.build_output
+			build_output = excluded.build_output,
+			lint_output = excluded.lint_output,
+			security_output = excluded.security_output
 	`, r.ID, r.VariantID, r.TaskID, r.TrialNumber, string(r.Status), startedAt, completedAt, r.ErrorMessage,
 		r.TestPass, r.TestCount, r.RegressionCount, r.LintWarnings, r.BuildSuccess, r.SecurityFindings,
-		r.ModelDiff, r.TestOutput, r.BuildOutput)
+		r.ModelDiff, r.TestOutput, r.BuildOutput, r.LintOutput, r.SecurityOutput)
 	if err != nil {
 		return fmt.Errorf("save run %s: %w", r.ID, err)
 	}
@@ -516,7 +518,7 @@ func (s *Store) GetRun(ctx context.Context, id string) (*Run, error) {
 	row := s.drv.QueryRow(ctx, `
 		SELECT id, variant_id, task_id, trial_number, status, started_at, completed_at, error_message, created_at,
 			test_pass, test_count, regression_count, lint_warnings, build_success, security_findings,
-			model_diff, test_output, build_output
+			model_diff, test_output, build_output, lint_output, security_output
 		FROM bench_runs WHERE id = ?
 	`, id)
 
@@ -524,7 +526,7 @@ func (s *Store) GetRun(ctx context.Context, id string) (*Run, error) {
 	var startedAt, completedAt, createdAt *string
 	if err := row.Scan(&r.ID, &r.VariantID, &r.TaskID, &r.TrialNumber, &r.Status, &startedAt, &completedAt, &r.ErrorMessage, &createdAt,
 		&r.TestPass, &r.TestCount, &r.RegressionCount, &r.LintWarnings, &r.BuildSuccess, &r.SecurityFindings,
-		&r.ModelDiff, &r.TestOutput, &r.BuildOutput); err != nil {
+		&r.ModelDiff, &r.TestOutput, &r.BuildOutput, &r.LintOutput, &r.SecurityOutput); err != nil {
 		return nil, fmt.Errorf("get run %s: %w", id, err)
 	}
 	if startedAt != nil {
@@ -540,6 +542,9 @@ func (s *Store) GetRun(ctx context.Context, id string) (*Run, error) {
 }
 
 // ListRuns returns runs filtered by variant and/or task and/or status.
+// Returns summary data: metrics, status, and model_diff — but omits large output
+// fields (test_output, build_output, lint_output, security_output) for performance.
+// Use GetRun for full output data.
 func (s *Store) ListRuns(ctx context.Context, variantID, taskID string, status RunStatus) ([]*Run, error) {
 	query := `SELECT id, variant_id, task_id, trial_number, status, started_at, completed_at, error_message, created_at,
 		test_pass, test_count, regression_count, lint_warnings, build_success, security_findings, model_diff

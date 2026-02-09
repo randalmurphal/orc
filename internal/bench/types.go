@@ -195,9 +195,11 @@ type Run struct {
 
 	// ModelDiff is the git diff of the model's changes against the pre-fix commit.
 	// Captured before worktree cleanup so we can inspect what the model actually did.
-	ModelDiff   string `json:"model_diff,omitempty"`
-	TestOutput  string `json:"test_output,omitempty"`
-	BuildOutput string `json:"build_output,omitempty"`
+	ModelDiff      string `json:"model_diff,omitempty"`
+	TestOutput     string `json:"test_output,omitempty"`
+	BuildOutput    string `json:"build_output,omitempty"`
+	LintOutput     string `json:"lint_output,omitempty"`
+	SecurityOutput string `json:"security_output,omitempty"`
 }
 
 // PhaseResult holds metrics for a single phase execution within a run.

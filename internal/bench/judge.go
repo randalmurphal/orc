@@ -121,9 +121,10 @@ type JudgeRubric struct {
 // Deliberately excludes test results — judges must form independent
 // correctness assessments without anchoring on pass/fail.
 type JudgeRequest struct {
-	TaskTitle string
-	TaskDesc  string
-	Rubric    JudgeRubric
+	TaskTitle    string
+	TaskDesc     string
+	Rubric       JudgeRubric
+	HasTestPatch bool // Whether a test patch is available in .bench/test_patch.diff
 }
 
 // JudgeResponse is the parsed output from a judge.
@@ -177,9 +178,10 @@ func (jp *JudgePanel) EvaluateRun(ctx context.Context, runID string, judges []Ju
 		order := rand.Intn(100)
 
 		req := JudgeRequest{
-			TaskTitle: sanitizeForBlinding(task.Title),
-			TaskDesc:  sanitizeForBlinding(task.Description),
-			Rubric:    ImplementRubric,
+			TaskTitle:    sanitizeForBlinding(task.Title),
+			TaskDesc:     sanitizeForBlinding(task.Description),
+			Rubric:       ImplementRubric,
+			HasTestPatch: task.TestPatch != "",
 		}
 
 		resp, err := jp.executeJudge(ctx, judge, req, jctx)
@@ -323,6 +325,17 @@ func (jp *JudgePanel) setupJudgeWorkspace(jctx *judgeContext) (string, func(), e
 		return "", nil, fmt.Errorf("git commit: %w", err)
 	}
 
+	// Write test patch from reference PR so judges can check for name mismatches.
+	// The patch is NOT applied — judges decide whether to apply it and investigate.
+	if jctx.Task.TestPatch != "" {
+		benchDir := filepath.Join(worktreePath, ".bench")
+		if err := os.MkdirAll(benchDir, 0755); err != nil {
+			jp.logger.Warn("failed to create .bench dir for test patch", "error", err)
+		} else if err := os.WriteFile(filepath.Join(benchDir, "test_patch.diff"), []byte(jctx.Task.TestPatch), 0644); err != nil {
+			jp.logger.Warn("failed to write test patch for judge", "error", err)
+		}
+	}
+
 	return worktreePath, cleanup, nil
 }
 
@@ -348,6 +361,14 @@ A developer attempted to fix a bug in this repository. Their changes are in the 
 3. Read the changed files in full — understand the fix in context, not just the diff
 4. Determine whether the changes actually fix the described bug
 5. Evaluate the implementation quality
+6. If ` + "`.bench/test_patch.diff`" + ` exists, check it for reference test expectations.
+   If those tests reference symbols (functions, variables, types) that differ from
+   the developer's naming, this is a NAME MISMATCH — not a bug. The developer may
+   have implemented correct functionality with different names. To investigate:
+   - Apply the test patch: ` + "`git apply .bench/test_patch.diff`" + `
+   - If it fails due to undefined symbols, compare them to the developer's code
+   - If functionally equivalent, try renaming the symbols and running tests
+   - A correct fix with different names should score highly on functional_correctness
 
 Do NOT just look at the diff in isolation. Read the surrounding code to understand whether the fix makes sense.
 
@@ -356,7 +377,7 @@ Do NOT just look at the diff in isolation. Read the surrounding code to understa
 Score each criterion independently from 1 to 5:
 
 **functional_correctness** — Does this fix the described bug?
-  5: Correctly identifies and fixes the root cause
+  5: Correctly identifies and fixes the root cause (names may differ from reference)
   4: Fixes the bug but approach is suboptimal
   3: Partially fixes the bug or only handles some cases
   2: Attempts a fix but misses the actual problem
@@ -452,6 +473,14 @@ func writeContextFile(dir string, req JudgeRequest) error {
 	sb.WriteString("## Description\n\n")
 	sb.WriteString(req.TaskDesc)
 	sb.WriteString("\n")
+
+	// Note about test patch if present
+	if req.HasTestPatch {
+		sb.WriteString("\n## Reference Test Patch\n\n")
+		sb.WriteString("The file `.bench/test_patch.diff` contains the test changes from the reference PR.\n")
+		sb.WriteString("These tests verify the fix but may reference specific symbol names from the original PR.\n")
+		sb.WriteString("If the developer used different names for the same functionality, that is a **name mismatch**, not a bug.\n")
+	}
 
 	benchDir := filepath.Join(dir, ".bench")
 	if err := os.MkdirAll(benchDir, 0755); err != nil {
