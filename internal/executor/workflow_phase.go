@@ -389,6 +389,25 @@ func (we *WorkflowExecutor) executePhase(
 	if err != nil {
 		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		result.Error = err.Error()
+		// Preserve execution metrics even on error (e.g. blocked phases still ran the LLM)
+		if execResult != nil {
+			result.DurationMS = time.Since(startTime).Milliseconds()
+			result.InputTokens = execResult.InputTokens
+			result.OutputTokens = execResult.OutputTokens
+			result.CacheCreationTokens = execResult.CacheCreationTokens
+			result.CacheReadTokens = execResult.CacheReadTokens
+			result.CostUSD = execResult.CostUSD
+			result.Provider = provider
+			result.Model = model
+			result.Content = execResult.Content
+			result.RawOutput = execResult.RawOutput
+			result.OutputVarName = tmpl.OutputVarName
+			if result.CostUSD == 0 && we.tokenRates != nil && (result.InputTokens+result.OutputTokens) > 0 {
+				result.CostUSD = EstimateTokenCostUSDWithRates(we.tokenRates, provider, model,
+					int64(result.InputTokens), int64(result.OutputTokens),
+					int64(result.CacheReadTokens), int64(result.CacheCreationTokens))
+			}
+		}
 		runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		runPhase.Error = result.Error
 		runPhase.CompletedAt = timePtr(time.Now())

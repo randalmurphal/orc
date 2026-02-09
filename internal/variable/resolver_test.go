@@ -419,6 +419,54 @@ Rules: {{CONSTITUTION_CONTENT}}
 Rules: Important rules
 `,
 		},
+		{
+			name: "else branch - condition true",
+			vars: VariableSet{
+				"BUILD_COMMAND": "make build",
+			},
+			template: `{{#if BUILD_COMMAND}}Run ` + "`{{BUILD_COMMAND}}`" + `{{else}}Run the project build command{{/if}}`,
+			expected: "Run `make build`",
+		},
+		{
+			name: "else branch - condition false",
+			vars: VariableSet{},
+			template: `{{#if BUILD_COMMAND}}Run ` + "`{{BUILD_COMMAND}}`" + `{{else}}Run the project build command{{/if}}`,
+			expected: "Run the project build command",
+		},
+		{
+			name: "else branch - multiline",
+			vars: VariableSet{},
+			template: `{{#if BREAKDOWN_CONTENT}}
+Follow the breakdown:
+{{BREAKDOWN_CONTENT}}
+{{else}}
+Plan your changes:
+- New files to create
+- Existing files to modify
+{{/if}}`,
+			expected: `
+Plan your changes:
+- New files to create
+- Existing files to modify
+`,
+		},
+		{
+			name: "else branch - multiline with condition true",
+			vars: VariableSet{
+				"BREAKDOWN_CONTENT": "1. Fix auth\n2. Add tests",
+			},
+			template: `{{#if BREAKDOWN_CONTENT}}
+Follow the breakdown:
+{{BREAKDOWN_CONTENT}}
+{{else}}
+Plan your changes
+{{/if}}`,
+			expected: `
+Follow the breakdown:
+1. Fix auth
+2. Add tests
+`,
+		},
 	}
 
 	for _, tt := range tests {

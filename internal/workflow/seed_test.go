@@ -102,7 +102,7 @@ func TestSeedBuiltinsIdempotent(t *testing.T) {
 
 	gdb := openTestGlobalDB(t)
 
-	// Seed twice
+	// Seed twice — both should succeed without error
 	seeded1, err := SeedBuiltins(gdb)
 	if err != nil {
 		t.Fatalf("first SeedBuiltins failed: %v", err)
@@ -113,14 +113,17 @@ func TestSeedBuiltinsIdempotent(t *testing.T) {
 		t.Fatalf("second SeedBuiltins failed: %v", err)
 	}
 
-	// Second call should seed nothing (already exists)
-	if seeded2 != 0 {
-		t.Errorf("expected second SeedBuiltins to seed 0, got %d", seeded2)
-	}
-
-	// First call should have seeded items
+	// Both calls should report items (embedded sources always upsert to keep DB in sync)
 	if seeded1 == 0 {
 		t.Error("expected first SeedBuiltins to seed items")
+	}
+	if seeded2 == 0 {
+		t.Error("expected second SeedBuiltins to update items")
+	}
+
+	// Both should report the same count (same source data)
+	if seeded1 != seeded2 {
+		t.Errorf("expected consistent seed count: first=%d second=%d", seeded1, seeded2)
 	}
 }
 

@@ -339,11 +339,11 @@ func (c *CacheService) saveWorkflowWithRelations(wf *Workflow, dbWorkflow *db.Wo
 
 // shouldUpdateWorkflow checks if a workflow should be updated based on file modification time.
 func (c *CacheService) shouldUpdateWorkflow(existing *db.Workflow, rw ResolvedWorkflow) bool {
-	// For embedded sources, don't update if already exists (idempotent seeding).
-	// Embedded templates are versioned with the binary - explicit sync or version
-	// bump handles updates to embedded content.
+	// For embedded sources, always update — the upsert SQL is idempotent and
+	// this ensures YAML changes (loop_config, conditions, etc.) propagate to
+	// the DB without requiring manual re-seeding.
 	if rw.Source == SourceEmbedded {
-		return false // Already exists, don't update
+		return true
 	}
 
 	// For file-based, check modification time
@@ -360,11 +360,10 @@ func (c *CacheService) shouldUpdateWorkflow(existing *db.Workflow, rw ResolvedWo
 
 // shouldUpdatePhase checks if a phase should be updated based on file modification time.
 func (c *CacheService) shouldUpdatePhase(existing *db.PhaseTemplate, rp ResolvedPhase) bool {
-	// For embedded sources, don't update if already exists (idempotent seeding).
-	// Embedded templates are versioned with the binary - explicit sync or version
-	// bump handles updates to embedded content.
+	// For embedded sources, always update — the upsert SQL is idempotent and
+	// this ensures YAML changes propagate to the DB without manual re-seeding.
 	if rp.Source == SourceEmbedded {
-		return false // Already exists, don't update
+		return true
 	}
 
 	// For file-based, check modification time

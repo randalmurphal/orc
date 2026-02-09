@@ -1,11 +1,13 @@
 package bench
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -631,16 +633,29 @@ func (r *Runner) failRun(_ context.Context, run *Run, err error) error {
 // relative to the pre-fix commit. Called before evaluation (which modifies
 // test files) so we get the model's pure output.
 //
-// Uses --no-binary to exclude binary artifacts (compiled objects, images, etc.)
-// that models sometimes generate as build side effects. Binary diffs break
-// git apply in downstream consumers (judge workspace setup) and aren't useful
-// for code review.
+// Uses a detached context and its own process group to avoid inheriting
+// signals from parent cleanup.
 func captureModelDiff(workDir, preFixCommit string) string {
-	cmd := exec.Command("git", "diff", "--no-binary", preFixCommit)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// git diff defaults to text mode — binary files show as
+	// "Binary files differ" without outputting their content.
+	cmd := exec.CommandContext(ctx, "git", "diff", preFixCommit)
 	cmd.Dir = workDir
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
 	out, err := cmd.Output()
 	if err != nil {
-		slog.Warn("failed to capture model diff", "error", err, "workDir", workDir)
+		slog.Warn("failed to capture model diff",
+			"error", err,
+			"workDir", workDir,
+			"preFixCommit", preFixCommit,
+			"stderr", stderr.String(),
+		)
 		return "" // Empty diff — judge will skip this run
 	}
 	return string(out)
