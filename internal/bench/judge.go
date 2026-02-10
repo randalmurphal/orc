@@ -96,18 +96,23 @@ func DefaultJudgeConfigs() []JudgeConfig {
 }
 
 // ImplementRubric is the fixed rubric for evaluating implementation quality.
-// This is the only rubric — we don't judge intermediate phases.
 //
 // Criteria are chosen to provide independent signal:
 //   - functional_correctness: Did the fix work? (catches valid alternatives that tests miss)
 //   - completeness: Full fix or partial/workaround?
-//   - code_quality: Clean, idiomatic, follows conventions?
+//   - code_quality: Clean, idiomatic, follows project conventions?
 //   - minimal_change: Focused on the problem or scattered changes?
+//   - review_effectiveness: Did the code review catch real issues? (only scored when review output exists)
 var ImplementRubric = JudgeRubric{
 	PhaseID:  "implement",
 	Criteria: []string{"functional_correctness", "completeness", "code_quality", "minimal_change"},
 	MaxScore: 5,
 }
+
+// ReviewRubricCriteria are the additional criteria scored when review output is present.
+// These are appended to the base rubric dynamically — trivial tasks with no review
+// phase don't get scored on review effectiveness.
+var ReviewRubricCriteria = []string{"review_effectiveness"}
 
 // JudgeRubric defines the scoring criteria.
 type JudgeRubric struct {
@@ -121,10 +126,11 @@ type JudgeRubric struct {
 // Deliberately excludes test results — judges must form independent
 // correctness assessments without anchoring on pass/fail.
 type JudgeRequest struct {
-	TaskTitle    string
-	TaskDesc     string
-	Rubric       JudgeRubric
-	HasTestPatch bool // Whether a test patch is available in .bench/test_patch.diff
+	TaskTitle       string
+	TaskDesc        string
+	Rubric          JudgeRubric
+	HasTestPatch    bool // Whether a test patch is available in .bench/test_patch.diff
+	HasReviewOutput bool // Whether review phase output is available in .bench/review_output.md
 }
 
 // JudgeResponse is the parsed output from a judge.
@@ -135,9 +141,10 @@ type JudgeResponse struct {
 
 // judgeContext carries everything executeJudge needs to set up a workspace.
 type judgeContext struct {
-	Run     *Run
-	Task    *Task
-	Project *Project
+	Run          *Run
+	Task         *Task
+	Project      *Project
+	ReviewOutput string // Review phase output (empty if no review phase ran)
 }
 
 // EvaluateRun judges the implementation output of a run.
@@ -168,6 +175,28 @@ func (jp *JudgePanel) EvaluateRun(ctx context.Context, runID string, judges []Ju
 
 	jctx := &judgeContext{Run: run, Task: task, Project: project}
 
+	// Load review phase output if this run's workflow included a review phase.
+	// The judge uses this to evaluate whether the review caught real issues.
+	phaseResults, err := jp.store.GetPhaseResults(ctx, runID)
+	if err != nil {
+		jp.logger.Warn("failed to load phase results for review output", "run", runID, "error", err)
+	} else {
+		for _, pr := range phaseResults {
+			if pr.PhaseID == "review" && pr.OutputContent != "" {
+				jctx.ReviewOutput = sanitizeForBlinding(pr.OutputContent)
+				break
+			}
+		}
+	}
+
+	// Build rubric: base criteria + review_effectiveness when review output exists.
+	rubric := ImplementRubric
+	if jctx.ReviewOutput != "" {
+		rubric.Criteria = make([]string, len(ImplementRubric.Criteria)+len(ReviewRubricCriteria))
+		copy(rubric.Criteria, ImplementRubric.Criteria)
+		copy(rubric.Criteria[len(ImplementRubric.Criteria):], ReviewRubricCriteria)
+	}
+
 	// Both frontier judges evaluate every run. Blinding mitigates self-eval bias:
 	// content stripping, identity blinding, and mixed-model workflows mean the
 	// judge can't reliably identify its own output.
@@ -178,10 +207,11 @@ func (jp *JudgePanel) EvaluateRun(ctx context.Context, runID string, judges []Ju
 		order := rand.Intn(100)
 
 		req := JudgeRequest{
-			TaskTitle:    sanitizeForBlinding(task.Title),
-			TaskDesc:     sanitizeForBlinding(task.Description),
-			Rubric:       ImplementRubric,
-			HasTestPatch: task.TestPatch != "",
+			TaskTitle:       sanitizeForBlinding(task.Title),
+			TaskDesc:        sanitizeForBlinding(task.Description),
+			Rubric:          rubric,
+			HasTestPatch:    task.TestPatch != "",
+			HasReviewOutput: jctx.ReviewOutput != "",
 		}
 
 		resp, err := jp.executeJudge(ctx, judge, req, jctx)
@@ -325,14 +355,24 @@ func (jp *JudgePanel) setupJudgeWorkspace(jctx *judgeContext) (string, func(), e
 		return "", nil, fmt.Errorf("git commit: %w", err)
 	}
 
-	// Write test patch from reference PR so judges can check for name mismatches.
-	// The patch is NOT applied — judges decide whether to apply it and investigate.
-	if jctx.Task.TestPatch != "" {
-		benchDir := filepath.Join(worktreePath, ".bench")
-		if err := os.MkdirAll(benchDir, 0755); err != nil {
-			jp.logger.Warn("failed to create .bench dir for test patch", "error", err)
-		} else if err := os.WriteFile(filepath.Join(benchDir, "test_patch.diff"), []byte(jctx.Task.TestPatch), 0644); err != nil {
-			jp.logger.Warn("failed to write test patch for judge", "error", err)
+	// Write supplementary files for judge evaluation.
+	benchDir := filepath.Join(worktreePath, ".bench")
+	if err := os.MkdirAll(benchDir, 0755); err != nil {
+		jp.logger.Warn("failed to create .bench dir", "error", err)
+	} else {
+		// Test patch from reference PR — judges check for name mismatches.
+		// NOT applied — judges decide whether to apply it and investigate.
+		if jctx.Task.TestPatch != "" {
+			if err := os.WriteFile(filepath.Join(benchDir, "test_patch.diff"), []byte(jctx.Task.TestPatch), 0644); err != nil {
+				jp.logger.Warn("failed to write test patch for judge", "error", err)
+			}
+		}
+
+		// Review phase output — judges evaluate whether the review caught real issues.
+		if jctx.ReviewOutput != "" {
+			if err := os.WriteFile(filepath.Join(benchDir, "review_output.md"), []byte(jctx.ReviewOutput), 0644); err != nil {
+				jp.logger.Warn("failed to write review output for judge", "error", err)
+			}
 		}
 	}
 
@@ -369,8 +409,22 @@ A developer attempted to fix a bug in this repository. Their changes are in the 
    - If it fails due to undefined symbols, compare them to the developer's code
    - If functionally equivalent, try renaming the symbols and running tests
    - A correct fix with different names should score highly on functional_correctness
+`)
 
-Do NOT just look at the diff in isolation. Read the surrounding code to understand whether the fix makes sense.
+	if req.HasReviewOutput {
+		sb.WriteString(`7. Read ` + "`.bench/review_output.md`" + ` — this is the output of an automated code review
+   that ran BEFORE you. Evaluate how effective that review was:
+   - Did it identify the same issues you found?
+   - Did it catch real problems, or did it miss critical issues?
+   - If it mentioned an issue but did NOT flag it as a blocker, that's a prioritization gap
+   - If it missed an issue entirely that you can see, that's a detection gap
+   - A review that catches issues and properly blocks is better than one that mentions
+     problems in passing without flagging severity
+
+`)
+	}
+
+	sb.WriteString(`Do NOT just look at the diff in isolation. Read the surrounding code to understand whether the fix makes sense.
 
 ## Scoring Criteria
 
@@ -403,7 +457,20 @@ Score each criterion independently from 1 to 5:
   3: Some unnecessary changes mixed in
   2: Significant unrelated modifications
   1: Scattered across unrelated files, heavily bloated
+`)
 
+	if req.HasReviewOutput {
+		sb.WriteString(`
+**review_effectiveness** — How well did the automated review catch real issues?
+  5: Identified critical issues, flagged them as blockers, provided actionable guidance
+  4: Caught most issues but missed some severity or provided vague guidance
+  3: Mentioned issues but did not flag severity or block — a prioritization gap
+  2: Saw symptoms but missed root causes, or raised false positives while missing real issues
+  1: Missed critical problems entirely that are visible in the code — a detection gap
+`)
+	}
+
+	sb.WriteString(`
 ## Response Format
 
 After completing your review, respond with ONLY this JSON (no markdown fences, no extra text):
@@ -480,6 +547,13 @@ func writeContextFile(dir string, req JudgeRequest) error {
 		sb.WriteString("The file `.bench/test_patch.diff` contains the test changes from the reference PR.\n")
 		sb.WriteString("These tests verify the fix but may reference specific symbol names from the original PR.\n")
 		sb.WriteString("If the developer used different names for the same functionality, that is a **name mismatch**, not a bug.\n")
+	}
+
+	// Note about review output if present
+	if req.HasReviewOutput {
+		sb.WriteString("\n## Automated Review Output\n\n")
+		sb.WriteString("The file `.bench/review_output.md` contains the output of an automated code review.\n")
+		sb.WriteString("Evaluate how effective that review was at catching the real issues you identify.\n")
 	}
 
 	benchDir := filepath.Join(dir, ".bench")
