@@ -4,7 +4,7 @@
 
 An intelligent task orchestrator for Claude Code. One orc is dumb. Many orcs working together? That's a warband. Orc doesn't overthink—it classifies your task, picks the right phases, and lets Claude do the work while you do something else.
 
-Trivial bug fix? One phase, done in minutes. Major feature? Full lifecycle with spec, review, tests, and docs. Orc scales rigor to complexity so you don't waste ceremony on typos or skip steps on things that matter.
+Trivial bug fix? One phase, done in minutes. Major feature? Full lifecycle with spec, TDD, review, and docs. Orc scales rigor to complexity so you don't waste ceremony on typos or skip steps on things that matter.
 
 > **Fair warning**: This runs Claude autonomously. It will read your code, write code, run commands, and commit to git—all without asking. That's the point. If you want hand-holding, this isn't it. If you want to describe a task and come back to a PR, keep reading.
 
@@ -46,9 +46,16 @@ Not all tasks deserve the same process. Orc uses workflows to determine which ph
 | Workflow | What It Means | Phases |
 |----------|---------------|--------|
 | **trivial** | Typo fix, one-liner | implement |
-| **small** | Single component change | tiny_spec → implement → review |
-| **medium** | Multiple files, clear scope | spec → tdd_write → implement → review → docs |
-| **large** | Complex, cross-cutting, new systems | spec → tdd_write → breakdown → implement → review → docs |
+| **small** | Single component change | tiny_spec → implement → review → docs |
+| **medium** | Multiple files, clear scope | spec → tdd_write → tdd_integrate → implement → review → docs |
+| **large** | Complex, cross-cutting, new systems | spec → tdd_write → tdd_integrate → breakdown → implement → review → docs |
+
+Key phases:
+- **spec/tiny_spec** — generates success criteria and testing requirements
+- **tdd_write** — writes failing unit tests *before* implementation
+- **tdd_integrate** — writes failing integration tests to prevent dead code
+- **breakdown** — decomposes large tasks into checkboxed implementation steps
+- **review** — multi-agent code review with specialized reviewers
 
 Select the workflow that matches your task:
 
@@ -65,7 +72,7 @@ implement phase:
   iteration 1: writes initial code
   iteration 2: notices test failure, fixes it
   iteration 3: realizes edge case, handles it
-  iteration 4: outputs <phase_complete>true</phase_complete>
+  iteration 4: outputs {"status": "complete", ...}
   → commits, moves to next phase
 ```
 
@@ -88,8 +95,15 @@ Between phases, gates control flow:
 - **auto** — proceed if phase succeeded (default)
 - **ai** — Claude evaluates readiness
 - **human** — you approve before continuing
+- **skip** — skip the phase entirely
 
 Default config: everything auto except merge (human). You review before code hits main.
+
+```bash
+orc gates list              # See gate config for all phases
+orc gates show implement    # Detailed gate config for a phase
+orc approve TASK-001        # Approve a human gate
+```
 
 ### 5. Automatic Retry
 
@@ -119,22 +133,23 @@ orc run TASK-003 &
 # Check in later
 orc status
 
-# Review and merge when ready
+# Review and finalize when ready
 orc diff TASK-001
-orc approve TASK-001  # approves merge gate
+orc finalize TASK-001  # Sync with target branch, merge or enable auto-merge
 ```
 
 ### What You Get
 
 For a **medium** task like "Add export to CSV":
 
-1. **Spec phase**: Claude reads your codebase, writes a spec for the feature
-2. **Implement phase**: Code written, iterating until tests pass
-3. **Review phase**: Two rounds of self-review catching issues
-4. **Test phase**: Comprehensive tests written
-5. **Docs phase**: README/docs updated
+1. **Spec phase**: Claude reads your codebase, writes success criteria and testing requirements
+2. **TDD Write phase**: Failing unit tests written before implementation
+3. **TDD Integrate phase**: Failing integration tests to ensure new code is wired in
+4. **Implement phase**: Code written, iterating until all tests pass
+5. **Review phase**: Multi-round self-review catching issues
+6. **Docs phase**: README/docs updated
 
-Total time: 30-90 minutes depending on complexity. You did zero of it.
+You did zero of it.
 
 ## Configuration
 
@@ -163,19 +178,20 @@ gates:
 completion:
   action: pr           # pr | merge | none
   target_branch: main
+  sync:
+    strategy: completion   # none | phase | completion | detect
+    fail_on_conflict: true # Abort vs warn on conflicts
   pr:
     auto_merge: false  # Set true to merge after finalize
+    draft: false
+    labels: []
+    reviewers: []
 
 # Worktree isolation (parallel execution)
 worktree:
   enabled: true
   cleanup_on_complete: true
   cleanup_on_fail: false  # Keep for debugging
-
-# Branch sync (catches conflicts early)
-sync:
-  strategy: completion   # none | phase | completion | detect
-  fail_on_conflict: true # Abort vs warn on conflicts
 
 # Retry behavior
 retry:
@@ -191,7 +207,13 @@ executor:
 review:
   enabled: true
   rounds: 2  # Exploratory + validation
+
+# Hosting provider (for PRs)
+hosting:
+  provider: github  # github | gitlab
 ```
+
+See [CONFIG_HIERARCHY.md](docs/specs/CONFIG_HIERARCHY.md) for all options.
 
 ### Automation Profiles
 
@@ -204,7 +226,6 @@ review:
 
 ```bash
 orc run TASK-001 --profile strict
-orc config profile safe  # Set default
 ```
 
 ### Environment Overrides
@@ -219,37 +240,112 @@ ORC_RETRY_ENABLED=false
 
 ## Commands
 
+**Every command has detailed `--help` with quality guidance, common mistakes, and data flow explanations.**
+
 ### Task Lifecycle
 
 ```bash
 orc new "title"              # Create task with default workflow
 orc new "title" --workflow X # Select specific workflow (trivial/small/medium/large)
-orc new "title" --category X # Set category (feature/bug/refactor/chore/docs/test)
+orc new "title" -d "desc"   # Add description (flows into every phase prompt)
+orc new "title" -i INIT-001 # Link to initiative
 orc run TASK-ID              # Execute task
 orc run TASK-ID --profile X  # Execute with specific profile
+orc stop TASK-ID             # Stop/abort running task
 orc pause TASK-ID            # Pause with checkpoint
-orc resume TASK-ID           # Continue from checkpoint
+orc resume TASK-ID           # Continue paused/failed task
 orc rewind TASK-ID --to X    # Roll back to phase X
 orc reset TASK-ID            # Clear progress for fresh retry
-orc close TASK-ID            # Close task without re-running
+orc skip TASK-ID --phase X   # Skip a phase
+orc close TASK-ID            # Close task permanently
+orc finalize TASK-ID         # Sync with target branch, resolve conflicts, merge
 orc approve TASK-ID          # Approve human gate
-orc delete TASK-ID           # Delete task and files
+orc reject TASK-ID           # Reject at gate
+orc delete TASK-ID           # Delete task
 ```
 
 ### Inspection
 
 ```bash
-orc status                   # Show all tasks
-orc log TASK-ID              # View transcripts
+orc status                   # Dashboard: what needs attention
+orc status --watch           # Live updating dashboard
+orc show TASK-ID             # Task details, spec, state
+orc show TASK-ID --gates     # Include gate history
+orc log TASK-ID              # View Claude transcripts
+orc log TASK-ID --follow     # Stream live transcript
 orc diff TASK-ID             # View git diff
-orc config show --source     # Show config with sources
+orc deps TASK-ID             # Show dependencies (--tree, --graph)
+orc costs                    # Cost report (--by user/project/model, --since)
+orc scratchpad TASK-ID       # View phase observations and decisions
+orc search "query"           # Search tasks
+orc list                     # List tasks (alias: ls)
 ```
+
+### Initiatives
+
+Group related tasks with shared vision and decisions:
+
+```bash
+orc initiative new "Auth overhaul" --vision "JWT-based auth with refresh tokens"
+orc initiative decide INIT-001 "Use bcrypt" --rationale "Industry standard"
+orc initiative link INIT-001 TASK-001 TASK-002  # Batch link tasks
+orc initiative run INIT-001                     # Run all ready tasks in order
+orc initiative list                             # List all initiatives
+orc initiative show INIT-001                    # Show details
+orc initiative edit INIT-001 --status active    # Edit properties
+```
+
+Initiative **vision** and **decisions** flow into every linked task's prompts, keeping Claude aligned across multiple tasks.
 
 ### Multi-Project
 
 ```bash
 orc init                     # Register project globally
 orc serve                    # API + Web UI for all projects
+orc projects                 # List registered projects
+orc projects add .           # Register current directory
+orc projects remove ID       # Unregister
+orc projects default ID      # Set default project
+```
+
+Use `--project/-P` flag or `ORC_PROJECT` env var to select a project for any command.
+
+### Import / Export
+
+```bash
+orc export --all-tasks       # Full backup (tar.gz)
+orc export --all-tasks --initiatives  # Include initiatives
+orc export --all-tasks --minimal      # No transcripts
+orc import                   # Restore from backup (auto-detect format)
+orc import --dry-run         # Preview without changes
+orc import jira              # Import from Jira Cloud
+orc import jira --project X  # Specific project(s)
+orc import jira --jql "..."  # Filter with JQL
+```
+
+### Configuration
+
+```bash
+orc config show --source     # Show config with resolution sources
+orc config get <key>         # Get specific value
+orc config set <key> <val>   # Set config value
+orc config edit              # Edit in $EDITOR
+orc constitution show        # View project constitution
+orc constitution set --file X # Set from file
+orc gates list               # Show gate config for all phases
+orc gates show <phase>       # Gate config for specific phase
+```
+
+### Benchmarking
+
+Evaluate model performance across workflows:
+
+```bash
+orc bench curate import suite.yaml   # Import benchmark suite
+orc bench run --baseline --trials 3  # Run all-Opus baseline
+orc bench run --variant ID --trials 3 # Run specific variant
+orc bench report                     # Phase leaderboard + recommendations
+orc bench judge                      # Cross-model judge panel
 ```
 
 ### Token Pool (Rate Limit Failover)
@@ -260,6 +356,8 @@ orc pool add personal        # Add OAuth account
 orc pool add work            # Add another
 orc pool list                # View accounts
 orc pool status              # Check exhaustion
+orc pool remove personal     # Remove account
+orc pool switch work         # Switch active account
 ```
 
 ## Web UI
@@ -270,12 +368,14 @@ orc serve  # localhost:8080
 
 - **Dashboard**: Running tasks, recent activity, quick stats
 - **Task detail**: Timeline, live transcript, controls
+- **Task board**: Drag-and-drop Kanban with initiative filtering
 - **Config**: Edit settings, prompts, hooks
 - **Multi-project**: Switch between registered projects
+- **Workflow editor**: Visual workflow designer (React Flow)
 
 ### Keyboard Shortcuts
 
-Uses `Shift+Alt` modifier (⇧⌥ on Mac) to avoid browser conflicts with Cmd+K, Cmd+N, etc.
+Uses `Shift+Alt` modifier to avoid browser conflicts.
 
 | Key | Action |
 |-----|--------|
@@ -296,13 +396,13 @@ Uses `Shift+Alt` modifier (⇧⌥ on Mac) to avoid browser conflicts with Cmd+K,
 
 ### Worktree Isolation
 
-Tasks run in isolated git worktrees. Multiple tasks execute in parallel without stepping on each other.
+Tasks run in isolated git worktrees at `~/.orc/worktrees/<project-id>/`. Multiple tasks execute in parallel without stepping on each other.
 
 ```
-.orc/worktrees/
-├── TASK-001/  # Independent working copy
-├── TASK-002/  # Can run simultaneously
-└── TASK-003/  # No git conflicts
+~/.orc/worktrees/<project-id>/
+├── orc-TASK-001/  # Independent working copy
+├── orc-TASK-002/  # Can run simultaneously
+└── orc-TASK-003/  # No git conflicts
 ```
 
 ### Branch Synchronization
@@ -325,6 +425,18 @@ completion:
 
 When conflicts are detected with `fail_on_conflict: true`, the task fails with a clear message listing conflicting files and resolution options.
 
+### Constitution
+
+Project-level principles injected into all phase prompts. Use this to enforce coding standards, architectural decisions, or domain rules across all tasks.
+
+```bash
+orc constitution set --file coding-standards.md
+orc constitution show
+orc constitution delete
+```
+
+Stored at `.orc/CONSTITUTION.md` (git-tracked).
+
 ### Token Pool
 
 Hit rate limits? Add multiple OAuth accounts. Orc rotates automatically.
@@ -342,10 +454,12 @@ accounts:
 
 ### Multi-Round Review
 
-After implementation, before tests:
+After implementation:
 
 1. **Round 1 (Exploratory)**: Identifies gaps, security issues, architectural concerns
 2. **Round 2 (Validation)**: Verifies Round 1 issues were addressed
+
+Includes no-op detection (catches implementations that don't actually change behavior) and success criteria verification.
 
 ### PR Status Detection
 
@@ -356,12 +470,15 @@ When tasks create PRs, orc polls the hosting provider (GitHub or GitLab) for sta
 - Mergeability status
 - Review and approval counts
 
-Status is stored in the database and visible in the web UI. Polling runs every 60 seconds for tasks with open PRs, with a 30-second rate limit per task.
+Status is stored in the database and visible in the web UI.
 
-```bash
-# Manual refresh via Connect RPC
-orc.v1.HostingService/RefreshPR
-```
+### Task Completion Flow
+
+1. Task completes → PR created (or existing PR reused) on GitHub/GitLab
+2. Review PR manually
+3. `orc finalize TASK-ID` → syncs with target branch, resolves conflicts, optionally enables auto-merge
+
+PR creation is idempotent—if an open PR already exists on the task branch, it's reused rather than duplicated.
 
 ### Sub-task Proposals
 
@@ -374,28 +491,34 @@ subtasks:
   max_pending: 10
 ```
 
-### Initiatives
+### Jira Integration
 
-Group related tasks:
+Import Jira Cloud issues as orc tasks. Epics map to initiatives by default.
 
 ```bash
-orc initiative new "Authentication overhaul"
-orc initiative add-task INIT-001 TASK-001
-orc initiative add-task INIT-001 TASK-002
-orc initiative run INIT-001  # Run all in order
+orc import jira --url https://your-org.atlassian.net --email you@org.com --token $JIRA_TOKEN
 ```
 
-### Claude Code Integration
+Or configure in `.orc/config.yaml`:
 
-Orc installs slash commands into Claude Code:
+```yaml
+jira:
+  url: https://your-org.atlassian.net
+  email: you@org.com
+  token_env_var: ORC_JIRA_TOKEN
+```
 
-| Command | Purpose |
-|---------|---------|
-| `/orc:init` | Initialize or create spec |
-| `/orc:continue` | Resume from checkpoint |
-| `/orc:status` | Show progress |
-| `/orc:review` | Start code review |
-| `/orc:propose` | Queue sub-task |
+### Dependencies
+
+Tasks support `blocked_by` (must complete first) and `related_to` (informational):
+
+```bash
+orc new "Part 2" --blocked-by TASK-001
+orc deps TASK-001 --tree    # Visualize dependency tree
+orc deps TASK-001 --graph   # Graph format
+```
+
+Initiatives also support `blocked_by` for ordering.
 
 ## Warnings
 
@@ -414,53 +537,58 @@ This is by design. If you're not comfortable with autonomous AI execution, add m
 Large tasks can use 100K+ tokens. Opus isn't cheap. Monitor costs:
 
 ```bash
-# API endpoint for cost tracking
-GET /api/cost/summary?period=week
+orc costs                        # Cost summary
+orc costs --by model --since 7d  # Breakdown by model, last week
 ```
 
 ### Phase Completion Detection
 
-Phases complete when Claude outputs:
-```xml
-<phase_complete>true</phase_complete>
+Phases complete when Claude outputs structured JSON:
+```json
+{"status": "complete", "summary": "..."}
 ```
 
-If Claude doesn't output this marker, the phase loops until max_iterations. Clear prompts with explicit completion criteria help.
+Blocked phases output `{"status": "blocked", "reason": "..."}`. If Claude doesn't output a completion signal, the phase loops until max iterations.
 
 ### Worktree Cleanup
 
-Failed tasks keep worktrees for debugging. Clean up manually:
+Failed tasks keep worktrees for debugging. Clean up:
 
 ```bash
+orc cleanup                  # Clean orphaned worktrees
+# or manually:
 git worktree list
-git worktree remove .orc/worktrees/TASK-001
+git worktree remove ~/.orc/worktrees/<project-id>/orc-TASK-001
 ```
 
 ## File Layout
 
 ```
-~/.orc/
-├── config.yaml          # User config
-├── projects.yaml        # Global registry
-├── orc.db               # Cost tracking, metadata
-└── token-pool/          # OAuth accounts
+~/.orc/                                    # Global (cross-project)
+├── orc.db                                 # GlobalDB: workflows, agents, costs
+├── projects.yaml                          # Project registry
+├── config.yaml                            # User-level config
+├── prompts/                               # User prompt overrides
+├── token-pool/                            # OAuth accounts
+├── projects/<project-id>/                 # Per-project runtime
+│   ├── orc.db                             # ProjectDB: tasks, initiatives, transcripts
+│   ├── config.yaml                        # Personal project config
+│   ├── prompts/                           # Personal project prompt overrides
+│   ├── sequences.yaml                     # Task ID sequences
+│   └── exports/                           # Backup archives
+└── worktrees/<project-id>/                # Isolated worktree execution
+    ├── orc-TASK-001/
+    ├── orc-TASK-002/
+    └── orc-TASK-003/
 
-.orc/                    # Per-project
-├── config.yaml
-├── orc.db               # Tasks, transcripts
-├── tasks/TASK-001/
-│   ├── task.yaml        # Definition
-│   ├── plan.yaml        # Phase sequence
-│   ├── state.yaml       # Execution state
-│   └── transcripts/     # Claude logs
-├── prompts/             # Override defaults
-└── worktrees/           # Isolated execution
-
-.claude/
-├── CLAUDE.md            # Project instructions
-├── plugins/orc/         # Slash commands
-└── skills/              # Custom skills
+<project>/.orc/                            # Config-only (git-tracked)
+├── config.yaml                            # Project config
+├── CONSTITUTION.md                        # Project principles
+├── prompts/                               # Project prompt templates
+└── system_prompts/                        # System prompt overrides
 ```
+
+All task data is stored in SQLite databases (or PostgreSQL for team mode), not individual files. Use `orc export` for portable backups.
 
 ## Development
 
@@ -503,7 +631,9 @@ make docker-test   # Tests in container
 - [Architecture](docs/architecture/OVERVIEW.md)
 - [Phase Model](docs/architecture/PHASE_MODEL.md)
 - [Gates](docs/architecture/GATES.md)
-- [CLI Spec](docs/specs/CLI.md)
+- [Config Reference](docs/specs/CONFIG_HIERARCHY.md)
+- [API Reference](docs/API_REFERENCE.md)
+- [Benchmarking](docs/specs/BENCHMARK_SYSTEM.md)
 - [File Formats](docs/specs/FILE_FORMATS.md)
 - [ADRs](docs/decisions/)
 
