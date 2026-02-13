@@ -177,6 +177,19 @@ If the TDD tests include a `wiring` section, you MUST follow it exactly:
 </tdd_tests>
 {{/if}}
 
+{{#if TDD_INTEGRATION_CONTENT}}
+<integration_tests>
+## Integration Tests to Make Pass
+
+{{TDD_INTEGRATION_CONTENT}}
+
+These tests verify your new code is wired into existing production paths.
+They MUST pass — if they don't, your new code is dead code that nothing calls.
+
+**Wiring requirements:** If the integration tests specify that an existing file must import your new code, you MUST update that existing file. Don't create the new code in isolation.
+</integration_tests>
+{{/if}}
+
 {{#if TDD_TEST_PLAN}}
 <manual_ui_testing>
 ## Manual UI Testing Required
@@ -311,7 +324,7 @@ Before outputting completion JSON, commit all work to preserve it:
 git add -A
 git commit -m "[orc] {{TASK_ID}}: implement - [brief description]
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+Co-Authored-By: {{COMMIT_AUTHOR}}"
 ```
 
 **CRITICAL:** Always commit before claiming completion. Uncommitted work may be lost if execution is interrupted or the task fails.

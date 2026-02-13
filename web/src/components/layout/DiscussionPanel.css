@@ -1,0 +1,167 @@
+/* =============================================================================
+   DiscussionPanel Styles
+   Chat interface with message bubbles and input area
+   ============================================================================= */
+
+/* =============================================================================
+   PANEL CONTAINER
+   ============================================================================= */
+
+.discussion-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+/* =============================================================================
+   MESSAGES AREA
+   ============================================================================= */
+
+.discussion-panel__messages {
+	flex: 1;
+	overflow-y: auto;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.discussion-panel__messages::-webkit-scrollbar {
+	width: 4px;
+}
+
+.discussion-panel__messages::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.discussion-panel__messages::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 2px;
+}
+
+.discussion-panel__messages {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-light) transparent;
+}
+
+/* =============================================================================
+   MESSAGE ITEM
+   ============================================================================= */
+
+.discussion-panel__message {
+	display: flex;
+	max-width: 85%;
+}
+
+.discussion-panel__message--user {
+	align-self: flex-end;
+}
+
+.discussion-panel__message--assistant {
+	align-self: flex-start;
+}
+
+/* =============================================================================
+   MESSAGE BUBBLE
+   ============================================================================= */
+
+.discussion-panel__bubble {
+	padding: 8px 12px;
+	border-radius: 12px;
+	font-size: 13px;
+	line-height: 1.5;
+	word-wrap: break-word;
+}
+
+.discussion-panel__message--user .discussion-panel__bubble {
+	background: var(--primary);
+	color: white;
+	border-bottom-right-radius: 4px;
+}
+
+.discussion-panel__message--assistant .discussion-panel__bubble {
+	background: var(--bg-elevated);
+	color: var(--text-primary);
+	border-bottom-left-radius: 4px;
+}
+
+/* =============================================================================
+   ERROR STATE
+   ============================================================================= */
+
+.discussion-panel__error {
+	padding: 8px 12px;
+	margin: 0 12px;
+	background: var(--bg-error, rgba(239, 68, 68, 0.1));
+	border-radius: 6px;
+	font-size: 12px;
+	color: var(--text-error, #ef4444);
+}
+
+/* =============================================================================
+   INPUT AREA
+   ============================================================================= */
+
+.discussion-panel__input-area {
+	display: flex;
+	gap: 8px;
+	padding: 12px;
+	border-top: 1px solid var(--border-light);
+}
+
+.discussion-panel__input-area input {
+	flex: 1;
+	padding: 8px 12px;
+	border: 1px solid var(--border-light);
+	border-radius: 6px;
+	background: var(--bg-base);
+	color: var(--text-primary);
+	font-size: 13px;
+}
+
+.discussion-panel__input-area input:focus {
+	outline: none;
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px var(--primary-dim);
+}
+
+.discussion-panel__input-area input:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.discussion-panel__input-area button {
+	padding: 8px 16px;
+	border: none;
+	border-radius: 6px;
+	background: var(--primary);
+	color: white;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: opacity 0.15s;
+}
+
+.discussion-panel__input-area button:hover:not(:disabled) {
+	opacity: 0.9;
+}
+
+.discussion-panel__input-area button:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.discussion-panel__input-area button:focus-visible {
+	outline: 2px solid var(--primary-bright);
+	outline-offset: 2px;
+}
+
+/* =============================================================================
+   REDUCED MOTION
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+	.discussion-panel__input-area button {
+		transition: none;
+	}
+}

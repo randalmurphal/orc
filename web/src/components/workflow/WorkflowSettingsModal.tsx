@@ -14,6 +14,7 @@
 import { useState, useEffect } from 'react';
 import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 import { workflowClient } from '@/lib/client';
+import { PROVIDERS, PROVIDER_MODELS } from '@/lib/providerUtils';
 import { Modal } from '@/components/overlays/Modal';
 import './WorkflowSettingsModal.css';
 
@@ -38,6 +39,7 @@ export function WorkflowSettingsModal({
 	const [formData, setFormData] = useState({
 		name: '',
 		description: '',
+		defaultProvider: '',
 		defaultModel: '',
 		defaultThinking: false,
 		completionAction: '',
@@ -50,6 +52,7 @@ export function WorkflowSettingsModal({
 			setFormData({
 				name: workflow.name || '',
 				description: workflow.description || '',
+				defaultProvider: workflow.defaultProvider || '',
 				defaultModel: workflow.defaultModel || '',
 				defaultThinking: workflow.defaultThinking || false,
 				completionAction: workflow.completionAction || '',
@@ -109,6 +112,11 @@ export function WorkflowSettingsModal({
 	};
 
 	const handleSelectChange = (field: string, value: string) => {
+		if (field === 'defaultProvider') {
+			setFormData(prev => ({ ...prev, [field]: value, defaultModel: '' }));
+			handleUpdate({ defaultProvider: value, defaultModel: '' });
+			return;
+		}
 		setFormData((prev) => ({ ...prev, [field]: value }));
 		handleUpdate({ [field]: value });
 	};
@@ -166,20 +174,53 @@ export function WorkflowSettingsModal({
 						<h3>Defaults</h3>
 
 						<div className="form-field">
-							<label htmlFor="modal-default-model">Default Model</label>
+							<label htmlFor="modal-default-provider">Default Provider</label>
 							<select
-								id="modal-default-model"
-								value={formData.defaultModel}
+								id="modal-default-provider"
+								value={formData.defaultProvider}
 								onChange={(e) =>
-									handleSelectChange('defaultModel', e.target.value)
+									handleSelectChange('defaultProvider', e.target.value)
 								}
 								disabled={isDisabled}
 							>
-								<option value="">Select a model...</option>
-								<option value="sonnet">Sonnet (default)</option>
-								<option value="opus">Opus</option>
-								<option value="haiku">Haiku</option>
+								<option value="">Claude (default)</option>
+								{PROVIDERS.map(p => (
+									<option key={p.value} value={p.value}>{p.label}</option>
+								))}
 							</select>
+						</div>
+
+						<div className="form-field">
+							<label htmlFor="modal-default-model">Default Model</label>
+							{(PROVIDER_MODELS[formData.defaultProvider || 'claude'] ?? []).length > 0 ? (
+								<select
+									id="modal-default-model"
+									value={formData.defaultModel}
+									onChange={(e) =>
+										handleSelectChange('defaultModel', e.target.value)
+									}
+									disabled={isDisabled}
+								>
+									<option value="">Select a model...</option>
+									{(PROVIDER_MODELS[formData.defaultProvider || 'claude'] ?? []).map(m => (
+										<option key={m.value} value={m.value}>{m.label}</option>
+									))}
+								</select>
+							) : (
+								<input
+									id="modal-default-model"
+									type="text"
+									value={formData.defaultModel}
+									onChange={(e) =>
+										handleFieldChange('defaultModel', e.target.value)
+									}
+									onBlur={(e) =>
+										handleFieldBlur('defaultModel', e.target.value)
+									}
+									disabled={isDisabled}
+									placeholder="Type model name..."
+								/>
+							)}
 						</div>
 
 						<div className="form-field">

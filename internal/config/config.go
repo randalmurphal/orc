@@ -153,11 +153,17 @@ type Config struct {
 	// Developer settings for personal branch targeting (staging branches)
 	Developer DeveloperConfig `yaml:"developer,omitempty"`
 
+	// Brief generation settings for project context
+	Brief BriefConfig `yaml:"brief"`
+
 	// MCP (Model Context Protocol) server configuration
 	MCP MCPConfig `yaml:"mcp"`
 
 	// Hosting provider configuration (GitHub, GitLab, auto-detect)
 	Hosting HostingConfig `yaml:"hosting"`
+
+	// Knowledge layer configuration
+	Knowledge KnowledgeConfig `yaml:"knowledge"`
 
 	// Jira Cloud import configuration
 	Jira JiraConfig `yaml:"jira"`
@@ -170,6 +176,13 @@ type Config struct {
 
 	// Automation configuration for triggers and templates
 	Automation AutomationConfig `yaml:"automation"`
+
+	// Provider is the default LLM provider for all phases (default: "claude")
+	// Supported: "claude", "codex", "ollama"
+	Provider string `yaml:"provider,omitempty"`
+
+	// Providers contains provider-specific defaults.
+	Providers ProvidersConfig `yaml:"providers,omitempty"`
 
 	// Model is the default model for all phases (unless overridden in phase templates)
 	Model         string `yaml:"model"`
@@ -185,6 +198,7 @@ type Config struct {
 
 	// Claude CLI settings
 	ClaudePath                 string `yaml:"claude_path"`
+	CodexPath                  string `yaml:"codex_path,omitempty"`
 	DangerouslySkipPermissions bool   `yaml:"dangerously_skip_permissions"`
 
 	// Template paths
@@ -299,6 +313,7 @@ func LoadFile(filePath string) (*Config, error) {
 
 	// Expand paths
 	cfg.ClaudePath = ExpandPath(cfg.ClaudePath)
+	cfg.CodexPath = ExpandPath(cfg.CodexPath)
 
 	return cfg, nil
 }
@@ -887,6 +902,12 @@ func (c *Config) Validate() error {
 			c.Team.Mode, ValidModes)
 	}
 
+	// Validate LLM provider
+	if c.Provider != "" && !contains(ValidLLMProviders, c.Provider) {
+		return fmt.Errorf("invalid provider: %s (must be one of: claude, codex, ollama, lmstudio)",
+			c.Provider)
+	}
+
 	// Validate hosting provider
 	if c.Hosting.Provider != "" && !contains(ValidHostingProviders, c.Hosting.Provider) {
 		return fmt.Errorf("invalid hosting.provider: %s (must be one of: auto, github, gitlab)",
@@ -956,6 +977,34 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// Validate knowledge configuration
+	if c.Knowledge.Indexing.EmbeddingModel != "" &&
+		!contains(ValidEmbeddingModels, c.Knowledge.Indexing.EmbeddingModel) {
+		return fmt.Errorf("invalid knowledge.indexing.embedding_model: %s (must be one of: %s)",
+			c.Knowledge.Indexing.EmbeddingModel, strings.Join(ValidEmbeddingModels, ", "))
+	}
+
+	if err := c.validateProviderRates(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Config) validateProviderRates() error {
+	for provider, models := range c.Providers.Rates {
+		if strings.TrimSpace(provider) == "" {
+			return fmt.Errorf("invalid providers.rates: provider key cannot be empty")
+		}
+		for model, rate := range models {
+			if strings.TrimSpace(model) == "" {
+				return fmt.Errorf("invalid providers.rates.%s: model key cannot be empty", provider)
+			}
+			if rate.Input < 0 || rate.Output < 0 || rate.CacheRead < 0 || rate.CacheWrite < 0 {
+				return fmt.Errorf("invalid providers.rates.%s.%s: rates must be non-negative", provider, model)
+			}
+		}
+	}
 	return nil
 }
 

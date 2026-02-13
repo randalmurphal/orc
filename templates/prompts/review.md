@@ -7,11 +7,11 @@ Three possible outcomes. Your output MUST be a structured response matching one 
 
 **Outcome 1 — No Issues / Small Fixes:**
 Use when no issues found, or issues are small enough to fix directly (missing null check, typo, forgotten import, simple logic fix). If you made fixes, commit them first.
-Output your structured response with status set to "complete" and a summary describing what was verified or what fixes you made.
+Output your structured response with `needs_changes: false` and a summary describing what was verified or what fixes you made.
 
 **Outcome 2 — Major Implementation Issues:**
 Use when significant problems need re-implementation, but the overall approach is correct. Examples: missing error handling throughout, component doesn't integrate correctly, business logic wrong in multiple places, tests missing or inadequate.
-Do NOT fix these yourself. Output your structured response with status set to "blocked" and a reason containing:
+Do NOT fix these yourself. Output your structured response with `needs_changes: true` and issues containing:
 1. A brief description of each issue
 2. **MANDATORY: Specific file:line locations** where each fix must be applied
 3. What the implement phase must do at each location
@@ -34,7 +34,7 @@ What to do: Create a helper method on WorkflowExecutor that loads initiative and
 
 **Outcome 3 — Wrong Approach Entirely:**
 Use when the fundamental approach is wrong and re-implementing won't help. Examples: misunderstood requirements, wrong architecture, built the wrong thing entirely.
-Output your structured response with status set to "blocked" and a reason explaining why the current approach is incorrect and what the correct approach should be.
+Output your structured response with `needs_changes: true` and issues explaining why the current approach is incorrect and what the correct approach should be.
 
 ### Decision Guide
 
@@ -86,6 +86,10 @@ The implement phase finds creative workarounds. You must recognize and reject th
 | "Tests pass so implementation is correct" | Tests may only cover component isolation, not integration. | Verify: "Does clicking ACTUALLY work end-to-end?" |
 | "Component design is correct, just needs wiring later" | Unwired component = dead code. | BLOCK: "Dead code ships if we merge this" |
 | "This is good progress, we can wire it in the next task" | Partial implementations create debt and confusion. | BLOCK: "Task must be complete per spec" |
+| "Handler prints message when service unavailable" | A handler that never calls the service is a stub, not graceful degradation. | BLOCK: "Handler must call service; return error if unavailable" |
+| "Structural tests verify command registration" | Registration tests prove wiring exists, not that it's invoked. | BLOCK: "Test must invoke handler and verify service call" |
+
+**The test for CLI behavior:** Does the command handler actually call the service/function? Not "does the command have the right flags" but "if I run the command, does it invoke the real code path?" A handler that prints a message and returns nil is dead code with good error UX.
 
 **The test for UI behavior:** Can you actually perform the action described in the SC? Not "does the component have an onClick prop" but "if I click it in the running app, does the specified behavior happen?"
 </critical_constraints>
@@ -129,6 +133,18 @@ The TDD phase produced the following tests and wiring requirements. Use this to 
 </tdd_requirements>
 {{/if}}
 
+{{#if TDD_INTEGRATION_CONTENT}}
+<integration_requirements>
+## Integration Test Wiring Declarations
+
+The integration test phase produced these wiring verifications. Use this to verify:
+1. All integration tests pass (new code is reachable from production paths)
+2. Wiring declarations were followed (new code is imported/called by the declared production files)
+
+{{TDD_INTEGRATION_CONTENT}}
+</integration_requirements>
+{{/if}}
+
 {{#if RETRY_ATTEMPT}}
 <retry_context>
 ## Re-Review Context
@@ -142,6 +158,7 @@ Pay special attention to whether the issues from the previous review have been a
 {{/if}}
 </context>
 
+{{#if SUPPORTS_SUBAGENTS}}
 <mandatory_subagent_review>
 ## MANDATORY: Spawn Specialist Reviewers
 
@@ -171,9 +188,10 @@ Focus on: integration completeness, dead code, behavioral correctness"
 
 **If you skip this step, your review is incomplete and will miss issues.**
 </mandatory_subagent_review>
+{{/if}}
 
 <instructions>
-Thorough validation before test phase. Spawn specialist reviewers, run linting, review changed files against the spec, then decide on one of the three outcomes.
+Thorough validation before test phase. {{#if SUPPORTS_SUBAGENTS}}Spawn specialist reviewers, {{/if}}Run linting, review changed files against the spec, then decide on one of the three outcomes.
 
 ## Check 1: Completeness (CRITICAL)
 
@@ -241,21 +259,22 @@ If success criteria are vague or untestable, this is a blocking finding — the 
 - New interfaces have implementations wired into the system
 - If the task adds hooks/callbacks/triggers, they are registered
 
-**Verify TDD Wiring Declarations (if `<tdd_requirements>` section exists above):**
+**Verify integration test wiring declarations (if `<integration_requirements>` or `<tdd_requirements>` sections exist above):**
 
-If the TDD phase declared wiring requirements (in the `wiring` field), verify EACH declaration:
-1. `new_component_path` — Was the component created at this exact path?
-2. `imported_by` — Does this file actually import the new component?
-3. `integration_test_file` — Does this test import the parent file and verify the wiring?
+If the integration test phase declared wiring verifications, verify EACH declaration:
+1. Was the new code created at the declared path?
+2. Does the declared production file actually import/call the new code?
+3. Do the integration tests pass — proving the wiring works end-to-end?
+4. **Do the integration tests verify INVOCATION, not just REGISTRATION?** A test that checks "command is registered" or "has correct flags" is a structural test, not an integration test. Open the test file and verify it actually triggers the handler and asserts the service was called.
 
 ```bash
 # Example verification for wiring declaration:
-# "new_component_path": "@/components/Panel.tsx"
-# "imported_by": "@/pages/Dashboard.tsx"
-grep -n "Panel" src/pages/Dashboard.tsx  # Must find an import
+# "new_code": "internal/handler/new.go"
+# "called_from": "internal/server/router.go"
+grep -rn "new_handler\|NewHandler" internal/server/router.go  # Must find a reference
 ```
 
-**If the implementation created the component at a DIFFERENT path than declared, or the declared importer doesn't actually import it, this is a HIGH-SEVERITY finding.**
+**If the implementation created the new code at a DIFFERENT path than declared, or the declared caller doesn't actually call it, this is a HIGH-SEVERITY finding.**
 
 **For bug fixes:** The fix may be correct where applied but incomplete across the codebase.
 
@@ -320,12 +339,20 @@ If you find over-engineering, flag it. The spec defines what should be built —
 
 ## Process
 
+{{#if SUPPORTS_SUBAGENTS}}
 1. **Spawn specialist sub-agents** (MANDATORY - see `<mandatory_subagent_review>` above)
+{{/if}}
 2. Run linting and check changed files
 3. Review each changed file against the spec using the eight checks above
-4. Wait for sub-agent results and incorporate their findings
-5. If you made small fixes, commit them
-6. Output your structured response with the appropriate outcome
+4. Perform security review (OWASP Top 10, injection, auth bypass)
+5. Perform code quality review (guidelines compliance, patterns, dead code)
+{{#if SUPPORTS_SUBAGENTS}}
+6. Wait for sub-agent results and incorporate their findings
+{{/if}}
+7. If you made small fixes, commit them
+8. Output your structured response with the appropriate outcome
+{{#if SUPPORTS_SUBAGENTS}}
 
 **Your final decision must account for ALL sub-agent findings.** If a sub-agent found a high-severity issue, you must block even if your own review found nothing.
+{{/if}}
 </instructions>

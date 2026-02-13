@@ -510,6 +510,12 @@ type MockTurnExecutor struct {
 	PhaseID string
 	// ReviewRound for review phase (1 = findings, 2 = decision)
 	ReviewRound int
+	// UsageOverrides is a queue of token usage values. Each call pops the first entry.
+	// If empty, uses the default {InputTokens: 100, OutputTokens: 50}.
+	UsageOverrides []*orcv1.TokenUsage
+	// CostOverrides is a queue of CostUSD values. Each call pops the first entry.
+	// If empty, CostUSD defaults to 0.
+	CostOverrides []float64
 }
 
 // Ensure MockTurnExecutor implements TurnExecutor
@@ -550,14 +556,29 @@ func (m *MockTurnExecutor) ExecuteTurn(ctx context.Context, prompt string) (*Tur
 		content = m.DefaultResponse
 	}
 
+	var usage *orcv1.TokenUsage
+	if len(m.UsageOverrides) > 0 {
+		usage = m.UsageOverrides[0]
+		m.UsageOverrides = m.UsageOverrides[1:]
+	} else {
+		usage = &orcv1.TokenUsage{
+			InputTokens:  100,
+			OutputTokens: 50,
+		}
+	}
+
+	var costUSD float64
+	if len(m.CostOverrides) > 0 {
+		costUSD = m.CostOverrides[0]
+		m.CostOverrides = m.CostOverrides[1:]
+	}
+
 	result := &TurnResult{
 		Content:   content,
 		NumTurns:  1,
 		SessionID: m.SessionIDValue,
-		Usage: &orcv1.TokenUsage{
-			InputTokens:  100,
-			OutputTokens: 50,
-		},
+		CostUSD:   costUSD,
+		Usage:     usage,
 	}
 
 	// Parse status from content using phase-specific parser (same as real executor).

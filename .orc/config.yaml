@@ -216,7 +216,7 @@ max_turns: 150
 timeout: 60m0s
 branch_prefix: orc/
 commit_prefix: '[orc]'
-claude_path: /home/randy/.local/bin/claude-stable
+claude_path: ~/.local/bin/claude-stable
 dangerously_skip_permissions: true
 templates_dir: templates
 enable_checkpoints: true

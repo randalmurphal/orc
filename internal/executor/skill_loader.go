@@ -131,10 +131,3 @@ func (l *SkillLoader) LoadSkillsForConfig(cfg *PhaseClaudeConfig) error {
 
 	return nil
 }
-
-// LoadSkillsContentSimple is a convenience function for loading skills without a SkillLoader instance.
-// claudeDir should be the path to the .claude directory.
-func LoadSkillsContentSimple(claudeDir string, skillRefs []string) (string, error) {
-	loader := NewSkillLoader(claudeDir)
-	return loader.LoadSkillsContent(skillRefs)
-}

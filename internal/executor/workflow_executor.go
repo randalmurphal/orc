@@ -16,6 +16,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
+	"github.com/randalmurphal/orc/internal/brief"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
@@ -109,6 +110,12 @@ type WorkflowRunOptions struct {
 	// IgnoreBudget bypasses budget enforcement when true.
 	// Maps to the --ignore-budget CLI flag.
 	IgnoreBudget bool
+
+	// Provider overrides the default LLM provider for this run.
+	// Values: "claude" (default), "codex", "ollama".
+	// When set, overrides config.Provider for all phases in this run
+	// (individual phase/workflow overrides still take precedence).
+	Provider string
 }
 
 // GateEvaluatorInterface abstracts gate evaluation for testability.
@@ -129,32 +136,44 @@ type WorkflowExecutor struct {
 	logger        *slog.Logger
 	workingDir    string
 	claudePath    string
+	codexPath     string                          // Path to codex binary
+	tokenRates    map[string]map[string]TokenRate // Provider token rates for cost estimation
 
 	// Optional components
 	gitOps             *git.Git
 	publisher          *events.PublishHelper
-	automationSvc      *automation.Service      // For automation event triggers
-	sessionBroadcaster *SessionBroadcaster      // For real-time session metrics
-	resourceTracker    *ResourceTracker         // For orphan process detection
-	hostingProvider    hosting.Provider         // Injected hosting provider (for testing)
+	automationSvc      *automation.Service // For automation event triggers
+	sessionBroadcaster *SessionBroadcaster // For real-time session metrics
+	resourceTracker    *ResourceTracker    // For orphan process detection
+	hostingProvider    hosting.Provider    // Injected hosting provider (for testing)
 
 	// Per-run state (set during Run)
-	worktreePath string            // Path to worktree (if created)
-	worktreeGit  *git.Git          // Git ops scoped to worktree
-	task         *orcv1.Task       // Task being executed (for task-based contexts)
+	worktreePath string             // Path to worktree (if created)
+	worktreeGit  *git.Git           // Git ops scoped to worktree
+	task         *orcv1.Task        // Task being executed (for task-based contexts)
 	wf           *workflow.Workflow // Workflow being executed (for lifecycle triggers in failRun)
 	heartbeat    *HeartbeatRunner
 	idleGuard    *IdleGuard
 	fileWatcher  *FileWatcher
-	isResuming      bool // True if resuming a paused/failed/blocked task
-	skipGates       bool // When true, bypass all gate evaluations
-	inParallelLevel bool //nolint:unused // True when executing phases in parallel (prepared for parallel execution)
+	isResuming   bool   // True if resuming a paused/failed/blocked task
+	skipGates    bool   // When true, bypass all gate evaluations
+	runProvider  string // Run-level provider override (from WorkflowRunOptions.Provider)
+
+	// briefGenerator is lazily created for project brief generation across phases.
+	briefGenerator *brief.Generator
 
 	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
 	turnExecutor TurnExecutor
 
 	// triggerRunner evaluates before-phase and lifecycle triggers.
 	triggerRunner trigger.Runner
+
+	// phaseTypeRegistry maps type strings to PhaseTypeExecutor implementations.
+	phaseTypeRegistry *PhaseTypeRegistry
+
+	// knowledgeService is the optional knowledge query service for knowledge phases
+	// and condition evaluation. Set via WithWorkflowKnowledgeService.
+	knowledgeService KnowledgeQueryService
 }
 
 // WorkflowExecutorOption configures a WorkflowExecutor.
@@ -188,8 +207,22 @@ func WithWorkflowClaudePath(path string) WorkflowExecutorOption {
 	}
 }
 
+// WithWorkflowCodexPath sets the path to the Codex CLI executable.
+func WithWorkflowCodexPath(path string) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.codexPath = path
+	}
+}
+
+// WithWorkflowTokenRates sets the provider token rates for cost estimation.
+func WithWorkflowTokenRates(rates map[string]map[string]TokenRate) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.tokenRates = rates
+	}
+}
+
 // WithWorkflowTurnExecutor sets a TurnExecutor for testing.
-// When set, executeWithClaude uses this instead of creating a real ClaudeExecutor.
+// When set, executeWithProvider uses this instead of creating a real executor.
 func WithWorkflowTurnExecutor(te TurnExecutor) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
 		we.turnExecutor = te
@@ -217,6 +250,18 @@ func WithWorkflowTriggerRunner(runner trigger.Runner) WorkflowExecutorOption {
 	}
 }
 
+// resolveCodexPath returns the effective codex binary path using fallback chain:
+// explicit codexPath > config.Providers.Codex.Path > "codex"
+func (we *WorkflowExecutor) resolveCodexPath() string {
+	if we.codexPath != "" {
+		return we.codexPath
+	}
+	if we.orcConfig != nil && we.orcConfig.Providers.Codex.Path != "" {
+		return we.orcConfig.Providers.Codex.Path
+	}
+	return "codex"
+}
+
 // WithSkipGates configures the executor to skip all gate evaluations.
 func WithSkipGates(skip bool) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
@@ -231,22 +276,41 @@ func WithWorkflowGateEvaluator(eval GateEvaluatorInterface) WorkflowExecutorOpti
 	}
 }
 
+// WithPhaseTypeExecutor registers a custom PhaseTypeExecutor for a type string.
+func WithPhaseTypeExecutor(typeName string, executor PhaseTypeExecutor) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		if we.phaseTypeRegistry == nil {
+			we.phaseTypeRegistry = NewDefaultPhaseTypeRegistry()
+		}
+		we.phaseTypeRegistry.Register(typeName, executor)
+	}
+}
+
+// WithWorkflowKnowledgeService injects a knowledge query service.
+// This sets KnowledgeAvailable=true on ConditionContext during Run() and
+// provides the service to knowledge phase executors.
+func WithWorkflowKnowledgeService(svc KnowledgeQueryService) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.knowledgeService = svc
+	}
+}
+
 // setWorkflow stores the workflow reference on the executor for use in failRun.
 func (we *WorkflowExecutor) setWorkflow(wf *workflow.Workflow) {
 	we.wf = wf
 }
 
 // NewWorkflowExecutor creates a new workflow executor.
+// globalDB is required — workflow definitions (phases, templates, variables) are
+// only seeded to GlobalDB. ProjectDB has the same tables but they contain stale data.
 func NewWorkflowExecutor(
 	backend storage.Backend,
 	projectDB *db.ProjectDB,
+	globalDB *db.GlobalDB,
 	orcConfig *config.Config,
 	workingDir string,
 	opts ...WorkflowExecutorOption,
 ) *WorkflowExecutor {
-	// Try to open global DB for cost tracking (best-effort)
-	globalDB, _ := db.OpenGlobal()
-
 	we := &WorkflowExecutor{
 		backend:       backend,
 		projectDB:     projectDB,
@@ -262,6 +326,16 @@ func NewWorkflowExecutor(
 
 	for _, opt := range opts {
 		opt(we)
+	}
+
+	// Ensure phase type registry is initialized
+	if we.phaseTypeRegistry == nil {
+		we.phaseTypeRegistry = NewDefaultPhaseTypeRegistry()
+	}
+
+	// If a knowledge service was injected, register a properly-wired knowledge executor
+	if we.knowledgeService != nil {
+		we.phaseTypeRegistry.Register("knowledge", NewKnowledgePhaseExecutor(we.knowledgeService))
 	}
 
 	return we
@@ -319,7 +393,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	}
 
 	// Load workflow from database
-	wf, err := we.projectDB.GetWorkflow(workflowID)
+	wf, err := we.globalDB.GetWorkflow(workflowID)
 	if err != nil {
 		return nil, fmt.Errorf("load workflow %s: %w", workflowID, err)
 	}
@@ -340,7 +414,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	}
 
 	// Load workflow phases
-	phases, err := we.projectDB.GetWorkflowPhases(workflowID)
+	phases, err := we.globalDB.GetWorkflowPhases(workflowID)
 	if err != nil {
 		return nil, fmt.Errorf("load workflow phases: %w", err)
 	}
@@ -352,7 +426,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	}
 
 	// Load workflow variables
-	workflowVars, err := we.projectDB.GetWorkflowVariables(workflowID)
+	workflowVars, err := we.globalDB.GetWorkflowVariables(workflowID)
 	if err != nil {
 		return nil, fmt.Errorf("load workflow variables: %w", err)
 	}
@@ -560,6 +634,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		return nil, fmt.Errorf("save workflow run: %w", err)
 	}
 
+	// Store run-level provider override (applies to all phases unless overridden per-phase)
+	we.runProvider = opts.Provider
+
 	// Sync task status to Running
 	// Note: Use opts.IsResume since TryClaimTaskExecution already changed status to running
 	if t != nil {
@@ -633,8 +710,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			}
 		}
 
-		// Load phase template
-		tmpl, err := we.projectDB.GetPhaseTemplate(phase.PhaseTemplateID)
+		// Load phase template from GlobalDB (definitions are seeded there, not ProjectDB)
+		tmpl, err := we.globalDB.GetPhaseTemplate(phase.PhaseTemplateID)
 		if err != nil {
 			we.failRun(run, t, fmt.Errorf("load phase template %s: %w", phase.PhaseTemplateID, err))
 			return result, err
@@ -668,6 +745,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 		// Update phase in resolution context
 		rctx.Phase = tmpl.ID
+		rctx.Provider = we.resolvePhaseProvider(tmpl, phase)
 
 		// Enrich context with phase-specific data (review findings, test results, etc.)
 		we.enrichContextForPhase(rctx, tmpl.ID, t)
@@ -682,9 +760,10 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		// Evaluate phase condition — skip phase if condition evaluates to false
 		if phase.Condition != "" {
 			condCtx := &ConditionContext{
-				Task: t,
-				Vars: vars,
-				RCtx: rctx,
+				Task:               t,
+				Vars:               vars,
+				RCtx:               rctx,
+				KnowledgeAvailable: we.knowledgeService != nil && we.knowledgeService.IsAvailable(),
 			}
 			condResult, condErr := EvaluateCondition(phase.Condition, condCtx)
 			if condErr != nil {
@@ -763,7 +842,15 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				// Note: Review findings are stored in RetryState.FailureOutput when
 				// SetRetryState is called by gate rejection handler below
 				phaseResult.BlockedReason = blockedErr.Reason
-				// Fall through to gate evaluation (don't return)
+
+				// Populate Content from the blocked output so applyPhaseContentToVars
+				// stores it in PriorOutputs — required for loop condition evaluation
+				// (e.g., review loop checks phase_output.review.needs_changes).
+				if blockedErr.Output != "" {
+					phaseResult.Content = blockedErr.Output
+					phaseResult.RawOutput = blockedErr.Output
+				}
+				// Fall through to loop evaluation and gate handling (don't return)
 			} else {
 				// Check if this was triggered by pause signal (execCtx cancelled)
 				// Note: The error may be "signal: killed" from subprocess, not context.Canceled
@@ -784,6 +871,17 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				"phase", tmpl.ID,
 				"output_var", tmpl.OutputVarName,
 			)
+		}
+
+		// Extract and persist scratchpad entries from raw phase output JSON
+		if t != nil {
+			rawOutput := phaseResult.RawOutput
+			if rawOutput == "" {
+				rawOutput = phaseResult.Content
+			}
+			if rawOutput != "" {
+				we.persistScratchpadEntries(t.Id, phase.PhaseTemplateID, rctx.RetryAttempt, rawOutput)
+			}
 		}
 
 		// Check for loop configuration and handle iterative loops
@@ -940,8 +1038,11 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			// Continue on gate error - don't block automation
 		}
 
-		// Handle blocked phases: force gate rejection to trigger retry
-		if phaseResult.BlockedReason != "" {
+		// Handle blocked phases: force gate rejection to trigger retry.
+		// Skip this when a loop config exists — the loop system already evaluated
+		// the blocked state and decided whether to loop back. If it didn't loop
+		// (max reached, invalid condition, invalid target), proceed forward.
+		if phaseResult.BlockedReason != "" && phase.LoopConfig == "" {
 			we.logger.Info("phase blocked, forcing gate rejection for retry",
 				"phase", tmpl.ID,
 				"reason", phaseResult.BlockedReason,
@@ -1172,7 +1273,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 							"phase", tmpl.ID)
 					}
 
-				// case workflow.GateActionContinue: default — no action needed
+					// case workflow.GateActionContinue: default — no action needed
 				}
 			}
 
@@ -1311,7 +1412,16 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		result.TaskID = t.Id
 	}
 	result.TotalCostUSD = run.TotalCostUSD
-	result.TotalTokens = run.TotalInputTokens + run.TotalOutputTokens
+	// Compute total tokens including cache from PhaseResults (run only tracks input+output)
+	totalCacheRead := 0
+	totalCacheCreation := 0
+	for _, pr := range result.PhaseResults {
+		totalCacheRead += pr.CacheReadTokens
+		totalCacheCreation += pr.CacheCreationTokens
+	}
+	result.TotalCacheReadTokens = totalCacheRead
+	result.TotalCacheCreationTokens = totalCacheCreation
+	result.TotalTokens = run.TotalInputTokens + run.TotalOutputTokens + totalCacheRead + totalCacheCreation
 	result.CompletedAt = run.CompletedAt
 	result.Success = true
 
@@ -1320,16 +1430,18 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 // WorkflowRunResult contains the result of a workflow execution.
 type WorkflowRunResult struct {
-	RunID        string
-	WorkflowID   string
-	TaskID       string
-	StartedAt    time.Time
-	CompletedAt  *time.Time
-	Success      bool
-	Error        string
-	PhaseResults []PhaseResult
-	TotalCostUSD float64
-	TotalTokens  int
+	RunID                    string
+	WorkflowID               string
+	TaskID                   string
+	StartedAt                time.Time
+	CompletedAt              *time.Time
+	Success                  bool
+	Error                    string
+	PhaseResults             []PhaseResult
+	TotalCostUSD             float64
+	TotalTokens              int
+	TotalCacheReadTokens     int
+	TotalCacheCreationTokens int
 }
 
 // PhaseResult contains the result of a phase execution.
@@ -1339,6 +1451,7 @@ type PhaseResult struct {
 	Iterations          int
 	DurationMS          int64
 	Content             string
+	RawOutput           string // Full JSON output (for scratchpad extraction)
 	Error               string
 	BlockedReason       string // Set when phase outputs blocked status (for gate evaluation)
 	InputTokens         int
@@ -1509,4 +1622,3 @@ func extractPhaseOutput(output string) string {
 	// This handles qa_e2e_test (findings), qa_e2e_fix (fixes_applied), review, etc.
 	return output
 }
-

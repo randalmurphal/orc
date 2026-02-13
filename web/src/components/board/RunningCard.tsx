@@ -17,6 +17,7 @@ import { ActivityIndicator } from '../common/ActivityIndicator';
 import { RealTimeMetrics } from '../common/RealTimeMetrics';
 import { LiveOutput } from '../common/LiveOutput';
 import { type Task, type ExecutionState, PhaseStatus } from '@/gen/orc/v1/task_pb';
+import { providerLabel, parseProviderModelTuple } from '@/lib/providerUtils';
 import { timestampToDate } from '@/lib/time';
 import { useTaskStore } from '@/stores/taskStore';
 import './RunningCard.css';
@@ -163,6 +164,10 @@ export const RunningCard = memo(function RunningCard({
 	const sessionMetrics = getSessionMetrics(task.id);
 	const phaseProgress = getPhaseProgress(task.id);
 
+	// Extract provider from session model (may be "provider:model" tuple)
+	const sessionModel = executionState?.session?.model ?? '';
+	const { provider: sessionProvider } = parseProviderModelTuple(sessionModel);
+
 	// Click handler
 	const handleClick = useCallback(() => {
 		onToggleExpand?.(task.id);
@@ -209,6 +214,20 @@ export const RunningCard = memo(function RunningCard({
 							<span className="running-initiative-dot" />
 							{task.initiativeId}
 						</div>
+					)}
+					{sessionProvider && sessionProvider !== 'claude' && (
+						<span
+							className="running-provider-badge"
+							style={{
+								fontSize: '0.7rem',
+								padding: '1px 6px',
+								borderRadius: '3px',
+								background: 'var(--color-surface-alt, #333)',
+								color: 'var(--color-text-secondary, #aaa)',
+							}}
+						>
+							{providerLabel(sessionProvider)}
+						</span>
 					)}
 				</div>
 				<div className="running-stats">

@@ -21,6 +21,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { MyWorkPage } from './MyWorkPage';
 import { projectClient } from '@/lib/client';
 import {
+	createMockGetAllProjectsStatusResponse,
 	createMockProjectStatus,
 	createMockTaskSummary,
 } from '@/test/factories';
@@ -79,9 +80,9 @@ describe('MyWorkPage', () => {
 
 	describe('SC-1: fetches and renders cross-project data', () => {
 		it('should call getAllProjectsStatus on mount', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue({
-				projects: [],
-			});
+			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+				createMockGetAllProjectsStatusResponse([])
+			);
 
 			renderMyWorkPage();
 
@@ -91,8 +92,8 @@ describe('MyWorkPage', () => {
 		});
 
 		it('should render project cards for each project with active tasks', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue({
-				projects: [
+			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+				createMockGetAllProjectsStatusResponse([
 					createMockProjectStatus({
 						projectId: 'proj-1',
 						projectName: 'Project Alpha',
@@ -108,8 +109,8 @@ describe('MyWorkPage', () => {
 							createMockTaskSummary({ id: 'TASK-011', title: 'Beta task 2' }),
 						],
 					}),
-				],
-			});
+				])
+			);
 
 			renderMyWorkPage();
 
@@ -172,9 +173,9 @@ describe('MyWorkPage', () => {
 		];
 
 		it('should show all tasks by default (All filter)', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue({
-				projects: projectsWithMixedStatuses,
-			});
+			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+				createMockGetAllProjectsStatusResponse(projectsWithMixedStatuses)
+			);
 
 			renderMyWorkPage();
 
@@ -187,9 +188,9 @@ describe('MyWorkPage', () => {
 		});
 
 		it('should filter to show only running tasks when Running is selected', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue({
-				projects: projectsWithMixedStatuses,
-			});
+			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+				createMockGetAllProjectsStatusResponse(projectsWithMixedStatuses)
+			);
 
 			renderMyWorkPage();
 
@@ -211,9 +212,9 @@ describe('MyWorkPage', () => {
 		});
 
 		it('should filter to show only blocked tasks when Blocked is selected', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue({
-				projects: projectsWithMixedStatuses,
-			});
+			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+				createMockGetAllProjectsStatusResponse(projectsWithMixedStatuses)
+			);
 
 			renderMyWorkPage();
 
@@ -233,9 +234,9 @@ describe('MyWorkPage', () => {
 		});
 
 		it('should hide projects with no matching tasks after filtering', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue({
-				projects: projectsWithMixedStatuses,
-			});
+			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+				createMockGetAllProjectsStatusResponse(projectsWithMixedStatuses)
+			);
 
 			renderMyWorkPage();
 
@@ -257,15 +258,15 @@ describe('MyWorkPage', () => {
 		});
 
 		it('should show "No matching tasks" when all tasks are filtered out', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue({
-				projects: [
+			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+				createMockGetAllProjectsStatusResponse([
 					createMockProjectStatus({
 						activeTasks: [
 							createMockTaskSummary({ status: TaskStatus.CREATED }),
 						],
 					}),
-				],
-			});
+				])
+			);
 
 			renderMyWorkPage();
 
@@ -284,9 +285,9 @@ describe('MyWorkPage', () => {
 		});
 
 		it('should show all tasks again when filter is reset to All', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue({
-				projects: projectsWithMixedStatuses,
-			});
+			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+				createMockGetAllProjectsStatusResponse(projectsWithMixedStatuses)
+			);
 
 			renderMyWorkPage();
 
@@ -342,11 +343,11 @@ describe('MyWorkPage', () => {
 		it('should re-fetch when retry button is clicked', async () => {
 			vi.mocked(projectClient.getAllProjectsStatus)
 				.mockRejectedValueOnce(new Error('Network error'))
-				.mockResolvedValueOnce({
-					projects: [
+				.mockResolvedValueOnce(
+					createMockGetAllProjectsStatusResponse([
 						createMockProjectStatus({ projectName: 'Recovered Project' }),
-					],
-				});
+					])
+				);
 
 			renderMyWorkPage();
 
@@ -362,9 +363,9 @@ describe('MyWorkPage', () => {
 		});
 
 		it('should show empty state when API returns no projects', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue({
-				projects: [],
-			});
+			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+				createMockGetAllProjectsStatusResponse([])
+			);
 
 			renderMyWorkPage();
 
@@ -378,15 +379,15 @@ describe('MyWorkPage', () => {
 
 	describe('edge cases', () => {
 		it('should render single project with no active tasks', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue({
-				projects: [
+			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+				createMockGetAllProjectsStatusResponse([
 					createMockProjectStatus({
 						projectName: 'Empty Project',
 						activeTasks: [],
 						totalTasks: 5,
 					}),
-				],
-			});
+				])
+			);
 
 			renderMyWorkPage();
 

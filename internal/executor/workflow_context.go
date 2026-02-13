@@ -4,6 +4,7 @@
 package executor
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/brief"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -306,10 +308,44 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 	// Load TDD test plan if it exists
 	rctx.TDDTestPlan = we.loadPriorPhaseContentProto(t.Id, t.Execution, "tdd_write_plan")
 
+	// Generate project brief from task history
+	we.populateProjectBrief(rctx)
+
+	// Load scratchpad entries from prior phases for PREV_SCRATCHPAD
+	we.populateScratchpadContext(rctx, t.Id, phaseID)
+
 	// Load automation context for automation tasks
 	if t.IsAutomation {
 		we.loadAutomationContextProto(rctx, t)
 	}
+}
+
+// populateProjectBrief generates a project brief and populates rctx.ProjectBrief.
+// Requires *storage.DatabaseBackend — silently skips for other backend types.
+func (we *WorkflowExecutor) populateProjectBrief(rctx *variable.ResolutionContext) {
+	dbBackend, ok := we.backend.(*storage.DatabaseBackend)
+	if !ok {
+		return
+	}
+
+	// Lazily create brief generator (persists across phases for caching)
+	if we.briefGenerator == nil {
+		cfg := brief.DefaultConfig()
+		if we.orcConfig != nil {
+			cfg.MaxTokens = we.orcConfig.Brief.MaxTokens
+			cfg.StaleThreshold = we.orcConfig.Brief.StaleThreshold
+		}
+		cfg.CachePath = filepath.Join(we.workingDir, ".orc", "brief-cache.json")
+		we.briefGenerator = brief.NewGenerator(dbBackend, cfg)
+	}
+
+	b, err := we.briefGenerator.Generate(context.Background())
+	if err != nil {
+		we.logger.Warn("failed to generate project brief", "error", err)
+		return
+	}
+
+	rctx.ProjectBrief = brief.FormatBrief(b)
 }
 
 // formatRecentCompletedTasksForPrompt formats recent completed tasks as a markdown list.

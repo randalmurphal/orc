@@ -245,21 +245,3 @@ func TestAgentResolver_ResolveAgentForConfig(t *testing.T) {
 		assert.Contains(t, cfg.AppendSystemPrompt, "snake_case")
 	})
 }
-
-func TestResolveAgentConfigSimple(t *testing.T) {
-	tmpDir := t.TempDir()
-	createTestSettings(t, tmpDir, []map[string]any{
-		{
-			"name":        "simple-agent",
-			"description": "Simple agent",
-			"prompt":      "Simple prompt",
-		},
-	})
-
-	cfg := &PhaseClaudeConfig{AgentRef: "simple-agent"}
-
-	err := ResolveAgentConfigSimple(tmpDir, tmpDir, cfg)
-
-	require.NoError(t, err)
-	assert.Equal(t, "Simple prompt", cfg.SystemPrompt)
-}

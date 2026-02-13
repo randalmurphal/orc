@@ -1,6 +1,6 @@
 id: implement-large
 name: "Implement (Large)"
-description: "Full implementation workflow: spec, TDD, breakdown, implement, review, docs"
+description: "Full implementation workflow: spec, TDD, integration tests, breakdown, implement, review, docs"
 
 phases:
   - template: spec
@@ -10,33 +10,37 @@ phases:
     sequence: 1
     depends_on: ["spec"]
 
-  - template: breakdown
+  - template: tdd_integrate
     sequence: 2
     depends_on: ["tdd_write"]
 
-  - template: implement
+  - template: breakdown
     sequence: 3
+    depends_on: ["tdd_integrate"]
+
+  - template: implement
+    sequence: 4
     depends_on: ["breakdown"]
 
   - template: review
-    sequence: 4
+    sequence: 5
     depends_on: ["implement"]
     loop_config:
       loop_to_phase: implement
       condition:
-        field: "phase_output.review.status"
+        field: "phase_output.review.needs_changes"
         op: "eq"
-        value: "needs_changes"
+        value: "true"
       max_loops: 3
       loop_templates:
-        "1": "review.md"
-        default: "review_round2.md"
+        "1": "prompts/review.md"
+        default: "prompts/review_round2.md"
       loop_schemas:
         "1": "ReviewFindingsSchema"
         default: "ReviewDecisionSchema"
 
   - template: docs
-    sequence: 5
+    sequence: 6
     depends_on: ["review"]
 
 triggers:

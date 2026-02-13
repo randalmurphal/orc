@@ -47,12 +47,28 @@ type PhaseClaudeConfig struct {
 	SkillRefs []string `json:"skill_refs,omitempty"` // Skill names to load and inject
 
 	// Agent assignment
-	AgentRef     string                      `json:"agent_ref,omitempty"`     // --agent: Use existing agent by name
-	InlineAgents map[string]InlineAgentDef `json:"inline_agents,omitempty"` // --agents: Define subagents inline
+	AgentRef          string                    `json:"agent_ref,omitempty"`           // --agent: Use existing agent by name
+	InlineAgents      map[string]InlineAgentDef `json:"inline_agents,omitempty"`       // --agents: Define subagents inline
+	AllowAgentFolding bool                      `json:"allow_agent_folding,omitempty"` // Allow codex to fold inline agents into main prompt
 
 	// Hook handling — maps event type (e.g. "PreToolUse") to matchers.
 	// Matches Claude Code's settings.json hooks format.
 	Hooks map[string][]HookMatcher `json:"hooks,omitempty"`
+
+	// Codex-specific settings (used when provider=codex).
+	Codex *PhaseCodexConfig `json:"codex,omitempty"`
+}
+
+// PhaseCodexConfig holds Codex-specific settings for a phase.
+// Note: sandbox/approval modes are not configurable — orc always uses
+// --dangerously-bypass-approvals-and-sandbox for all codex execution.
+type PhaseCodexConfig struct {
+	ReasoningEffort string            `json:"reasoning_effort,omitempty"`
+	WebSearchMode   string            `json:"web_search_mode,omitempty"`
+	LocalProvider   string            `json:"local_provider,omitempty"`
+	Instructions    string            `json:"instructions,omitempty"`
+	Env             map[string]string `json:"env,omitempty"`
+	AddDirs         []string          `json:"add_dirs,omitempty"`
 }
 
 // HookMatcher defines a single hook matcher entry in Claude Code's settings.json.
@@ -192,6 +208,9 @@ func (p *PhaseClaudeConfig) Merge(override *PhaseClaudeConfig) *PhaseClaudeConfi
 		}
 		maps.Copy(result.InlineAgents, override.InlineAgents)
 	}
+	if override.AllowAgentFolding {
+		result.AllowAgentFolding = true
+	}
 
 	// Hooks - per event key, append matchers (not replace).
 	// Deep-copy base hooks first to avoid mutating originals.
@@ -206,6 +225,11 @@ func (p *PhaseClaudeConfig) Merge(override *PhaseClaudeConfig) *PhaseClaudeConfi
 			merged[event] = append(merged[event], matchers...)
 		}
 		result.Hooks = merged
+	}
+
+	// Codex config - override wins if non-nil
+	if override.Codex != nil {
+		result.Codex = override.Codex
 	}
 
 	return &result
@@ -232,7 +256,9 @@ func (p *PhaseClaudeConfig) IsEmpty() bool {
 		len(p.SkillRefs) == 0 &&
 		p.AgentRef == "" &&
 		len(p.InlineAgents) == 0 &&
-		len(p.Hooks) == 0
+		!p.AllowAgentFolding &&
+		len(p.Hooks) == 0 &&
+		p.Codex == nil
 }
 
 // JSON returns the config as a JSON string for database storage.

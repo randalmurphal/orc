@@ -890,7 +890,7 @@ func TestRetryFlowPreservesPhaseOutputVars(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),
@@ -1016,7 +1016,7 @@ func TestRetryFlowPreservesGateOutputVars(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),

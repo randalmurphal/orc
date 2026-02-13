@@ -28,7 +28,7 @@ func TestParseLoopConfig_NewJSONConditionFormat(t *testing.T) {
 
 	input := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3
 	}`
 
@@ -57,8 +57,8 @@ func TestParseLoopConfig_NewJSONConditionFormat(t *testing.T) {
 	if err := json.Unmarshal(cfg.Condition, &condMap); err != nil {
 		t.Fatalf("Condition is not a valid JSON object: %v", err)
 	}
-	if condMap["field"] != "phase_output.review.status" {
-		t.Errorf("condition field = %v, want %q", condMap["field"], "phase_output.review.status")
+	if condMap["field"] != "phase_output.review.needs_changes" {
+		t.Errorf("condition field = %v, want %q", condMap["field"], "phase_output.review.needs_changes")
 	}
 	if condMap["op"] != "eq" {
 		t.Errorf("condition op = %v, want %q", condMap["op"], "eq")
@@ -118,7 +118,7 @@ func TestParseLoopConfig_CompoundCondition(t *testing.T) {
 		"loop_to_phase": "implement",
 		"condition": {
 			"all": [
-				{"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+				{"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 				{"field": "task.weight", "op": "in", "value": ["medium", "large"]}
 			]
 		},
@@ -349,7 +349,7 @@ func TestLoopConfig_IsLegacyCondition(t *testing.T) {
 		},
 		{
 			name:      "JSON object is new format",
-			condition: json.RawMessage(`{"field":"phase_output.review.status","op":"eq","value":"needs_changes"}`),
+			condition: json.RawMessage(`{"field":"phase_output.review.needs_changes","op":"eq","value":"true"}`),
 			isLegacy:  false,
 		},
 		{

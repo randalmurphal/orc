@@ -1716,7 +1716,8 @@ type Agent struct {
 	Stats         *AgentStats            `protobuf:"bytes,15,opt,name=stats,proto3,oneof" json:"stats,omitempty"`                     // Runtime statistics
 	IsBuiltin     bool                   `protobuf:"varint,16,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"` // Whether this is a built-in agent
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"` // Note: NO thinking_enabled - that's a phase-level concern, not agent
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Provider      *string                `protobuf:"bytes,19,opt,name=provider,proto3,oneof" json:"provider,omitempty"` // LLM provider: "claude", "codex", "ollama"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1875,6 +1876,13 @@ func (x *Agent) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Agent) GetProvider() string {
+	if x != nil && x.Provider != nil {
+		return *x.Provider
+	}
+	return ""
 }
 
 // Tool permissions
@@ -4778,6 +4786,7 @@ type CreateAgentRequest struct {
 	SkillRefs     []string               `protobuf:"bytes,11,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
 	Timeout       *string                `protobuf:"bytes,12,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
 	Scope         SettingsScope          `protobuf:"varint,13,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	Provider      *string                `protobuf:"bytes,14,opt,name=provider,proto3,oneof" json:"provider,omitempty"` // LLM provider: "claude", "codex", "ollama"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4903,6 +4912,13 @@ func (x *CreateAgentRequest) GetScope() SettingsScope {
 	return SettingsScope_SETTINGS_SCOPE_UNSPECIFIED
 }
 
+func (x *CreateAgentRequest) GetProvider() string {
+	if x != nil && x.Provider != nil {
+		return *x.Provider
+	}
+	return ""
+}
+
 type CreateAgentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Agent         *Agent                 `protobuf:"bytes,1,opt,name=agent,proto3" json:"agent,omitempty"`
@@ -4961,6 +4977,7 @@ type UpdateAgentRequest struct {
 	WorkDir       *string                `protobuf:"bytes,10,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
 	SkillRefs     []string               `protobuf:"bytes,11,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
 	Timeout       *string                `protobuf:"bytes,12,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
+	Provider      *string                `protobuf:"bytes,13,opt,name=provider,proto3,oneof" json:"provider,omitempty"` // LLM provider: "claude", "codex", "ollama"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5075,6 +5092,13 @@ func (x *UpdateAgentRequest) GetSkillRefs() []string {
 func (x *UpdateAgentRequest) GetTimeout() string {
 	if x != nil && x.Timeout != nil {
 		return *x.Timeout
+	}
+	return ""
+}
+
+func (x *UpdateAgentRequest) GetProvider() string {
+	if x != nil && x.Provider != nil {
+		return *x.Provider
 	}
 	return ""
 }
@@ -7188,7 +7212,7 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\ftokens_today\x18\x01 \x01(\x03R\vtokensToday\x12\x1d\n" +
 	"\n" +
 	"tasks_done\x18\x02 \x01(\x05R\ttasksDone\x12!\n" +
-	"\fsuccess_rate\x18\x03 \x01(\x01R\vsuccessRate\"\x8c\x06\n" +
+	"\fsuccess_rate\x18\x03 \x01(\x01R\vsuccessRate\"\xba\x06\n" +
 	"\x05Agent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -7212,7 +7236,9 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\b\n" +
+	"updated_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1f\n" +
+	"\bprovider\x18\x13 \x01(\tH\n" +
+	"R\bprovider\x88\x01\x01B\b\n" +
 	"\x06_modelB\b\n" +
 	"\x06_toolsB\t\n" +
 	"\a_promptB\x10\n" +
@@ -7223,7 +7249,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\b_timeoutB\a\n" +
 	"\x05_pathB\t\n" +
 	"\a_statusB\b\n" +
-	"\x06_stats\";\n" +
+	"\x06_statsB\v\n" +
+	"\t_provider\";\n" +
 	"\x0fToolPermissions\x12\x14\n" +
 	"\x05allow\x18\x01 \x03(\tR\x05allow\x12\x12\n" +
 	"\x04deny\x18\x02 \x03(\tR\x04deny\"\\\n" +
@@ -7444,7 +7471,7 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"7\n" +
 	"\x10GetAgentResponse\x12#\n" +
-	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xa0\x04\n" +
+	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xce\x04\n" +
 	"\x12CreateAgentRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
@@ -7461,7 +7488,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"skill_refs\x18\v \x03(\tR\tskillRefs\x12\x1d\n" +
 	"\atimeout\x18\f \x01(\tH\x06R\atimeout\x88\x01\x01\x12+\n" +
-	"\x05scope\x18\r \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scopeB\b\n" +
+	"\x05scope\x18\r \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12\x1f\n" +
+	"\bprovider\x18\x0e \x01(\tH\aR\bprovider\x88\x01\x01B\b\n" +
 	"\x06_modelB\b\n" +
 	"\x06_toolsB\t\n" +
 	"\a_promptB\x10\n" +
@@ -7469,9 +7497,10 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x0e_claude_configB\v\n" +
 	"\t_work_dirB\n" +
 	"\n" +
-	"\b_timeout\":\n" +
+	"\b_timeoutB\v\n" +
+	"\t_provider\":\n" +
 	"\x13CreateAgentResponse\x12#\n" +
-	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\x96\x04\n" +
+	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xc4\x04\n" +
 	"\x12UpdateAgentRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
@@ -7487,7 +7516,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	" \x01(\tH\aR\aworkDir\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"skill_refs\x18\v \x03(\tR\tskillRefs\x12\x1d\n" +
-	"\atimeout\x18\f \x01(\tH\bR\atimeout\x88\x01\x01B\a\n" +
+	"\atimeout\x18\f \x01(\tH\bR\atimeout\x88\x01\x01\x12\x1f\n" +
+	"\bprovider\x18\r \x01(\tH\tR\bprovider\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\b\n" +
 	"\x06_modelB\b\n" +
@@ -7497,7 +7527,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x0e_claude_configB\v\n" +
 	"\t_work_dirB\n" +
 	"\n" +
-	"\b_timeout\":\n" +
+	"\b_timeoutB\v\n" +
+	"\t_provider\":\n" +
 	"\x13UpdateAgentResponse\x12#\n" +
 	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"G\n" +
 	"\x12DeleteAgentRequest\x12\x1d\n" +

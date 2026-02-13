@@ -336,6 +336,12 @@ type Backend interface {
 	SaveQAResult(r *QAResult) error
 	LoadQAResult(taskID string) (*QAResult, error)
 
+	// Scratchpad operations (structured notes from phase execution)
+	SaveScratchpadEntry(entry *ScratchpadEntry) error
+	GetScratchpadEntries(taskID string) ([]ScratchpadEntry, error)
+	GetScratchpadEntriesByPhase(taskID, phaseID string) ([]ScratchpadEntry, error)
+	GetScratchpadEntriesByAttempt(taskID, phaseID string, attempt int) ([]ScratchpadEntry, error)
+
 	// Feedback operations (for real-time user feedback to agents)
 	SaveFeedback(f *Feedback) error
 	GetFeedback(taskID, feedbackID string) (*Feedback, error)

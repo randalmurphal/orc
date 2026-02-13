@@ -131,21 +131,17 @@ func (r *ConflictResolver) Resolve(
 		if r.turnExecutor != nil {
 			turnExec = r.turnExecutor
 		} else {
-			claudeOpts := []ClaudeExecutorOption{
-				WithClaudePath(r.claudePath),
-				WithClaudeWorkdir(r.workingDir),
-				WithClaudeModel(model),
-				WithClaudeSessionID(sessionID),
-				WithClaudeMaxTurns(5),
-				WithClaudeLogger(r.logger),
-			}
-			if r.backend != nil {
-				claudeOpts = append(claudeOpts,
-					WithClaudeBackend(r.backend),
-					WithClaudeTaskID(t.Id),
-				)
-			}
-			turnExec = NewClaudeExecutor(claudeOpts...)
+			turnExec = NewTurnExecutor(TurnExecutorConfig{
+				Provider:   "claude", // Conflict resolution always uses claude for now
+				ClaudePath: r.claudePath,
+				Model:      model,
+				WorkingDir: r.workingDir,
+				SessionID:  sessionID,
+				MaxTurns:   5,
+				Backend:    r.backend,
+				TaskID:     t.Id,
+				Logger:     r.logger,
+			})
 		}
 
 		// Execute conflict resolution

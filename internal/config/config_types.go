@@ -843,6 +843,15 @@ type PlaywrightConfig struct {
 	TimeoutNavigation int `yaml:"timeout_navigation"`
 }
 
+// BriefConfig defines project brief generation settings.
+type BriefConfig struct {
+	// MaxTokens is the maximum token budget for the generated brief (default: 3000)
+	MaxTokens int `yaml:"max_tokens"`
+
+	// StaleThreshold is the number of new completed tasks before the brief is regenerated (default: 3)
+	StaleThreshold int `yaml:"stale_threshold"`
+}
+
 // MCPConfig defines MCP (Model Context Protocol) server configuration.
 type MCPConfig struct {
 	// Playwright settings for UI testing tasks
@@ -1020,6 +1029,35 @@ type HostingConfig struct {
 	// TokenEnvVar overrides the default token environment variable name.
 	// Default: GITHUB_TOKEN for GitHub, GITLAB_TOKEN for GitLab.
 	TokenEnvVar string `yaml:"token_env_var" json:"token_env_var,omitempty"`
+}
+
+// ProvidersConfig defines provider-specific defaults.
+type ProvidersConfig struct {
+	Codex  CodexProviderConfig                      `yaml:"codex,omitempty"`
+	Ollama OllamaProviderConfig                     `yaml:"ollama,omitempty"`
+	Rates  map[string]map[string]ProviderRateConfig `yaml:"rates,omitempty"`
+}
+
+// CodexProviderConfig defines default Codex CLI settings.
+// Note: sandbox/approval are not configurable — orc always uses
+// --dangerously-bypass-approvals-and-sandbox for all codex execution.
+type CodexProviderConfig struct {
+	Path            string `yaml:"path,omitempty"`
+	ReasoningEffort string `yaml:"reasoning_effort,omitempty"`
+}
+
+// OllamaProviderConfig defines local Ollama defaults.
+type OllamaProviderConfig struct {
+	BaseURL      string `yaml:"base_url,omitempty"`
+	DefaultModel string `yaml:"default_model,omitempty"`
+}
+
+// ProviderRateConfig defines per-1M-token pricing in USD for a provider/model.
+type ProviderRateConfig struct {
+	Input      float64 `yaml:"input,omitempty"`
+	Output     float64 `yaml:"output,omitempty"`
+	CacheRead  float64 `yaml:"cache_read,omitempty"`
+	CacheWrite float64 `yaml:"cache_write,omitempty"`
 }
 
 // JiraConfig defines Jira Cloud import settings.
@@ -1251,6 +1289,61 @@ func ParseRiskLevel(s string) RiskLevel {
 	}
 }
 
+// KnowledgeConfig defines knowledge layer configuration.
+type KnowledgeConfig struct {
+	// Enabled enables the knowledge layer (default: false)
+	Enabled bool `yaml:"enabled"`
+
+	// Backend is the infrastructure backend: "docker" or "external" (default: "docker")
+	Backend string `yaml:"backend"`
+
+	// Docker contains Docker-managed infrastructure settings
+	Docker KnowledgeDockerConfig `yaml:"docker"`
+
+	// External contains external service connection settings
+	External KnowledgeExternalConfig `yaml:"external"`
+
+	// Indexing contains indexing and embedding settings
+	Indexing KnowledgeIndexingConfig `yaml:"indexing"`
+}
+
+// KnowledgeDockerConfig defines Docker-managed infrastructure settings.
+type KnowledgeDockerConfig struct {
+	// Neo4jPort is the Neo4j Bolt protocol port (default: 7687)
+	Neo4jPort int `yaml:"neo4j_port"`
+
+	// QdrantPort is the Qdrant gRPC port (default: 6334)
+	QdrantPort int `yaml:"qdrant_port"`
+
+	// RedisPort is the Redis port (default: 6379)
+	RedisPort int `yaml:"redis_port"`
+
+	// DataDir is the directory for persistent data (default: "~/.orc/knowledge/")
+	DataDir string `yaml:"data_dir"`
+}
+
+// KnowledgeExternalConfig defines external service connection settings.
+type KnowledgeExternalConfig struct {
+	// Neo4jURI is the Neo4j connection URI (e.g., "bolt://host:7687")
+	Neo4jURI string `yaml:"neo4j_uri"`
+
+	// QdrantURI is the Qdrant connection URI (e.g., "http://host:6334")
+	QdrantURI string `yaml:"qdrant_uri"`
+
+	// RedisURI is the Redis connection URI (e.g., "redis://host:6379")
+	RedisURI string `yaml:"redis_uri"`
+}
+
+// KnowledgeIndexingConfig defines indexing and embedding settings.
+type KnowledgeIndexingConfig struct {
+	// EmbeddingModel is the model for text embedding (default: "voyage-4")
+	// Valid values: voyage-4, voyage-4-large, voyage-4-nano
+	EmbeddingModel string `yaml:"embedding_model"`
+}
+
+// ValidEmbeddingModels are the allowed values for knowledge.indexing.embedding_model
+var ValidEmbeddingModels = []string{"voyage-4", "voyage-4-large", "voyage-4-nano"}
+
 // Valid values for validation
 var (
 	// ValidVisibilities are the allowed values for team.visibility
@@ -1286,6 +1379,9 @@ var (
 
 	// DefaultProtectedBranches are branches that cannot be directly merged to
 	DefaultProtectedBranches = []string{"main", "master", "develop", "release"}
+
+	// ValidLLMProviders are the allowed values for provider (LLM execution provider)
+	ValidLLMProviders = []string{"claude", "codex", "ollama", "lmstudio", ""}
 
 	// ValidHostingProviders are the allowed values for hosting.provider
 	ValidHostingProviders = []string{"auto", "github", "gitlab", ""}

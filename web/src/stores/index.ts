@@ -126,3 +126,12 @@ export {
 	useSelectedWorkflow,
 	useSelectedRun,
 } from './workflowStore';
+
+// Thread store
+export {
+	useThreadStore,
+	useThreads,
+	useSelectedThread,
+	useThreadLoading,
+	useThreadError,
+} from './threadStore';

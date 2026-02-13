@@ -16,7 +16,6 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/progress"
@@ -214,8 +213,23 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 
 			// Build executor options
+			claudePath := cfg.ClaudePath
+			if claudePath == "" {
+				claudePath = "claude"
+			}
+			codexPath := cfg.CodexPath
+			if codexPath == "" {
+				codexPath = cfg.Providers.Codex.Path
+			}
+			if codexPath == "" {
+				codexPath = "codex"
+			}
+
 			execOpts := []executor.WorkflowExecutorOption{
 				executor.WithWorkflowGitOps(gitOps),
+				executor.WithWorkflowClaudePath(claudePath),
+				executor.WithWorkflowCodexPath(codexPath),
+				executor.WithWorkflowTokenRates(executor.ProviderRatesForConfig(cfg)),
 			}
 
 			// Create persistent publisher for database event logging
@@ -238,6 +252,7 @@ Use --force to resume a task even if it appears to still be running.`,
 			we := executor.NewWorkflowExecutor(
 				backend,
 				pdb,
+				gdb,
 				cfg,
 				projectRoot,
 				execOpts...,
@@ -245,6 +260,7 @@ Use --force to resume a task even if it appears to still be running.`,
 
 			// Build run options
 			ignoreBudget, _ := cmd.Flags().GetBool("ignore-budget")
+			providerOverride, _ := cmd.Flags().GetString("provider")
 			opts := executor.WorkflowRunOptions{
 				ContextType:  executor.ContextTask,
 				TaskID:       id,
@@ -252,6 +268,7 @@ Use --force to resume a task even if it appears to still be running.`,
 				Category:     t.Category,
 				IsResume:     true, // This is a resume operation
 				IgnoreBudget: ignoreBudget,
+				Provider:     providerOverride,
 			}
 
 			// Execute workflow (WorkflowExecutor handles resume internally via state)
@@ -265,7 +282,10 @@ Use --force to resume a task even if it appears to still be running.`,
 				// Check if task is blocked (phases succeeded but completion failed)
 				if errors.Is(err, executor.ErrTaskBlocked) {
 					// Reload task for summary (execution state is now in task.Execution)
-					t, _ = backend.LoadTask(id)
+					t, err = backend.LoadTask(id)
+					if err != nil {
+						return fmt.Errorf("reload task after blocked run: %w", err)
+					}
 					blockedCtx := buildBlockedContextProto(t, cfg, projectRoot)
 					disp.TaskBlockedWithContext(task.GetTotalTokensProto(t), taskElapsedProto(t), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
@@ -276,12 +296,15 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 
 			// Reload task for summary (execution state is in task.Execution)
-			t, _ = backend.LoadTask(id)
+			t, err = backend.LoadTask(id)
+			if err != nil {
+				return fmt.Errorf("reload task after resume: %w", err)
+			}
 
 			// Compute file change stats for completion summary
 			var fileStats *progress.FileChangeStats
 			if t.Branch != "" {
-				fileStats = getResumeFileChangeStats(ctx, projectRoot, t.Branch, cfg)
+				fileStats = getTaskFileChangeStats(ctx, projectRoot, t.Branch, cfg)
 			}
 
 			_ = result // Result contains run details but we use task.Execution for tokens
@@ -292,35 +315,6 @@ Use --force to resume a task even if it appears to still be running.`,
 	cmd.Flags().Bool("stream", false, "stream Claude transcript to stdout")
 	cmd.Flags().BoolVarP(&forceResume, "force", "f", false, "force resume even if task appears to be running")
 	cmd.Flags().Bool("ignore-budget", false, "Proceed even if monthly budget is exceeded")
+	cmd.Flags().String("provider", "", "LLM provider override for this run (claude, codex, ollama)")
 	return cmd
 }
-
-// getResumeFileChangeStats computes diff statistics for the task branch vs target branch.
-// Returns nil if stats cannot be computed (not an error - just no stats to display).
-func getResumeFileChangeStats(ctx context.Context, projectRoot, taskBranch string, cfg *config.Config) *progress.FileChangeStats {
-	// Determine target branch from config
-	targetBranch := "main"
-	if cfg != nil && cfg.Completion.TargetBranch != "" {
-		targetBranch = cfg.Completion.TargetBranch
-	}
-
-	// Create diff service to compute stats
-	diffSvc := diff.NewService(projectRoot, nil)
-
-	// Resolve target branch (handles origin/main fallback)
-	resolvedBase := diffSvc.ResolveRef(ctx, targetBranch)
-
-	// Get diff stats between target branch and task branch
-	stats, err := diffSvc.GetStats(ctx, resolvedBase, taskBranch)
-	if err != nil {
-		// Diff stat computation is best-effort - don't fail task completion
-		return nil
-	}
-
-	return &progress.FileChangeStats{
-		FilesChanged: stats.FilesChanged,
-		Additions:    stats.Additions,
-		Deletions:    stats.Deletions,
-	}
-}
-

@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
@@ -31,6 +30,7 @@ const MaxOrcRetries = 5
 type PhaseExecutionConfig struct {
 	Prompt     string
 	Model      string
+	Provider   string // "claude", "codex", "ollama", or empty (default: claude)
 	WorkingDir string
 	TaskID     string
 	PhaseID    string
@@ -119,6 +119,115 @@ func (we *WorkflowExecutor) executePhase(
 		}
 	}
 
+	// Resolve effective phase type: WorkflowPhase.TypeOverride > PhaseTemplate.Type > "llm"
+	effectiveType := tmpl.Type
+	if phase.TypeOverride != "" {
+		effectiveType = phase.TypeOverride
+	}
+	if effectiveType == "" {
+		effectiveType = "llm"
+	}
+
+	// For non-LLM types, dispatch to the registered executor (skip prompt loading)
+	if effectiveType != "llm" {
+		executor, lookupErr := we.phaseTypeRegistry.Get(effectiveType)
+		if lookupErr != nil {
+			result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
+			result.Error = lookupErr.Error()
+			return result, lookupErr
+		}
+
+		params := PhaseTypeParams{
+			PhaseTemplate: tmpl,
+			Task:          t,
+			Vars:          vars,
+			RCtx:          rctx,
+		}
+
+		// Build KnowledgePhaseConfig from template metadata if this is a knowledge phase
+		if effectiveType == "knowledge" && we.knowledgeService != nil {
+			params.KnowledgeConfig = &KnowledgePhaseConfig{
+				OutputVar: tmpl.OutputVarName,
+			}
+		}
+
+		phaseResult, execErr := executor.ExecutePhase(ctx, params)
+
+		// Update result from executor output
+		result.PhaseID = phaseResult.PhaseID
+		result.Status = phaseResult.Status
+		result.Content = phaseResult.Content
+		result.CostUSD = phaseResult.CostUSD
+		result.InputTokens = phaseResult.InputTokens
+		result.OutputTokens = phaseResult.OutputTokens
+		result.DurationMS = time.Since(startTime).Milliseconds()
+
+		if execErr != nil {
+			result.Error = execErr.Error()
+			runPhase.Status = result.Status
+			runPhase.Error = result.Error
+			runPhase.CompletedAt = timePtr(time.Now())
+			if saveErr := we.backend.SaveWorkflowRunPhase(runPhase); saveErr != nil {
+				we.logger.Warn("failed to save failed non-LLM phase state", "phase", tmpl.ID, "error", saveErr)
+			}
+			if t != nil {
+				we.publisher.PhaseFailed(t.Id, tmpl.ID, execErr)
+			}
+			return result, execErr
+		}
+
+		// Update run phase record - respect executor's returned status
+		isSkipped := result.Status == orcv1.PhaseStatus_PHASE_STATUS_SKIPPED.String()
+		if isSkipped {
+			runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_SKIPPED.String()
+		} else {
+			runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED.String()
+		}
+		runPhase.CompletedAt = timePtr(time.Now())
+		runPhase.CostUSD = result.CostUSD
+		runPhase.InputTokens = result.InputTokens
+		runPhase.OutputTokens = result.OutputTokens
+		if result.Content != "" {
+			runPhase.Content = result.Content
+		}
+		if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
+			we.logger.Warn("failed to save non-LLM run phase", "error", err)
+		}
+
+		// Publish appropriate event
+		if t != nil {
+			if isSkipped {
+				we.publisher.PhaseSkipped(t.Id, tmpl.ID)
+			} else {
+				we.publisher.PhaseComplete(t.Id, tmpl.ID, "")
+			}
+		}
+
+		// Update run totals (non-LLM phases typically have zero cost)
+		run.TotalCostUSD += result.CostUSD
+		run.TotalInputTokens += result.InputTokens
+		run.TotalOutputTokens += result.OutputTokens
+		if err := we.backend.SaveWorkflowRun(run); err != nil {
+			we.logger.Warn("failed to update run totals for non-LLM phase", "error", err)
+		}
+
+		// Update execution state if available
+		if we.task != nil {
+			if isSkipped {
+				task.SkipPhaseProto(we.task.Execution, tmpl.ID, "non-LLM executor returned skipped")
+			} else {
+				task.CompletePhaseProto(we.task.Execution, tmpl.ID, "")
+			}
+			if err := we.backend.SaveTask(we.task); err != nil {
+				we.logger.Warn("failed to save task execution state for non-LLM phase", "error", err)
+			}
+		}
+
+		return result, nil
+	}
+
+	// --- LLM path below: load prompt, configure Claude, execute ---
+
 	// Load prompt template
 	promptContent, err := we.loadPhasePrompt(effectiveTemplate)
 	if err != nil {
@@ -175,6 +284,9 @@ func (we *WorkflowExecutor) executePhase(
 			WorktreePath: we.worktreePath,
 			MainRepoPath: we.workingDir,
 			TaskID:       rctx.TaskID,
+			AdditionalEnv: map[string]string{
+				"ORC_TASK_ID": rctx.TaskID,
+			},
 		}
 		if err := ApplyPhaseSettings(we.worktreePath, claudeConfig, baseCfg, we.globalDB, we.globalDB); err != nil {
 			result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
@@ -225,11 +337,25 @@ func (we *WorkflowExecutor) executePhase(
 		return result, nil
 	}
 
-	// Build execution context for ClaudeExecutor
+	// Determine provider (workflow phase override > template > workflow default > config > "claude")
+	provider := we.resolvePhaseProvider(tmpl, phase)
+
+	// Validate provider is known (reject typos and unsupported providers)
+	if err := validateProvider(provider); err != nil {
+		return result, fmt.Errorf("execute phase %s: %w", tmpl.ID, err)
+	}
+
+	// Validate provider capabilities before execution
+	if err := we.validateProviderCapabilities(provider, tmpl.ID, claudeConfig); err != nil {
+		return result, fmt.Errorf("provider validation: %w", err)
+	}
+
+	// Build execution context for LLM provider
 	// Use worktree path if available, otherwise fall back to original working dir
 	execConfig := PhaseExecutionConfig{
 		Prompt:        renderedPrompt,
 		Model:         model,
+		Provider:      provider,
 		WorkingDir:    we.effectiveWorkingDir(),
 		TaskID:        rctx.TaskID,
 		PhaseID:       tmpl.ID,
@@ -241,8 +367,15 @@ func (we *WorkflowExecutor) executePhase(
 		ClaudeConfig:  claudeConfig,
 	}
 
-	// Execute with ClaudeExecutor
-	execResult, err := we.executeWithClaude(ctx, execConfig)
+	// Record session metadata on task for monitoring (provider:model per phase)
+	if t != nil {
+		setTaskSessionMetadata(t, tmpl.ID, provider, model)
+	}
+
+	// Execute with provider-specific adapter
+	adapter := providerAdapterFor(provider)
+	var execResult *PhaseExecutionResult
+	execResult, err = we.executeWithProvider(ctx, execConfig, adapter)
 
 	// Post-reset: restore .claude/ for next phase (non-fatal)
 	if we.worktreePath != "" && we.globalDB != nil {
@@ -279,10 +412,18 @@ func (we *WorkflowExecutor) executePhase(
 	result.CacheReadTokens = execResult.CacheReadTokens
 	result.CostUSD = execResult.CostUSD
 
+	// Estimate cost from token rates when provider doesn't return cost natively
+	if result.CostUSD == 0 && we.tokenRates != nil && (result.InputTokens+result.OutputTokens) > 0 {
+		result.CostUSD = EstimateTokenCostUSDWithRates(we.tokenRates, provider, model,
+			int64(result.InputTokens), int64(result.OutputTokens),
+			int64(result.CacheReadTokens), int64(result.CacheCreationTokens))
+	}
+
 	// Capture phase output content for loop condition evaluation and variable propagation.
 	// All phases store their output in result.Content so that applyPhaseContentToVars
 	// populates rctx.PriorOutputs — required for EvaluateCondition(phase_output.*).
 	result.Content = execResult.Content
+	result.RawOutput = execResult.RawOutput
 	if tmpl.ProducesArtifact && result.Content == "" {
 		we.logger.Warn("artifact-producing phase completed with no content extracted",
 			"phase", tmpl.ID,
@@ -381,7 +522,8 @@ func (we *WorkflowExecutor) executePhase(
 
 	// Record cost to global database for cross-project analytics
 	phaseModel := we.resolvePhaseModel(tmpl, phase)
-	we.recordCostToGlobal(ctx, t, tmpl.ID, result, phaseModel, time.Since(startTime))
+	phaseProvider := we.resolvePhaseProvider(tmpl, phase)
+	we.recordCostToGlobal(ctx, t, tmpl.ID, result, phaseModel, phaseProvider, time.Since(startTime))
 
 	// Update execution state if available (Task-centric approach)
 	if we.task != nil {
@@ -409,142 +551,57 @@ func (we *WorkflowExecutor) executePhase(
 	return result, nil
 }
 
-// executeWithClaude runs the phase using Claude CLI.
-func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExecutionConfig) (*PhaseExecutionResult, error) {
+// executeWithProvider runs a phase using the given provider adapter.
+// This is the shared orchestration loop for all LLM providers. Provider-specific
+// behavior (session management, executor config, post-turn persistence) is
+// encapsulated in the ProviderAdapter. The loop handles retry, quality checks,
+// verification gates, and token accumulation uniformly.
+func (we *WorkflowExecutor) executeWithProvider(ctx context.Context, cfg PhaseExecutionConfig, adapter ProviderAdapter) (*PhaseExecutionResult, error) {
 	result := &PhaseExecutionResult{}
 
-	prompt := cfg.Prompt
-
-	// Enable extended thinking via MAX_THINKING_TOKENS env var if thinking is enabled
-	// Note: The old "ultrathink" keyword no longer works as of Claude Code 2.0.x
-	if cfg.Thinking {
-		if cfg.ClaudeConfig == nil {
-			cfg.ClaudeConfig = &PhaseClaudeConfig{}
-		}
-		if cfg.ClaudeConfig.Env == nil {
-			cfg.ClaudeConfig.Env = make(map[string]string)
-		}
-		cfg.ClaudeConfig.Env["MAX_THINKING_TOKENS"] = "31999"
+	// 1. Provider-specific preparation (session, model, phase settings)
+	pctx, err := adapter.PrepareExecution(&cfg, we)
+	if err != nil {
+		return result, fmt.Errorf("%s prepare: %w", adapter.Name(), err)
 	}
+	result.SessionID = pctx.SessionID
 
-	// Determine session ID - either resume existing or generate new
-	var sessionID string
-	shouldResume := false
-
-	// Check if we're resuming an interrupted/paused task
-	// Use stored session ID to continue Claude session where it left off
-	if we.task != nil && we.isResuming {
-		if ps, ok := we.task.Execution.Phases[cfg.PhaseID]; ok {
-			storedSessionID := ""
-			if ps.SessionId != nil {
-				storedSessionID = *ps.SessionId
-			}
-			// Resume if: phase has a stored session ID AND phase not completed
-			if storedSessionID != "" && ps.Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
-				sessionID = storedSessionID
-				shouldResume = true
-				we.logger.Info("resuming paused session",
-					"phase", cfg.PhaseID,
-					"session_id", sessionID,
-				)
-			}
-		}
-	}
-
-	// If not resuming, generate new session ID (must be valid UUID for Claude CLI)
-	if !shouldResume {
-		sessionID = uuid.New().String()
-		// Save session ID to phase state BEFORE execution starts
-		// This ensures we can resume even if the process is killed mid-turn
-		if we.task != nil {
-			task.SetPhaseSessionIDProto(we.task.Execution, cfg.PhaseID, sessionID)
-			if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
-				we.logger.Warn("failed to save session ID", "phase", cfg.PhaseID, "error", saveErr)
-			}
-		}
-	}
-	result.SessionID = sessionID
-
-	// When resuming, use a simple continue prompt.
-	// The --json-schema flag uses constrained decoding which guarantees structured output
-	// if Claude produces a final response. The constraint is enforced at the token level,
-	// not through prompting.
-	if shouldResume {
-		prompt = "Continue where you left off."
-		we.logger.Info("resuming session", "session_id", sessionID)
-	}
-
-	// Use injected TurnExecutor for testing, or create real ClaudeExecutor
-	// Transcript storage is handled internally by ClaudeExecutor when backend is provided
+	// 2. Create or inject TurnExecutor
 	var turnExec TurnExecutor
 	if we.turnExecutor != nil {
 		turnExec = we.turnExecutor
-		turnExec.UpdateSessionID(sessionID)
+		turnExec.UpdateSessionID(pctx.SessionID)
 	} else {
-		// Build executor options
-		// MaxTurns comes from config (default 150) - this is Claude's internal turn limit
-		execOpts := []ClaudeExecutorOption{
-			WithClaudePath(we.claudePath),
-			WithClaudeWorkdir(cfg.WorkingDir),
-			WithClaudeModel(cfg.Model),
-			WithClaudeSessionID(sessionID),
-			WithClaudeMaxTurns(we.orcConfig.MaxTurns),
-			WithClaudeLogger(we.logger),
-			WithClaudePhaseID(cfg.PhaseID),
-			WithClaudeProducesArtifact(cfg.PhaseTemplate != nil && cfg.PhaseTemplate.ProducesArtifact),
-			// Transcript storage options - handled internally
-			WithClaudeBackend(we.backend),
-			WithClaudeTaskID(cfg.TaskID),
-			WithClaudeRunID(cfg.RunID),
-		}
-
-		// Add review round for schema selection (Round 1 = findings, Round 2 = decision)
-		if cfg.PhaseID == "review" && cfg.ReviewRound > 0 {
-			execOpts = append(execOpts, WithClaudeReviewRound(cfg.ReviewRound))
-		}
-
-		// Add phase-specific Claude configuration if set
-		if cfg.ClaudeConfig != nil {
-			execOpts = append(execOpts, WithPhaseClaudeConfig(cfg.ClaudeConfig))
-		}
-
-		// Enable resume mode if we're continuing an interrupted phase
-		if shouldResume {
-			execOpts = append(execOpts, WithClaudeResume(true))
-		}
-
-		turnExec = NewClaudeExecutor(execOpts...)
+		teCfg := adapter.BuildTurnExecutorConfig(&cfg, pctx, we)
+		turnExec = NewTurnExecutor(teCfg)
 	}
 
-	// Execute turns until completion (MaxOrcRetries is the orc retry loop limit, not Claude's turn limit)
+	// 3. Shared orchestration loop
 	for i := 0; i < MaxOrcRetries; i++ {
-		// Check context
 		if ctx.Err() != nil {
 			return result, ctx.Err()
 		}
 
 		result.Iterations++
+		we.updatePhaseIterations(cfg, result.Iterations)
 
-		// Update iteration count in database for real-time monitoring
-		if cfg.RunID != "" && cfg.PhaseID != "" {
-			if err := we.backend.UpdatePhaseIterations(cfg.RunID, cfg.PhaseID, result.Iterations); err != nil {
-				we.logger.Warn("failed to update phase iterations", "phase", cfg.PhaseID, "error", err)
-			}
-		}
-
-		// Execute turn - transcripts captured automatically by ClaudeExecutor
-		turnResult, err := turnExec.ExecuteTurn(ctx, prompt)
+		turnResult, err := turnExec.ExecuteTurn(ctx, pctx.Prompt)
 		if err != nil {
-			return result, fmt.Errorf("turn %d: %w", i+1, err)
+			return result, fmt.Errorf("%s turn %d: %w", adapter.Name(), i+1, err)
 		}
 
-		// Update session ID for subsequent turns so executor uses --resume
-		// instead of --session-id (which fails if session already exists)
+		// Session ID update (shared — both providers)
 		if turnResult.SessionID != "" {
 			turnExec.UpdateSessionID(turnResult.SessionID)
+			result.SessionID = turnResult.SessionID
 		}
 
-		// Accumulate tokens
+		// Provider-specific post-turn (Codex: persist thread_id)
+		if postErr := adapter.PostTurn(turnResult, pctx, &cfg, we); postErr != nil {
+			we.logger.Warn("post-turn failed", "provider", adapter.Name(), "error", postErr)
+		}
+
+		// Token accumulation — uniform, all fields, all providers
 		if turnResult.Usage != nil {
 			result.InputTokens += int(turnResult.Usage.InputTokens)
 			result.OutputTokens += int(turnResult.Usage.OutputTokens)
@@ -553,54 +610,49 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		}
 		result.CostUSD += turnResult.CostUSD
 
-		// Check for completion
-		// Use cfg.ReviewRound for review phase schema selection (default to 1 if not set)
+		// Parse status at orchestration level (authoritative for all providers + mocks).
+		// Both real executors also parse in ExecuteTurn() for internal retry logic,
+		// but orchestration-level parse is the single source of truth for completion.
 		reviewRound := cfg.ReviewRound
 		if reviewRound == 0 {
 			reviewRound = 1
 		}
-		status, reason, err := ParsePhaseSpecificResponse(cfg.PhaseID, reviewRound, turnResult.Content)
-		if err != nil {
+		status, reason, parseErr := ParsePhaseSpecificResponse(cfg.PhaseID, reviewRound, turnResult.Content)
+		if parseErr != nil {
 			we.logger.Debug("parse phase response failed",
 				"phase", cfg.PhaseID,
-				"error", err,
+				"error", parseErr,
 			)
-			// Continue iteration
-			prompt = fmt.Sprintf("Continue. Previous output was not valid JSON. Iteration %d/%d.",
+			pctx.Prompt = fmt.Sprintf("Continue. Previous output was not valid JSON. Iteration %d/%d.",
 				i+2, MaxOrcRetries)
 			continue
 		}
 
 		switch status {
 		case PhaseStatusComplete:
-			// For implement phase: validate verification evidence before accepting completion.
-			// Skip when using injected turn executor (test mode) since mocks
-			// don't produce real verification evidence.
+			// Verification gate (implement phase only, skip in test mode)
 			if cfg.PhaseID == "implement" && we.turnExecutor == nil {
 				if verifyErr := ValidateImplementCompletion(turnResult.Content); verifyErr != nil {
 					we.logger.Info("implement verification gate failed, continuing iteration",
 						"phase", cfg.PhaseID,
 						"error", verifyErr.Error(),
 					)
-					// Continue with verification failure feedback
-					prompt = FormatVerificationFeedback(verifyErr)
+					pctx.Prompt = FormatVerificationFeedback(verifyErr)
 					continue
 				}
 				we.logger.Info("implement verification gate passed", "phase", cfg.PhaseID)
 			}
 
-			// Run quality checks if configured for this phase
+			// Quality checks
 			if checkResult := we.runQualityChecks(ctx, cfg); checkResult != nil {
 				if checkResult.HasBlocks {
 					we.logger.Info("quality checks failed, continuing iteration",
 						"phase", cfg.PhaseID,
 						"failures", checkResult.FailureSummary(),
 					)
-					// Continue with quality check failure context
-					prompt = FormatQualityChecksForPrompt(checkResult)
+					pctx.Prompt = FormatQualityChecksForPrompt(checkResult)
 					continue
 				}
-				// Warnings only - log but continue
 				if !checkResult.AllPassed {
 					we.logger.Warn("quality checks had warnings",
 						"phase", cfg.PhaseID,
@@ -611,15 +663,11 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 				}
 			}
 
-			// Preserve raw output for phase-specific processing (e.g., docs initiative notes)
 			result.RawOutput = turnResult.Content
-			// Extract artifact if present
 			result.Content = extractPhaseOutput(turnResult.Content)
 			return result, nil
 
 		case PhaseStatusBlocked:
-			// Return PhaseBlockedError to signal gate evaluation should handle this
-			// (not a hard failure - gates decide whether to retry or block task)
 			result.RawOutput = turnResult.Content
 			result.Content = extractPhaseOutput(turnResult.Content)
 			return result, &PhaseBlockedError{
@@ -629,13 +677,21 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			}
 
 		case PhaseStatusContinue:
-			// Continue to next iteration
-			prompt = fmt.Sprintf("Continue working. Iteration %d/%d. %s",
+			pctx.Prompt = fmt.Sprintf("Continue working. Iteration %d/%d. %s",
 				i+2, MaxOrcRetries, reason)
 		}
 	}
 
-	return result, fmt.Errorf("max orc retries (%d) reached without completion", MaxOrcRetries)
+	return result, fmt.Errorf("max orc retries (%d) reached without completion (%s)", MaxOrcRetries, adapter.Name())
+}
+
+// updatePhaseIterations persists the current iteration count for real-time monitoring.
+func (we *WorkflowExecutor) updatePhaseIterations(cfg PhaseExecutionConfig, iterations int) {
+	if cfg.RunID != "" && cfg.PhaseID != "" {
+		if err := we.backend.UpdatePhaseIterations(cfg.RunID, cfg.PhaseID, iterations); err != nil {
+			we.logger.Warn("failed to update phase iterations", "phase", cfg.PhaseID, "error", err)
+		}
+	}
 }
 
 // loadPhasePrompt loads the prompt content for a phase template.
@@ -662,13 +718,19 @@ func (we *WorkflowExecutor) loadPhasePrompt(tmpl *db.PhaseTemplate) (string, err
 }
 
 // loadEmbeddedPrompt loads a prompt from embedded templates.
+// Tries the embed.FS first (works in production binary), falls back to filesystem (dev).
 func (we *WorkflowExecutor) loadEmbeddedPrompt(path string) (string, error) {
-	// Import from templates package - fallback to file for now
+	// Try embedded templates first (production path)
+	content, err := templates.Prompts.ReadFile(path)
+	if err == nil {
+		return string(content), nil
+	}
+
+	// Fallback to filesystem for development (worktree has templates/ directory)
 	fullPath := filepath.Join(we.workingDir, "templates", path)
-	content, err := os.ReadFile(fullPath)
-	if err != nil {
-		// Try embedded
-		return "", fmt.Errorf("load embedded prompt %s: %w", path, err)
+	content, fsErr := os.ReadFile(fullPath)
+	if fsErr != nil {
+		return "", fmt.Errorf("load embedded prompt %s: embed: %w, file: %w", path, err, fsErr)
 	}
 	return string(content), nil
 }
@@ -762,28 +824,61 @@ func (we *WorkflowExecutor) resolveExecutorAgent(tmpl *db.PhaseTemplate, phase *
 
 // resolvePhaseModel determines which model to use for a phase.
 // Priority: workflow phase override > workflow default_model > executor agent model > config default
+// If the model string contains a provider prefix (e.g., "codex:gpt-5"), the prefix is stripped
+// and only the model name is returned (e.g., "gpt-5"). Provider extraction is handled separately
+// by resolvePhaseProvider.
 func (we *WorkflowExecutor) resolvePhaseModel(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) string {
 	// Workflow phase override takes precedence (per-workflow customization)
 	if phase.ModelOverride != "" {
+		if _, m := ParseProviderModel(phase.ModelOverride); m != "" {
+			return m
+		}
 		return phase.ModelOverride
 	}
 
 	// Workflow default_model (workflow-level default)
 	if we.wf != nil && we.wf.DefaultModel != "" {
+		if _, m := ParseProviderModel(we.wf.DefaultModel); m != "" {
+			return m
+		}
 		return we.wf.DefaultModel
 	}
 
 	// Executor agent model
 	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.Model != "" {
+		if _, m := ParseProviderModel(agent.Model); m != "" {
+			return m
+		}
 		return agent.Model
 	}
 
-	// Config default model
+	// Provider-aware model resolution.
+	// Resolve provider first — codex-family providers should NOT inherit the global
+	// config model (which is typically a Claude model like "opus").
+	provider := we.resolvePhaseProvider(tmpl, phase)
+	if isCodexFamilyProvider(provider) {
+		if we.orcConfig != nil && (provider == ProviderOllama || provider == ProviderLMStudio) {
+			if m := we.orcConfig.Providers.Ollama.DefaultModel; m != "" {
+				return m
+			}
+		}
+		if m := providerDefaultModel(provider); m != "" {
+			return m
+		}
+	}
+
+	// Config default model (applies to primary provider, typically Claude)
 	if we.orcConfig != nil && we.orcConfig.Model != "" {
+		if _, m := ParseProviderModel(we.orcConfig.Model); m != "" {
+			return m
+		}
 		return we.orcConfig.Model
 	}
 
 	// Ultimate fallback
+	if m := providerDefaultModel(provider); m != "" {
+		return m
+	}
 	return "opus"
 }
 
@@ -1153,4 +1248,31 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 	}
 
 	return cfg
+}
+
+// normalizeCodexExecutionModel strips the provider prefix from model names
+// when routing through Codex CLI (e.g., "ollama/qwen2.5" -> "qwen2.5").
+func normalizeCodexExecutionModel(provider, model string) string {
+	// Strip "provider/" prefix if the model string includes it
+	if idx := strings.Index(model, "/"); idx >= 0 {
+		prefix := model[:idx]
+		if normalizeProvider(prefix) == normalizeProvider(provider) {
+			return model[idx+1:]
+		}
+	}
+	return model
+}
+
+// setTaskSessionMetadata records session metadata on the task for monitoring.
+// Stores provider and model as task-level metadata keyed by phase ID since
+// PhaseState does not have a metadata field.
+func setTaskSessionMetadata(t *orcv1.Task, phaseID, provider, model string) {
+	if t == nil {
+		return
+	}
+	if t.Metadata == nil {
+		t.Metadata = make(map[string]string)
+	}
+	t.Metadata["phase:"+phaseID+":provider"] = provider
+	t.Metadata["phase:"+phaseID+":model"] = model
 }

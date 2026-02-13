@@ -252,3 +252,53 @@ func (h *TranscriptStreamHandler) storeHookEvent(event claude.StreamEvent) {
 		)
 	}
 }
+
+// StoreAssistantText stores a plain text assistant response.
+// Used by Codex and other providers that return text instead of content blocks.
+func (h *TranscriptStreamHandler) StoreAssistantText(text, model, messageID string, inputTokens, outputTokens int) {
+	if h.backend == nil || h.taskID == "" {
+		return
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if messageID == "" {
+		messageID = uuid.NewString()
+	}
+
+	// Skip duplicates
+	if h.storedMessageIDs[messageID] {
+		return
+	}
+	h.storedMessageIDs[messageID] = true
+
+	if model == "" {
+		model = h.model
+	}
+
+	transcript := &storage.Transcript{
+		TaskID:        h.taskID,
+		Phase:         h.phaseID,
+		SessionID:     h.sessionID,
+		WorkflowRunID: h.runID,
+		MessageUUID:   messageID,
+		Type:          "assistant",
+		Role:          "assistant",
+		Content:       text,
+		Model:         model,
+		InputTokens:   inputTokens,
+		OutputTokens:  outputTokens,
+		Timestamp:     time.Now().UnixMilli(),
+	}
+
+	if err := h.backend.AddTranscript(transcript); err != nil {
+		h.logger.Warn("failed to store assistant text",
+			"task", h.taskID,
+			"phase", h.phaseID,
+			"message_id", messageID,
+			"error", err,
+		)
+	}
+}
+

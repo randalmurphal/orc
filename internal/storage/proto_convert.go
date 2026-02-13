@@ -3,13 +3,14 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/task"
-	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 )
 
 // ============================================================================
@@ -94,7 +95,7 @@ func protoTaskToDBTask(t *orcv1.Task) *db.Task {
 		Title:       t.Title,
 		Description: ptrToString(t.Description),
 		// Weight field removed from proto (TASK-748) - DB column kept for backward compat
-		WorkflowID: ptrToString(t.WorkflowId),
+		WorkflowID:       ptrToString(t.WorkflowId),
 		Status:           task.StatusFromProto(t.Status),
 		CurrentPhase:     ptrToString(t.CurrentPhase),
 		Branch:           t.Branch,
@@ -132,24 +133,27 @@ func protoTaskToDBTask(t *orcv1.Task) *db.Task {
 // dbTaskToProtoTask converts a db.Task to orcv1.Task.
 // Note: Executor fields from db.Task are not transferred to proto
 // as they are internal implementation details.
-func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
+func dbTaskToProtoTask(dbTask *db.Task) (*orcv1.Task, error) {
 	if dbTask == nil {
-		return nil
+		return nil, nil
 	}
 
 	// Parse metadata JSON to map
 	var metadata map[string]string
 	if dbTask.Metadata != "" {
-		_ = json.Unmarshal([]byte(dbTask.Metadata), &metadata)
+		if err := json.Unmarshal([]byte(dbTask.Metadata), &metadata); err != nil {
+			return nil, fmt.Errorf("parse task %s metadata: %w", dbTask.ID, err)
+		}
 	}
 
 	// Parse quality JSON
 	var quality *orcv1.QualityMetrics
 	if dbTask.Quality != "" {
 		var qm map[string]any
-		if err := json.Unmarshal([]byte(dbTask.Quality), &qm); err == nil {
-			quality = mapToProtoQuality(qm)
+		if err := json.Unmarshal([]byte(dbTask.Quality), &qm); err != nil {
+			return nil, fmt.Errorf("parse task %s quality: %w", dbTask.ID, err)
 		}
+		quality = mapToProtoQuality(qm)
 	}
 
 	// Convert timestamps
@@ -183,10 +187,14 @@ func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
 	// Parse PR labels and reviewers from JSON
 	var prLabels, prReviewers []string
 	if dbTask.PrLabels != "" {
-		_ = json.Unmarshal([]byte(dbTask.PrLabels), &prLabels)
+		if err := json.Unmarshal([]byte(dbTask.PrLabels), &prLabels); err != nil {
+			return nil, fmt.Errorf("parse task %s PR labels: %w", dbTask.ID, err)
+		}
 	}
 	if dbTask.PrReviewers != "" {
-		_ = json.Unmarshal([]byte(dbTask.PrReviewers), &prReviewers)
+		if err := json.Unmarshal([]byte(dbTask.PrReviewers), &prReviewers); err != nil {
+			return nil, fmt.Errorf("parse task %s PR reviewers: %w", dbTask.ID, err)
+		}
 	}
 
 	t := &orcv1.Task{
@@ -194,7 +202,7 @@ func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
 		Title:       dbTask.Title,
 		Description: stringToPtr(dbTask.Description),
 		// Weight field removed from proto (TASK-748) - DB column ignored
-		WorkflowId: stringToPtr(dbTask.WorkflowID),
+		WorkflowId:       stringToPtr(dbTask.WorkflowID),
 		Status:           task.StatusToProto(dbTask.Status),
 		CurrentPhase:     stringToPtr(dbTask.CurrentPhase),
 		Branch:           dbTask.Branch,
@@ -237,7 +245,7 @@ func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
 		task.SetRetryStateJSON(t, dbTask.RetryContext)
 	}
 
-	return t
+	return t, nil
 }
 
 // ============================================================================

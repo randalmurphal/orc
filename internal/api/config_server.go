@@ -1114,6 +1114,9 @@ func (s *configServer) CreateAgent(
 	if req.Msg.Tools != nil && len(req.Msg.Tools.Allow) > 0 {
 		agent.Tools = req.Msg.Tools.Allow
 	}
+	if req.Msg.Provider != nil {
+		agent.Provider = *req.Msg.Provider
+	}
 
 	// Save to database
 	if err := pdb.SaveAgent(agent); err != nil {
@@ -1176,6 +1179,9 @@ func (s *configServer) UpdateAgent(
 	if req.Msg.Tools != nil {
 		agent.Tools = req.Msg.Tools.Allow
 	}
+	if req.Msg.Provider != nil {
+		agent.Provider = *req.Msg.Provider
+	}
 
 	// Save updates
 	if err := pdb.SaveAgent(agent); err != nil {
@@ -1237,6 +1243,11 @@ func dbAgentToProto(a *db.Agent, stats *db.AgentStats, scope orcv1.SettingsScope
 	// Set model if present
 	if a.Model != "" {
 		agent.Model = &a.Model
+	}
+
+	// Set provider if present
+	if a.Provider != "" {
+		agent.Provider = &a.Provider
 	}
 
 	// Set prompt if present

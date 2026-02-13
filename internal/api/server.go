@@ -699,7 +699,7 @@ func (s *Server) resumeTask(id string, projectID string) (map[string]any, error)
 	}
 
 	// Prepare git ops and claude path (matches CLI behavior)
-	gitOps, claudePath, err := s.prepareExecutorDeps(workDir)
+	gitOps, claudePath, codexPath, err := s.prepareExecutorDeps(workDir)
 	if err != nil {
 		return nil, fmt.Errorf("prepare executor deps: %w", err)
 	}
@@ -729,6 +729,7 @@ func (s *Server) resumeTask(id string, projectID string) (map[string]any, error)
 		we := executor.NewWorkflowExecutor(
 			backend,
 			backend.DB(),
+			s.globalDB,
 			s.orcConfig,
 			workDir,
 			executor.WithWorkflowPublisher(s.publisher),
@@ -737,6 +738,8 @@ func (s *Server) resumeTask(id string, projectID string) (map[string]any, error)
 			executor.WithWorkflowSessionBroadcaster(s.sessionBroadcaster),
 			executor.WithWorkflowGitOps(gitOps),
 			executor.WithWorkflowClaudePath(claudePath),
+			executor.WithWorkflowCodexPath(codexPath),
+			executor.WithWorkflowTokenRates(executor.ProviderRatesForConfig(s.orcConfig)),
 		)
 
 		opts := executor.WorkflowRunOptions{
@@ -795,8 +798,8 @@ func (s *Server) startTask(id string, projectID string) error {
 	s.runningTasks[id] = cancel
 	s.runningTasksMu.Unlock()
 
-	// Prepare git ops and claude path (matches CLI behavior)
-	gitOps, claudePath, err := s.prepareExecutorDeps(workDir)
+	// Prepare git ops and CLI paths (matches CLI behavior)
+	gitOps, claudePath, codexPath, err := s.prepareExecutorDeps(workDir)
 	if err != nil {
 		cancel()
 		s.runningTasksMu.Lock()
@@ -816,6 +819,7 @@ func (s *Server) startTask(id string, projectID string) error {
 		we := executor.NewWorkflowExecutor(
 			backend,
 			backend.DB(),
+			s.globalDB,
 			s.orcConfig,
 			workDir,
 			executor.WithWorkflowPublisher(s.publisher),
@@ -824,6 +828,8 @@ func (s *Server) startTask(id string, projectID string) error {
 			executor.WithWorkflowSessionBroadcaster(s.sessionBroadcaster),
 			executor.WithWorkflowGitOps(gitOps),
 			executor.WithWorkflowClaudePath(claudePath),
+			executor.WithWorkflowCodexPath(codexPath),
+			executor.WithWorkflowTokenRates(executor.ProviderRatesForConfig(s.orcConfig)),
 		)
 
 		opts := executor.WorkflowRunOptions{
@@ -845,7 +851,7 @@ func (s *Server) startTask(id string, projectID string) error {
 
 // prepareExecutorDeps creates gitOps and resolves claudePath from server config,
 // matching CLI behavior (see cli.NewGitOpsFromConfig and cmd_run.go).
-func (s *Server) prepareExecutorDeps(projectDir string) (*git.Git, string, error) {
+func (s *Server) prepareExecutorDeps(projectDir string) (*git.Git, string, string, error) {
 	cfg := s.orcConfig
 	if cfg == nil {
 		cfg = config.Default()
@@ -858,7 +864,7 @@ func (s *Server) prepareExecutorDeps(projectDir string) (*git.Git, string, error
 	}
 	gitOps, err := git.New(projectDir, gitCfg)
 	if err != nil {
-		return nil, "", fmt.Errorf("init git: %w", err)
+		return nil, "", "", fmt.Errorf("init git: %w", err)
 	}
 
 	claudePath := cfg.ClaudePath
@@ -866,7 +872,15 @@ func (s *Server) prepareExecutorDeps(projectDir string) (*git.Git, string, error
 		claudePath = "claude"
 	}
 
-	return gitOps, claudePath, nil
+	codexPath := cfg.CodexPath
+	if codexPath == "" {
+		codexPath = cfg.Providers.Codex.Path
+	}
+	if codexPath == "" {
+		codexPath = "codex"
+	}
+
+	return gitOps, claudePath, codexPath, nil
 }
 
 // cancelTask cancels a running task (called by WebSocket handler).

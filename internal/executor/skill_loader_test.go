@@ -234,19 +234,3 @@ func TestSkillLoader_LoadSkillsForConfig(t *testing.T) {
 		assert.ElementsMatch(t, []string{"Read", "Glob", "Grep"}, cfg.AllowedTools)
 	})
 }
-
-func TestLoadSkillsContentSimple(t *testing.T) {
-	tmpDir := t.TempDir()
-	skillDir := filepath.Join(tmpDir, "skills", "simple")
-	require.NoError(t, os.MkdirAll(skillDir, 0755))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(skillDir, "SKILL.md"),
-		[]byte("---\nname: simple\ndescription: simple\n---\nSimple content"),
-		0644,
-	))
-
-	content, err := LoadSkillsContentSimple(tmpDir, []string{"simple"})
-
-	require.NoError(t, err)
-	assert.Contains(t, content, "Simple content")
-}

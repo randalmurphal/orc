@@ -16,6 +16,7 @@ import type {
 import type { Agent, Hook, Skill } from '@/gen/orc/v1/config_pb';
 import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
 import { mergeClaudeConfigs, parseClaudeConfig, serializeClaudeConfig } from '@/lib/claudeConfigUtils';
+import { PROVIDERS, PROVIDER_MODELS } from '@/lib/providerUtils';
 import type { ClaudeConfigState } from '@/lib/claudeConfigUtils';
 import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
 import { LibraryPicker } from '@/components/core/LibraryPicker';
@@ -371,6 +372,9 @@ export function PhaseInspector({
 					savingFields={savingFields}
 					autoSave={autoSave}
 					isMobile={isMobile}
+					workflowDefaultProvider={workflowDetails.workflow?.defaultProvider ?? ''}
+					workflowDetails={workflowDetails}
+					onWorkflowRefresh={onWorkflowRefresh}
 				/>
 			</div>
 
@@ -485,6 +489,9 @@ interface AlwaysVisibleSectionProps {
 	savingFields: Set<string>;
 	autoSave: (field: string, value: unknown, immediate?: boolean) => void;
 	isMobile: boolean;
+	workflowDefaultProvider: string;
+	workflowDetails: WorkflowWithDetails;
+	onWorkflowRefresh?: () => void;
 }
 
 function AlwaysVisibleSection({
@@ -498,17 +505,22 @@ function AlwaysVisibleSection({
 	savingFields,
 	autoSave,
 	isMobile,
+	workflowDefaultProvider,
+	workflowDetails,
+	onWorkflowRefresh,
 }: AlwaysVisibleSectionProps) {
 	const [phaseName, setPhaseName] = useState(template.name || '');
 	const [agentOverride, setAgentOverride] = useState(phase.agentOverride || '');
 	const [modelOverride, setModelOverride] = useState(phase.modelOverride || '');
+	const [providerOverride, setProviderOverride] = useState(phase.providerOverride || '');
 
 	// Reset local state when phase changes
 	useEffect(() => {
 		setPhaseName(template.name || '');
 		setAgentOverride(phase.agentOverride || '');
 		setModelOverride(phase.modelOverride || '');
-	}, [phase.id, template, phase.agentOverride, phase.modelOverride]);
+		setProviderOverride(phase.providerOverride || '');
+	}, [phase.id, template, phase.agentOverride, phase.modelOverride, phase.providerOverride]);
 
 	// Validation helpers
 	const validatePhaseName = (name: string): FieldError | null => {
@@ -556,6 +568,39 @@ function AlwaysVisibleSection({
 		setModelOverride(value);
 		autoSave('modelOverride', value || undefined);
 	};
+
+	const handleProviderChange = async (value: string) => {
+		const providerChanged = value !== providerOverride;
+		setProviderOverride(value);
+
+		if (providerChanged) {
+			// Batch both provider and model clearing into a single API call
+			// to avoid debounce race condition
+			setModelOverride('');
+			if (!workflowDetails?.workflow?.id) return;
+			try {
+				await workflowClient.updatePhase({
+					workflowId: workflowDetails.workflow.id,
+					phaseId: phase.id,
+					providerOverride: value || undefined,
+					modelOverride: undefined,
+				});
+				onWorkflowRefresh?.();
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : 'Save failed';
+				setFieldErrors(prev => ({
+					...prev,
+					providerOverride: { message: errorMessage, type: 'save' },
+				}));
+			}
+		} else {
+			autoSave('providerOverride', value || undefined);
+		}
+	};
+
+	// Determine active provider for model dropdown options
+	const activeProvider = providerOverride || workflowDefaultProvider || 'claude';
+	const activeModels = PROVIDER_MODELS[activeProvider] ?? [];
 
 	const nameError = fieldErrors.templateName || validatePhaseName(phaseName);
 
@@ -623,24 +668,64 @@ function AlwaysVisibleSection({
 				)}
 			</div>
 
+			{/* Provider */}
+			<div className="field-group">
+				<label htmlFor="phase-provider" className="field-label">
+					Provider
+				</label>
+				<select
+					id="phase-provider"
+					aria-label="Provider"
+					value={providerOverride}
+					onChange={(e) => handleProviderChange(e.target.value)}
+					disabled={readOnly || savingFields.has('providerOverride')}
+					className={`field-input ${isMobile ? 'touch-friendly' : ''}`}
+				>
+					<option value="">Inherit from workflow</option>
+					{PROVIDERS.map(p => (
+						<option key={p.value} value={p.value}>{p.label}</option>
+					))}
+				</select>
+				{savingFields.has('providerOverride') && (
+					<span className="field-saving">Saving...</span>
+				)}
+				{fieldErrors.providerOverride && (
+					<span className="field-error">{fieldErrors.providerOverride.message}</span>
+				)}
+			</div>
+
 			{/* Model */}
 			<div className="field-group">
 				<label htmlFor="phase-model" className="field-label">
 					Model
 				</label>
-				<select
-					id="phase-model"
-					aria-label="Model"
-					value={modelOverride}
-					onChange={(e) => handleModelChange(e.target.value)}
-					disabled={readOnly || savingFields.has('modelOverride')}
-					className={`field-input ${isMobile ? 'touch-friendly' : ''}`}
-				>
-					<option value="">Inherit from workflow</option>
-					<option value="sonnet">Sonnet</option>
-					<option value="opus">Opus</option>
-					<option value="haiku">Haiku</option>
-				</select>
+				{activeModels.length > 0 ? (
+					<select
+						id="phase-model"
+						aria-label="Model"
+						value={modelOverride}
+						onChange={(e) => handleModelChange(e.target.value)}
+						disabled={readOnly || savingFields.has('modelOverride')}
+						className={`field-input ${isMobile ? 'touch-friendly' : ''}`}
+					>
+						<option value="">Inherit from workflow</option>
+						{activeModels.map(m => (
+							<option key={m.value} value={m.value}>{m.label}</option>
+						))}
+					</select>
+				) : (
+					<input
+						id="phase-model"
+						aria-label="Model"
+						type="text"
+						value={modelOverride}
+						onChange={(e) => handleModelChange(e.target.value)}
+						onBlur={() => autoSave('modelOverride', modelOverride || undefined, true)}
+						disabled={readOnly || savingFields.has('modelOverride')}
+						className={`field-input ${isMobile ? 'touch-friendly' : ''}`}
+						placeholder="Type model name..."
+					/>
+				)}
 				{savingFields.has('modelOverride') && (
 					<span className="field-saving">Saving...</span>
 				)}

@@ -1,0 +1,19 @@
+id: tdd_integrate
+name: "TDD - Integration Tests"
+description: "Write integration tests verifying new code is wired into production paths"
+
+prompt_source: embedded
+prompt_path: prompts/tdd_integrate.md
+
+input_variables: ["SPEC_CONTENT", "TDD_TESTS_CONTENT"]
+output_var_name: "TDD_INTEGRATION_CONTENT"
+output_type: tests
+produces_artifact: true
+artifact_type: tests
+
+thinking: false
+gate_type: auto
+checkpoint: true
+retry_from_phase: tdd_write
+
+claude_config: '{"hooks":{"PreToolUse":[{"matcher":"Edit|Write|MultiEdit","hooks":[{"type":"command","command":"bash {{hook:orc-tdd-discipline}}"}]}]}}'

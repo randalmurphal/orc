@@ -37,6 +37,7 @@ func setupTestExecutor(t *testing.T, cfg *config.Config) *testExecutorEnv {
 	// Create executor with minimal config
 	executor := &WorkflowExecutor{
 		projectDB:  projectDB,
+		globalDB:   &db.GlobalDB{DB: projectDB.DB},
 		orcConfig:  cfg,
 		logger:     slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn})),
 		workingDir: tmpDir,
@@ -607,5 +608,203 @@ func TestShouldUseThinking_WorkflowDefaultThinking(t *testing.T) {
 
 		// Should fall through to spec phase default (true)
 		assert.True(t, result)
+	})
+}
+
+func TestResolvePhaseProvider(t *testing.T) {
+	t.Run("defaults to claude when nothing configured", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "claude", provider)
+	})
+
+	t.Run("phase provider override takes precedence", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		tmpl := &db.PhaseTemplate{ID: "implement", Provider: "claude"}
+		phase := &db.WorkflowPhase{ProviderOverride: "codex"}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("extracts provider from model override as fallback", func(t *testing.T) {
+		cfg := config.Default()
+		cfg.Provider = "" // Clear config provider so model tuple fallback is exercised
+		env := setupTestExecutor(t, cfg)
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{ModelOverride: "codex:gpt-5"}
+
+		// Model tuple is a fallback — only used when no explicit provider is set
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("uses template provider", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		tmpl := &db.PhaseTemplate{ID: "implement", Provider: "codex"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("uses workflow default provider", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+		env.executor.wf = &workflow.Workflow{
+			ID:              "test-workflow",
+			DefaultProvider: "codex",
+		}
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("uses agent provider", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		testAgent := &db.Agent{
+			ID:       "impl-executor",
+			Name:     "Implementation Executor",
+			Provider: "codex",
+		}
+		require.NoError(t, env.projectDB.SaveAgent(testAgent))
+
+		tmpl := &db.PhaseTemplate{ID: "implement", AgentID: "impl-executor"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("uses run-level provider override", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+		env.executor.runProvider = "codex"
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("run-level provider is highest priority", func(t *testing.T) {
+		cfg := config.Default()
+		cfg.Provider = "ollama"
+		env := setupTestExecutor(t, cfg)
+		env.executor.runProvider = "codex"
+
+		testAgent := &db.Agent{
+			ID:       "impl-executor",
+			Name:     "Implementation Executor",
+			Provider: "claude",
+		}
+		require.NoError(t, env.projectDB.SaveAgent(testAgent))
+
+		tmpl := &db.PhaseTemplate{ID: "implement", AgentID: "impl-executor"}
+		phase := &db.WorkflowPhase{}
+
+		// Run-level override wins over everything
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "codex", provider)
+
+		// Remove run-level — agent provider wins over config
+		env.executor.runProvider = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "claude", provider)
+	})
+
+	t.Run("uses config provider", func(t *testing.T) {
+		cfg := config.Default()
+		cfg.Provider = "codex"
+		env := setupTestExecutor(t, cfg)
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{}
+
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+
+		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("full priority chain: run-level > phase override > workflow > template > agent > config > model tuple", func(t *testing.T) {
+		cfg := config.Default()
+		cfg.Provider = "ollama"
+		env := setupTestExecutor(t, cfg)
+
+		testAgent := &db.Agent{
+			ID:       "impl-executor",
+			Name:     "Implementation Executor",
+			Provider: "codex",
+		}
+		require.NoError(t, env.projectDB.SaveAgent(testAgent))
+
+		env.executor.wf = &workflow.Workflow{
+			ID:              "test-workflow",
+			DefaultProvider: "codex",
+		}
+		env.executor.runProvider = "lmstudio"
+
+		tmpl := &db.PhaseTemplate{ID: "implement", AgentID: "impl-executor", Provider: "codex"}
+		phase := &db.WorkflowPhase{
+			ProviderOverride: "claude",
+			ModelOverride:    "codex:gpt-5", // model tuple fallback (lowest tier)
+		}
+
+		// Run-level override wins over everything
+		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "lmstudio", provider)
+
+		// Remove run-level — phase override wins
+		env.executor.runProvider = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "claude", provider)
+
+		// Remove phase override — workflow default wins
+		phase.ProviderOverride = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "codex", provider)
+
+		// Remove workflow default — template wins
+		env.executor.wf.DefaultProvider = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "codex", provider)
+
+		// Remove template provider — agent wins
+		tmpl.Provider = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "codex", provider)
+
+		// Remove agent provider — config wins
+		testAgent.Provider = ""
+		require.NoError(t, env.projectDB.SaveAgent(testAgent))
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "ollama", provider)
+
+		// Remove config provider — model tuple fallback wins
+		env.executor.orcConfig.Provider = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "codex", provider)
+
+		// Remove model override — defaults to claude
+		phase.ModelOverride = ""
+		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		assert.Equal(t, "claude", provider)
 	})
 }

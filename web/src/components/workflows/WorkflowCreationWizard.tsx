@@ -20,6 +20,7 @@ import { Button, Icon, type IconName } from '@/components/ui';
 import { workflowClient } from '@/lib/client';
 import { type Workflow, type PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
 import { getRecommendedPhases, slugifyWorkflowId, type WorkflowIntent } from './workflowWizardUtils';
+import { PROVIDERS, PROVIDER_MODELS } from '@/lib/providerUtils';
 import './WorkflowCreationWizard.css';
 
 export interface WorkflowCreationWizardProps {
@@ -35,13 +36,6 @@ const INTENT_OPTIONS: { id: WorkflowIntent; label: string; icon: IconName }[] = 
 	{ id: 'test', label: 'Test', icon: 'check-circle' },
 	{ id: 'document', label: 'Document', icon: 'file-text' },
 	{ id: 'custom', label: 'Custom', icon: 'settings' },
-];
-
-const MODEL_OPTIONS = [
-	{ value: '', label: 'Default (inherit)' },
-	{ value: 'sonnet', label: 'Sonnet' },
-	{ value: 'opus', label: 'Opus' },
-	{ value: 'haiku', label: 'Haiku' },
 ];
 
 type WizardStep = 1 | 2 | 3;
@@ -62,6 +56,7 @@ export function WorkflowCreationWizard({
 	const [name, setName] = useState('');
 	const [id, setId] = useState('');
 	const [description, setDescription] = useState('');
+	const [defaultProvider, setDefaultProvider] = useState('');
 	const [defaultModel, setDefaultModel] = useState('');
 	const [idManuallySet, setIdManuallySet] = useState(false);
 	const [showOptional, setShowOptional] = useState(false);
@@ -96,6 +91,7 @@ export function WorkflowCreationWizard({
 			setName('');
 			setId('');
 			setDescription('');
+			setDefaultProvider('');
 			setDefaultModel('');
 			setIdManuallySet(false);
 			setShowOptional(false);
@@ -172,6 +168,7 @@ export function WorkflowCreationWizard({
 				id: workflowId,
 				name: name.trim() || undefined,
 				description: description.trim() || undefined,
+				defaultProvider: defaultProvider || undefined,
 				defaultModel: defaultModel || undefined,
 			});
 
@@ -200,7 +197,7 @@ export function WorkflowCreationWizard({
 		} finally {
 			setSaving(false);
 		}
-	}, [id, name, description, defaultModel, selectedPhases, phaseTemplates, onCreated]);
+	}, [id, name, description, defaultProvider, defaultModel, selectedPhases, phaseTemplates, onCreated]);
 
 	// Recommended phases for current intent
 	const recommendedPhases = useMemo(() => {
@@ -335,21 +332,54 @@ export function WorkflowCreationWizard({
 								{showOptional && (
 									<div className="wizard-optional-content">
 										<div className="form-group">
-											<label htmlFor="wizard-model" className="form-label">
-												Default Model
+											<label htmlFor="wizard-provider" className="form-label">
+												Default Provider
 											</label>
 											<select
-												id="wizard-model"
+												id="wizard-provider"
 												className="form-select"
-												value={defaultModel}
-												onChange={(e) => setDefaultModel(e.target.value)}
+												value={defaultProvider}
+												onChange={(e) => {
+													setDefaultProvider(e.target.value);
+													setDefaultModel('');
+												}}
 											>
-												{MODEL_OPTIONS.map((option) => (
-													<option key={option.value} value={option.value}>
-														{option.label}
+												<option value="">Claude (default)</option>
+												{PROVIDERS.map((p) => (
+													<option key={p.value} value={p.value}>
+														{p.label}
 													</option>
 												))}
 											</select>
+										</div>
+										<div className="form-group">
+											<label htmlFor="wizard-model" className="form-label">
+												Default Model
+											</label>
+											{(PROVIDER_MODELS[defaultProvider || 'claude'] ?? []).length > 0 ? (
+												<select
+													id="wizard-model"
+													className="form-select"
+													value={defaultModel}
+													onChange={(e) => setDefaultModel(e.target.value)}
+												>
+													<option value="">Default (inherit)</option>
+													{(PROVIDER_MODELS[defaultProvider || 'claude'] ?? []).map((m) => (
+														<option key={m.value} value={m.value}>
+															{m.label}
+														</option>
+													))}
+												</select>
+											) : (
+												<input
+													id="wizard-model"
+													type="text"
+													className="form-input"
+													value={defaultModel}
+													onChange={(e) => setDefaultModel(e.target.value)}
+													placeholder="Type model name..."
+												/>
+											)}
 										</div>
 									</div>
 								)}

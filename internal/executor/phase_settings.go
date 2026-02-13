@@ -390,6 +390,27 @@ func resetClaudeDir(worktreePath, sourceBranch string) error {
 	return nil
 }
 
+// applyCodexInstructions writes .codex/instruction.md when phase config
+// specifies custom instructions. This is the Codex equivalent of
+// .claude/settings.json for passing persistent project context.
+func applyCodexInstructions(worktreePath string, codexCfg *PhaseCodexConfig) error {
+	if codexCfg == nil || codexCfg.Instructions == "" {
+		return nil
+	}
+
+	codexDir := filepath.Join(worktreePath, ".codex")
+	if err := os.MkdirAll(codexDir, 0755); err != nil {
+		return fmt.Errorf("create .codex dir: %w", err)
+	}
+
+	instrPath := filepath.Join(codexDir, "instruction.md")
+	if err := os.WriteFile(instrPath, []byte(codexCfg.Instructions), 0644); err != nil {
+		return fmt.Errorf("write instruction.md: %w", err)
+	}
+
+	return nil
+}
+
 // writeIsolationScript writes the worktree isolation hook script to .claude/hooks/.
 // This is always written for every phase as a safety measure.
 func writeIsolationScript(worktreePath string, hsGetter HookScriptGetter) error {

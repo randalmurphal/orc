@@ -47,7 +47,7 @@ func NewTestBackend(t testing.TB) *DatabaseBackend {
 // embedded template files on the filesystem.
 func seedTestPhaseTemplates(backend *DatabaseBackend) {
 	ids := []string{
-		"spec", "tiny_spec", "tdd_write", "breakdown",
+		"spec", "tiny_spec", "tdd_write", "tdd_integrate", "breakdown",
 		"implement", "review", "docs", "research",
 	}
 	for _, id := range ids {

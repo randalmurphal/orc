@@ -54,6 +54,25 @@ message TaskRef {
   repeated string depends_on = 4;
 }
 
+message Criterion {
+  string id = 1;
+  string description = 2;
+  string status = 3;             // uncovered, covered, satisfied, regressed
+  repeated string task_ids = 4;
+  string verified_at = 5;
+  string verified_by = 6;
+  string evidence = 7;
+}
+
+message CoverageReport {
+  int32 total = 1;
+  int32 uncovered = 2;
+  int32 covered = 3;
+  int32 satisfied = 4;
+  int32 regressed = 5;
+  repeated Criterion criteria = 6;
+}
+
 message Initiative {
   int32 version = 1;
   string id = 2;
@@ -71,6 +90,7 @@ message Initiative {
   optional string merge_commit = 14;
   google.protobuf.Timestamp created_at = 15;
   google.protobuf.Timestamp updated_at = 16;
+  repeated Criterion criteria = 17;
   repeated string blocks = 100;
 }
 
@@ -116,6 +136,12 @@ service InitiativeService {
   // Initiative Notes
   rpc ListInitiativeNotes(ListInitiativeNotesRequest) returns (ListInitiativeNotesResponse);
   rpc ListTaskGeneratedNotes(ListTaskGeneratedNotesRequest) returns (ListTaskGeneratedNotesResponse);
+  // Initiative Criteria
+  rpc AddCriterion(AddCriterionRequest) returns (AddCriterionResponse);
+  rpc RemoveCriterion(RemoveCriterionRequest) returns (RemoveCriterionResponse);
+  rpc MapCriterionToTask(MapCriterionToTaskRequest) returns (MapCriterionToTaskResponse);
+  rpc VerifyCriterion(VerifyCriterionRequest) returns (VerifyCriterionResponse);
+  rpc GetCoverageReport(GetCoverageReportRequest) returns (GetCoverageReportResponse);
 }
 
 // =============================================================================
@@ -274,4 +300,57 @@ message ListTaskGeneratedNotesRequest {
 
 message ListTaskGeneratedNotesResponse {
   repeated InitiativeNote notes = 1;
+}
+
+// Initiative Criteria - Request/Response messages
+message AddCriterionRequest {
+  string project_id = 1;
+  string initiative_id = 2;
+  string description = 3;
+}
+
+message AddCriterionResponse {
+  Initiative initiative = 1;
+}
+
+message RemoveCriterionRequest {
+  string project_id = 1;
+  string initiative_id = 2;
+  string criterion_id = 3;
+}
+
+message RemoveCriterionResponse {
+  Initiative initiative = 1;
+}
+
+message MapCriterionToTaskRequest {
+  string project_id = 1;
+  string initiative_id = 2;
+  string criterion_id = 3;
+  string task_id = 4;
+}
+
+message MapCriterionToTaskResponse {
+  Initiative initiative = 1;
+}
+
+message VerifyCriterionRequest {
+  string project_id = 1;
+  string initiative_id = 2;
+  string criterion_id = 3;
+  string status = 4;
+  string evidence = 5;
+}
+
+message VerifyCriterionResponse {
+  Initiative initiative = 1;
+}
+
+message GetCoverageReportRequest {
+  string project_id = 1;
+  string initiative_id = 2;
+}
+
+message GetCoverageReportResponse {
+  CoverageReport report = 1;
 }

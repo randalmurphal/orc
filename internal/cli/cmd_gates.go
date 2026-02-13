@@ -54,13 +54,13 @@ func loadGatesContext() (*gatesContext, error) {
 		return nil, fmt.Errorf("no active workflow; run `orc init` first")
 	}
 
-	pdb, err := db.OpenProject(".")
+	gdb, err := db.OpenGlobal()
 	if err != nil {
-		return nil, fmt.Errorf("open project database: %w", err)
+		return nil, fmt.Errorf("open global database: %w", err)
 	}
-	defer func() { _ = pdb.Close() }()
+	defer func() { _ = gdb.Close() }()
 
-	phases, err := pdb.GetWorkflowPhases(cfg.Workflow)
+	phases, err := gdb.GetWorkflowPhases(cfg.Workflow)
 	if err != nil {
 		return nil, fmt.Errorf("load workflow phases: %w", err)
 	}
@@ -71,7 +71,7 @@ func loadGatesContext() (*gatesContext, error) {
 	templates := make([]*db.PhaseTemplate, 0, len(phases))
 	phaseGates := make(map[string]*db.PhaseGate, len(phases))
 	for _, ph := range phases {
-		tmpl, err := pdb.GetPhaseTemplate(ph.PhaseTemplateID)
+		tmpl, err := gdb.GetPhaseTemplate(ph.PhaseTemplateID)
 		if err != nil {
 			return nil, fmt.Errorf("load phase template %s: %w", ph.PhaseTemplateID, err)
 		}

@@ -16,13 +16,13 @@ phases:
     loop_config:
       loop_to_phase: implement
       condition:
-        field: "phase_output.review.status"
+        field: "phase_output.review.needs_changes"
         op: "eq"
-        value: "needs_changes"
+        value: "true"
       max_loops: 3
       loop_templates:
-        "1": "review.md"
-        default: "review_round2.md"
+        "1": "prompts/review.md"
+        default: "prompts/review_round2.md"
       loop_schemas:
         "1": "ReviewFindingsSchema"
         default: "ReviewDecisionSchema"

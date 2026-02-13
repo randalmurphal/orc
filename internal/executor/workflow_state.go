@@ -189,7 +189,7 @@ func (we *WorkflowExecutor) commitWIPOnInterrupt(t *orcv1.Task, phaseID string) 
 // recordCostToGlobal logs cost and token usage to the global database for cross-project analytics.
 // Failures are logged but don't interrupt execution.
 // The context is used to extract the user ID for cost attribution.
-func (we *WorkflowExecutor) recordCostToGlobal(ctx context.Context, t *orcv1.Task, phaseID string, result PhaseResult, model string, duration time.Duration) {
+func (we *WorkflowExecutor) recordCostToGlobal(ctx context.Context, t *orcv1.Task, phaseID string, result PhaseResult, model, provider string, duration time.Duration) {
 	if we.globalDB == nil {
 		return // Global DB not available, skip silently
 	}
@@ -212,14 +212,15 @@ func (we *WorkflowExecutor) recordCostToGlobal(ctx context.Context, t *orcv1.Tas
 		ProjectID:           projectPath,
 		TaskID:              taskID,
 		Phase:               phaseID,
-		Model:               db.DetectModel(model),
+		Model:               db.DetectModel(provider, model),
+		Provider:            provider,
 		Iteration:           result.Iterations,
 		CostUSD:             result.CostUSD,
 		InputTokens:         result.InputTokens,
 		OutputTokens:        result.OutputTokens,
 		CacheCreationTokens: result.CacheCreationTokens,
 		CacheReadTokens:     result.CacheReadTokens,
-		TotalTokens:         result.InputTokens + result.OutputTokens,
+		TotalTokens:         result.InputTokens + result.OutputTokens + result.CacheCreationTokens + result.CacheReadTokens,
 		InitiativeID:        initiativeID,
 		DurationMs:          duration.Milliseconds(),
 		UserID:              userID,

@@ -91,6 +91,7 @@ Examples:
 	cmd.AddCommand(newInitiativePlanCmd())
 	cmd.AddCommand(newInitiativeNotesCmd())
 	cmd.AddCommand(newInitiativeNoteCmd())
+	cmd.AddCommand(newInitiativeCriteriaCmd())
 
 	return cmd
 }

@@ -51,7 +51,7 @@ func TestLoopConfig_LoopTemplatesField(t *testing.T) {
 	// Parse a loop config with loop_templates field
 	input := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3,
 		"loop_templates": {
 			"1": "review.md",
@@ -89,7 +89,7 @@ func TestLoopConfig_LoopSchemasField(t *testing.T) {
 	// Parse a loop config with loop_schemas field
 	input := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3,
 		"loop_schemas": {
 			"1": "findings",
@@ -127,7 +127,7 @@ func TestLoopConfig_OutputTransformField(t *testing.T) {
 	// Parse a loop config with output_transform field
 	input := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3,
 		"output_transform": {
 			"type": "format_findings",
@@ -260,7 +260,7 @@ func TestOutputTransform_UsesLoopConfigNotHardcoded(t *testing.T) {
 	}
 
 	// Input: raw review output JSON
-	input := `{"status":"needs_changes","summary":"Found issues","issues":[{"severity":"high","description":"Bug found"}]}`
+	input := `{"needs_changes":true,"summary":"Found issues","issues":[{"severity":"high","description":"Bug found"}]}`
 
 	// The transform should parse the review output and format it for the next iteration
 	rctx := &variable.ResolutionContext{
@@ -300,7 +300,7 @@ func TestReviewRoundDetection_UsesLoopIterationNotRetryContext(t *testing.T) {
 	rctx := &variable.ResolutionContext{
 		LoopIteration: 2, // Second iteration of a loop
 		PriorOutputs: map[string]string{
-			"review": `{"status":"needs_changes","summary":"Issues found"}`,
+			"review": `{"needs_changes":true,"summary":"Issues found"}`,
 		},
 	}
 
@@ -419,7 +419,7 @@ func TestReviewLoop_ApprovesFirstPass(t *testing.T) {
 	// Setup workflow with review loop config
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3,
 		"loop_schemas": {"1": "findings", "default": "decision"},
 		"loop_templates": {"1": "review.md", "default": "review_round2.md"}
@@ -427,19 +427,19 @@ func TestReviewLoop_ApprovesFirstPass(t *testing.T) {
 	setupReviewLoopWorkflow(t, backend, loopCfg)
 	tsk := setupTaskForReviewLoop(t, backend, "TASK-REVIEW-001")
 
-	// Mock: review approves immediately (status: complete, not needs_changes)
+	// Mock: review approves immediately (needs_changes: false)
 	mock := &MockTurnExecutor{
 		Responses: []string{
 			// implement
 			`{"status": "complete", "summary": "Implemented feature"}`,
 			// review round 1 - approves (findings schema, no issues)
-			`{"status": "complete", "round": 1, "summary": "Looks good", "issues": []}`,
+			`{"needs_changes": false, "round": 1, "summary": "Looks good", "issues": []}`,
 		},
 		SessionIDValue: "mock-session",
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowPublisher(mockPub),
 		WithWorkflowTurnExecutor(mock),
@@ -489,7 +489,7 @@ func TestReviewLoop_RejectsAndRetriesThenApproves(t *testing.T) {
 	// Setup workflow with review loop config
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3,
 		"loop_schemas": {"1": "findings", "default": "decision"},
 		"loop_templates": {"1": "review.md", "default": "review_round2.md"},
@@ -508,7 +508,7 @@ func TestReviewLoop_RejectsAndRetriesThenApproves(t *testing.T) {
 			// Round 1: implement
 			`{"status": "complete", "summary": "Initial implementation"}`,
 			// Round 1: review - finds issues (needs_changes triggers loop)
-			`{"status": "needs_changes", "round": 1, "summary": "Found issues", "issues": [{"severity": "high", "description": "Missing error handling"}]}`,
+			`{"needs_changes": true, "round": 1, "summary": "Found issues", "issues": [{"severity": "high", "description": "Missing error handling"}]}`,
 			// Round 2: implement (looped back) - fixes issues
 			`{"status": "complete", "summary": "Fixed error handling"}`,
 			// Round 2: review - approves (decision schema)
@@ -518,7 +518,7 @@ func TestReviewLoop_RejectsAndRetriesThenApproves(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowPublisher(mockPub),
 		WithWorkflowTurnExecutor(mock),
@@ -577,7 +577,7 @@ func TestReviewLoop_MaxIterationsExceeded(t *testing.T) {
 	// Setup workflow with max_loops=2
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 2,
 		"loop_schemas": {"1": "findings", "default": "decision"}
 	}`
@@ -588,17 +588,17 @@ func TestReviewLoop_MaxIterationsExceeded(t *testing.T) {
 	mock := &MockTurnExecutor{
 		Responses: []string{
 			`{"status": "complete", "summary": "Done"}`,
-			`{"status": "needs_changes", "summary": "Issues"}`,
+			`{"needs_changes": true, "summary": "Issues"}`,
 			`{"status": "complete", "summary": "Fixed"}`,
-			`{"status": "needs_changes", "summary": "More issues"}`,
+			`{"needs_changes": true, "summary": "More issues"}`,
 			`{"status": "complete", "summary": "More fixes"}`,
-			`{"status": "needs_changes", "summary": "Still issues"}`, // max reached
+			`{"needs_changes": true, "summary": "Still issues"}`, // max reached
 		},
 		SessionIDValue: "mock-session",
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowTurnExecutor(mock),
 		WithSkipGates(true),
@@ -638,7 +638,7 @@ func TestReviewLoop_PreservesExistingBehavior(t *testing.T) {
 	// Setup workflow with standard review loop config (matching current behavior)
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3,
 		"loop_schemas": {"1": "findings", "default": "decision"},
 		"loop_templates": {"1": "review.md", "default": "review_round2.md"},
@@ -666,7 +666,7 @@ func TestReviewLoop_PreservesExistingBehavior(t *testing.T) {
 	}
 
 	// Verify output transform formats findings correctly
-	findings := `{"status":"needs_changes","round":1,"summary":"Found bugs","issues":[{"severity":"high","description":"Memory leak"}]}`
+	findings := `{"needs_changes":true,"round":1,"summary":"Found bugs","issues":[{"severity":"high","description":"Memory leak"}]}`
 	loopConfig, _ := db.ParseLoopConfig(loopCfg)
 
 	rctx := &variable.ResolutionContext{
@@ -762,7 +762,7 @@ func TestReviewLoop_MissingOutputTransformFallback(t *testing.T) {
 	}
 
 	// Without output_transform, the raw phase output should be used
-	findings := `{"status":"needs_changes","round":1,"summary":"Issues","issues":[]}`
+	findings := `{"needs_changes":true,"round":1,"summary":"Issues","issues":[]}`
 	rctx := &variable.ResolutionContext{
 		PriorOutputs: map[string]string{"review": findings},
 	}
@@ -929,7 +929,7 @@ func seedBuiltinWorkflows(t *testing.T, pdb *db.ProjectDB) {
 	// Review phase with loop config (the key test)
 	loopCfg := `{
 		"loop_to_phase": "implement",
-		"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+		"condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
 		"max_loops": 3,
 		"loop_schemas": {"1": "findings", "default": "decision"},
 		"loop_templates": {"1": "review.md", "default": "review_round2.md"},

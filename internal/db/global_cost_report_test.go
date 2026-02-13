@@ -301,6 +301,66 @@ func TestGetCostReport_GroupByModel(t *testing.T) {
 	}
 }
 
+func TestGetCostReport_GroupByProvider(t *testing.T) {
+	t.Parallel()
+	gdb := newTestGlobalDB(t)
+
+	// Insert entries with different providers
+	entries := []CostEntry{
+		// claude provider (explicit)
+		{ProjectID: "proj-orc", TaskID: "TASK-001", Phase: "implement", Model: "opus", Provider: "claude", CostUSD: 30.00, UserID: "user-alice", InputTokens: 10000, OutputTokens: 5000, TotalTokens: 15000},
+		{ProjectID: "proj-orc", TaskID: "TASK-002", Phase: "review", Model: "sonnet", Provider: "claude", CostUSD: 20.00, UserID: "user-alice", InputTokens: 8000, OutputTokens: 3000, TotalTokens: 11000},
+		// codex provider
+		{ProjectID: "proj-orc", TaskID: "TASK-003", Phase: "implement", Model: "codex-mini", Provider: "codex", CostUSD: 15.00, UserID: "user-bob", InputTokens: 6000, OutputTokens: 2000, TotalTokens: 8000},
+		// ollama provider
+		{ProjectID: "proj-llmkit", TaskID: "TASK-004", Phase: "spec", Model: "llama3", Provider: "ollama", CostUSD: 5.00, UserID: "user-alice", InputTokens: 2000, OutputTokens: 1000, TotalTokens: 3000},
+		// empty provider (should default to "claude" in grouping)
+		{ProjectID: "proj-orc", TaskID: "TASK-005", Phase: "docs", Model: "sonnet", Provider: "", CostUSD: 10.00, UserID: "user-bob", InputTokens: 4000, OutputTokens: 2000, TotalTokens: 6000},
+	}
+	for _, e := range entries {
+		if err := gdb.RecordCostExtended(e); err != nil {
+			t.Fatalf("seed cost data: %v", err)
+		}
+	}
+
+	result, err := gdb.GetCostReport(CostReportFilter{
+		Since:   time.Now().Add(-1 * time.Hour),
+		GroupBy: "provider",
+	})
+	if err != nil {
+		t.Fatalf("GetCostReport failed: %v", err)
+	}
+
+	byKey := make(map[string]float64)
+	for _, b := range result.Breakdowns {
+		byKey[b.Key] = b.CostUSD
+	}
+
+	// claude: 30 + 20 + 10 (empty provider defaults to claude) = 60
+	if byKey["claude"] != 60.00 {
+		t.Errorf("claude cost = %f, want 60", byKey["claude"])
+	}
+	// codex: 15
+	if byKey["codex"] != 15.00 {
+		t.Errorf("codex cost = %f, want 15", byKey["codex"])
+	}
+	// ollama: 5
+	if byKey["ollama"] != 5.00 {
+		t.Errorf("ollama cost = %f, want 5", byKey["ollama"])
+	}
+
+	// Should have exactly 3 groups
+	if len(result.Breakdowns) != 3 {
+		t.Errorf("expected 3 breakdowns by provider, got %d", len(result.Breakdowns))
+	}
+
+	// Total should be 80
+	expectedTotal := 80.00
+	if result.TotalCostUSD != expectedTotal {
+		t.Errorf("TotalCostUSD = %f, want %f", result.TotalCostUSD, expectedTotal)
+	}
+}
+
 // --- Edge Cases ---
 
 func TestGetCostReport_GroupByUserWithAllUnattributed(t *testing.T) {

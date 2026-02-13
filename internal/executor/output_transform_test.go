@@ -25,7 +25,7 @@ func TestApplyOutputTransform_FormatFindings(t *testing.T) {
 	}
 
 	// Input: raw review findings JSON
-	input := `{"status":"needs_changes","summary":"Found bugs","issues":[{"severity":"high","description":"Memory leak in handler"}]}`
+	input := `{"needs_changes":true,"summary":"Found bugs","issues":[{"severity":"high","description":"Memory leak in handler"}]}`
 
 	result, err := ApplyOutputTransform(cfg, input)
 	if err != nil {

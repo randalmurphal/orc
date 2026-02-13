@@ -101,7 +101,9 @@ func init() {
 	addCmd(newDiffCmd(), groupInspection)
 	addCmd(newDepsCmd(), groupInspection)
 	addCmd(newSearchCmd(), groupInspection)
+	addCmd(newBriefCmd(), groupInspection)
 	addCmd(newCostsCmd(), groupInspection)
+	addCmd(newScratchpadCmd(), groupInspection)
 
 	// Phase Control
 	addCmd(newRewindCmd(), groupPhaseControl)
@@ -134,10 +136,12 @@ func init() {
 	addCmd(newImportCmd(), groupImportExport)
 
 	// Team & Advanced
+	addCmd(newKnowledgeCmd(), groupAdvanced)
 	addCmd(newTeamCmd(), groupAdvanced)
 	addCmd(newPoolCmd(), groupAdvanced)
 	addCmd(newAutomationCmd(), groupAdvanced)
 	addCmd(newCommentCmd(), groupAdvanced)
+	addCmd(newBenchCmd(), groupAdvanced)
 	addCmd(newProjectsCmd(), groupAdvanced)
 	addCmd(newVersionCmd(), groupAdvanced)
 	addCmd(newGoodbyeCmd(), groupAdvanced)

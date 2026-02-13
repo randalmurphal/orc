@@ -383,6 +383,12 @@ func (b *emptyBackend) ClaimTaskByUser(string, string) (bool, error)      { retu
 func (b *emptyBackend) ForceClaimTaskByUser(string, string) (string, error) { return "", nil }
 func (b *emptyBackend) ReleaseUserClaim(string, string) (bool, error)     { return false, nil }
 
+// Scratchpad methods
+func (b *emptyBackend) SaveScratchpadEntry(*storage.ScratchpadEntry) error { return nil }
+func (b *emptyBackend) GetScratchpadEntries(string) ([]storage.ScratchpadEntry, error) { return nil, nil }
+func (b *emptyBackend) GetScratchpadEntriesByPhase(string, string) ([]storage.ScratchpadEntry, error) { return nil, nil }
+func (b *emptyBackend) GetScratchpadEntriesByAttempt(string, string, int) ([]storage.ScratchpadEntry, error) { return nil, nil }
+
 func TestPRPoller_StopTwice(t *testing.T) {
 	t.Parallel()
 	// Create a poller with a backend that returns no tasks

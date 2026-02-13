@@ -196,6 +196,10 @@ func Default() *Config {
 				FilterSystemProcesses: true, // Filter system processes to avoid false positives
 			},
 		},
+		Brief: BriefConfig{
+			MaxTokens:      3000,
+			StaleThreshold: 3,
+		},
 		MCP: MCPConfig{
 			Playwright: PlaywrightConfig{
 				Enabled:           true,       // Auto-configure for UI tasks
@@ -249,12 +253,37 @@ func Default() *Config {
 			Triggers:       nil,                // No triggers defined by default
 			Templates:      nil,                // No templates defined by default
 		},
-		Model:    "opus",
-		MaxTurns: 150,              // Claude CLI turn limit - reasonable default for complex phases
-		Timeout:  60 * time.Minute, // 60 minutes minimum - complex phases take time
+		Knowledge: KnowledgeConfig{
+			Enabled: false,
+			Backend: "docker",
+			Docker: KnowledgeDockerConfig{
+				Neo4jPort:  7687,
+				QdrantPort: 6334,
+				RedisPort:  6379,
+				DataDir:    "~/.orc/knowledge/",
+			},
+			Indexing: KnowledgeIndexingConfig{
+				EmbeddingModel: "voyage-4",
+			},
+		},
+		Provider: "claude",
+		Providers: ProvidersConfig{
+			Codex: CodexProviderConfig{
+				Path:            "codex",
+				ReasoningEffort: "high",
+			},
+			Ollama: OllamaProviderConfig{
+				BaseURL:      "http://localhost:11434",
+				DefaultModel: "qwen2.5-14b",
+			},
+		},
+		Model:                      "opus",
+		MaxTurns:                   150,              // Claude CLI turn limit - reasonable default for complex phases
+		Timeout:                    60 * time.Minute, // 60 minutes minimum - complex phases take time
 		BranchPrefix:               "orc/",
 		CommitPrefix:               "[orc]",
 		ClaudePath:                 "claude",
+		CodexPath:                  "codex",
 		DangerouslySkipPermissions: true,
 		TemplatesDir:               "templates",
 		EnableCheckpoints:          true,

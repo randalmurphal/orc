@@ -150,6 +150,7 @@ type CostEntry struct {
 	TaskID              string
 	Phase               string
 	Model               string
+	Provider            string
 	Iteration           int
 	CostUSD             float64
 	InputTokens         int
@@ -205,12 +206,14 @@ type BudgetStatus struct {
 
 // CostSummary provides aggregated cost data.
 type CostSummary struct {
-	TotalCostUSD float64
-	TotalInput   int
-	TotalOutput  int
-	EntryCount   int
-	ByProject    map[string]float64
-	ByPhase      map[string]float64
+	TotalCostUSD           float64
+	TotalInput             int
+	TotalOutput            int
+	TotalCacheRead         int
+	TotalCacheCreation     int
+	EntryCount             int
+	ByProject              map[string]float64
+	ByPhase                map[string]float64
 }
 
 // GetCostSummary retrieves aggregated cost data since the given time.
@@ -233,7 +236,9 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 
 	query := `
 		WITH filtered AS (
-			SELECT project_id, phase, cost_usd, input_tokens, output_tokens
+			SELECT project_id, phase, cost_usd, input_tokens, output_tokens,
+				COALESCE(cache_read_tokens, 0) as cache_read_tokens,
+				COALESCE(cache_creation_tokens, 0) as cache_creation_tokens
 			FROM cost_log
 			WHERE timestamp >= ?`
 
@@ -247,16 +252,17 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 		)
 		SELECT 'total' as breakdown_type, '' as breakdown_key,
 			COALESCE(SUM(cost_usd), 0), COALESCE(SUM(input_tokens), 0),
-			COALESCE(SUM(output_tokens), 0), COUNT(*)
+			COALESCE(SUM(output_tokens), 0), COUNT(*),
+			COALESCE(SUM(cache_read_tokens), 0), COALESCE(SUM(cache_creation_tokens), 0)
 		FROM filtered
 		UNION ALL
 		SELECT 'project' as breakdown_type, project_id as breakdown_key,
-			COALESCE(SUM(cost_usd), 0), 0, 0, 0
+			COALESCE(SUM(cost_usd), 0), 0, 0, 0, 0, 0
 		FROM filtered
 		GROUP BY project_id
 		UNION ALL
 		SELECT 'phase' as breakdown_type, phase as breakdown_key,
-			COALESCE(SUM(cost_usd), 0), 0, 0, 0
+			COALESCE(SUM(cost_usd), 0), 0, 0, 0, 0, 0
 		FROM filtered
 		GROUP BY phase`
 
@@ -269,8 +275,8 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 	for rows.Next() {
 		var breakdownType, breakdownKey string
 		var cost float64
-		var input, output, count int
-		if err := rows.Scan(&breakdownType, &breakdownKey, &cost, &input, &output, &count); err != nil {
+		var input, output, count, cacheRead, cacheCreation int
+		if err := rows.Scan(&breakdownType, &breakdownKey, &cost, &input, &output, &count, &cacheRead, &cacheCreation); err != nil {
 			return nil, fmt.Errorf("scan cost summary row: %w", err)
 		}
 
@@ -279,6 +285,8 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 			summary.TotalCostUSD = cost
 			summary.TotalInput = input
 			summary.TotalOutput = output
+			summary.TotalCacheRead = cacheRead
+			summary.TotalCacheCreation = cacheCreation
 			summary.EntryCount = count
 		case "project":
 			if breakdownKey != "" {
@@ -298,8 +306,16 @@ func (g *GlobalDB) GetCostSummary(projectID string, since time.Time) (*CostSumma
 }
 
 // DetectModel returns a simplified model name from a full model identifier.
-// Maps model IDs to simplified names: opus, sonnet, haiku, or unknown.
-func DetectModel(modelID string) string {
+// For Claude provider (or empty provider), maps to opus/sonnet/haiku/unknown.
+// For non-Claude providers, preserves the raw model name for analytics precision.
+func DetectModel(provider, modelID string) string {
+	if provider != "" && provider != "claude" {
+		// Non-Claude providers: preserve raw model name (e.g., "gpt-5.3-codex", "qwen2.5-14b")
+		if modelID == "" {
+			return "unknown"
+		}
+		return modelID
+	}
 	lower := strings.ToLower(modelID)
 	switch {
 	case strings.Contains(lower, "opus"):
@@ -317,13 +333,13 @@ func DetectModel(modelID string) string {
 func (g *GlobalDB) RecordCostExtended(entry CostEntry) error {
 	_, err := g.Exec(`
 		INSERT INTO cost_log (
-			project_id, task_id, phase, model, iteration,
+			project_id, task_id, phase, model, provider, iteration,
 			cost_usd, input_tokens, output_tokens,
 			cache_creation_tokens, cache_read_tokens, total_tokens,
 			initiative_id, duration_ms, user_id
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, entry.ProjectID, entry.TaskID, entry.Phase, entry.Model, entry.Iteration,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, entry.ProjectID, entry.TaskID, entry.Phase, entry.Model, entry.Provider, entry.Iteration,
 		entry.CostUSD, entry.InputTokens, entry.OutputTokens,
 		entry.CacheCreationTokens, entry.CacheReadTokens, entry.TotalTokens,
 		entry.InitiativeID, entry.DurationMs, entry.UserID)
@@ -639,7 +655,7 @@ type CostReportFilter struct {
 	UserID    string
 	ProjectID string
 	Since     time.Time
-	GroupBy   string // "user", "project", "model", or "" for total only
+	GroupBy   string // "user", "project", "model", "provider", or "" for total only
 }
 
 // CostReportResult contains the aggregated cost report data.
@@ -693,6 +709,8 @@ func (g *GlobalDB) GetCostReport(filter CostReportFilter) (CostReportResult, err
 			groupCol = "project_id"
 		case "model":
 			groupCol = "CASE WHEN model = '' OR model IS NULL THEN 'unknown' ELSE model END"
+		case "provider":
+			groupCol = "CASE WHEN provider = '' OR provider IS NULL THEN 'claude' ELSE provider END"
 		default:
 			return result, fmt.Errorf("invalid group_by value: %s", filter.GroupBy)
 		}
@@ -736,6 +754,10 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 	agentID := sqlNullString(pt.AgentID)
 	subAgents := sqlNullString(pt.SubAgents)
 	gateAgentID := sqlNullString(pt.GateAgentID)
+	phaseType := pt.Type
+	if phaseType == "" {
+		phaseType = "llm"
+	}
 
 	_, err := g.Exec(`
 		INSERT INTO phase_templates (id, name, description, agent_id, sub_agents,
@@ -745,8 +767,8 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, system_prompt, claude_config,
 			is_builtin, created_at, updated_at,
-			gate_input_config, gate_output_config, gate_mode, gate_agent_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			gate_input_config, gate_output_config, gate_mode, gate_agent_id, type, provider)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
@@ -773,6 +795,8 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			gate_output_config = excluded.gate_output_config,
 			gate_mode = excluded.gate_mode,
 			gate_agent_id = excluded.gate_agent_id,
+			type = excluded.type,
+			provider = excluded.provider,
 			updated_at = excluded.updated_at
 	`, pt.ID, pt.Name, pt.Description, agentID, subAgents,
 		pt.PromptSource, pt.PromptContent, pt.PromptPath,
@@ -781,7 +805,7 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 		thinkingEnabled, pt.GateType, pt.Checkpoint,
 		pt.RetryFromPhase, pt.RetryPromptPath, "", pt.ClaudeConfig, // system_prompt empty, claude_config from struct
 		pt.IsBuiltin, pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339),
-		pt.GateInputConfig, pt.GateOutputConfig, pt.GateMode, gateAgentID)
+		pt.GateInputConfig, pt.GateOutputConfig, pt.GateMode, gateAgentID, phaseType, pt.Provider)
 	if err != nil {
 		return fmt.Errorf("save phase template: %w", err)
 	}
@@ -798,7 +822,9 @@ func (g *GlobalDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
 			thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
 			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
-			COALESCE(claude_config, '') as claude_config
+			COALESCE(claude_config, '') as claude_config,
+			COALESCE(type, 'llm') as type,
+			COALESCE(provider, '') as provider
 		FROM phase_templates WHERE id = ?
 	`, id)
 
@@ -822,7 +848,9 @@ func (g *GlobalDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
 			thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
 			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
-			COALESCE(claude_config, '') as claude_config
+			COALESCE(claude_config, '') as claude_config,
+			COALESCE(type, 'llm') as type,
+			COALESCE(provider, '') as provider
 		FROM phase_templates
 		ORDER BY is_builtin DESC, name ASC
 	`)
@@ -856,19 +884,20 @@ func (g *GlobalDB) SaveWorkflow(w *Workflow) error {
 	basedOn := sqlNullString(w.BasedOn)
 
 	_, err := g.Exec(`
-		INSERT INTO workflows (id, name, description, default_model, default_thinking, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO workflows (id, name, description, default_model, default_provider, default_thinking, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
 			default_model = excluded.default_model,
+			default_provider = excluded.default_provider,
 			default_thinking = excluded.default_thinking,
 			completion_action = excluded.completion_action,
 			target_branch = excluded.target_branch,
 			based_on = excluded.based_on,
 			triggers = excluded.triggers,
 			updated_at = excluded.updated_at
-	`, w.ID, w.Name, w.Description, w.DefaultModel, w.DefaultThinking, w.CompletionAction,
+	`, w.ID, w.Name, w.Description, w.DefaultModel, w.DefaultProvider, w.DefaultThinking, w.CompletionAction,
 		w.TargetBranch, w.IsBuiltin, basedOn, w.Triggers, w.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("save workflow: %w", err)
@@ -879,7 +908,7 @@ func (g *GlobalDB) SaveWorkflow(w *Workflow) error {
 // GetWorkflow retrieves a workflow by ID from global DB, including its phases.
 func (g *GlobalDB) GetWorkflow(id string) (*Workflow, error) {
 	row := g.QueryRow(`
-		SELECT id, name, description, default_model, default_thinking, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at
+		SELECT id, name, description, default_model, default_provider, default_thinking, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at
 		FROM workflows WHERE id = ?
 	`, id)
 
@@ -904,7 +933,7 @@ func (g *GlobalDB) GetWorkflow(id string) (*Workflow, error) {
 // ListWorkflows returns all workflows from global DB.
 func (g *GlobalDB) ListWorkflows() ([]*Workflow, error) {
 	rows, err := g.Query(`
-		SELECT id, name, description, default_model, default_thinking, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at
+		SELECT id, name, description, default_model, default_provider, default_thinking, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at
 		FROM workflows
 		ORDER BY is_builtin DESC, name ASC
 	`)
@@ -944,15 +973,17 @@ func (g *GlobalDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 	res, err := g.Exec(`
 		INSERT INTO workflow_phases (workflow_id, phase_template_id, sequence, depends_on,
 			agent_override, sub_agents_override,
-			model_override, thinking_override, gate_type_override, condition,
-			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			model_override, provider_override, thinking_override, gate_type_override, condition,
+			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y,
+			type_override)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(workflow_id, phase_template_id) DO UPDATE SET
 			sequence = excluded.sequence,
 			depends_on = excluded.depends_on,
 			agent_override = excluded.agent_override,
 			sub_agents_override = excluded.sub_agents_override,
 			model_override = excluded.model_override,
+			provider_override = excluded.provider_override,
 			thinking_override = excluded.thinking_override,
 			gate_type_override = excluded.gate_type_override,
 			condition = excluded.condition,
@@ -961,11 +992,13 @@ func (g *GlobalDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 			claude_config_override = excluded.claude_config_override,
 			before_triggers = excluded.before_triggers,
 			position_x = excluded.position_x,
-			position_y = excluded.position_y
+			position_y = excluded.position_y,
+			type_override = excluded.type_override
 	`, wp.WorkflowID, wp.PhaseTemplateID, wp.Sequence, wp.DependsOn,
 		agentOverride, subAgentsOverride,
-		wp.ModelOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition,
-		wp.QualityChecksOverride, wp.LoopConfig, wp.ClaudeConfigOverride, wp.BeforeTriggers, posX, posY)
+		wp.ModelOverride, wp.ProviderOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition,
+		wp.QualityChecksOverride, wp.LoopConfig, wp.ClaudeConfigOverride, wp.BeforeTriggers, posX, posY,
+		wp.TypeOverride)
 	if err != nil {
 		return fmt.Errorf("save workflow phase: %w", err)
 	}
@@ -989,8 +1022,9 @@ func (g *GlobalDB) GetWorkflowPhases(workflowID string) ([]*WorkflowPhase, error
 	rows, err := g.Query(`
 		SELECT id, workflow_id, phase_template_id, sequence, depends_on,
 			agent_override, sub_agents_override,
-			model_override, thinking_override, gate_type_override, condition,
-			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y
+			model_override, COALESCE(provider_override, '') as provider_override, thinking_override, gate_type_override, condition,
+			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y,
+			COALESCE(type_override, '') as type_override
 		FROM workflow_phases
 		WHERE workflow_id = ?
 		ORDER BY sequence ASC
@@ -1100,20 +1134,21 @@ func (g *GlobalDB) SaveAgent(a *Agent) error {
 	a.UpdatedAt = now
 
 	_, err = g.Exec(`
-		INSERT INTO agents (id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO agents (id, name, description, prompt, tools, model, provider, system_prompt, claude_config, is_builtin, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
 			prompt = excluded.prompt,
 			tools = excluded.tools,
 			model = excluded.model,
+			provider = excluded.provider,
 			system_prompt = excluded.system_prompt,
 			claude_config = excluded.claude_config,
 			is_builtin = excluded.is_builtin,
 			updated_at = excluded.updated_at
 	`, a.ID, a.Name, a.Description, a.Prompt, string(toolsJSON),
-		a.Model, a.SystemPrompt, a.ClaudeConfig, a.IsBuiltin, a.CreatedAt, a.UpdatedAt)
+		a.Model, a.Provider, a.SystemPrompt, a.ClaudeConfig, a.IsBuiltin, a.CreatedAt, a.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("save agent %s: %w", a.ID, err)
 	}
@@ -1125,14 +1160,14 @@ func (g *GlobalDB) SaveAgent(a *Agent) error {
 func (g *GlobalDB) GetAgent(id string) (*Agent, error) {
 	var a Agent
 	var toolsJSON string
-	var model, systemPrompt, claudeConfig sql.NullString
+	var model, provider, systemPrompt, claudeConfig sql.NullString
 
 	err := g.QueryRow(`
-		SELECT id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at
+		SELECT id, name, description, prompt, tools, model, provider, system_prompt, claude_config, is_builtin, created_at, updated_at
 		FROM agents WHERE id = ?
 	`, id).Scan(
 		&a.ID, &a.Name, &a.Description, &a.Prompt, &toolsJSON,
-		&model, &systemPrompt, &claudeConfig, &a.IsBuiltin, &a.CreatedAt, &a.UpdatedAt,
+		&model, &provider, &systemPrompt, &claudeConfig, &a.IsBuiltin, &a.CreatedAt, &a.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -1143,6 +1178,9 @@ func (g *GlobalDB) GetAgent(id string) (*Agent, error) {
 
 	if model.Valid {
 		a.Model = model.String
+	}
+	if provider.Valid {
+		a.Provider = provider.String
 	}
 	if systemPrompt.Valid {
 		a.SystemPrompt = systemPrompt.String
@@ -1163,7 +1201,7 @@ func (g *GlobalDB) GetAgent(id string) (*Agent, error) {
 // ListAgents returns all agents from global DB.
 func (g *GlobalDB) ListAgents() ([]*Agent, error) {
 	rows, err := g.Query(`
-		SELECT id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at
+		SELECT id, name, description, prompt, tools, model, provider, system_prompt, claude_config, is_builtin, created_at, updated_at
 		FROM agents
 		ORDER BY is_builtin DESC, name ASC
 	`)
@@ -1176,17 +1214,20 @@ func (g *GlobalDB) ListAgents() ([]*Agent, error) {
 	for rows.Next() {
 		var a Agent
 		var toolsJSON string
-		var model, systemPrompt, claudeConfig sql.NullString
+		var model, provider, systemPrompt, claudeConfig sql.NullString
 
 		if err := rows.Scan(
 			&a.ID, &a.Name, &a.Description, &a.Prompt, &toolsJSON,
-			&model, &systemPrompt, &claudeConfig, &a.IsBuiltin, &a.CreatedAt, &a.UpdatedAt,
+			&model, &provider, &systemPrompt, &claudeConfig, &a.IsBuiltin, &a.CreatedAt, &a.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan agent: %w", err)
 		}
 
 		if model.Valid {
 			a.Model = model.String
+		}
+		if provider.Valid {
+			a.Provider = provider.String
 		}
 		if systemPrompt.Valid {
 			a.SystemPrompt = systemPrompt.String

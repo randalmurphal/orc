@@ -95,9 +95,3 @@ func (r *AgentResolver) ResolveAgentForConfig(cfg *PhaseClaudeConfig) error {
 
 	return nil
 }
-
-// ResolveAgentConfigSimple is a convenience function for resolving an agent without an AgentResolver instance.
-func ResolveAgentConfigSimple(projectRoot, claudeDir string, cfg *PhaseClaudeConfig) error {
-	resolver := NewAgentResolver(projectRoot, claudeDir)
-	return resolver.ResolveAgentForConfig(cfg)
-}

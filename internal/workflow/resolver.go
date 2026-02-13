@@ -456,6 +456,7 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 		Name:             wf.Name,
 		Description:      wf.Description,
 		DefaultModel:     wf.DefaultModel,
+		DefaultProvider:  wf.DefaultProvider,
 		DefaultThinking:  wf.DefaultThinking,
 		CompletionAction: wf.CompletionAction,
 		TargetBranch:     wf.TargetBranch,
@@ -465,11 +466,12 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 	// Convert phases
 	for _, p := range wf.Phases {
 		wp := WorkflowPhase{
-			WorkflowID:      wf.ID,
-			PhaseTemplateID: p.Template,
-			Sequence:        p.Sequence,
-			DependsOn:       p.DependsOn,
-			ModelOverride:   p.Model,
+			WorkflowID:       wf.ID,
+			PhaseTemplateID:  p.Template,
+			Sequence:         p.Sequence,
+			DependsOn:        p.DependsOn,
+			ModelOverride:    p.Model,
+			ProviderOverride: p.Provider,
 		}
 		if p.Thinking != nil {
 			wp.ThinkingOverride = p.Thinking
@@ -541,9 +543,12 @@ func parsePhaseYAML(data []byte) (*PhaseTemplate, error) {
 		ArtifactType:     pt.ArtifactType,
 		GateType:         GateType(pt.GateType),
 		Checkpoint:       pt.Checkpoint,
+		OutputType:       pt.OutputType,
+		QualityChecks:    pt.QualityChecks,
 		RetryFromPhase:   pt.RetryFromPhase,
 		RetryPromptPath:  pt.RetryPromptPath,
 		ClaudeConfig:     pt.ClaudeConfig,
+		Provider:         pt.Provider,
 	}
 
 	if pt.Thinking != nil {
@@ -567,6 +572,7 @@ type workflowYAML struct {
 	Name             string                `yaml:"name"`
 	Description      string                `yaml:"description,omitempty"`
 	DefaultModel     string                `yaml:"default_model,omitempty"`
+	DefaultProvider  string                `yaml:"default_provider,omitempty"`
 	DefaultThinking  bool                  `yaml:"default_thinking,omitempty"`
 	CompletionAction string                `yaml:"completion_action,omitempty"`
 	TargetBranch     string                `yaml:"target_branch,omitempty"`
@@ -588,6 +594,7 @@ type workflowPhaseYAML struct {
 	Sequence   int      `yaml:"sequence"`
 	DependsOn  []string `yaml:"depends_on,omitempty"`
 	Model      string   `yaml:"model,omitempty"`
+	Provider   string   `yaml:"provider,omitempty"`
 	Thinking   *bool    `yaml:"thinking,omitempty"`
 	GateType   string   `yaml:"gate_type,omitempty"`
 	Condition  string   `yaml:"condition,omitempty"`
@@ -634,4 +641,5 @@ type phaseYAML struct {
 	RetryPromptPath string `yaml:"retry_prompt_path,omitempty"`
 	QualityChecks   string `yaml:"quality_checks,omitempty"`
 	ClaudeConfig    string `yaml:"claude_config,omitempty"`
+	Provider        string `yaml:"provider,omitempty"`
 }

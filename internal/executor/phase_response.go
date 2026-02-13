@@ -613,7 +613,7 @@ func ParsePhaseSpecificResponse(phaseID string, reviewRound int, content string)
 			return PhaseStatusContinue, "", fmt.Errorf("invalid review findings JSON: %w (content=%q)",
 				err, truncateForPrompt(content, 200))
 		}
-		if strings.EqualFold(findings.Status, "blocked") {
+		if findings.NeedsChanges {
 			return PhaseStatusBlocked, findings.Summary, nil
 		}
 		return PhaseStatusComplete, findings.Summary, nil

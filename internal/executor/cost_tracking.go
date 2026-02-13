@@ -3,8 +3,10 @@ package executor
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 )
 
@@ -14,6 +16,135 @@ type CostMetadata struct {
 	Iteration   int           // Iteration count for the phase
 	Duration    time.Duration // Phase execution duration
 	ProjectPath string        // Normalized project path
+}
+
+// TokenRate defines per-1M-token pricing in USD.
+type TokenRate struct {
+	Input      float64
+	Output     float64
+	CacheRead  float64
+	CacheWrite float64
+}
+
+// providerRates are best-effort defaults used when providers do not return
+// explicit cost values. Rates are in USD per 1M tokens.
+var providerRates = map[string]map[string]TokenRate{
+	"claude": {
+		"opus":   {Input: 15.0, Output: 75.0, CacheRead: 1.5, CacheWrite: 18.75},
+		"sonnet": {Input: 3.0, Output: 15.0, CacheRead: 0.3, CacheWrite: 3.75},
+		"haiku":  {Input: 0.25, Output: 1.25, CacheRead: 0.03, CacheWrite: 0.3},
+	},
+	"codex": {
+		"gpt-5":   {Input: 2.0, Output: 8.0, CacheRead: 0.0, CacheWrite: 0.0},
+		"gpt-4.1": {Input: 2.0, Output: 8.0, CacheRead: 0.0, CacheWrite: 0.0},
+	},
+	"ollama": {
+		"*": {Input: 0.0, Output: 0.0, CacheRead: 0.0, CacheWrite: 0.0},
+	},
+	"lmstudio": {
+		"*": {Input: 0.0, Output: 0.0, CacheRead: 0.0, CacheWrite: 0.0},
+	},
+}
+
+func cloneProviderRates(src map[string]map[string]TokenRate) map[string]map[string]TokenRate {
+	cloned := make(map[string]map[string]TokenRate, len(src))
+	for provider, models := range src {
+		modelCopy := make(map[string]TokenRate, len(models))
+		for model, rate := range models {
+			modelCopy[model] = rate
+		}
+		cloned[provider] = modelCopy
+	}
+	return cloned
+}
+
+// ProviderRatesForConfig merges default rates with config overrides.
+// Config rates override defaults per provider+model pair.
+func ProviderRatesForConfig(cfg *config.Config) map[string]map[string]TokenRate {
+	merged := cloneProviderRates(providerRates)
+	if cfg == nil {
+		return merged
+	}
+	for provider, models := range cfg.Providers.Rates {
+		p := normalizeProvider(provider)
+		if p == "" {
+			continue
+		}
+		if merged[p] == nil {
+			merged[p] = make(map[string]TokenRate)
+		}
+		for model, rateCfg := range models {
+			m := strings.ToLower(strings.TrimSpace(model))
+			if m == "" {
+				continue
+			}
+			merged[p][m] = TokenRate{
+				Input:      rateCfg.Input,
+				Output:     rateCfg.Output,
+				CacheRead:  rateCfg.CacheRead,
+				CacheWrite: rateCfg.CacheWrite,
+			}
+		}
+	}
+	return merged
+}
+
+// EstimateTokenCostUSD estimates cost from token usage when provider-native
+// cost accounting is unavailable. Returns 0 when no rate is known.
+func EstimateTokenCostUSD(provider, model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int64) float64 {
+	return EstimateTokenCostUSDWithRates(providerRates, provider, model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens)
+}
+
+// EstimateTokenCostUSDWithRates estimates cost from token usage using a caller-provided
+// rate table. Returns 0 when no rate is known.
+func EstimateTokenCostUSDWithRates(rates map[string]map[string]TokenRate, provider, model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int64) float64 {
+	p := normalizeProvider(strings.TrimSpace(provider))
+	if p == "" {
+		p = "claude"
+	}
+
+	m := strings.ToLower(strings.TrimSpace(model))
+	if p == "claude" {
+		m = strings.ToLower(db.DetectModel(p, m))
+	}
+
+	providerRateMap, ok := rates[p]
+	if !ok {
+		return 0
+	}
+
+	rate, ok := providerRateMap[m]
+	if !ok {
+		// Try prefix matching: "gpt-5.3-codex" matches "gpt-5" rate entry.
+		// Longest prefix wins to avoid "gpt-4" matching when "gpt-4.1" exists.
+		bestLen := 0
+		for key, r := range providerRateMap {
+			if key == "*" {
+				continue
+			}
+			if strings.HasPrefix(m, key) && len(key) > bestLen {
+				rate = r
+				ok = true
+				bestLen = len(key)
+			}
+		}
+		if !ok {
+			rate, ok = providerRateMap["*"]
+			if !ok {
+				return 0
+			}
+		}
+	}
+
+	const perMillion = 1_000_000.0
+	cost := (float64(inputTokens) / perMillion * rate.Input) +
+		(float64(outputTokens) / perMillion * rate.Output) +
+		(float64(cacheReadTokens) / perMillion * rate.CacheRead) +
+		(float64(cacheWriteTokens) / perMillion * rate.CacheWrite)
+	if cost < 0 {
+		return 0
+	}
+	return cost
 }
 
 // RecordCostEntry records a cost entry to the global database.

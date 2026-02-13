@@ -127,7 +127,7 @@ func TestEvaluatePhaseGate_PopulatesOutputConfig(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 	)
@@ -184,7 +184,7 @@ func TestEvaluatePhaseGate_NoOutputConfig_NilOutputConfig(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{
+		backend, nil, testGlobalDBFrom(backend), &config.Config{
 			Gates: config.GateConfig{AutoApproveOnSuccess: true},
 		}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
@@ -427,7 +427,7 @@ func TestEvaluatePhaseGate_OutputCfgRetryFromPrecedence(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 	)
@@ -502,7 +502,7 @@ func TestGateAction_OnRejectedFail_FailsTask(t *testing.T) {
 	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),
@@ -589,7 +589,7 @@ func TestGateAction_OnRejectedRetry_RetriesFromPhase(t *testing.T) {
 	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),
@@ -676,7 +676,7 @@ func TestGateAction_OnRejectedRetry_MaxRetriesFallsToFail(t *testing.T) {
 	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{
 			Retry: config.RetryConfig{MaxRetries: 2},
 		}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
@@ -759,7 +759,7 @@ func TestGateAction_OnRejectedSkipPhase_SkipsCurrent(t *testing.T) {
 	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),
@@ -847,7 +847,7 @@ func TestGateAction_OnApprovedSkipPhase_SkipsNextPhase(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),
@@ -923,7 +923,7 @@ func TestGateAction_OnApprovedContinue_BackwardCompat(t *testing.T) {
 	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),
@@ -993,7 +993,7 @@ func TestGateAction_OnRejectedRunScript_ThenFail(t *testing.T) {
 	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, scriptDir,
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, scriptDir,
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),
@@ -1080,7 +1080,7 @@ func TestGateAction_OnApprovedRunScript_ThenContinue(t *testing.T) {
 	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, scriptDir,
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, scriptDir,
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),
@@ -1149,7 +1149,7 @@ func TestGateAction_SkipPhaseOnLastPhase_WarnsAndContinues(t *testing.T) {
 	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),
@@ -1184,7 +1184,7 @@ func TestGateAction_SkipGates_NoOutputConfig(t *testing.T) {
 	})
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, t.TempDir(),
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithSkipGates(true),
 	)
@@ -1238,7 +1238,7 @@ func TestGateAction_RunScriptOverride_FlipsToFail(t *testing.T) {
 	}
 
 	we := NewWorkflowExecutor(
-		backend, nil, &config.Config{}, scriptDir,
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, scriptDir,
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 	)
@@ -1318,7 +1318,7 @@ func TestGateAction_RetryNoRetryFrom_FailsWithError(t *testing.T) {
 	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),
@@ -1382,7 +1382,7 @@ func TestGateAction_RunScriptEmptyPath_WarnsAndAppliesSecondary(t *testing.T) {
 	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 
 	we := NewWorkflowExecutor(
-		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
 		WithWorkflowLogger(slog.Default()),
 		WithWorkflowGateEvaluator(mockEval),
 		WithWorkflowTurnExecutor(mockTE),

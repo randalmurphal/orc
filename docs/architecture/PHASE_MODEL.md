@@ -58,6 +58,21 @@ All three methods produce identical results.
 | `finalize` | Sync with main, conflict resolution | finalization report | Yes |
 | `merge` | Merge to target branch | merged code | Yes (final) |
 
+### Phase Type Dispatch
+
+Phases have a `type` field that determines how they execute. The default type is `"llm"` (prompt-driven Claude execution). Non-LLM types bypass prompt loading and dispatch to a registered `PhaseTypeExecutor`.
+
+**Type resolution:** `WorkflowPhase.TypeOverride` > `PhaseTemplate.Type` > `"llm"`
+
+| Type | Executor | Behavior |
+|------|----------|----------|
+| `llm` | Built-in Claude path | Load prompt, configure Claude, execute via `TurnExecutor` |
+| `knowledge` | `KnowledgePhaseExecutor` | Query knowledge service, store result as workflow variable |
+| `script` | `ScriptPhaseExecutor` | Run shell command, capture stdout, optional regex validation |
+| `api` | `APIPhaseExecutor` | Make HTTP request, capture response body, check status code |
+
+Custom types can be registered via `WithPhaseTypeExecutor()`. See `internal/executor/CLAUDE.md` for implementation details.
+
 ### Docs Phase Details
 
 The `docs` phase runs **after implementation and review**, with full context of what changed:
@@ -506,6 +521,7 @@ Fields use dotted paths with a prefix that determines the resolution source:
 | `var.` | `var.SPEC_CONTENT` | Workflow variable set |
 | `env.` | `env.HOME` | Resolution context environment |
 | `phase_output.` | `phase_output.spec.status` | Prior phase output (parsed as JSON) |
+| `knowledge.` | `knowledge.available` | Knowledge service state (`"true"`/`"false"`) |
 
 ### Task Fields
 
@@ -539,7 +555,7 @@ Phases can loop back to earlier phases based on configurable conditions. Stored 
 ```json
 {
   "loop_to_phase": "implement",
-  "condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+  "condition": {"field": "phase_output.review.needs_changes", "op": "eq", "value": "true"},
   "max_loops": 3
 }
 ```

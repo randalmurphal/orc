@@ -5,7 +5,7 @@ description: "Write code guided by breakdown, make tests pass"
 prompt_source: embedded
 prompt_path: prompts/implement.md
 
-input_variables: ["SPEC_CONTENT", "TDD_TESTS_CONTENT", "BREAKDOWN_CONTENT"]
+input_variables: ["SPEC_CONTENT", "TDD_TESTS_CONTENT", "TDD_INTEGRATION_CONTENT", "BREAKDOWN_CONTENT"]
 output_type: code
 produces_artifact: false
 

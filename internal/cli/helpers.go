@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/progress"
 )
 
@@ -62,10 +64,36 @@ func containsPhase(phases []string, phaseID string) bool {
 	return false
 }
 
+// getTaskFileChangeStats computes diff statistics for the task branch vs target branch.
+// Returns nil if stats cannot be computed (best-effort summary data).
+func getTaskFileChangeStats(ctx context.Context, projectRoot, taskBranch string, cfg *config.Config) *progress.FileChangeStats {
+	targetBranch := "main"
+	if cfg != nil && cfg.Completion.TargetBranch != "" {
+		targetBranch = cfg.Completion.TargetBranch
+	}
+
+	diffSvc := diff.NewService(projectRoot, nil)
+	resolvedBase := diffSvc.ResolveRef(ctx, targetBranch)
+
+	stats, err := diffSvc.GetStats(ctx, resolvedBase, taskBranch)
+	if err != nil {
+		return nil
+	}
+
+	return &progress.FileChangeStats{
+		FilesChanged: stats.FilesChanged,
+		Additions:    stats.Additions,
+		Deletions:    stats.Deletions,
+	}
+}
+
 // buildBlockedContextProto creates progress context for blocked task display (proto version).
 // Used by finalize, resume, and other commands that handle blocked tasks.
 func buildBlockedContextProto(t *orcv1.Task, cfg *config.Config, projectRoot string) *progress.BlockedContext {
 	ctx := &progress.BlockedContext{}
+	if t == nil {
+		return ctx
+	}
 
 	// Get worktree path from task ID and config
 	if cfg != nil && cfg.Worktree.Enabled {
