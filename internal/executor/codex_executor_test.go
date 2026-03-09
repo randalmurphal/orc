@@ -66,12 +66,13 @@ func TestCodexExecutor_WriteSchemaFile(t *testing.T) {
 	defer os.Remove(path)
 
 	// Verify file exists and has correct content.
-	// writeSchemaFile applies OpenAI schema rules (additionalProperties:false, required:all).
+	// writeSchemaFile applies OpenAI schema rules (additionalProperties:false,
+	// required:all, nullable for originally-optional fields).
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("ReadFile failed: %v", err)
 	}
-	want := `{"additionalProperties":false,"properties":{"status":{"type":"string"}},"required":["status"],"type":"object"}`
+	want := `{"additionalProperties":false,"properties":{"status":{"type":["string","null"]}},"required":["status"],"type":"object"}`
 	if string(data) != want {
 		t.Errorf("schema file content = %q, want %q", string(data), want)
 	}
@@ -195,6 +196,12 @@ func TestEnsureAdditionalPropertiesFalse(t *testing.T) {
 		if !reqSet["status"] || !reqSet["reason"] {
 			t.Fatalf("required should include all properties, got %v", req)
 		}
+
+		reason := parsed["properties"].(map[string]any)["reason"].(map[string]any)
+		reasonTypes := reason["type"].([]any)
+		if len(reasonTypes) != 2 || reasonTypes[0] != "string" || reasonTypes[1] != "null" {
+			t.Fatalf("optional reason field should become nullable, got %v", reasonTypes)
+		}
 	})
 
 	t.Run("adds to nested objects and array items", func(t *testing.T) {
@@ -250,6 +257,14 @@ func TestEnsureAdditionalPropertiesFalse(t *testing.T) {
 		buildReq := build["required"].([]any)
 		if len(buildReq) != 1 || buildReq[0] != "status" {
 			t.Fatalf("verification.build.required should be [status], got %v", buildReq)
+		}
+
+		tests := verifProps["tests"].(map[string]any)
+		testsProps := tests["properties"].(map[string]any)
+		command := testsProps["command"].(map[string]any)
+		commandTypes := command["type"].([]any)
+		if len(commandTypes) != 2 || commandTypes[0] != "string" || commandTypes[1] != "null" {
+			t.Fatalf("optional command field should become nullable, got %v", commandTypes)
 		}
 	})
 }

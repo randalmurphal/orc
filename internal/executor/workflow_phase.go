@@ -28,14 +28,14 @@ const MaxOrcRetries = 5
 
 // PhaseExecutionConfig holds configuration for a phase execution.
 type PhaseExecutionConfig struct {
-	Prompt     string
-	Model      string
-	Provider   string // "claude", "codex", "ollama", or empty (default: claude)
-	WorkingDir string
-	TaskID     string
-	PhaseID    string
-	RunID      string
-	Thinking   bool
+	Prompt      string
+	Model       string
+	Provider    string // "claude", "codex", "ollama", or empty (default: claude)
+	WorkingDir  string
+	TaskID      string
+	PhaseID     string
+	RunID       string
+	Thinking    bool
 	ReviewRound int // For review phase: 1 = findings, 2 = decision
 
 	// For quality checks
@@ -652,8 +652,8 @@ func (we *WorkflowExecutor) executeWithProvider(ctx context.Context, cfg PhaseEx
 
 		switch status {
 		case PhaseStatusComplete:
-			// Verification gate (implement phase only, skip in test mode)
-			if cfg.PhaseID == "implement" && we.turnExecutor == nil {
+			// Verification gate (implementation phases only, skip in test mode)
+			if isImplementationPhase(cfg.PhaseID) && we.turnExecutor == nil {
 				if verifyErr := ValidateImplementCompletion(turnResult.Content); verifyErr != nil {
 					we.logger.Info("implement verification gate failed, continuing iteration",
 						"phase", cfg.PhaseID,

@@ -488,8 +488,10 @@ func TestValidateImplementCompletion(t *testing.T) {
 						{"id": "SC-2", "status": "PASS", "evidence": "API returns 200"}
 					],
 					"build": {"status": "PASS"},
-					"linting": {"status": "PASS"}
-				}
+					"linting": {"status": "PASS"},
+					"wiring": {"status": "PASS", "evidence": "new file imported by production code"}
+				},
+				"pre_existing_issues": []
 			}`,
 			wantErr: false,
 		},
@@ -509,7 +511,10 @@ func TestValidateImplementCompletion(t *testing.T) {
 				"summary": "Implemented feature",
 				"verification": {
 					"tests": {"status": "FAIL", "evidence": "1 test failed"},
-					"build": {"status": "PASS"}
+					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
+					"build": {"status": "PASS"},
+					"linting": {"status": "PASS"},
+					"wiring": {"status": "PASS"}
 				}
 			}`,
 			wantErr: true,
@@ -525,7 +530,10 @@ func TestValidateImplementCompletion(t *testing.T) {
 					"success_criteria": [
 						{"id": "SC-1", "status": "PASS"},
 						{"id": "SC-2", "status": "FAIL"}
-					]
+					],
+					"build": {"status": "PASS"},
+					"linting": {"status": "PASS"},
+					"wiring": {"status": "PASS"}
 				}
 			}`,
 			wantErr: true,
@@ -538,7 +546,10 @@ func TestValidateImplementCompletion(t *testing.T) {
 				"summary": "Implemented feature",
 				"verification": {
 					"tests": {"status": "PASS"},
-					"build": {"status": "FAIL"}
+					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
+					"build": {"status": "FAIL"},
+					"linting": {"status": "PASS"},
+					"wiring": {"status": "PASS"}
 				}
 			}`,
 			wantErr: true,
@@ -567,11 +578,59 @@ func TestValidateImplementCompletion(t *testing.T) {
 				"summary": "Implemented feature",
 				"verification": {
 					"tests": {"status": "PASS"},
+					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
 					"build": {"status": "SKIPPED"},
-					"linting": {"status": "SKIPPED"}
+					"linting": {"status": "SKIPPED"},
+					"wiring": {"status": "PASS"}
 				}
 			}`,
 			wantErr: false,
+		},
+		{
+			name: "completion missing wiring verification - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS"},
+					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
+					"build": {"status": "PASS"},
+					"linting": {"status": "PASS"}
+				}
+			}`,
+			wantErr: true,
+			errMsg:  "wiring verification missing",
+		},
+		{
+			name: "completion with failing wiring - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS"},
+					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
+					"build": {"status": "PASS"},
+					"linting": {"status": "PASS"},
+					"wiring": {"status": "FAIL", "evidence": "new file has no production importer"}
+				}
+			}`,
+			wantErr: true,
+			errMsg:  "wiring failed",
+		},
+		{
+			name: "completion missing success criteria - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS"},
+					"build": {"status": "PASS"},
+					"linting": {"status": "PASS"},
+					"wiring": {"status": "PASS"}
+				}
+			}`,
+			wantErr: true,
+			errMsg:  "success criteria verification missing",
 		},
 	}
 
@@ -602,5 +661,13 @@ func TestGetSchemaForPhaseWithRound_Implement(t *testing.T) {
 	schema := GetSchemaForPhaseWithRound("implement", 0, false)
 	if schema != ImplementCompletionSchema {
 		t.Error("GetSchemaForPhaseWithRound(implement) should return ImplementCompletionSchema")
+	}
+}
+
+func TestGetSchemaForPhaseWithRound_ImplementCodex(t *testing.T) {
+	t.Parallel()
+	schema := GetSchemaForPhaseWithRound("implement_codex", 0, false)
+	if schema != ImplementCompletionSchema {
+		t.Error("GetSchemaForPhaseWithRound(implement_codex) should return ImplementCompletionSchema")
 	}
 }

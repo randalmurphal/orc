@@ -1,6 +1,6 @@
 id: review_cross
 name: "Cross-Model Review"
-description: "Independent review by a different model for fresh perspective"
+description: "Independent second review by a different model after the primary review"
 
 prompt_source: embedded
 prompt_path: prompts/review_cross.md

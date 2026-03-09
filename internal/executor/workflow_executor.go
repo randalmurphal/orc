@@ -176,10 +176,10 @@ type WorkflowExecutor struct {
 	knowledgeService KnowledgeQueryService
 
 	// Bench-specific options (used by bench runner to customize execution)
-	prePopulatedOutputs map[string]string          // Phase outputs to inject without execution (frozen baselines)
+	prePopulatedOutputs map[string]string             // Phase outputs to inject without execution (frozen baselines)
 	phaseModelOverrides map[string]PhaseModelOverride // Per-phase model/provider overrides (variant config)
-	maxLoopOverride     int                        // Cap on all loop_config.max_loops (0 = use defaults)
-	maxTurnsOverride    *int                       // Override config.MaxTurns (nil = use config, 0 = unlimited)
+	maxLoopOverride     int                           // Cap on all loop_config.max_loops (0 = use defaults)
+	maxTurnsOverride    *int                          // Override config.MaxTurns (nil = use config, 0 = unlimited)
 }
 
 // WorkflowExecutorOption configures a WorkflowExecutor.
@@ -827,20 +827,20 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			}
 		}
 
-		// Create run phase record
+		// Create run phase record (best-effort — run metadata must never prevent task execution)
 		runPhase := &db.WorkflowRunPhase{
 			WorkflowRunID:   runID,
 			PhaseTemplateID: phase.PhaseTemplateID,
 			Status:          orcv1.PhaseStatus_PHASE_STATUS_PENDING.String(),
 		}
 		if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
-			return result, fmt.Errorf("save run phase: %w", err)
+			we.logger.Error("failed to save run phase record", "phase", phase.PhaseTemplateID, "error", err)
 		}
 
-		// Update run with current phase
+		// Update run with current phase (best-effort)
 		run.CurrentPhase = phase.PhaseTemplateID
 		if err := we.backend.SaveWorkflowRun(run); err != nil {
-			return result, fmt.Errorf("update run phase: %w", err)
+			we.logger.Error("failed to update run current phase", "phase", phase.PhaseTemplateID, "error", err)
 		}
 
 		// Update phase in resolution context
@@ -882,7 +882,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_SKIPPED.String()
 					runPhase.CompletedAt = &now
 					if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
-						return result, fmt.Errorf("save skipped run phase %s: %w", phase.PhaseTemplateID, err)
+						we.logger.Error("failed to save skipped run phase", "phase", phase.PhaseTemplateID, "error", err)
 					}
 					we.logger.Info("phase skipped by condition (no task)", "phase", phase.PhaseTemplateID)
 				}
@@ -1135,7 +1135,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 		// Evaluate phase gate
 		// For blocked phases, bypass gate evaluation and force rejection
-		gateResult, gateErr := we.evaluatePhaseGate(ctx, tmpl, phase, phaseResult.Content, t)
+		gateResult, gateErr := we.evaluatePhaseGate(ctx, tmpl, phase, phaseResult.Content, t, rctx)
 		if gateErr != nil {
 			we.logger.Warn("gate evaluation failed", "phase", tmpl.ID, "error", gateErr)
 			// Continue on gate error - don't block automation
@@ -1456,11 +1456,11 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		}
 	}
 
-	// Complete run
+	// Complete run record (best-effort — run metadata must never prevent task completion)
 	run.Status = string(workflow.RunStatusCompleted)
 	run.CompletedAt = timePtr(time.Now())
 	if err := we.backend.SaveWorkflowRun(run); err != nil {
-		return result, fmt.Errorf("complete run: %w", err)
+		we.logger.Error("failed to save workflow run as completed", "run", run.ID, "error", err)
 	}
 
 	// Evaluate completion triggers (gate-mode on_task_completed can block)
@@ -1506,9 +1506,6 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			we.logger.Warn("failed to clear task executor", "error", err)
 		}
 	}
-	// Note: Task completion (t.CompletedAt, t.Status = StatusCompleted) is handled
-	// by runCompletion or other completion paths, not here. This is just for
-	// cleaning up execution state if needed.
 
 	// Populate result fields from run
 	if t != nil {
@@ -1564,10 +1561,10 @@ type PhaseResult struct {
 	CostUSD             float64
 
 	// Execution metadata (populated by executePhase, zero for skipped/pre-populated phases)
-	Provider      string // Provider that executed this phase (e.g., "claude", "codex")
-	Model         string // Model used for execution
-	OutputVarName string // Output variable name from phase template
-	WasPrePopulated bool // True if output was injected from pre-populated data (e.g., frozen baseline)
+	Provider        string // Provider that executed this phase (e.g., "claude", "codex")
+	Model           string // Model used for execution
+	OutputVarName   string // Output variable name from phase template
+	WasPrePopulated bool   // True if output was injected from pre-populated data (e.g., frozen baseline)
 }
 
 // Helper functions

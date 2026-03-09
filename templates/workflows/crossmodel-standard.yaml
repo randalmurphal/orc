@@ -1,24 +1,29 @@
 id: crossmodel-standard
 name: "Cross-Model Standard"
-description: "Opus plans, GPT 5.4 implements, Opus reviews. Cross-model coverage breaks echo chambers."
+description: "Strict default path: Opus plans, GPT 5.4 implements, Opus reviews, GPT 5.4 cross-checks, browser QA when required, then targeted docs."
 
 # Model strategy:
-#   plan     → Opus (ambiguity handling, codebase exploration, nuanced reasoning)
-#   implement → GPT 5.4 via Codex (surgical execution, literal compliance, token-efficient)
-#   review   → Opus (catches what GPT missed, different training data = different blind spots)
-#   docs     → GPT 5.4 via Codex (straightforward, well-specified output)
+#   plan         → Opus (ambiguity handling, risk classification, codebase exploration)
+#   implement    → GPT 5.4 via Codex (single-owner implementation + tests)
+#   review       → Opus (primary independent review)
+#   review_cross → GPT 5.4 via Codex (second independent review)
+#   qa_e2e_test  → conditional browser verification when the plan requires it
+#   docs         → GPT 5.4 via Codex (targeted operational docs updates or explicit no-op)
 
 phases:
   - template: plan
     sequence: 0
+    model_override: opus
 
   - template: implement_codex
     sequence: 1
     depends_on: ["plan"]
+    model_override: gpt-5.4
 
   - template: review
     sequence: 2
     depends_on: ["implement_codex"]
+    model_override: opus
     loop_config:
       loop_to_phase: implement_codex
       condition:
@@ -33,9 +38,32 @@ phases:
         "1": "ReviewFindingsSchema"
         default: "ReviewDecisionSchema"
 
-  - template: docs
+  - template: review_cross
     sequence: 3
     depends_on: ["review"]
+    provider_override: codex
+    model_override: gpt-5.4
+    loop_config:
+      loop_to_phase: implement_codex
+      condition:
+        field: "phase_output.review_cross.needs_changes"
+        op: "eq"
+        value: "true"
+      max_loops: 2
+
+  - template: qa_e2e_test
+    sequence: 4
+    depends_on: ["review_cross"]
+    condition: >-
+      {"field":"phase_output.plan.risk_assessment.requires_browser_qa","op":"eq","value":"true"}
+    loop_config:
+      loop_to_phase: implement_codex
+      condition: "has_findings"
+      max_loops: 2
+
+  - template: docs
+    sequence: 5
+    depends_on: ["review_cross"]
     provider_override: codex
     model_override: gpt-5.4
 

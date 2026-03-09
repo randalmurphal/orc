@@ -251,12 +251,12 @@ func resolvePhaseOutputField(nameAndField string, ctx *ConditionContext) string 
 		return ""
 	}
 
-	val, ok := parsed[jsonField]
-	if !ok {
+	val, ok, err := lookupJSONPath(parsed, jsonField)
+	if err != nil || !ok {
 		return ""
 	}
 
-	return fmt.Sprintf("%v", val)
+	return stringifyJSONValue(val)
 }
 
 // resolveKnowledgeField resolves knowledge.FIELD to its value.

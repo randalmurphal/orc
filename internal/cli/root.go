@@ -101,6 +101,7 @@ func init() {
 	addCmd(newDiffCmd(), groupInspection)
 	addCmd(newDepsCmd(), groupInspection)
 	addCmd(newSearchCmd(), groupInspection)
+	addCmd(newDoctorCmd(), groupInspection)
 	addCmd(newBriefCmd(), groupInspection)
 	addCmd(newCostsCmd(), groupInspection)
 	addCmd(newScratchpadCmd(), groupInspection)

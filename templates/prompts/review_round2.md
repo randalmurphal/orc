@@ -27,6 +27,7 @@ The most common failure is declaring round 1 issues "fixed" without verifying th
 - All medium-severity issues resolved or explicitly deferred
 - No new high/medium issues found
 - No invariant violations remain (`constitution_violation: "invariant"`)
+- Security, performance, maintainability, and testing concerns have been re-checked on the final code path
 - Code is ready for production
 
 ## FAIL Criteria
@@ -35,6 +36,7 @@ The most common failure is declaring round 1 issues "fixed" without verifying th
 - Critical medium-severity issues remain
 - New significant issues discovered
 - Fixes introduced regressions
+- Fixes are still too complex, risky, or weakly tested for the task
 - Any invariant violation remains unresolved (these cannot be deferred)
 
 ## NEEDS_USER_INPUT Criteria
@@ -56,7 +58,7 @@ Path: {{WORKTREE_PATH}}
 Branch: {{TASK_BRANCH}}
 Target: {{TARGET_BRANCH}}
 
-**Git State**: Previous phases have committed their work. Worktree is clean. Use `git diff main..HEAD` to see changes.
+**Git State**: Previous phases have committed their work. Worktree is clean. Use `git diff {{TARGET_BRANCH}}..HEAD` to see changes.
 
 DO NOT push to {{TARGET_BRANCH}} or checkout other branches. Stay on {{TASK_BRANCH}}.
 </worktree_safety>
@@ -129,11 +131,16 @@ While reviewing the fixes:
 - New over-engineering introduced during fix?
 - Patterns missed in round 1?
 - Regressions in existing functionality?
+- New performance regressions, contention, or resource leaks?
+- Security or integrity concerns created by the fix?
+- Are tests convincing, or do they still only prove isolated behavior?
 
 **Critical re-verification:**
 - [ ] All dependents still updated (no new broken references)
 - [ ] Preservation requirements still met (fixes didn't remove preserved features)
 - [ ] Build/typecheck still passes
+- [ ] Critical tests cover the production path, failure cases, and relevant edge cases
+- [ ] The final implementation is still simple enough to maintain and reason about
 
 ## Step 4: Make Final Decision
 

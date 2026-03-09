@@ -25,8 +25,8 @@ The most common failure is missing integration completeness issues — dead code
 | Severity | Criteria |
 |----------|----------|
 | **critical** | Incomplete updates (missed dependents), removed preserved functionality |
-| **high** | Bugs, security issues, incorrect behavior, dead code, missing integration |
-| **medium** | Missing edge cases, unclear code, potential issues |
+| **high** | Bugs, security issues, incorrect behavior, dead code, missing integration, obvious performance regressions on important paths |
+| **medium** | Missing edge cases, unclear code, unnecessary complexity, weak or incomplete tests |
 | **low** | Style issues, minor improvements, suggestions |
 </critical_constraints>
 
@@ -42,7 +42,7 @@ Path: {{WORKTREE_PATH}}
 Branch: {{TASK_BRANCH}}
 Target: {{TARGET_BRANCH}}
 
-**Git State**: Previous phases have committed their work. Worktree is clean. Use `git diff main..HEAD` to see changes.
+**Git State**: Previous phases have committed their work. Worktree is clean. Use `git diff {{TARGET_BRANCH}}..HEAD` to see changes.
 
 DO NOT push to {{TARGET_BRANCH}} or checkout other branches. Stay on {{TASK_BRANCH}}.
 </worktree_safety>
@@ -89,10 +89,11 @@ For each issue, determine if it violates the constitution:
 - **Architecture alignment**: Does the implementation match the spec's design?
 - **Edge cases**: Are all edge cases handled properly?
 - **Error handling**: Are errors handled gracefully with clear messages?
-- **Security**: Any potential vulnerabilities (injection, XSS, auth issues)?
-- **Performance**: Any obvious performance issues (N+1 queries, memory leaks)?
-- **Over-engineering**: Unrequested abstractions, scope creep
-- **Maintainability**: Is the code clear and well-organized?
+- **Security**: Any potential vulnerabilities (injection, XSS, auth issues, unsafe state transitions, race conditions)?
+- **Performance**: Any obvious performance issues (N+1 queries, unbounded work, leaks, missing limits/timeouts) on paths that matter?
+- **Over-engineering**: Unrequested abstractions, scope creep, speculative configurability
+- **Maintainability**: Is the code simple, clear, and aligned with existing patterns?
+- **Testing**: Do tests prove the real behavior, edge cases, and failure paths, not just the happy path?
 - **Integration**: Does it integrate properly with existing code?
 
 **Integration Completeness** (the most commonly missed category):
@@ -104,4 +105,10 @@ For each issue, determine if it violates the constitution:
 ## Step 3: Document Findings
 
 For each issue found, categorize by severity using the definitions above. Include file, line number, description, and a specific fix suggestion.
+
+When deciding severity, bias toward blocking if the issue affects:
+- security or integrity of data/state
+- performance on a hot or scalable path
+- code simplicity or maintainability enough to obscure correctness
+- test coverage for critical behavior or failure modes
 </instructions>

@@ -488,7 +488,7 @@ func TestConfig_GetValue_Finalize(t *testing.T) {
 		{"completion.finalize.conflict_resolution.enabled", "true"},
 		{"completion.finalize.risk_assessment.enabled", "true"},
 		{"completion.finalize.risk_assessment.re_review_threshold", "high"},
-		{"completion.finalize.gates.pre_merge", "auto"},
+		{"completion.finalize.gates.pre_merge", "human"},
 	}
 
 	for _, tt := range tests {

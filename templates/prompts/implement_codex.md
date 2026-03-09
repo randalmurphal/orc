@@ -53,18 +53,29 @@ When complete, output JSON:
 {
   "status": "complete",
   "summary": "What was implemented",
+  "reason": null,
   "verification": {
-    "tests": {"status": "pass", "evidence": "command output"},
-    "success_criteria": [{"id": "SC-1", "status": "pass", "evidence": "proof"}],
-    "build": {"status": "pass", "evidence": "command output"},
-    "linting": {"status": "pass", "evidence": "command output"},
-    "wiring": {"status": "pass", "new_files": [{"file": "path", "imported_by": "path:line"}]}
+    "tests": {"command": "{{TEST_COMMAND}}", "status": "PASS", "evidence": "command output"},
+    "success_criteria": [{"id": "SC-1", "status": "PASS", "evidence": "proof"}],
+    "build": {"status": "PASS", "evidence": "command output"},
+    "linting": {"status": "PASS", "evidence": "command output"},
+    "wiring": {"status": "PASS", "evidence": "new files are imported by production code", "new_files": [{"file": "path", "imported_by": "path:line"}]}
   },
   "pre_existing_issues": []
 }
 ```
 
-If blocked: `{"status": "blocked", "reason": "what and why"}`
+If blocked, still return the same top-level keys. Use `null` or `[]` for fields that do not apply:
+
+```json
+{
+  "status": "blocked",
+  "summary": null,
+  "reason": "what and why",
+  "verification": null,
+  "pre_existing_issues": []
+}
+```
 
 ## Rules
 
@@ -90,3 +101,5 @@ If blocked: `{"status": "blocked", "reason": "what and why"}`
 {{#if TDD_TESTS_CONTENT}}
 If tests fail: fix your implementation, not the tests. If a test contradicts the spec, document as `AMEND-NNN`.
 {{/if}}
+
+Return every schema key exactly once. Do not omit fields that are not applicable; use `null` or `[]` instead.

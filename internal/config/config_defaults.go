@@ -61,9 +61,9 @@ func Default() *Config {
 				SkipForWeights:   []string{"trivial"},    // Skip sync for trivial tasks
 			},
 			Finalize: FinalizeConfig{
-				Enabled:               true, // Finalize phase enabled by default
-				AutoTrigger:           true, // Auto-trigger after validate
-				AutoTriggerOnApproval: true, // Auto-trigger when PR is approved (auto profile only)
+				Enabled:               true,  // Finalize phase enabled by default
+				AutoTrigger:           true,  // Auto-trigger after validate
+				AutoTriggerOnApproval: false, // Human review should explicitly advance finalize
 				Sync: FinalizeSyncConfig{
 					Strategy: FinalizeSyncMerge, // Merge target into branch (preserves history)
 				},
@@ -76,7 +76,7 @@ func Default() *Config {
 					ReReviewThreshold: "high", // Recommend re-review at high+ risk
 				},
 				Gates: FinalizeGatesConfig{
-					PreMerge: "auto", // Auto gate before merge/PR by default
+					PreMerge: "human", // Human approval before merge/PR by default
 				},
 			},
 			// Safety defaults: use PR workflow for all weights
@@ -170,11 +170,28 @@ func Default() *Config {
 		Plan: PlanConfig{
 			MinimumSections: []string{"intent", "success_criteria", "testing"},
 		},
+		QualityPolicy: QualityPolicyConfig{
+			Mode:                        "adaptive_strict",
+			HumanGateRiskThreshold:      "high",
+			PostReviewHumanGate:         true,
+			FinalizeRequiresHuman:       true,
+			BrowserQAFromPlan:           true,
+			FailClosedOnMissingProvider: true,
+		},
 		Weights: WeightsConfig{
 			Trivial: "implement-trivial",
 			Small:   "implement-small",
 			Medium:  "implement-medium",
 			Large:   "implement-large",
+		},
+		WorkflowDefaults: WorkflowDefaults{
+			Feature:  "crossmodel-standard",
+			Bug:      "crossmodel-standard",
+			Refactor: "crossmodel-standard",
+			Chore:    "crossmodel-standard",
+			Docs:     "crossmodel-standard",
+			Test:     "crossmodel-standard",
+			Default:  "crossmodel-standard",
 		},
 		ArtifactSkip: ArtifactSkipConfig{
 			Enabled:  true,                                 // Check for existing artifacts

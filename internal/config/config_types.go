@@ -577,6 +577,26 @@ type PlanConfig struct {
 	MinimumSections []string `yaml:"minimum_sections,omitempty"`
 }
 
+// QualityPolicyConfig defines the repo-level quality policy that the executor
+// applies on top of low-level workflow and gate definitions.
+type QualityPolicyConfig struct {
+	// Mode is the quality policy mode. "adaptive_strict" is the new default.
+	Mode string `yaml:"mode"`
+	// HumanGateRiskThreshold is the minimum plan risk level that requires
+	// a human approval gate before implementation continues.
+	HumanGateRiskThreshold string `yaml:"human_gate_risk_threshold"`
+	// PostReviewHumanGate requires human approval after the cross review phase
+	// when the plan says the task needs human oversight.
+	PostReviewHumanGate bool `yaml:"post_review_human_gate"`
+	// FinalizeRequiresHuman forces a human pre-merge gate by default.
+	FinalizeRequiresHuman bool `yaml:"finalize_requires_human"`
+	// BrowserQAFromPlan enables conditional browser QA based on plan output.
+	BrowserQAFromPlan bool `yaml:"browser_qa_from_plan"`
+	// FailClosedOnMissingProvider blocks execution when required provider
+	// binaries are unavailable for the selected workflow.
+	FailClosedOnMissingProvider bool `yaml:"fail_closed_on_missing_provider"`
+}
+
 // WeightsConfig defines which workflow to use for each task weight.
 // This replaces the hardcoded WeightToWorkflowID() function.
 type WeightsConfig struct {

@@ -59,53 +59,61 @@ func TestSchemaForIteration_FallsBackWhenNoLoopSchemas(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name           string
-		loopCfg        *db.LoopConfig
-		iteration      int
-		phaseID        string
+		name             string
+		loopCfg          *db.LoopConfig
+		iteration        int
+		phaseID          string
 		producesArtifact bool
-		wantSchema     string
+		wantSchema       string
 	}{
 		{
-			name:           "nil_loopconfig_review_iter1",
-			loopCfg:        nil,
-			iteration:      1,
-			phaseID:        "review",
+			name:             "nil_loopconfig_review_iter1",
+			loopCfg:          nil,
+			iteration:        1,
+			phaseID:          "review",
 			producesArtifact: false,
-			wantSchema:     ReviewFindingsSchema,
+			wantSchema:       ReviewFindingsSchema,
 		},
 		{
-			name:           "empty_loopschemas_review_iter2",
-			loopCfg:        &db.LoopConfig{LoopToPhase: "implement"},
-			iteration:      2,
-			phaseID:        "review",
+			name:             "empty_loopschemas_review_iter2",
+			loopCfg:          &db.LoopConfig{LoopToPhase: "implement"},
+			iteration:        2,
+			phaseID:          "review",
 			producesArtifact: false,
 			// With no LoopSchemas, should use round-based fallback (iter 2 = round 2)
-			wantSchema:     ReviewDecisionSchema,
+			wantSchema: ReviewDecisionSchema,
 		},
 		{
-			name:           "nil_loopconfig_implement",
-			loopCfg:        nil,
-			iteration:      1,
-			phaseID:        "implement",
+			name:             "nil_loopconfig_implement",
+			loopCfg:          nil,
+			iteration:        1,
+			phaseID:          "implement",
 			producesArtifact: false,
-			wantSchema:     ImplementCompletionSchema,
+			wantSchema:       ImplementCompletionSchema,
 		},
 		{
-			name:           "nil_loopconfig_spec_produces_artifact",
-			loopCfg:        nil,
-			iteration:      1,
-			phaseID:        "spec",
+			name:             "nil_loopconfig_implement_codex",
+			loopCfg:          nil,
+			iteration:        1,
+			phaseID:          "implement_codex",
+			producesArtifact: false,
+			wantSchema:       ImplementCompletionSchema,
+		},
+		{
+			name:             "nil_loopconfig_spec_produces_artifact",
+			loopCfg:          nil,
+			iteration:        1,
+			phaseID:          "spec",
 			producesArtifact: true,
-			wantSchema:     ContentProducingPhaseSchema,
+			wantSchema:       ContentProducingPhaseSchema,
 		},
 		{
-			name:           "nil_loopconfig_qa",
-			loopCfg:        nil,
-			iteration:      1,
-			phaseID:        "qa",
+			name:             "nil_loopconfig_qa",
+			loopCfg:          nil,
+			iteration:        1,
+			phaseID:          "qa",
 			producesArtifact: false,
-			wantSchema:     QAResultSchema,
+			wantSchema:       QAResultSchema,
 		},
 	}
 
@@ -165,10 +173,11 @@ func TestMapSchemaIdentifierToSchema(t *testing.T) {
 	}{
 		{"findings", "review", ReviewFindingsSchema},
 		{"decision", "review", ReviewDecisionSchema},
-		{"", "review", ReviewFindingsSchema},           // Empty defaults to findings
-		{"unknown", "review", PhaseCompletionSchema},   // Unknown falls back to default
+		{"", "review", ReviewFindingsSchema},         // Empty defaults to findings
+		{"unknown", "review", PhaseCompletionSchema}, // Unknown falls back to default
 		{"qa_result", "qa", QAResultSchema},
 		{"", "implement", ImplementCompletionSchema},
+		{"", "implement_codex", ImplementCompletionSchema},
 	}
 
 	for _, tt := range tests {

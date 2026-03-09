@@ -71,9 +71,13 @@ Use --workflow to assign a workflow. This determines which phases run:
                       → tiny_spec → implement → review
                       Example: "Add validation for email field"
 
-  implement-medium    Features requiring design thought (DEFAULT)
-                      → spec → tdd_write → implement → review → docs
+  crossmodel-standard Strict default for production work (DEFAULT)
+                      → plan → implement_codex → review → review_cross → [qa_e2e_test] → docs
                       Example: "Add password reset flow"
+
+  implement-medium    Legacy multi-phase design/TDD workflow
+                      → spec → tdd_write → implement → review → docs
+                      Example: "Backfill an older repo with stronger upfront specs"
 
   implement-large     Complex features, multi-file changes, new systems
                       → spec → tdd_write → breakdown → implement → review → docs
@@ -87,9 +91,9 @@ Key phases:
 
 Use 'orc finalize TASK-XXX' to manually sync with target branch before merge.
 
-⚠️  COMMON MISTAKE: Using too simple a workflow. If unsure, go ONE level heavier.
-    A task that needs "implement-medium" run as "implement-small" skips the spec
-    phase → Claude guesses requirements → implementation misses the mark.
+⚠️  COMMON MISTAKE: Using too simple a workflow. If unsure, use the default
+    crossmodel-standard workflow so planning, implementation, cross-model review,
+    conditional browser QA, and docs all stay in the path.
 
 List available workflows: orc workflows
 
@@ -112,7 +116,7 @@ The description flows into EVERY phase prompt. It's how you communicate:
   • Context Claude needs (related systems, edge cases)
 
 Example of description that produces excellent results:
-  orc new "Add user avatar upload" --workflow implement-medium -d "Users should be able to
+  orc new "Add user avatar upload" --workflow crossmodel-standard -d "Users should be able to
   upload a profile picture. Requirements: Accept PNG/JPG up to 5MB, resize
   to 200x200, store in S3, display in navbar. Must work on mobile. Related
   to existing User model in models/user.go."
@@ -125,7 +129,7 @@ When tasks are part of a larger feature, link them to an initiative:
 
   orc initiative new "User Authentication" -V "JWT-based auth with refresh tokens"
   orc initiative decide INIT-001 "Use bcrypt for password hashing"
-  orc new "Create login endpoint" -i INIT-001 --workflow implement-medium
+  orc new "Create login endpoint" -i INIT-001 --workflow crossmodel-standard
   orc new "Create logout endpoint" -i INIT-001 --workflow implement-small --blocked-by TASK-001
 
 The initiative's VISION and DECISIONS flow into every linked task's prompts.
@@ -152,8 +156,8 @@ DEPENDENCIES: ORDERING WORK
   --related-to TASK-XXX   Informational link - no execution blocking
 
 Example multi-task workflow:
-  orc new "Design database schema" --workflow implement-medium
-  orc new "Implement data models" --workflow implement-medium --blocked-by TASK-001
+  orc new "Design database schema" --workflow crossmodel-standard
+  orc new "Implement data models" --workflow crossmodel-standard --blocked-by TASK-001
   orc new "Create API endpoints" --workflow implement-large --blocked-by TASK-002
   orc new "Build frontend" --workflow implement-large --blocked-by TASK-003
 
@@ -162,7 +166,7 @@ EXAMPLES
 ═══════════════════════════════════════════════════════════════════════════════
 
 # Good: Clear title, appropriate workflow, detailed description
-orc new "Add pagination to user list API" --workflow implement-medium -c feature \
+orc new "Add pagination to user list API" --workflow crossmodel-standard -c feature \
   -d "The /api/users endpoint returns all users. Add limit/offset pagination
   with default limit=20, max=100. Return total count in response header."
 
@@ -172,7 +176,7 @@ orc new "Fix login failing silently on timeout" --workflow implement-small -c bu
   nothing. Should show 'Service unavailable, try again' message."
 
 # Good: Part of initiative with dependency
-orc new "Implement refresh token rotation" --workflow implement-medium -i INIT-001 \
+orc new "Implement refresh token rotation" --workflow crossmodel-standard -i INIT-001 \
   --blocked-by TASK-005 \
   -d "After login endpoint is done, add refresh token rotation per RFC 6749."
 
@@ -379,7 +383,7 @@ See also:
 
 				if workflowID == "" {
 					// No workflow could be resolved - error with helpful message
-					return returnErr(fmt.Errorf("no default workflow configured. Configure workflow defaults or specify explicitly.\n\nOptions:\n  1. Set category defaults: orc config set workflow_defaults.feature implement-medium\n  2. Set general default: orc config set workflow_defaults.default implement-medium\n  3. Specify explicitly: orc new \"My task\" --workflow implement-small\n\nRun 'orc workflows' to see available workflows"))
+					return returnErr(fmt.Errorf("no default workflow configured. Configure workflow defaults or specify explicitly.\n\nOptions:\n  1. Set category defaults: orc config set workflow_defaults.feature crossmodel-standard\n  2. Set general default: orc config set workflow_defaults.default crossmodel-standard\n  3. Specify explicitly: orc new \"My task\" --workflow implement-small\n\nRun 'orc workflows' to see available workflows"))
 				}
 			}
 
@@ -475,8 +479,10 @@ See also:
 				return returnErr(fmt.Errorf("save task: %w", err))
 			}
 
-			// Fire on_task_created lifecycle triggers if workflow was explicitly set
-			if triggerRunner != nil && (cmd.Flags().Changed("weight") || cmd.Flags().Changed("workflow")) {
+			// Fire on_task_created lifecycle triggers whenever the task has a workflow.
+			// This keeps CLI behavior aligned with API task creation and ensures
+			// category/default workflow resolution still gets lifecycle enforcement.
+			if triggerRunner != nil && t.WorkflowId != nil && *t.WorkflowId != "" {
 				if msg := fireOnTaskCreatedTrigger(triggerRunner, backend, t); msg != "" {
 					_, _ = fmt.Fprintln(cmd.OutOrStdout(), msg)
 				}

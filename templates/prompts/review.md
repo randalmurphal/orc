@@ -57,8 +57,13 @@ Base your decision purely on the severity of findings. Any high-severity finding
 **What NOT to review:**
 - Style preferences, naming suggestions
 - "Nice to have" improvements
-- Performance (unless critical)
 - Architecture opinions
+
+**Production quality priorities:**
+- Security and data integrity come first: auth/authz, validation, secrets, injection, race conditions, unsafe state transitions.
+- Performance matters when the changed path is user-facing, stateful, concurrent, or likely to run at scale. Look for N+1 queries, unbounded work, redundant I/O, excessive allocations, hot-loop logging, or missing limits/timeouts.
+- Prefer the simplest implementation that satisfies the task. Unnecessary abstractions, speculative configurability, and indirection are maintainability risks, not polish.
+- Tests must prove the behavior through the real production path. Passing unit tests with weak integration coverage is not enough.
 
 **Small fixes you SHOULD make directly (Outcome 1):**
 - Missing null check
@@ -73,6 +78,10 @@ Base your decision purely on the severity of findings. Any high-severity finding
 - Missing error handling throughout
 - Business logic wrong in multiple places
 - Security vulnerabilities
+- Data integrity risks (unsafe retries, non-idempotent money/state transitions, race-prone updates)
+- Performance regressions on hot or scalable paths
+- Missing or misleading tests for critical behavior
+- Unnecessary abstractions or speculative architecture that make the code harder to reason about
 - Wrong fundamental approach
 
 **Rationalization Anti-Patterns (NEVER ACCEPT THESE EXCUSES):**
@@ -107,7 +116,7 @@ Path: {{WORKTREE_PATH}}
 Branch: {{TASK_BRANCH}}
 Target: {{TARGET_BRANCH}}
 
-**Git State**: Previous phases (spec, tdd_write, implement) have already committed their work. The worktree is clean. Use `git log --oneline -10` or `git diff main..HEAD` to see what was implemented.
+**Git State**: Previous phases (spec, tdd_write, implement) have already committed their work. The worktree is clean. Use `git log --oneline -10` or `git diff {{TARGET_BRANCH}}..HEAD` to see what was implemented.
 
 DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 </worktree_safety>
@@ -243,6 +252,9 @@ Red flags:
 - Hardcoded secrets
 - Missing input validation
 - Auth bypass
+- Privilege boundary mistakes
+- Unsafe state transitions or non-idempotent operations
+- Race conditions or lock-free mutation on shared state
 
 ## Check 5: Spec Compliance (CRITICAL)
 
@@ -351,15 +363,37 @@ Did the implementation add functionality, abstractions, or error handling beyond
 
 If you find over-engineering, flag it. The spec defines what should be built — nothing more.
 
+## Check 9: Performance and Resource Use
+
+Treat performance as review-critical when the changes touch request paths, persistence, concurrency, background loops, or anything likely to run at scale.
+
+- N+1 database/API calls
+- Unbounded loops, scans, retries, queues, or concurrency
+- Missing timeouts, limits, backpressure, or cancellation handling
+- Excessive allocations, copies, serialization, or logging in hot paths
+- Resource leaks (files, sockets, goroutines, timers, contexts)
+
+If the task changes a hot or scalable path and introduces an obvious performance risk, this is a HIGH-SEVERITY finding.
+
+## Check 10: Simplicity, Maintainability, and Tests
+
+- Is the solution simpler than the problem requires, or did it add unnecessary layers?
+- Are names, control flow, and data transformations easy to follow without hidden context?
+- Does the code match existing patterns instead of inventing new ones?
+- Do tests verify the real behavior, failure modes, and edge cases introduced by the change?
+- Are there missing integration tests for code that affects production wiring, state transitions, or browser-visible behavior?
+
+If the code is significantly more complex than required, or tests do not convincingly prove the behavior, flag it. If that weakens confidence in correctness or future safety, block.
+
 ## Process
 
 {{#if SUPPORTS_SUBAGENTS}}
 1. **Spawn specialist sub-agents** (MANDATORY - see `<mandatory_subagent_review>` above)
 {{/if}}
 2. Run linting and check changed files
-3. Review each changed file against the spec using the eight checks above
+3. Review each changed file against the spec using the checks above
 4. Perform security review (OWASP Top 10, injection, auth bypass)
-5. Perform code quality review (guidelines compliance, patterns, dead code)
+5. Perform code quality review (correctness, performance, simplicity, maintainability, tests)
 {{#if SUPPORTS_SUBAGENTS}}
 6. Wait for sub-agent results and incorporate their findings
 {{/if}}

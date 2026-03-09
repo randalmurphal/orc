@@ -15,7 +15,6 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -121,14 +120,14 @@ func TestIntegration_CreateTaskWithConfigDefault(t *testing.T) {
 	}
 }
 
-// TestIntegration_ErrorWhenNoWorkflowAndNoDefault verifies error handling:
-// Task creation should fail with clear error when no workflow and no default.
+// TestIntegration_DefaultWorkflowWhenNoExplicitConfig verifies the built-in
+// cross-model default is used when no workflow is configured explicitly.
 func TestIntegration_ErrorWhenNoWorkflowAndNoDefault(t *testing.T) {
 	tmpDir := withWeightIntegrationTestDir(t)
 	backend := createTestBackendInDir(t, tmpDir)
 	_ = backend.Close()
 
-	// Config without default workflow
+	// Config without explicit workflow overrides
 	configContent := "version: 1\n"
 	if err := os.WriteFile(filepath.Join(tmpDir, ".orc", "config.yaml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
@@ -138,20 +137,31 @@ func TestIntegration_ErrorWhenNoWorkflowAndNoDefault(t *testing.T) {
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
-	// No --workflow specified, no config default
+	// No --workflow specified, rely on built-in default
 	cmd.SetArgs([]string{"Test task without workflow"})
 
 	err := cmd.Execute()
 
-	// Should fail with clear error
-	if err == nil {
-		t.Fatal("expected error when no workflow specified and no default configured")
+	if err != nil {
+		t.Fatalf("expected success with built-in default workflow, got: %v", err)
 	}
 
-	errMsg := strings.ToLower(err.Error())
-	// Error should mention workflow (not weight)
-	if !strings.Contains(errMsg, "workflow") {
-		t.Errorf("error should mention 'workflow', got: %s", err.Error())
+	reopened := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = reopened.Close() }()
+
+	tasks, loadErr := reopened.LoadAllTasks()
+	if loadErr != nil {
+		t.Fatalf("load tasks: %v", loadErr)
+	}
+	if len(tasks) == 0 {
+		t.Fatal("no tasks created")
+	}
+	if tasks[0].WorkflowId == nil || *tasks[0].WorkflowId != "crossmodel-standard" {
+		got := ""
+		if tasks[0].WorkflowId != nil {
+			got = *tasks[0].WorkflowId
+		}
+		t.Errorf("workflow_id = %q, want %q", got, "crossmodel-standard")
 	}
 }
 

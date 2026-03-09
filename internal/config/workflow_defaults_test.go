@@ -19,7 +19,7 @@ func TestWorkflowDefaults_GetDefaultWorkflow(t *testing.T) {
 			config: WorkflowDefaults{
 				Feature: "feature-complete",
 				Bug:     "hotfix",
-				Default: "implement-standard",
+				Default: "crossmodel-standard",
 			},
 			category: "feature",
 			want:     "feature-complete",
@@ -29,7 +29,7 @@ func TestWorkflowDefaults_GetDefaultWorkflow(t *testing.T) {
 			config: WorkflowDefaults{
 				Feature: "feature-complete",
 				Bug:     "hotfix",
-				Default: "implement-standard",
+				Default: "crossmodel-standard",
 			},
 			category: "bug",
 			want:     "hotfix",
@@ -39,18 +39,18 @@ func TestWorkflowDefaults_GetDefaultWorkflow(t *testing.T) {
 			config: WorkflowDefaults{
 				Feature: "feature-complete",
 				Bug:     "hotfix",
-				Default: "implement-standard",
+				Default: "crossmodel-standard",
 			},
 			category: "docs",
-			want:     "implement-standard",
+			want:     "crossmodel-standard",
 		},
 		{
 			name: "empty category uses default",
 			config: WorkflowDefaults{
-				Default: "implement-standard",
+				Default: "crossmodel-standard",
 			},
 			category: "",
-			want:     "implement-standard",
+			want:     "crossmodel-standard",
 		},
 		{
 			name: "missing default and category returns empty",
@@ -75,7 +75,7 @@ func TestWorkflowDefaults_GetDefaultWorkflow(t *testing.T) {
 // TestWorkflowDefaults_SetDefaultWorkflow tests setting default workflows.
 func TestWorkflowDefaults_SetDefaultWorkflow(t *testing.T) {
 	config := WorkflowDefaults{
-		Default: "implement-standard",
+		Default: "crossmodel-standard",
 	}
 
 	// Set feature default
@@ -100,10 +100,10 @@ func TestWorkflowDefaults_SetDefaultWorkflow(t *testing.T) {
 // TestWorkflowDefaults_ListCategories tests listing available categories.
 func TestWorkflowDefaults_ListCategories(t *testing.T) {
 	config := WorkflowDefaults{
-		Feature:   "feature-workflow",
-		Bug:       "bug-workflow",
-		Refactor:  "refactor-workflow",
-		Default:   "standard-workflow",
+		Feature:  "feature-workflow",
+		Bug:      "bug-workflow",
+		Refactor: "refactor-workflow",
+		Default:  "standard-workflow",
 	}
 
 	categories := config.ListCategories()
@@ -138,7 +138,7 @@ workflow_defaults:
   feature: "feature-complete"
   bug: "hotfix"
   refactor: "refactor-safe"
-  default: "implement-standard"
+  default: "crossmodel-standard"
 `
 
 	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
@@ -161,8 +161,8 @@ workflow_defaults:
 	if config.WorkflowDefaults.Refactor != "refactor-safe" {
 		t.Errorf("Refactor = %q, want %q", config.WorkflowDefaults.Refactor, "refactor-safe")
 	}
-	if config.WorkflowDefaults.Default != "implement-standard" {
-		t.Errorf("Default = %q, want %q", config.WorkflowDefaults.Default, "implement-standard")
+	if config.WorkflowDefaults.Default != "crossmodel-standard" {
+		t.Errorf("Default = %q, want %q", config.WorkflowDefaults.Default, "crossmodel-standard")
 	}
 }
 
@@ -174,9 +174,9 @@ func TestConfig_SaveWorkflowDefaults(t *testing.T) {
 	// Create config with workflow defaults
 	config := Default()
 	config.WorkflowDefaults = WorkflowDefaults{
-		Feature:  "feature-advanced",
-		Bug:      "bug-urgent",
-		Default:  "standard-impl",
+		Feature: "feature-advanced",
+		Bug:     "bug-urgent",
+		Default: "standard-impl",
 	}
 
 	// Save to file
@@ -239,8 +239,8 @@ func TestWorkflowDefaults_ValidateWorkflowIDs(t *testing.T) {
 			errorMsg: "invalid default workflow ID: invalid-workflow",
 		},
 		{
-			name: "empty config is valid",
-			config: WorkflowDefaults{},
+			name:    "empty config is valid",
+			config:  WorkflowDefaults{},
 			wantErr: false,
 		},
 	}
@@ -282,9 +282,9 @@ workflow: "legacy-workflow"
 		t.Errorf("Workflow = %q, want %q", config.Workflow, "legacy-workflow")
 	}
 
-	// New workflow defaults should be empty
-	if config.WorkflowDefaults.Default != "" {
-		t.Errorf("WorkflowDefaults.Default should be empty for old config")
+	// Built-in defaults still apply even when loading the old single-workflow format.
+	if config.WorkflowDefaults.Default != "crossmodel-standard" {
+		t.Errorf("WorkflowDefaults.Default = %q, want %q", config.WorkflowDefaults.Default, "crossmodel-standard")
 	}
 }
 

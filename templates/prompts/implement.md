@@ -30,14 +30,14 @@ ONLY after ALL verifications PASS, output JSON with `status`, `summary`, and `ve
 **Wiring verification evidence format:**
 ```json
 "wiring": {
-  "status": "pass",
+  "status": "PASS",
   "evidence": "Created components/feature/Panel.tsx → imported by pages/Dashboard.tsx:15",
   "new_files": [
     {"file": "components/feature/Panel.tsx", "imported_by": "pages/Dashboard.tsx:15"}
   ]
 }
 ```
-If ANY new file has no production importer, wiring status is "fail".
+If ANY new file has no production importer, wiring status is "FAIL".
 
 **CRITICAL:** The `verification` field is MANDATORY. Completion without verification evidence will be REJECTED.
 
@@ -361,16 +361,19 @@ AMEND-001: [Original] → [Actual] — [Reason]
 {
   "status": "complete",
   "summary": "Implemented token bucket rate limiter middleware with per-IP tracking and 429 responses",
+  "reason": null,
   "verification": {
-    "tests": {"status": "pass", "evidence": "ok github.com/project/internal/middleware 0.023s (5 tests, 0 failures)"},
+    "tests": {"command": "go test ./internal/middleware", "status": "PASS", "evidence": "ok github.com/project/internal/middleware 0.023s (5 tests, 0 failures)"},
     "success_criteria": [
-      {"id": "SC-1", "status": "pass", "evidence": "TestRateLimiter_Returns429AfterLimitExceeded passes"},
-      {"id": "SC-2", "status": "pass", "evidence": "TestRateLimiter_ResetsAfterWindow passes"},
-      {"id": "SC-3", "status": "pass", "evidence": "grep confirms rateLimiter in router.go:45"}
+      {"id": "SC-1", "status": "PASS", "evidence": "TestRateLimiter_Returns429AfterLimitExceeded passes"},
+      {"id": "SC-2", "status": "PASS", "evidence": "TestRateLimiter_ResetsAfterWindow passes"},
+      {"id": "SC-3", "status": "PASS", "evidence": "grep confirms rateLimiter in router.go:45"}
     ],
-    "build": {"status": "pass", "evidence": "go build ./... exits 0"},
-    "linting": {"status": "pass", "evidence": "golangci-lint run exits 0"}
-  }
+    "build": {"status": "PASS", "evidence": "go build ./... exits 0"},
+    "linting": {"status": "PASS", "evidence": "golangci-lint run exits 0"},
+    "wiring": {"status": "PASS", "evidence": "internal/middleware/rate_limit.go is imported by internal/api/router.go:45", "new_files": [{"file": "internal/middleware/rate_limit.go", "imported_by": "internal/api/router.go:45"}]}
+  },
+  "pre_existing_issues": []
 }
 Only output this JSON after actually running the tests and seeing them pass.
 </example_good_completion>
