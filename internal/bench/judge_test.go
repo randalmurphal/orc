@@ -338,6 +338,55 @@ func TestSanitizeForBlinding(t *testing.T) {
 	}
 }
 
+func TestStripBinaryPatches(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		want     string
+		wantSame bool // true if output should equal input (no binary content)
+	}{
+		{
+			name:     "no binary content",
+			input:    "diff --git a/main.go b/main.go\n--- a/main.go\n+++ b/main.go\n@@ -1 +1 @@\n-old\n+new\n",
+			wantSame: true,
+		},
+		{
+			name: "strips binary patch entry",
+			input: "diff --git a/main.go b/main.go\n--- a/main.go\n+++ b/main.go\n@@ -1 +1 @@\n-old\n+new\n" +
+				"diff --git a/binary.o b/binary.o\nindex abc..def 100644\nGIT binary patch\nliteral 1234\ndata\n" +
+				"diff --git a/other.go b/other.go\n--- a/other.go\n+++ b/other.go\n@@ -1 +1 @@\n-foo\n+bar\n",
+			want: "diff --git a/main.go b/main.go\n--- a/main.go\n+++ b/main.go\n@@ -1 +1 @@\n-old\n+new\n" +
+				"diff --git a/other.go b/other.go\n--- a/other.go\n+++ b/other.go\n@@ -1 +1 @@\n-foo\n+bar\n",
+		},
+		{
+			name: "strips Binary files differ",
+			input: "diff --git a/main.go b/main.go\n--- a/main.go\n+++ b/main.go\n@@ -1 +1 @@\n-old\n+new\n" +
+				"diff --git a/image.png b/image.png\nBinary files /dev/null and b/image.png differ\n",
+			want: "diff --git a/main.go b/main.go\n--- a/main.go\n+++ b/main.go\n@@ -1 +1 @@\n-old\n+new\n",
+		},
+		{
+			name:  "all binary",
+			input: "diff --git a/a.o b/a.o\nGIT binary patch\nliteral 100\ndata\n",
+			want:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := stripBinaryPatches(tt.input)
+			if tt.wantSame {
+				if got != tt.input {
+					t.Errorf("expected unchanged input, got different output")
+				}
+				return
+			}
+			if got != tt.want {
+				t.Errorf("stripBinaryPatches() =\n%q\nwant\n%q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSetupJudgeWorkspace(t *testing.T) {
 	// This tests the workspace setup logic with a real git repo.
 	tmpDir := t.TempDir()

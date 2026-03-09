@@ -61,12 +61,12 @@ Examples:
 					continue
 				}
 
-				// Skip runs that already have judgments to avoid burning expensive LLM calls on re-run
+				// Skip runs that already have all judge opinions
 				existing, err := store.GetJudgments(ctx, run.ID)
 				if err != nil {
 					fmt.Fprintf(cmd.ErrOrStderr(), "warning: check judgments for %s: %v\n", run.ID, err)
 				}
-				if len(existing) > 0 {
+				if len(existing) >= len(judges) {
 					skipped++
 					continue
 				}

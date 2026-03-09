@@ -200,9 +200,23 @@ func (jp *JudgePanel) EvaluateRun(ctx context.Context, runID string, judges []Ju
 	// Both frontier judges evaluate every run. Blinding mitigates self-eval bias:
 	// content stripping, identity blinding, and mixed-model workflows mean the
 	// judge can't reliably identify its own output.
+	//
+	// Build a set of judges that already have opinions on this run so we can
+	// skip them on retry without creating duplicates.
+	existingJudgments, _ := jp.store.GetJudgments(ctx, runID)
+	judgedBy := make(map[string]bool, len(existingJudgments))
+	for _, j := range existingJudgments {
+		judgedBy[j.JudgeModel] = true
+	}
+
 	var succeeded int
 	var lastErr error
 	for _, judge := range judges {
+		if judgedBy[judge.Model] {
+			jp.logger.Debug("skipping judge with existing opinion", "judge", judge.Model, "run", runID)
+			succeeded++ // count existing as success
+			continue
+		}
 
 		order := rand.Intn(100)
 
@@ -321,10 +335,24 @@ func (jp *JudgePanel) setupJudgeWorkspace(jctx *judgeContext) (string, func(), e
 		jp.workspace.CleanupRun(judgeRunID, repoDir)
 	}
 
-	// Apply the model's diff to recreate the post-model state
+	// Revert .gitignore to its committed state before applying the model diff.
+	// SetupRun() calls ensureBenchGitignore() which adds entries, but the model_diff
+	// may also contain those same additions (captured during the original run).
+	// Reverting avoids "patch does not apply" conflicts on .gitignore.
+	restoreCmd := exec.Command("git", "checkout", "HEAD", "--", ".gitignore")
+	restoreCmd.Dir = worktreePath
+	_ = restoreCmd.Run() // Ignore error — file may not exist in some repos
+
+	// Strip binary patch hunks from the diff. Models sometimes build C++ projects
+	// and the diff captures build artifacts (.o files, binaries). git apply can't
+	// handle binary patches without full index lines and we don't need them — the
+	// judge only cares about source code changes.
+	cleanDiff := stripBinaryPatches(jctx.Run.ModelDiff)
+
+	// Apply the model's diff to recreate the post-model state.
 	cmd := exec.Command("git", "apply", "--allow-empty", "-")
 	cmd.Dir = worktreePath
-	cmd.Stdin = strings.NewReader(jctx.Run.ModelDiff)
+	cmd.Stdin = strings.NewReader(cleanDiff)
 
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
@@ -379,6 +407,64 @@ func (jp *JudgePanel) setupJudgeWorkspace(jctx *judgeContext) (string, func(), e
 	return worktreePath, cleanup, nil
 }
 
+// stripBinaryPatches removes binary diff hunks from a unified diff.
+// A binary hunk starts with "diff --git" and contains "GIT binary patch" or
+// "Binary files ... differ". The entire file entry (from "diff --git" to the
+// next "diff --git" or EOF) is removed. Source code hunks pass through unchanged.
+func stripBinaryPatches(diff string) string {
+	if !strings.Contains(diff, "Binary") && !strings.Contains(diff, "GIT binary") {
+		return diff // Fast path: no binary content at all
+	}
+
+	var result strings.Builder
+	result.Grow(len(diff))
+
+	// Split into file-level entries at "diff --git" boundaries
+	entries := splitDiffEntries(diff)
+	for _, entry := range entries {
+		if strings.Contains(entry, "GIT binary patch") ||
+			strings.Contains(entry, "Binary files") {
+			continue // Drop binary entries
+		}
+		result.WriteString(entry)
+	}
+	return result.String()
+}
+
+// splitDiffEntries splits a unified diff into per-file entries.
+// Each entry starts with "diff --git" and runs to the next "diff --git" or EOF.
+// Any leading text before the first "diff --git" is preserved as the first entry.
+func splitDiffEntries(diff string) []string {
+	const marker = "diff --git "
+	var entries []string
+	remaining := diff
+
+	for {
+		idx := strings.Index(remaining, marker)
+		if idx == -1 {
+			if remaining != "" {
+				entries = append(entries, remaining)
+			}
+			break
+		}
+		// Content before this marker (could be empty or leading header)
+		if idx > 0 {
+			entries = append(entries, remaining[:idx])
+		}
+		remaining = remaining[idx:]
+
+		// Find the NEXT marker to delimit this entry
+		nextIdx := strings.Index(remaining[1:], marker)
+		if nextIdx == -1 {
+			entries = append(entries, remaining) // Last entry
+			break
+		}
+		entries = append(entries, remaining[:nextIdx+1])
+		remaining = remaining[nextIdx+1:]
+	}
+	return entries
+}
+
 // buildJudgePrompt constructs the evaluation prompt for an implementation review.
 // The judge is inside the repo with the model's changes committed.
 //
@@ -402,13 +488,22 @@ A developer attempted to fix a bug in this repository. Their changes are in the 
 4. Determine whether the changes actually fix the described bug
 5. Evaluate the implementation quality
 6. If ` + "`.bench/test_patch.diff`" + ` exists, check it for reference test expectations.
-   If those tests reference symbols (functions, variables, types) that differ from
-   the developer's naming, this is a NAME MISMATCH — not a bug. The developer may
-   have implemented correct functionality with different names. To investigate:
+   The reference tests come from the actual PR that fixed this bug. They often assume
+   specific naming choices. If the developer implemented correct functionality but used
+   different names, this is a NAME MISMATCH — not a bug. Common mismatch types:
+   - **Symbol names**: Functions, types, variables, error constants named differently
+     (e.g. developer's ` + "`ErrPathRequired`" + ` vs reference's ` + "`ErrNotEnoughArgs`" + `)
+   - **Error messages**: Same meaning, different wording
+     (e.g. ` + "`\"must be positive\"`" + ` vs ` + "`\"must be greater than 0\"`" + `)
+   - **Test organization**: Developer structured tests differently than reference
+     (e.g. different test case names, section names, or grouping)
+   - **Struct fields**: Same data, different field names
+     (e.g. ` + "`KeyCount`" + ` vs ` + "`KeyN`" + `)
+   To investigate:
    - Apply the test patch: ` + "`git apply .bench/test_patch.diff`" + `
-   - If it fails due to undefined symbols, compare them to the developer's code
-   - If functionally equivalent, try renaming the symbols and running tests
-   - A correct fix with different names should score highly on functional_correctness
+   - If it fails, check what names the reference expects vs what the developer created
+   - Assess whether the developer's implementation is functionally equivalent
+   - A correct fix with different naming choices should score highly on functional_correctness
 `)
 
 	if req.HasReviewOutput {
@@ -431,8 +526,10 @@ A developer attempted to fix a bug in this repository. Their changes are in the 
 Score each criterion independently from 1 to 5:
 
 **functional_correctness** — Does this fix the described bug?
-  5: Correctly identifies and fixes the root cause (names may differ from reference)
-  4: Fixes the bug but approach is suboptimal
+  5: Correctly identifies and fixes the root cause. Different naming choices
+     (function names, error messages, field names) from reference are fine if
+     the behavior is equivalent.
+  4: Fixes the bug but approach is suboptimal or has minor gaps
   3: Partially fixes the bug or only handles some cases
   2: Attempts a fix but misses the actual problem
   1: No meaningful fix, or introduces new bugs
@@ -545,8 +642,9 @@ func writeContextFile(dir string, req JudgeRequest) error {
 	if req.HasTestPatch {
 		sb.WriteString("\n## Reference Test Patch\n\n")
 		sb.WriteString("The file `.bench/test_patch.diff` contains the test changes from the reference PR.\n")
-		sb.WriteString("These tests verify the fix but may reference specific symbol names from the original PR.\n")
-		sb.WriteString("If the developer used different names for the same functionality, that is a **name mismatch**, not a bug.\n")
+		sb.WriteString("These tests may reference specific names from the original PR: function/type/field names,\n")
+		sb.WriteString("error message strings, test case names, etc. If the developer used different names or\n")
+		sb.WriteString("messages for the same functionality, that is a **name mismatch**, not a bug.\n")
 	}
 
 	// Note about review output if present
@@ -565,14 +663,10 @@ func writeContextFile(dir string, req JudgeRequest) error {
 
 // parseJudgeResponse extracts scores from the judge's output.
 func parseJudgeResponse(content string, rubric JudgeRubric) (*JudgeResponse, error) {
-	// Try to find JSON in the response
-	start := strings.Index(content, "{")
-	end := strings.LastIndex(content, "}")
-	if start < 0 || end < start {
-		return nil, fmt.Errorf("no JSON found in judge response")
+	jsonStr, err := extractJudgeJSON(content)
+	if err != nil {
+		return nil, err
 	}
-
-	jsonStr := content[start : end+1]
 
 	var resp JudgeResponse
 	if err := json.Unmarshal([]byte(jsonStr), &resp); err != nil {
@@ -600,6 +694,40 @@ func parseJudgeResponse(content string, rubric JudgeRubric) (*JudgeResponse, err
 	}
 
 	return &resp, nil
+}
+
+// extractJudgeJSON finds the JSON object in a judge's response.
+// Judges output reasoning text before/after the JSON. Naive first-{/last-}
+// extraction breaks when the reasoning contains code with braces.
+// Strategy: find the last "}" and walk backward trying json.Valid until we
+// find the matching "{" that forms valid JSON containing "scores".
+func extractJudgeJSON(content string) (string, error) {
+	end := strings.LastIndex(content, "}")
+	if end < 0 {
+		return "", fmt.Errorf("no JSON found in judge response")
+	}
+
+	candidate := content[:end+1]
+
+	// Try increasingly larger substrings from each "{" going backward.
+	// This finds the outermost valid JSON object closest to the end.
+	for i := len(candidate) - 1; i >= 0; i-- {
+		if candidate[i] != '{' {
+			continue
+		}
+		substr := candidate[i:]
+		if json.Valid([]byte(substr)) && strings.Contains(substr, "scores") {
+			return substr, nil
+		}
+	}
+
+	// Fallback: try the naive approach (first { to last })
+	start := strings.Index(content, "{")
+	if start >= 0 && end >= start {
+		return content[start : end+1], nil
+	}
+
+	return "", fmt.Errorf("no valid JSON found in judge response")
 }
 
 // AggregateJudgments computes average scores across multiple judgments.

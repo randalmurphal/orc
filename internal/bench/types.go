@@ -76,6 +76,8 @@ type Task struct {
 	ReferenceDiff  string `yaml:"reference_diff,omitempty" json:"reference_diff,omitempty"`
 	TestPatch      string `yaml:"test_patch,omitempty" json:"test_patch,omitempty"`      // Test-only diff from reference PR — applied AFTER model finishes for evaluation
 	TestPatchFile  string `yaml:"test_patch_file,omitempty" json:"-"`                   // Path to .patch file (resolved during import, content goes into TestPatch)
+	Excluded       bool   `yaml:"-" json:"excluded,omitempty"`                          // Exclude from comparative analysis (name mismatch, broken test patch)
+	ExcludeReason  string `yaml:"-" json:"exclude_reason,omitempty"`                    // Why this task is excluded
 	CreatedAt      time.Time `json:"created_at"`
 }
 
@@ -121,7 +123,13 @@ type Variant struct {
 	BaseWorkflow   string                   `yaml:"base_workflow" json:"base_workflow"`
 	PhaseOverrides map[string]PhaseOverride `yaml:"phase_overrides" json:"phase_overrides"`
 	IsBaseline     bool                     `yaml:"is_baseline,omitempty" json:"is_baseline,omitempty"`
-	CreatedAt      time.Time                `json:"created_at"`
+	// ApplicableTiers explicitly restricts which task tiers this variant runs against.
+	// When empty, tiers are inferred from PhaseOverrides via PhaseApplicableTiers.
+	// When set, only tasks matching these tiers are included — prevents running
+	// combo variants against tiers where the combo adds no signal (e.g., running
+	// an implement+review combo on trivial tasks that only have implement).
+	ApplicableTiers []Tier    `yaml:"applicable_tiers,omitempty" json:"applicable_tiers,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // Validate checks that required fields are set.
@@ -160,6 +168,30 @@ func ParseOverrides(jsonStr string) (map[string]PhaseOverride, error) {
 		return nil, fmt.Errorf("parse phase overrides: %w", err)
 	}
 	return overrides, nil
+}
+
+// ApplicableTiersJSON returns the applicable tiers as a JSON array string.
+func (v *Variant) ApplicableTiersJSON() string {
+	if len(v.ApplicableTiers) == 0 {
+		return "[]"
+	}
+	b, err := json.Marshal(v.ApplicableTiers)
+	if err != nil {
+		return "[]"
+	}
+	return string(b)
+}
+
+// ParseApplicableTiers parses a JSON array of tiers.
+func ParseApplicableTiers(jsonStr string) []Tier {
+	if jsonStr == "" || jsonStr == "[]" {
+		return nil
+	}
+	var tiers []Tier
+	if err := json.Unmarshal([]byte(jsonStr), &tiers); err != nil {
+		return nil
+	}
+	return tiers
 }
 
 // RunStatus is the status of a benchmark run.

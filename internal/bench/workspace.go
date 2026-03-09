@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strings"
 )
 
 // Workspace manages git operations for benchmark runs.
@@ -91,7 +93,68 @@ func (w *Workspace) SetupRun(runID string, project *Project, task *Task) (string
 		return "", fmt.Errorf("create worktree for run %s at %s: %s: %w", runID, task.PreFixCommit, string(out), err)
 	}
 
+	// Ensure common virtual environment directories are gitignored.
+	// Models may run `python -m venv .venv` during build steps. If the repo's
+	// .gitignore only has `venv*/` (which doesn't match `.venv/`), the venv
+	// gets committed and `git diff` produces massive output (60MB+) that can
+	// crash the stream-json scanner.
+	ensureBenchGitignore(worktreePath)
+
 	return worktreePath, nil
+}
+
+// benchGitignoreEntries are patterns appended to .gitignore in bench worktrees
+// to prevent models from accidentally committing large generated directories.
+var benchGitignoreEntries = []string{
+	".venv/",
+	"__pycache__/",
+	"*.pyc",
+	"node_modules/",
+	".tox/",
+	".mypy_cache/",
+	".pytest_cache/",
+	".ruff_cache/",
+}
+
+// ensureBenchGitignore appends common generated-directory patterns to .gitignore
+// if they're not already present. This is idempotent — safe to call multiple times.
+func ensureBenchGitignore(worktreePath string) {
+	gitignorePath := filepath.Join(worktreePath, ".gitignore")
+
+	existing, _ := os.ReadFile(gitignorePath)
+	existingStr := string(existing)
+
+	var toAdd []string
+	for _, entry := range benchGitignoreEntries {
+		if !containsLine(existingStr, entry) {
+			toAdd = append(toAdd, entry)
+		}
+	}
+
+	if len(toAdd) == 0 {
+		return
+	}
+
+	f, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return // Best-effort, don't fail the run
+	}
+	defer f.Close()
+
+	// Ensure we start on a new line
+	if len(existing) > 0 && existing[len(existing)-1] != '\n' {
+		f.WriteString("\n")
+	}
+	f.WriteString("# Added by orc bench (prevent large diffs from generated dirs)\n")
+	for _, entry := range toAdd {
+		f.WriteString(entry + "\n")
+	}
+}
+
+// containsLine checks if a gitignore file already contains a specific pattern.
+func containsLine(content, pattern string) bool {
+	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	return slices.Contains(lines, pattern)
 }
 
 // CleanupRun removes a run's worktree.

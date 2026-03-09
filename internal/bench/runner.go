@@ -210,9 +210,20 @@ func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, tr
 		defer cancel()
 	}
 
+	// Skip if a completed (pass/fail) run already exists for this combo.
+	// Only re-run on error status or missing runs. This makes the runner
+	// resumable — kill and restart without losing completed results.
+	existing, _ := r.store.ListRuns(ctx, variant.ID, task.ID, "")
+	for _, ex := range existing {
+		if ex.TrialNumber == trial && (ex.Status == RunStatusPass || ex.Status == RunStatusFail) {
+			r.logger.Info("skipping completed run", "variant", variant.ID, "task", task.ID, "trial", trial, "status", ex.Status)
+			return nil
+		}
+	}
+
 	runID := uuid.New().String()
 
-	// Clean up any stale run from previous attempts (e.g. error/fail)
+	// Clean up any stale run from previous attempts (e.g. error/running)
 	if err := r.store.DeleteRunByCombo(ctx, variant.ID, task.ID, trial); err != nil {
 		r.logger.Warn("failed to clean stale run", "error", err)
 	}
@@ -327,6 +338,7 @@ func (r *Runner) RunSingle(ctx context.Context, variant *Variant, task *Task, tr
 		executor.WithWorkflowClaudePath(r.claudePath),
 		executor.WithWorkflowCodexPath(r.codexPath),
 		executor.WithWorkflowLogger(r.logger),
+		executor.WithWorkflowTokenRates(executor.ProviderRatesForConfig(benchCfg)),
 	}
 	if r.turnExecutor != nil {
 		execOpts = append(execOpts, executor.WithWorkflowTurnExecutor(r.turnExecutor))
@@ -516,6 +528,35 @@ func (r *Runner) savePhaseResults(
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// Pre-fetch baseline phase metadata so frozen phases inherit provider/model.
+	// Without this, frozen phases show empty provider/model in reports.
+	baselinePhaseInfo := make(map[string]*PhaseResult)
+	if !variant.IsBaseline && len(frozenOutputs) > 0 {
+		var baselineVarID string
+		for _, fo := range frozenOutputs {
+			baselineVarID = fo.VariantID
+			break
+		}
+		if baselineVarID != "" {
+			baselineRuns, err := r.store.ListRuns(ctx, baselineVarID, taskID, "")
+			if err == nil {
+				for _, bRun := range baselineRuns {
+					if bRun.TrialNumber == trial {
+						bPhases, err := r.store.GetPhaseResults(ctx, bRun.ID)
+						if err == nil {
+							for _, bp := range bPhases {
+								if !bp.WasFrozen {
+									baselinePhaseInfo[bp.PhaseID] = bp
+								}
+							}
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+
 	for _, pr := range result.PhaseResults {
 		benchPR := &PhaseResult{
 			RunID:   runID,
@@ -528,6 +569,12 @@ func (r *Runner) savePhaseResults(
 			benchPR.OutputContent = pr.Content
 			if fo, ok := frozenOutputs[pr.PhaseID]; ok {
 				benchPR.FrozenOutputID = fo.ID
+			}
+			// Carry forward provider/model from the baseline run that generated this output
+			if bp, ok := baselinePhaseInfo[pr.PhaseID]; ok {
+				benchPR.Provider = bp.Provider
+				benchPR.Model = bp.Model
+				benchPR.ReasoningEffort = bp.ReasoningEffort
 			}
 		} else {
 			// This phase ran live — capture full metrics

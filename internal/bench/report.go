@@ -18,16 +18,18 @@ type PhaseLeaderboard struct {
 
 // LeaderboardEntry is one variant's results for a phase.
 type LeaderboardEntry struct {
-	VariantID       string  `json:"variant_id"`
-	Provider        string  `json:"provider"`
-	Model           string  `json:"model"`
-	Reasoning       string  `json:"reasoning_effort,omitempty"`
-	PassRate        float64 `json:"pass_rate"`
-	AvgCostUSD      float64 `json:"avg_cost_usd"`
-	AvgDurationMs   int     `json:"avg_duration_ms"`
-	AvgJudgeScore   float64 `json:"avg_judge_score,omitempty"`
-	SampleSize      int     `json:"sample_size"`
-	CostPerSuccess  float64 `json:"cost_per_success"` // North star metric
+	VariantID       string             `json:"variant_id"`
+	Provider        string             `json:"provider"`
+	Model           string             `json:"model"`
+	Reasoning       string             `json:"reasoning_effort,omitempty"`
+	PassRate        float64            `json:"pass_rate"`
+	JudgeCorrectPct float64            `json:"judge_correct_pct"`           // % of runs where avg judge functional_correctness >= 4.0
+	AvgCostUSD      float64            `json:"avg_cost_usd"`
+	AvgDurationMs   int                `json:"avg_duration_ms"`
+	AvgJudgeScore   float64            `json:"avg_judge_score,omitempty"`   // Overall average across all judges
+	JudgeScores     map[string]float64 `json:"judge_scores,omitempty"`     // Per-judge avg functional_correctness
+	SampleSize      int                `json:"sample_size"`
+	CostPerSuccess  float64            `json:"cost_per_success"`           // North star metric
 }
 
 // OptimalConfig recommends the best model for each phase.
@@ -52,16 +54,18 @@ type FullReport struct {
 
 // ReportSummary provides high-level stats.
 type ReportSummary struct {
-	TotalRuns       int     `json:"total_runs"`
-	TotalVariants   int     `json:"total_variants"`
-	TotalTasks      int     `json:"total_tasks"`
-	TotalCostUSD    float64 `json:"total_cost_usd"`
+	TotalRuns        int     `json:"total_runs"`
+	TotalVariants    int     `json:"total_variants"`
+	TotalTasks       int     `json:"total_tasks"`
+	ExcludedTasks    int     `json:"excluded_tasks"`
+	TotalCostUSD     float64 `json:"total_cost_usd"`
 	BaselinePassRate float64 `json:"baseline_pass_rate"`
 }
 
 // ReportGenerator builds reports from benchmark data.
 type ReportGenerator struct {
-	store *Store
+	store         *Store
+	excludedTasks map[string]bool // Task IDs excluded from comparative analysis
 }
 
 // NewReportGenerator creates a new report generator.
@@ -69,8 +73,34 @@ func NewReportGenerator(store *Store) *ReportGenerator {
 	return &ReportGenerator{store: store}
 }
 
+// loadExcludedTasks builds the set of excluded task IDs.
+func (rg *ReportGenerator) loadExcludedTasks(ctx context.Context) error {
+	tasks, err := rg.store.ListTasks(ctx, "", "")
+	if err != nil {
+		return err
+	}
+	rg.excludedTasks = make(map[string]bool)
+	for _, t := range tasks {
+		if t.Excluded {
+			rg.excludedTasks[t.ID] = true
+		}
+	}
+	return nil
+}
+
+// isExcluded returns true if a task should be excluded from analysis.
+func (rg *ReportGenerator) isExcluded(taskID string) bool {
+	return rg.excludedTasks[taskID]
+}
+
+
 // GenerateFullReport produces a complete benchmark analysis.
 func (rg *ReportGenerator) GenerateFullReport(ctx context.Context) (*FullReport, error) {
+	// Load excluded tasks once for all report sections.
+	if err := rg.loadExcludedTasks(ctx); err != nil {
+		return nil, fmt.Errorf("load excluded tasks: %w", err)
+	}
+
 	report := &FullReport{}
 
 	// Summary
@@ -144,10 +174,18 @@ func (rg *ReportGenerator) buildSummary(ctx context.Context) (*ReportSummary, er
 		}
 	}
 
+	var excludedCount int
+	for _, t := range tasks {
+		if rg.isExcluded(t.ID) {
+			excludedCount++
+		}
+	}
+
 	return &ReportSummary{
 		TotalRuns:        len(allRuns),
 		TotalVariants:    len(variants),
 		TotalTasks:       len(tasks),
+		ExcludedTasks:    excludedCount,
 		TotalCostUSD:     totalCost,
 		BaselinePassRate: baselinePassRate,
 	}, nil
@@ -221,12 +259,20 @@ func (rg *ReportGenerator) buildPhaseLeaderboard(ctx context.Context, phaseID st
 			reasoning      string
 			judgeTotal     float64
 			judgeCount     int
+			judgeCorrect   int // Runs where avg judge functional_correctness >= 4.0
+			// Per-judge tracking
+			perJudgeTotal = make(map[string]float64)
+			perJudgeCount = make(map[string]int)
 		)
 
 		for _, run := range runs {
 			// Only count terminal runs for pass rate calculation
 			isTerminal := run.Status == RunStatusPass || run.Status == RunStatusFail || run.Status == RunStatusError
 			if !isTerminal {
+				continue
+			}
+			// Skip runs from excluded tasks (name mismatches, broken test patches)
+			if rg.isExcluded(run.TaskID) {
 				continue
 			}
 			completedCount++
@@ -260,13 +306,24 @@ func (rg *ReportGenerator) buildPhaseLeaderboard(ctx context.Context, phaseID st
 			// Aggregate judge scores for this phase
 			judgments, err := rg.store.GetJudgments(ctx, run.ID)
 			if err == nil {
+				var runFCTotal float64
+				var runFCCount int
 				for _, j := range judgments {
 					if j.PhaseID == phaseID {
-						for _, score := range j.Scores {
+						for key, score := range j.Scores {
 							judgeTotal += float64(score)
 							judgeCount++
+							if key == "functional_correctness" {
+								perJudgeTotal[j.JudgeModel] += float64(score)
+								perJudgeCount[j.JudgeModel]++
+								runFCTotal += float64(score)
+								runFCCount++
+							}
 						}
 					}
+				}
+				if runFCCount > 0 && runFCTotal/float64(runFCCount) >= 4.0 {
+					judgeCorrect++
 				}
 			}
 		}
@@ -292,17 +349,31 @@ func (rg *ReportGenerator) buildPhaseLeaderboard(ctx context.Context, phaseID st
 			avgJudgeScore = judgeTotal / float64(judgeCount)
 		}
 
+		var judgeCorrectPct float64
+		if completedCount > 0 {
+			judgeCorrectPct = float64(judgeCorrect) / float64(completedCount) * 100
+		}
+
+		judgeScores := make(map[string]float64, len(perJudgeTotal))
+		for jModel, total := range perJudgeTotal {
+			if perJudgeCount[jModel] > 0 {
+				judgeScores[jModel] = total / float64(perJudgeCount[jModel])
+			}
+		}
+
 		lb.Entries = append(lb.Entries, LeaderboardEntry{
-			VariantID:      v.ID,
-			Provider:       provider,
-			Model:          model,
-			Reasoning:      reasoning,
-			PassRate:       passRate,
-			AvgCostUSD:     avgCost,
-			AvgDurationMs:  avgDur,
-			AvgJudgeScore:  avgJudgeScore,
-			SampleSize:     totalCount,
-			CostPerSuccess: costPerSuccess,
+			VariantID:       v.ID,
+			Provider:        provider,
+			Model:           model,
+			Reasoning:       reasoning,
+			PassRate:        passRate,
+			JudgeCorrectPct: judgeCorrectPct,
+			AvgCostUSD:      avgCost,
+			AvgDurationMs:   avgDur,
+			AvgJudgeScore:   avgJudgeScore,
+			JudgeScores:     judgeScores,
+			SampleSize:      totalCount,
+			CostPerSuccess:  costPerSuccess,
 		})
 	}
 
@@ -409,6 +480,9 @@ func (rg *ReportGenerator) buildComparisons(ctx context.Context) ([]PairedCompar
 		var baselineCost, variantCost []float64
 
 		for _, task := range tasks {
+			if rg.isExcluded(task.ID) {
+				continue
+			}
 			// Get baseline run for this task
 			bRuns, err := rg.store.ListRuns(ctx, baseline.ID, task.ID, "")
 			if err != nil || len(bRuns) == 0 {
@@ -482,9 +556,13 @@ func FormatReport(report *FullReport) string {
 
 	// Summary
 	sb.WriteString("=== Benchmark Report ===\n\n")
-	sb.WriteString(fmt.Sprintf("Runs: %d  |  Variants: %d  |  Tasks: %d  |  Total cost: $%.2f\n",
+	taskInfo := fmt.Sprintf("%d", report.Summary.TotalTasks)
+	if report.Summary.ExcludedTasks > 0 {
+		taskInfo = fmt.Sprintf("%d (%d excluded)", report.Summary.TotalTasks, report.Summary.ExcludedTasks)
+	}
+	sb.WriteString(fmt.Sprintf("Runs: %d  |  Variants: %d  |  Tasks: %s  |  Total cost: $%.2f\n",
 		report.Summary.TotalRuns, report.Summary.TotalVariants,
-		report.Summary.TotalTasks, report.Summary.TotalCostUSD))
+		taskInfo, report.Summary.TotalCostUSD))
 	sb.WriteString(fmt.Sprintf("Baseline pass rate: %.0f%%\n\n", report.Summary.BaselinePassRate))
 
 	// Phase leaderboards
@@ -499,8 +577,26 @@ func FormatReport(report *FullReport) string {
 			if i == 0 {
 				winner = " <-- best"
 			}
-			sb.WriteString(fmt.Sprintf("  #%d  %-30s  %s/%-15s  pass: %5.1f%%  cost/success: $%.4f  samples: %d%s\n",
-				rank, e.VariantID, e.Provider, e.Model, e.PassRate, e.CostPerSuccess, e.SampleSize, winner))
+			judgeInfo := ""
+			if len(e.JudgeScores) > 0 {
+				judgeInfo = fmt.Sprintf("  judge-correct: %5.1f%%", e.JudgeCorrectPct)
+			}
+			fmt.Fprintf(&sb, "  #%d  %-30s  %s/%-15s  pass: %5.1f%%%s  cost/success: $%.4f  samples: %d%s\n",
+				rank, e.VariantID, e.Provider, e.Model, e.PassRate, judgeInfo, e.CostPerSuccess, e.SampleSize, winner)
+			// Per-judge breakdown if available
+			if len(e.JudgeScores) > 0 {
+				var parts []string
+				for jModel, avg := range e.JudgeScores {
+					// Shorten model name for display
+					short := jModel
+					if idx := strings.LastIndex(jModel, "/"); idx >= 0 {
+						short = jModel[idx+1:]
+					}
+					parts = append(parts, fmt.Sprintf("%s=%.2f", short, avg))
+				}
+				sort.Strings(parts) // Deterministic order
+				fmt.Fprintf(&sb, "       judge functional_correctness: %s\n", strings.Join(parts, "  "))
+			}
 		}
 		sb.WriteString("\n")
 	}

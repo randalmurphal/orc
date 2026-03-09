@@ -66,6 +66,10 @@ type CodexExecutor struct {
 	env             map[string]string // extra env vars for process
 	addDirs         []string          // additional accessible directories
 
+	// CLI-level timeout (default: 30 minutes). The llmkit default (5m) is too
+	// short for extended reasoning on large repos.
+	timeout time.Duration
+
 	// Schema validation retry limit for non-guaranteed structured output
 	schemaRetries int
 }
@@ -174,6 +178,13 @@ func WithCodexAddDirs(dirs []string) CodexExecutorOption {
 	return func(e *CodexExecutor) { e.addDirs = dirs }
 }
 
+// WithCodexTimeout sets the CLI-level timeout for codex commands.
+// Default is 30 minutes. The llmkit default (5m) is too short for extended
+// reasoning with xhigh effort on large repositories.
+func WithCodexTimeout(d time.Duration) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.timeout = d }
+}
+
 // WithCodexSchemaRetries sets the number of schema validation retries.
 // Default is 2 (total 3 attempts including the first).
 func WithCodexSchemaRetries(retries int) CodexExecutorOption {
@@ -187,6 +198,7 @@ func NewCodexExecutor(opts ...CodexExecutorOption) *CodexExecutor {
 		logger:                    slog.Default(),
 		bypassApprovalsAndSandbox: true,
 		schemaRetries:             2,
+		timeout:                   30 * time.Minute,
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -381,6 +393,7 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 func (e *CodexExecutor) buildCLIOptions(schemaFile string) []codex.CodexOption {
 	opts := []codex.CodexOption{
 		codex.WithWorkdir(e.workdir),
+		codex.WithTimeout(e.timeout),
 	}
 
 	if e.bypassApprovalsAndSandbox {
