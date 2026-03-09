@@ -30,7 +30,7 @@ func TestImplementTemplate_ForwardLookingIntegrationCheck(t *testing.T) {
 	}
 }
 
-func TestImplementTemplate_SelfReviewDeadCodeChecklist(t *testing.T) {
+func TestImplementTemplate_VerifyAndCompleteDeadCodeChecklist(t *testing.T) {
 	content, err := Prompts.ReadFile("prompts/implement.md")
 	if err != nil {
 		t.Fatal("failed to read implement.md:", err)
@@ -38,24 +38,24 @@ func TestImplementTemplate_SelfReviewDeadCodeChecklist(t *testing.T) {
 
 	text := string(content)
 
-	// Find the Step 7 Self-Review section to scope our checks
-	step7Idx := strings.Index(text, "## Step 7: Self-Review")
-	if step7Idx == -1 {
-		t.Fatal("implement template missing 'Step 7: Self-Review' section")
+	// Find the Step 5: Verify and Complete section to scope our checks
+	step5Idx := strings.Index(text, "## Step 5: Verify and Complete")
+	if step5Idx == -1 {
+		t.Fatal("implement template missing 'Step 5: Verify and Complete' section")
 	}
 
-	// Look at content from Step 7 onward until the next major section
-	step7Section := text[step7Idx:]
-	nextSection := strings.Index(step7Section[1:], "\n## ")
+	// Look at content from Step 5 onward until the next top-level step
+	step5Section := text[step5Idx:]
+	nextSection := strings.Index(step5Section[1:], "\n## Step ")
 	if nextSection > 0 {
-		step7Section = step7Section[:nextSection+1]
+		step5Section = step5Section[:nextSection+1]
 	}
 
-	if !strings.Contains(step7Section, "new functions") || !strings.Contains(step7Section, "production code") {
-		t.Error("Step 7 Self-Review missing checklist item about new functions being called from production code (no dead code)")
+	if !strings.Contains(step5Section, "new functions") || !strings.Contains(step5Section, "production code") {
+		t.Error("Step 5 Verify and Complete missing checklist item about new functions being called from production code (no dead code)")
 	}
 
-	if !strings.Contains(step7Section, "new interfaces") || !strings.Contains(step7Section, "registered") || !strings.Contains(step7Section, "wired") {
-		t.Error("Step 7 Self-Review missing checklist item about new interfaces being registered/wired into the system")
+	if !strings.Contains(step5Section, "new interfaces") || !strings.Contains(step5Section, "registered") || !strings.Contains(step5Section, "wired") {
+		t.Error("Step 5 Verify and Complete missing checklist item about new interfaces being registered/wired into the system")
 	}
 }

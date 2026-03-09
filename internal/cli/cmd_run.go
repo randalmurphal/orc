@@ -167,6 +167,12 @@ func runRun(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("seed workflows: %w", err)
 	}
 
+	// Seed built-in workflows into project DB too — ProjectDB has FK constraints
+	// on workflow_runs → workflows and workflow_run_phases → phase_templates
+	if _, err := workflow.SeedBuiltinsToProject(pdb); err != nil {
+		return fmt.Errorf("seed project workflows: %w", err)
+	}
+
 	// Seed built-in agents and phase-agent associations
 	if _, err := workflow.SeedAgents(gdb); err != nil {
 		return fmt.Errorf("seed agents: %w", err)

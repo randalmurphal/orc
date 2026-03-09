@@ -17,10 +17,10 @@ This happens when:
 
 Before outputting completion JSON, you MUST run all FIVE checks and include evidence for each:
 
-1. **Tests**: Run `{{TEST_COMMAND}}` — exit code 0, all tests pass. If fails: fix implementation and re-run.
+1. **Tests**: Run `{{TEST_COMMAND}}` — your tests must pass. If tests fail in packages you didn't touch, note as pre-existing.
 2. **Success Criteria**: For each SC-X in spec, run its verification method, record PASS/FAIL with evidence. If any FAIL: fix and re-verify.
-3. **Build**: {{#if BUILD_COMMAND}}Run `{{BUILD_COMMAND}}`{{else}}Run the project build command{{/if}} — if fails, fix build errors.
-4. **Linting**: {{#if LINT_COMMAND}}Run `{{LINT_COMMAND}}`{{else}}Run the project linter{{/if}} — if fails, fix lint errors.
+3. **Build**: {{#if BUILD_COMMAND}}Run `{{BUILD_COMMAND}}`{{else}}Run the project build command{{/if}} — fix build errors ONLY in files you modified.
+4. **Linting**: Run linter on files you changed (`git diff --name-only`). Fix lint errors in YOUR code only. Pre-existing issues in other files are out of scope.
 5. **Wiring**: For EVERY new file created, grep the codebase to find which production file imports it. If no production file imports it → dead code → FAIL.
 
 ## Completion Output Format
@@ -52,6 +52,29 @@ Do not add error handling for scenarios that can't occur.
 Do not design for hypothetical future requirements.
 Three similar lines of code are better than a premature abstraction.
 </over_engineering_guard>
+
+<scope_discipline>
+## CRITICAL: Stay Within Task Scope
+
+You are responsible ONLY for the files and changes described in your task. If you encounter problems outside your task scope — pre-existing lint failures, broken tests in unrelated packages, tech debt in other files — **do not fix them**.
+
+**Your scope boundary:**
+- Files listed in the plan/spec
+- Files you must touch to wire your changes into production paths
+- Tests for the code you wrote or modified
+
+**When you encounter out-of-scope issues:**
+1. Note them in your completion output under a `pre_existing_issues` field
+2. Do NOT spend tokens fixing them
+3. If they block YOUR work (e.g., a broken import you depend on), output `{"status": "blocked", "reason": "Pre-existing issue blocks this task: [details]"}`
+
+**When something unexpected happens during verification:**
+- Quality checks find failures in files you didn't touch → skip, note as pre-existing
+- Tests fail in packages you didn't modify → skip, note as pre-existing
+- The build breaks due to issues outside your changes → output blocked status
+
+**The rule:** If you can `git diff` your changes and the issue isn't in the diff, it's not your problem.
+</scope_discipline>
 
 <no_op_guard>
 ## Optional Props with Empty Fallbacks = NO-OP (BANNED PATTERN)
@@ -252,9 +275,11 @@ Implement fully — no TODOs, no placeholders, no commented-out code. Handle edg
 
 Follow existing code patterns. Stay within scope but be thorough within that scope.
 
-## Step 5: Self-Review
+## Step 5: Verify and Complete
 
-Before completing, verify:
+### Self-Review Checklist
+
+Before running verification, confirm:
 - All success criteria addressed
 - All TDD tests pass
 - All breakdown items completed (if provided)
@@ -263,14 +288,14 @@ Before completing, verify:
 - Code follows project patterns
 - No TODO comments left behind
 
-## Step 7: Self-Review and Wiring Verification
+### Dead Code Prevention Checklist
 
-**Dead code prevention checklist:**
 - All new functions are called from at least one production code path (no dead code)
 - All new interfaces are registered and wired into the system
 - No unused imports, variables, or helper functions left behind
 
-**Behavioral parity checklist (for parallel/async/alternate paths):**
+### Behavioral Parity Checklist (for parallel/async/alternate paths)
+
 If you added a new execution path that mirrors an existing one:
 - List ALL behaviors from the original path
 - Verify EACH behavior exists in the new path
@@ -281,10 +306,41 @@ If you added a new execution path that mirrors an existing one:
   - Error handling
   - Logging/metrics
 
-**Integration verification:**
+### Integration Verification
+
 For each new function/interface, answer: "What production code path calls this?"
 - If you can't answer → you have dead code → wire it in or delete it
 - If the answer is "tests only" → that's dead code (tests don't ship)
+
+### Run Verification
+
+Execute all checks and include evidence for each in your completion output:
+1. Run `{{TEST_COMMAND}}` — all TDD tests must pass. Fix implementation (not tests) on failure. If tests fail in packages you didn't touch, note them as pre-existing but don't fix them.
+2. Verify each success criterion from the spec — run its verification method, record PASS/FAIL with evidence.
+3. {{#if BUILD_COMMAND}}Run `{{BUILD_COMMAND}}`{{else}}Run the project build command{{/if}} — fix build errors ONLY in files you modified. Pre-existing build failures are not your responsibility.
+4. {{#if LINT_COMMAND}}Run `{{LINT_COMMAND}}` on the files you changed (not the whole project){{else}}Run the project linter on files you changed{{/if}} — fix lint errors ONLY in your changes. Pre-existing lint failures in other files are not your problem. Use `git diff --name-only` to identify your files.
+5. **Wiring check** — For each new file created, grep the codebase to confirm a production file imports it. Dead code = FAIL.
+6. **Behavioral parity check** — If you added a parallel/async path, verify ALL original behaviors are present.
+
+**Only output completion JSON after all checks pass.** See Output Format for the exact schema.
+
+**Pre-existing issues:** If you found issues outside your scope, include them as informational:
+```json
+"pre_existing_issues": ["golangci-lint: 3 unchecked errors in internal/bench/store_test.go (not in scope)"]
+```
+
+## Step 6: Commit Your Changes
+
+Before outputting completion JSON, commit all work to preserve it:
+
+```bash
+git add -A
+git commit -m "[orc] {{TASK_ID}}: implement - [brief description]
+
+Co-Authored-By: {{COMMIT_AUTHOR}}"
+```
+
+**CRITICAL:** Always commit before claiming completion. Uncommitted work may be lost if execution is interrupted or the task fails.
 
 ## Completion Criteria
 
@@ -300,35 +356,6 @@ If the spec doesn't match reality, document amendments:
 AMEND-001: [Original] → [Actual] — [Reason]
 ```
 </instructions>
-
-<verification>
-## Step 6: Verify and Complete
-
-Execute the verification steps defined in the Output Format section above:
-1. Run `{{TEST_COMMAND}}` — all TDD tests must pass. Fix implementation (not tests) on failure.
-2. Verify each success criterion from the spec — run its verification method, record PASS/FAIL with evidence.
-3. {{#if BUILD_COMMAND}}Run `{{BUILD_COMMAND}}`{{else}}Run the project build command{{/if}} — fix any build errors.
-4. {{#if LINT_COMMAND}}Run `{{LINT_COMMAND}}`{{else}}Run the project linter{{/if}} — fix lint errors (unchecked returns, unused imports, type errors).
-5. **Wiring check** — For each new function/interface, grep to confirm it's called from production code. Dead code = FAIL.
-6. **Behavioral parity check** — If you added a parallel/async path, verify ALL original behaviors are present.
-
-**Only output completion JSON after all six checks pass.** See Output Format for the exact schema.
-</verification>
-
-<commit_step>
-## Step 7: Commit Your Changes
-
-Before outputting completion JSON, commit all work to preserve it:
-
-```bash
-git add -A
-git commit -m "[orc] {{TASK_ID}}: implement - [brief description]
-
-Co-Authored-By: {{COMMIT_AUTHOR}}"
-```
-
-**CRITICAL:** Always commit before claiming completion. Uncommitted work may be lost if execution is interrupted or the task fails.
-</commit_step>
 
 <example_good_completion>
 {

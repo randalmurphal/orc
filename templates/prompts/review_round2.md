@@ -91,6 +91,37 @@ For each issue from round 1:
 - [ ] Did the fix introduce any regressions?
 - [ ] Is the fix complete or partial?
 
+### Rationalization Anti-Patterns
+
+The implement phase rationalizes incomplete fixes. Reject these:
+
+- **"Tests pass so it works"** — Tests may cover the fix in isolation but not through production paths. Verify end-to-end.
+- **"Optional props with empty fallbacks"** — If SC says behavior works NOW, empty fallbacks = no-op. Props must be wired, not optional.
+- **"Documented as future improvement"** — SC requirements are not "future." If the spec says it works, it must work NOW.
+- **"Good progress, just needs wiring later"** — Unwired code is dead code. Task must be complete per spec.
+
+### Step 2b: Integration Re-Verification
+
+For any new files created during the fix, verify they have production callers. Fixes that create new dead code are high-severity.
+
+```bash
+# For each new file introduced by the fix:
+grep -rn "NewFunction\|new_module" path/to/production/code/  # Must find a caller
+```
+
+If the fix refactored code into a new helper/file but nothing imports it, this is a HIGH-SEVERITY finding — the fix itself introduced dead code.
+
+### Step 2c: Spec Compliance Re-Check
+
+Verify each success criterion (SC-X) from the original spec is still met after fixes. Fixes that break previously-passing criteria are regressions.
+
+For each SC:
+- [ ] Was it passing before the fix? If yes, is it still passing?
+- [ ] Did the fix change code paths that satisfy other SCs?
+- [ ] Do existing tests for unrelated SCs still pass?
+
+A fix that resolves one issue but breaks a previously-passing SC is a HIGH-SEVERITY regression — not progress.
+
 ## Step 3: Check for New Issues
 
 While reviewing the fixes:

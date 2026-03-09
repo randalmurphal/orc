@@ -168,22 +168,36 @@ Spawn ALL of these in parallel using the Task tool:
 
 | Agent | subagent_type | Purpose |
 |-------|---------------|---------|
-| Code Reviewer | `Reviewer` | Guidelines compliance, patterns, code quality |
+| Code Reviewer | `Reviewer` | Guidelines compliance, patterns, dead code detection |
 | Security Auditor | `Security-Auditor` | OWASP Top 10, injection, auth bypass |
+| Over-Engineering Detector | `over-engineering-detector` | Scope creep, unnecessary abstractions, unrequested features |
+| Silent Failure Hunter | `silent-failure-hunter` | Swallowed errors, empty catch blocks, silent fallbacks |
 
 For each agent, provide:
 - The spec content and success criteria
-- The list of changed files
+- The list of changed files (use `git diff {{TARGET_BRANCH}}..HEAD --name-only`)
 - The task context (ID, category, weight)
 
 **Wait for all agents to complete before making your final decision.** Incorporate their findings into your assessment.
 
 Example agent spawn:
 ```
-Task tool with subagent_type="Reviewer", prompt="Review these changes for TASK-XXX:
-[spec summary]
-[changed files list]
-Focus on: integration completeness, dead code, behavioral correctness"
+Task tool with subagent_type="Reviewer", prompt="Review changes for {{TASK_ID}}:
+
+Spec summary: [paste success criteria]
+Changed files: [paste git diff --name-only output]
+Task: {{TASK_ID}} ({{TASK_CATEGORY}}, weight {{WEIGHT}})
+
+Focus on: integration completeness, dead code, behavioral correctness per spec"
+```
+
+```
+Task tool with subagent_type="silent-failure-hunter", prompt="Hunt for silent failures in {{TASK_ID}}:
+
+Changed files: [paste git diff --name-only output]
+
+Focus on: swallowed errors, empty catch blocks, functions that return nil on error,
+fallback values that hide failures, missing error propagation"
 ```
 
 **If you skip this step, your review is incomplete and will miss issues.**

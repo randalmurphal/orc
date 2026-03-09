@@ -1,0 +1,46 @@
+id: crossmodel-standard
+name: "Cross-Model Standard"
+description: "Opus plans, GPT 5.4 implements, Opus reviews. Cross-model coverage breaks echo chambers."
+
+# Model strategy:
+#   plan     → Opus (ambiguity handling, codebase exploration, nuanced reasoning)
+#   implement → GPT 5.4 via Codex (surgical execution, literal compliance, token-efficient)
+#   review   → Opus (catches what GPT missed, different training data = different blind spots)
+#   docs     → GPT 5.4 via Codex (straightforward, well-specified output)
+
+phases:
+  - template: plan
+    sequence: 0
+
+  - template: implement_codex
+    sequence: 1
+    depends_on: ["plan"]
+
+  - template: review
+    sequence: 2
+    depends_on: ["implement_codex"]
+    loop_config:
+      loop_to_phase: implement_codex
+      condition:
+        field: "phase_output.review.needs_changes"
+        op: "eq"
+        value: "true"
+      max_loops: 2
+      loop_templates:
+        "1": "prompts/review.md"
+        default: "prompts/review_round2.md"
+      loop_schemas:
+        "1": "ReviewFindingsSchema"
+        default: "ReviewDecisionSchema"
+
+  - template: docs
+    sequence: 3
+    depends_on: ["review"]
+    provider_override: codex
+    model_override: gpt-5.4
+
+triggers:
+  - event: on_initiative_planned
+    agent_id: dependency-validator
+    mode: gate
+    enabled: true

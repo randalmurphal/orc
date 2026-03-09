@@ -10,26 +10,39 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 )
 
+// WorkflowStore is the interface for workflow/phase CRUD operations.
+// Both *db.GlobalDB and *db.ProjectDB implement this.
+type WorkflowStore interface {
+	GetPhaseTemplate(id string) (*db.PhaseTemplate, error)
+	SavePhaseTemplate(pt *db.PhaseTemplate) error
+	GetWorkflow(id string) (*db.Workflow, error)
+	SaveWorkflow(w *db.Workflow) error
+	GetWorkflowPhases(workflowID string) ([]*db.WorkflowPhase, error)
+	SaveWorkflowPhase(wp *db.WorkflowPhase) error
+	DeleteWorkflowPhase(workflowID, phaseTemplateID string) error
+	SaveWorkflowVariable(wv *db.WorkflowVariable) error
+}
+
 // CacheService manages the workflow/phase cache in the database.
 // Files are the source of truth; DB is a fast runtime cache.
 type CacheService struct {
 	resolver *Resolver
-	gdb      *db.GlobalDB
+	store    WorkflowStore
 }
 
 // NewCacheService creates a new cache service.
-func NewCacheService(resolver *Resolver, gdb *db.GlobalDB) *CacheService {
+func NewCacheService(resolver *Resolver, store WorkflowStore) *CacheService {
 	return &CacheService{
 		resolver: resolver,
-		gdb:      gdb,
+		store:    store,
 	}
 }
 
 // NewCacheServiceFromOrcDir creates a cache service for a project.
-func NewCacheServiceFromOrcDir(orcDir string, gdb *db.GlobalDB) *CacheService {
+func NewCacheServiceFromOrcDir(orcDir string, store WorkflowStore) *CacheService {
 	return NewCacheService(
 		NewResolverFromOrcDir(orcDir),
-		gdb,
+		store,
 	)
 }
 
@@ -54,14 +67,14 @@ func (c *CacheService) SyncAll() (*SyncResult, error) {
 
 	for _, rp := range phases {
 		dbPhase := workflowPhaseToDBPhase(rp.Phase, rp.Source)
-		existing, err := c.gdb.GetPhaseTemplate(rp.Phase.ID)
+		existing, err := c.store.GetPhaseTemplate(rp.Phase.ID)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("get phase %s: %v", rp.Phase.ID, err))
 			continue
 		}
 
 		if existing == nil {
-			if err := c.gdb.SavePhaseTemplate(dbPhase); err != nil {
+			if err := c.store.SavePhaseTemplate(dbPhase); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("save phase %s: %v", rp.Phase.ID, err))
 				continue
 			}
@@ -69,7 +82,7 @@ func (c *CacheService) SyncAll() (*SyncResult, error) {
 		} else {
 			// Check if file is newer (for file-based sources)
 			if c.shouldUpdatePhase(existing, rp) {
-				if err := c.gdb.SavePhaseTemplate(dbPhase); err != nil {
+				if err := c.store.SavePhaseTemplate(dbPhase); err != nil {
 					result.Errors = append(result.Errors, fmt.Sprintf("update phase %s: %v", rp.Phase.ID, err))
 					continue
 				}
@@ -86,7 +99,7 @@ func (c *CacheService) SyncAll() (*SyncResult, error) {
 
 	for _, rw := range workflows {
 		dbWorkflow := workflowToDBWorkflow(rw.Workflow, rw.Source)
-		existing, err := c.gdb.GetWorkflow(rw.Workflow.ID)
+		existing, err := c.store.GetWorkflow(rw.Workflow.ID)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("get workflow %s: %v", rw.Workflow.ID, err))
 			continue
@@ -136,7 +149,7 @@ func (c *CacheService) SyncPhase(id string) error {
 	}
 
 	dbPhase := workflowPhaseToDBPhase(rp.Phase, rp.Source)
-	return c.gdb.SavePhaseTemplate(dbPhase)
+	return c.store.SavePhaseTemplate(dbPhase)
 }
 
 // IsStale checks if any workflow or phase files are newer than their DB entries.
@@ -147,7 +160,7 @@ func (c *CacheService) IsStale() (bool, error) {
 	}
 
 	for _, rw := range workflows {
-		existing, err := c.gdb.GetWorkflow(rw.Workflow.ID)
+		existing, err := c.store.GetWorkflow(rw.Workflow.ID)
 		if err != nil {
 			return true, nil // Error = stale
 		}
@@ -165,7 +178,7 @@ func (c *CacheService) IsStale() (bool, error) {
 	}
 
 	for _, rp := range phases {
-		existing, err := c.gdb.GetPhaseTemplate(rp.Phase.ID)
+		existing, err := c.store.GetPhaseTemplate(rp.Phase.ID)
 		if err != nil {
 			return true, nil
 		}
@@ -193,21 +206,21 @@ func (c *CacheService) ForceSync() (*SyncResult, error) {
 
 	for _, rp := range phases {
 		dbPhase := workflowPhaseToDBPhase(rp.Phase, rp.Source)
-		existing, err := c.gdb.GetPhaseTemplate(rp.Phase.ID)
+		existing, err := c.store.GetPhaseTemplate(rp.Phase.ID)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("get phase %s: %v", rp.Phase.ID, err))
 			continue
 		}
 
 		if existing == nil {
-			if err := c.gdb.SavePhaseTemplate(dbPhase); err != nil {
+			if err := c.store.SavePhaseTemplate(dbPhase); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("save phase %s: %v", rp.Phase.ID, err))
 				continue
 			}
 			result.PhasesAdded++
 		} else {
 			// Force update regardless of source
-			if err := c.gdb.SavePhaseTemplate(dbPhase); err != nil {
+			if err := c.store.SavePhaseTemplate(dbPhase); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("update phase %s: %v", rp.Phase.ID, err))
 				continue
 			}
@@ -223,7 +236,7 @@ func (c *CacheService) ForceSync() (*SyncResult, error) {
 
 	for _, rw := range workflows {
 		dbWorkflow := workflowToDBWorkflow(rw.Workflow, rw.Source)
-		existing, err := c.gdb.GetWorkflow(rw.Workflow.ID)
+		existing, err := c.store.GetWorkflow(rw.Workflow.ID)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("get workflow %s: %v", rw.Workflow.ID, err))
 			continue
@@ -290,13 +303,13 @@ func (c *CacheService) removeStalePhases(wf *Workflow) error {
 		currentPhaseIDs[phase.PhaseTemplateID] = true
 	}
 
-	existingPhases, err := c.gdb.GetWorkflowPhases(wf.ID)
+	existingPhases, err := c.store.GetWorkflowPhases(wf.ID)
 	if err != nil {
 		return fmt.Errorf("get existing workflow phases: %w", err)
 	}
 	for _, existing := range existingPhases {
 		if !currentPhaseIDs[existing.PhaseTemplateID] {
-			if err := c.gdb.DeleteWorkflowPhase(wf.ID, existing.PhaseTemplateID); err != nil {
+			if err := c.store.DeleteWorkflowPhase(wf.ID, existing.PhaseTemplateID); err != nil {
 				return fmt.Errorf("delete stale phase %s: %w", existing.PhaseTemplateID, err)
 			}
 			slog.Info("removed stale workflow phase",
@@ -309,14 +322,14 @@ func (c *CacheService) removeStalePhases(wf *Workflow) error {
 
 // saveWorkflowWithRelations saves a workflow and its phases/variables to the DB.
 func (c *CacheService) saveWorkflowWithRelations(wf *Workflow, dbWorkflow *db.Workflow) error {
-	if err := c.gdb.SaveWorkflow(dbWorkflow); err != nil {
+	if err := c.store.SaveWorkflow(dbWorkflow); err != nil {
 		return fmt.Errorf("save workflow: %w", err)
 	}
 
 	// Save phases
 	for _, phase := range wf.Phases {
 		dbPhase := workflowPhaseToDBWorkflowPhase(&phase)
-		if err := c.gdb.SaveWorkflowPhase(dbPhase); err != nil {
+		if err := c.store.SaveWorkflowPhase(dbPhase); err != nil {
 			return fmt.Errorf("save workflow phase %s: %w", phase.PhaseTemplateID, err)
 		}
 	}
@@ -329,7 +342,7 @@ func (c *CacheService) saveWorkflowWithRelations(wf *Workflow, dbWorkflow *db.Wo
 	// Save variables
 	for _, variable := range wf.Variables {
 		dbVar := workflowVariableToDBVariable(&variable)
-		if err := c.gdb.SaveWorkflowVariable(dbVar); err != nil {
+		if err := c.store.SaveWorkflowVariable(dbVar); err != nil {
 			return fmt.Errorf("save workflow variable %s: %w", variable.Name, err)
 		}
 	}

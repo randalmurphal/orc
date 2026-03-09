@@ -1,0 +1,14 @@
+id: review_cross
+name: "Cross-Model Review"
+description: "Independent review by a different model for fresh perspective"
+
+prompt_source: embedded
+prompt_path: prompts/review_cross.md
+
+input_variables: ["SPEC_CONTENT"]
+output_type: none
+produces_artifact: false
+
+thinking: true
+gate_type: auto
+checkpoint: true

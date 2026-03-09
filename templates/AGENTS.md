@@ -338,7 +338,7 @@ Before claiming completion, implement phase MUST:
 | `spec.md` | `integration_points_complete` | Every new file has corresponding integration point entry |
 | `tiny_spec.md` | `wiring_declared` | If creating new files, wiring field specifies importer |
 | `tdd_integrate.md` | `wiring_verification` | Integration tests import existing callers, not new code |
-| `implement.md` | Wiring check (step 5) | Every new file has production importer |
+| `implement.md` | Wiring check (Step 5) | Every new file has production importer |
 
 ## Review Conditionals
 
