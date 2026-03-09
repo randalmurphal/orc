@@ -167,20 +167,15 @@ func ResetExecutionStateProto(e *orcv1.ExecutionState) {
 	if e == nil {
 		return
 	}
-	// Clear all phase states
-	for phaseID := range e.Phases {
-		e.Phases[phaseID] = &orcv1.PhaseState{
-			Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
-			Tokens: &orcv1.TokenUsage{},
-		}
-	}
 
-	// Reset to initial state
-	// Note: retry state is stored in task metadata, not execution state
+	// Reset to a clean state with no persisted phase history.
 	e.CurrentIteration = 0
-	e.Error = nil
-	e.Session = nil
+	e.Phases = make(map[string]*orcv1.PhaseState)
 	e.Gates = nil
+	e.Tokens = &orcv1.TokenUsage{}
+	e.Cost = &orcv1.CostTracking{}
+	e.Session = nil
+	e.Error = nil
 }
 
 // AddCostProto adds cost to the execution state and optionally to the current phase.

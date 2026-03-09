@@ -520,12 +520,12 @@ func (p *ProjectDB) SetTaskExecutor(taskID string, pid int, hostname string) err
 	return err
 }
 
-// ClearTaskExecutor clears the executor info (PID, hostname) for a task.
+// ClearTaskExecutor clears the executor claim and heartbeat for a task.
 // Called when task completes, fails, or is paused to release the claim.
 func (p *ProjectDB) ClearTaskExecutor(taskID string) error {
 	_, err := p.Exec(`
 		UPDATE tasks
-		SET executor_pid = 0, executor_hostname = ''
+		SET executor_pid = 0, executor_hostname = '', last_heartbeat = NULL, executor_started_at = NULL
 		WHERE id = ?`,
 		taskID)
 	return err

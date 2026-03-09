@@ -6,11 +6,14 @@ package task
 import (
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+const freshResetMarkerKey = "_fresh_reset_pending"
 
 // NewProtoTask creates a new proto Task with sensible defaults.
 func NewProtoTask(id, title string) *orcv1.Task {
@@ -618,6 +621,154 @@ func UpdateTimestampProto(t *orcv1.Task) {
 		return
 	}
 	t.UpdatedAt = timestamppb.Now()
+}
+
+// ResetTaskForFreshRunProto clears task execution/runtime state so the next run starts cleanly.
+func ResetTaskForFreshRunProto(t *orcv1.Task) {
+	if t == nil {
+		return
+	}
+
+	EnsureExecutionProto(t)
+	ResetExecutionStateProto(t.Execution)
+	SetCurrentPhaseProto(t, "")
+
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	t.StartedAt = nil
+	t.CompletedAt = nil
+	t.LastHeartbeat = nil
+	t.ExecutorPid = 0
+	t.ExecutorHostname = nil
+	t.Quality = nil
+	t.Pr = nil
+
+	clearRunMetadataProto(t)
+	ClearRetryState(t)
+	EnsureMetadataProto(t)
+	t.Metadata[freshResetMarkerKey] = "true"
+	UpdateTimestampProto(t)
+}
+
+// IsFreshRunProto reports whether the task is in a clean pre-execution state.
+func IsFreshRunProto(t *orcv1.Task) bool {
+	if t == nil {
+		return false
+	}
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_CREATED && t.Status != orcv1.TaskStatus_TASK_STATUS_PLANNED {
+		return false
+	}
+	if GetCurrentPhaseProto(t) != "" || t.StartedAt != nil || t.CompletedAt != nil {
+		return false
+	}
+	if t.ExecutorPid != 0 || t.ExecutorHostname != nil || t.LastHeartbeat != nil {
+		return false
+	}
+	if HasPRProto(t) || GetRetryState(t) != nil {
+		return false
+	}
+	if t.Quality != nil {
+		if len(t.Quality.PhaseRetries) > 0 ||
+			t.Quality.ReviewRejections != 0 ||
+			t.Quality.ManualIntervention ||
+			t.Quality.ManualInterventionReason != nil ||
+			t.Quality.TotalRetries != 0 {
+			return false
+		}
+	}
+	if t.Execution == nil {
+		return true
+	}
+	if t.Execution.CurrentIteration != 0 || len(t.Execution.Gates) > 0 || t.Execution.Session != nil || t.Execution.Error != nil {
+		return false
+	}
+	if hasTokenUsageProto(t.Execution.Tokens) {
+		return false
+	}
+	if t.Execution.Cost != nil && (t.Execution.Cost.TotalCostUsd != 0 || len(t.Execution.Cost.PhaseCosts) > 0 || t.Execution.Cost.LastUpdatedAt != nil) {
+		return false
+	}
+	for _, phase := range t.Execution.Phases {
+		if phase == nil {
+			continue
+		}
+		if phase.Status != orcv1.PhaseStatus_PHASE_STATUS_PENDING && phase.Status != orcv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED {
+			return false
+		}
+		if phase.StartedAt != nil ||
+			phase.CompletedAt != nil ||
+			phase.InterruptedAt != nil ||
+			phase.Iterations != 0 ||
+			phase.CommitSha != nil ||
+			len(phase.Artifacts) > 0 ||
+			phase.Error != nil ||
+			hasTokenUsageProto(phase.Tokens) ||
+			len(phase.ValidationHistory) > 0 ||
+			phase.SessionId != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func clearRunMetadataProto(t *orcv1.Task) {
+	EnsureMetadataProto(t)
+
+	for key := range t.Metadata {
+		if strings.HasPrefix(key, "phase:") {
+			delete(t.Metadata, key)
+		}
+	}
+
+	for _, key := range []string{
+		"closed",
+		"closed_at",
+		"close_message",
+		"force_closed",
+		"original_status",
+		"pr_was_merged",
+		"worktree_was_dirty",
+		"worktree_had_conflicts",
+		"worktree_had_incomplete_operation",
+		"completion_skipped",
+		"completion_note",
+		freshResetMarkerKey,
+	} {
+		delete(t.Metadata, key)
+	}
+
+	if len(t.Metadata) == 0 {
+		t.Metadata = nil
+	}
+}
+
+// HasFreshResetMarkerProto reports whether the task was explicitly reset for a fresh rerun.
+func HasFreshResetMarkerProto(t *orcv1.Task) bool {
+	if t == nil || t.Metadata == nil {
+		return false
+	}
+	return t.Metadata[freshResetMarkerKey] == "true"
+}
+
+// ClearFreshResetMarkerProto removes the fresh-reset rerun marker.
+func ClearFreshResetMarkerProto(t *orcv1.Task) {
+	if t == nil || t.Metadata == nil {
+		return
+	}
+	delete(t.Metadata, freshResetMarkerKey)
+	if len(t.Metadata) == 0 {
+		t.Metadata = nil
+	}
+}
+
+func hasTokenUsageProto(tokens *orcv1.TokenUsage) bool {
+	if tokens == nil {
+		return false
+	}
+	return tokens.InputTokens != 0 ||
+		tokens.OutputTokens != 0 ||
+		tokens.CacheCreationInputTokens != 0 ||
+		tokens.CacheReadInputTokens != 0 ||
+		tokens.TotalTokens != 0
 }
 
 // EnsureExecutionProto initializes the Execution field if nil.
