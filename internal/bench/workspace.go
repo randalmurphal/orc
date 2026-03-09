@@ -143,11 +143,17 @@ func ensureBenchGitignore(worktreePath string) {
 
 	// Ensure we start on a new line
 	if len(existing) > 0 && existing[len(existing)-1] != '\n' {
-		f.WriteString("\n")
+		if _, err := f.WriteString("\n"); err != nil {
+			return
+		}
 	}
-	f.WriteString("# Added by orc bench (prevent large diffs from generated dirs)\n")
+	if _, err := f.WriteString("# Added by orc bench (prevent large diffs from generated dirs)\n"); err != nil {
+		return
+	}
 	for _, entry := range toAdd {
-		f.WriteString(entry + "\n")
+		if _, err := f.WriteString(entry + "\n"); err != nil {
+			return
+		}
 	}
 }
 
@@ -169,4 +175,3 @@ func (w *Workspace) CleanupRun(runID string, repoDir string) {
 	// Remove directory if it still exists
 	_ = os.RemoveAll(worktreePath)
 }
-

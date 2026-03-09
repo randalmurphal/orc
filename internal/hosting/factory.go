@@ -17,7 +17,7 @@ type Config struct {
 	BaseURL string `yaml:"base_url" json:"base_url,omitempty"`
 
 	// TokenEnvVar overrides the default token environment variable name.
-	// Default: GITHUB_TOKEN for GitHub, GITLAB_TOKEN for GitLab.
+	// Default: ORC_GITHUB_TOKEN for GitHub, ORC_GITLAB_TOKEN for GitLab.
 	TokenEnvVar string `yaml:"token_env_var" json:"token_env_var,omitempty"`
 }
 

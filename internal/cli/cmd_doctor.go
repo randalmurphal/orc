@@ -21,7 +21,7 @@ func newDoctorCmd() *cobra.Command {
 				return err
 			}
 
-			cfg, err := config.Load()
+			cfg, err := config.LoadFrom(projectRoot)
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}

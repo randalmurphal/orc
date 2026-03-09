@@ -209,7 +209,9 @@ func TestEnsureAdditionalPropertiesFalse(t *testing.T) {
 		result := ensureAdditionalPropertiesFalse(schema)
 
 		var parsed map[string]any
-		json.Unmarshal([]byte(result), &parsed)
+		if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+			t.Fatalf("unmarshal schema: %v", err)
+		}
 		props := parsed["properties"].(map[string]any)
 		items := props["items"].(map[string]any)
 		itemSchema := items["items"].(map[string]any)

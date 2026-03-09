@@ -51,12 +51,3 @@ func stringifyJSONValue(value any) string {
 		return fmt.Sprintf("%v", typed)
 	}
 }
-
-func jsonArrayHasItems(content string, path string) bool {
-	value, found, err := lookupJSONPathValue(content, path)
-	if err != nil || !found {
-		return false
-	}
-	items, ok := value.([]any)
-	return ok && len(items) > 0
-}

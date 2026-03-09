@@ -139,7 +139,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load config
-	orcConfig, err := config.Load()
+	orcConfig, err := config.LoadFrom(projectRoot)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}

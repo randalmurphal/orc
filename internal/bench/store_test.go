@@ -77,7 +77,9 @@ func TestStoreTaskCRUD(t *testing.T) {
 
 	// Need a project first
 	p := &Project{ID: "zod", RepoURL: "https://github.com/colinhacks/zod", CommitHash: "abc", Language: "typescript", TestCmd: "npm test"}
-	store.SaveProject(ctx, p)
+	if err := store.SaveProject(ctx, p); err != nil {
+		t.Fatalf("save project: %v", err)
+	}
 
 	task := &Task{
 		ID:             "zod-001",
@@ -171,7 +173,9 @@ func TestStoreVariantCRUD(t *testing.T) {
 		BaseWorkflow: "medium",
 		IsBaseline:   true,
 	}
-	store.SaveVariant(ctx, baseline)
+	if err := store.SaveVariant(ctx, baseline); err != nil {
+		t.Fatalf("save baseline variant: %v", err)
+	}
 
 	got, err = store.GetBaselineVariant(ctx)
 	if err != nil {
@@ -204,22 +208,26 @@ func TestTasksForVariant(t *testing.T) {
 	ctx := context.Background()
 
 	// Create project and one task per tier
-	store.SaveProject(ctx, &Project{ID: "p", RepoURL: "http://p", CommitHash: "abc", Language: "go", TestCmd: "go test"})
+	if err := store.SaveProject(ctx, &Project{ID: "p", RepoURL: "http://p", CommitHash: "abc", Language: "go", TestCmd: "go test"}); err != nil {
+		t.Fatalf("save project: %v", err)
+	}
 	for _, tier := range []Tier{TierTrivial, TierSmall, TierMedium, TierLarge} {
-		store.SaveTask(ctx, &Task{
+		if err := store.SaveTask(ctx, &Task{
 			ID: "t-" + string(tier), ProjectID: "p", Tier: tier,
 			Title: string(tier), Description: "d", PreFixCommit: "abc",
-		})
+		}); err != nil {
+			t.Fatalf("save task %s: %v", tier, err)
+		}
 	}
 
 	tests := []struct {
-		name       string
-		variant    *Variant
-		wantTiers  []Tier
+		name      string
+		variant   *Variant
+		wantTiers []Tier
 	}{
 		{
-			name: "baseline gets all tasks",
-			variant: &Variant{ID: "base", Name: "b", BaseWorkflow: "implement-medium", IsBaseline: true},
+			name:      "baseline gets all tasks",
+			variant:   &Variant{ID: "base", Name: "b", BaseWorkflow: "implement-medium", IsBaseline: true},
 			wantTiers: []Tier{TierTrivial, TierSmall, TierMedium, TierLarge},
 		},
 		{
@@ -253,8 +261,8 @@ func TestTasksForVariant(t *testing.T) {
 			wantTiers: []Tier{TierLarge},
 		},
 		{
-			name: "empty overrides (non-baseline) gets all tasks",
-			variant: &Variant{ID: "v6", Name: "v", BaseWorkflow: "implement-medium"},
+			name:      "empty overrides (non-baseline) gets all tasks",
+			variant:   &Variant{ID: "v6", Name: "v", BaseWorkflow: "implement-medium"},
 			wantTiers: []Tier{TierTrivial, TierSmall, TierMedium, TierLarge},
 		},
 	}
@@ -293,9 +301,15 @@ func TestStoreRunAndPhaseResults(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup
-	store.SaveProject(ctx, &Project{ID: "test", RepoURL: "http://test", CommitHash: "abc", Language: "go", TestCmd: "go test"})
-	store.SaveTask(ctx, &Task{ID: "test-001", ProjectID: "test", Tier: TierSmall, Title: "t", Description: "d", PreFixCommit: "abc"})
-	store.SaveVariant(ctx, &Variant{ID: "baseline", Name: "b", BaseWorkflow: "small", IsBaseline: true})
+	if err := store.SaveProject(ctx, &Project{ID: "test", RepoURL: "http://test", CommitHash: "abc", Language: "go", TestCmd: "go test"}); err != nil {
+		t.Fatalf("save project: %v", err)
+	}
+	if err := store.SaveTask(ctx, &Task{ID: "test-001", ProjectID: "test", Tier: TierSmall, Title: "t", Description: "d", PreFixCommit: "abc"}); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	if err := store.SaveVariant(ctx, &Variant{ID: "baseline", Name: "b", BaseWorkflow: "small", IsBaseline: true}); err != nil {
+		t.Fatalf("save variant: %v", err)
+	}
 
 	run := &Run{
 		ID:          "run-001",
@@ -324,16 +338,16 @@ func TestStoreRunAndPhaseResults(t *testing.T) {
 
 	// Phase results
 	pr := &PhaseResult{
-		RunID:       "run-001",
-		PhaseID:     "implement",
-		Provider:    "claude",
-		Model:       "opus",
-		InputTokens: 1000,
+		RunID:        "run-001",
+		PhaseID:      "implement",
+		Provider:     "claude",
+		Model:        "opus",
+		InputTokens:  1000,
 		OutputTokens: 500,
-		CostUSD:     0.05,
-		DurationMs:  30000,
-		TestPass:    true,
-		TestCount:   5,
+		CostUSD:      0.05,
+		DurationMs:   30000,
+		TestPass:     true,
+		TestCount:    5,
 	}
 	if err := store.SavePhaseResult(ctx, pr); err != nil {
 		t.Fatalf("save phase result: %v", err)
@@ -403,7 +417,9 @@ func TestStoreFrozenOutputs(t *testing.T) {
 		OutputContent: `{"content": "Tests..."}`,
 		OutputVarName: "TDD_TESTS_CONTENT",
 	}
-	store.SaveFrozenOutput(ctx, fo2)
+	if err := store.SaveFrozenOutput(ctx, fo2); err != nil {
+		t.Fatalf("save second frozen output: %v", err)
+	}
 
 	outputs, err := store.GetFrozenOutputsForTask(ctx, "test-001", "baseline", 1)
 	if err != nil {
@@ -434,10 +450,18 @@ func TestStoreJudgments(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup (need valid run for FK)
-	store.SaveProject(ctx, &Project{ID: "test", RepoURL: "http://test", CommitHash: "abc", Language: "go", TestCmd: "go test"})
-	store.SaveTask(ctx, &Task{ID: "t-001", ProjectID: "test", Tier: TierSmall, Title: "t", Description: "d", PreFixCommit: "abc"})
-	store.SaveVariant(ctx, &Variant{ID: "v", Name: "v", BaseWorkflow: "small", IsBaseline: true})
-	store.SaveRun(ctx, &Run{ID: "run-001", VariantID: "v", TaskID: "t-001", TrialNumber: 1, Status: RunStatusPass})
+	if err := store.SaveProject(ctx, &Project{ID: "test", RepoURL: "http://test", CommitHash: "abc", Language: "go", TestCmd: "go test"}); err != nil {
+		t.Fatalf("save project: %v", err)
+	}
+	if err := store.SaveTask(ctx, &Task{ID: "t-001", ProjectID: "test", Tier: TierSmall, Title: "t", Description: "d", PreFixCommit: "abc"}); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+	if err := store.SaveVariant(ctx, &Variant{ID: "v", Name: "v", BaseWorkflow: "small", IsBaseline: true}); err != nil {
+		t.Fatalf("save variant: %v", err)
+	}
+	if err := store.SaveRun(ctx, &Run{ID: "run-001", VariantID: "v", TaskID: "t-001", TrialNumber: 1, Status: RunStatusPass}); err != nil {
+		t.Fatalf("save run: %v", err)
+	}
 
 	j := &Judgment{
 		RunID:         "run-001",

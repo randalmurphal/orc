@@ -88,15 +88,7 @@ func (s *hostingServer) getBackend(projectID string) (storage.Backend, error) {
 
 // getProvider creates a hosting provider, checking auth first.
 func (s *hostingServer) getProvider(ctx context.Context) (hosting.Provider, error) {
-	cfg := hosting.Config{}
-	if s.config != nil {
-		cfg = hosting.Config{
-			Provider:    s.config.Hosting.Provider,
-			BaseURL:     s.config.Hosting.BaseURL,
-			TokenEnvVar: s.config.Hosting.TokenEnvVar,
-		}
-	}
-	provider, err := hosting.NewProvider(s.projectDir, cfg)
+	provider, err := hosting.NewProviderFromAppConfig(s.projectDir, s.config)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("create hosting provider: %w", err))
 	}

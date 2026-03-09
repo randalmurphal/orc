@@ -78,7 +78,9 @@ func TestEnsureBenchGitignore_NoTrailingNewline(t *testing.T) {
 
 	// Existing file without trailing newline
 	existing := "*.log"
-	os.WriteFile(filepath.Join(dir, ".gitignore"), []byte(existing), 0644)
+	if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte(existing), 0644); err != nil {
+		t.Fatalf("write .gitignore: %v", err)
+	}
 
 	ensureBenchGitignore(dir)
 

@@ -4,67 +4,116 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/hosting"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
-func TestResolveHostingTokenEnvVar(t *testing.T) {
-	cfg := config.Default()
+func TestCompletionHostingChecksWithNamedAccount(t *testing.T) {
+	projectDir := setupDoctorTestProject(t, "https://github.com/example/orc.git")
 
-	if got := resolveHostingTokenEnvVar(cfg, "github"); got != "GITHUB_TOKEN" {
-		t.Fatalf("resolveHostingTokenEnvVar(github) = %q, want %q", got, "GITHUB_TOKEN")
+	registry := &hosting.AccountRegistry{
+		Accounts: map[string]hosting.Account{
+			"nulliti-ghe": {
+				Provider:    "github",
+				BaseURL:     "https://nulliti.ghe.example.com",
+				TokenEnvVar: "ORC_NULLITI_GHE_TOKEN",
+			},
+		},
 	}
-
-	if got := resolveHostingTokenEnvVar(cfg, "gitlab"); got != "GITLAB_TOKEN" {
-		t.Fatalf("resolveHostingTokenEnvVar(gitlab) = %q, want %q", got, "GITLAB_TOKEN")
-	}
-
-	cfg.Hosting.TokenEnvVar = "CUSTOM_TOKEN"
-	if got := resolveHostingTokenEnvVar(cfg, "github"); got != "CUSTOM_TOKEN" {
-		t.Fatalf("custom token env var = %q, want %q", got, "CUSTOM_TOKEN")
-	}
-}
-
-func TestResolveHostingProviderForDoctor_ExplicitProvider(t *testing.T) {
-	cfg := config.Default()
-	cfg.Hosting.Provider = "gitlab"
-
-	got, err := resolveHostingProviderForDoctor(t.TempDir(), cfg)
+	accountsPath, err := hosting.AccountsPath()
 	if err != nil {
-		t.Fatalf("resolveHostingProviderForDoctor explicit provider: %v", err)
+		t.Fatalf("AccountsPath: %v", err)
 	}
-	if got != "gitlab" {
-		t.Fatalf("resolveHostingProviderForDoctor explicit provider = %q, want %q", got, "gitlab")
+	if err := registry.Save(accountsPath); err != nil {
+		t.Fatalf("Save accounts: %v", err)
 	}
-}
 
-func TestResolveHostingProviderForDoctor_AutoDetectGitHub(t *testing.T) {
-	workDir := t.TempDir()
-	initGitRepoForDoctorTest(t, workDir, "https://github.com/example/orc.git")
+	gdb, err := db.OpenGlobal()
+	if err != nil {
+		t.Fatalf("OpenGlobal: %v", err)
+	}
+	defer func() { _ = gdb.Close() }()
+	if _, err := workflow.SeedBuiltins(gdb); err != nil {
+		t.Fatalf("SeedBuiltins: %v", err)
+	}
 
 	cfg := config.Default()
-	cfg.Hosting.Provider = "auto"
+	cfg.Completion.Action = "pr"
+	cfg.Hosting.Account = "nulliti-ghe"
 
-	got, err := resolveHostingProviderForDoctor(workDir, cfg)
+	checks, err := completionHostingChecks(cfg, gdb, "crossmodel-standard")
 	if err != nil {
-		t.Fatalf("resolveHostingProviderForDoctor auto-detect: %v", err)
+		t.Fatalf("completionHostingChecks: %v", err)
 	}
-	if got != "github" {
-		t.Fatalf("resolveHostingProviderForDoctor auto-detect = %q, want %q", got, "github")
+	if len(checks) != 2 {
+		t.Fatalf("completionHostingChecks len = %d, want 2", len(checks))
+	}
+	if !checks[0].OK {
+		t.Fatalf("hosting account check = %+v, want OK", checks[0])
+	}
+	if !strings.Contains(checks[0].Detail, "nulliti-ghe") {
+		t.Fatalf("hosting account detail = %q, want account name", checks[0].Detail)
+	}
+	if checks[1].OK {
+		t.Fatalf("auth check = %+v, want FAIL when token is missing", checks[1])
+	}
+	if !strings.Contains(checks[1].Detail, "ORC_NULLITI_GHE_TOKEN") {
+		t.Fatalf("auth detail = %q, want token env var", checks[1].Detail)
+	}
+
+	t.Setenv("ORC_NULLITI_GHE_TOKEN", "secret")
+	checks, err = completionHostingChecks(cfg, gdb, "crossmodel-standard")
+	if err != nil {
+		t.Fatalf("completionHostingChecks after token: %v", err)
+	}
+	if !checks[1].OK {
+		t.Fatalf("auth check after token = %+v, want OK", checks[1])
+	}
+
+	if _, err := os.Stat(filepath.Join(projectDir, ".git")); err != nil {
+		t.Fatalf("expected git repo at %s: %v", projectDir, err)
 	}
 }
 
-func initGitRepoForDoctorTest(t *testing.T, workDir string, remoteURL string) {
+func setupDoctorTestProject(t *testing.T, remoteURL string) string {
 	t.Helper()
 
-	runDoctorGitCommand(t, workDir, "init")
-	runDoctorGitCommand(t, workDir, "remote", "add", "origin", remoteURL)
-
-	gitDir := filepath.Join(workDir, ".git")
-	if _, err := os.Stat(gitDir); err != nil {
-		t.Fatalf("expected git repo at %s: %v", gitDir, err)
+	tmpDir := t.TempDir()
+	homeDir := filepath.Join(tmpDir, "home")
+	if err := os.MkdirAll(filepath.Join(homeDir, ".orc"), 0755); err != nil {
+		t.Fatalf("create home dir: %v", err)
 	}
+	t.Setenv("HOME", homeDir)
+
+	projectDir := filepath.Join(tmpDir, "project")
+	if err := os.MkdirAll(filepath.Join(projectDir, ".orc"), 0755); err != nil {
+		t.Fatalf("create project dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, ".orc", "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(projectDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalWD); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+
+	runDoctorGitCommand(t, projectDir, "init")
+	runDoctorGitCommand(t, projectDir, "remote", "add", "origin", remoteURL)
+	return projectDir
 }
 
 func runDoctorGitCommand(t *testing.T, workDir string, args ...string) {

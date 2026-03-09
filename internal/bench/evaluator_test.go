@@ -25,7 +25,9 @@ func initGitRepo(t *testing.T, dir string) string {
 	}
 
 	run("init")
-	os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatalf("write main.go: %v", err)
+	}
 	run("add", ".")
 	run("commit", "-m", "init")
 	return run("rev-parse", "HEAD")
@@ -72,7 +74,9 @@ func TestApplyTestPatchNewFileConflict(t *testing.T) {
 	commitHash := initGitRepo(t, dir)
 
 	// Simulate model creating a test file (like Claude would)
-	os.WriteFile(filepath.Join(dir, "main_test.go"), []byte("package main\n// model's test\n"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "main_test.go"), []byte("package main\n// model's test\n"), 0644); err != nil {
+		t.Fatalf("write main_test.go: %v", err)
+	}
 
 	// Patch that creates the same file (new file from /dev/null)
 	patch := `diff --git a/main_test.go b/main_test.go
@@ -126,13 +130,17 @@ func TestApplyTestPatchModifiedFile(t *testing.T) {
 	}
 
 	// Add a test file and commit — this is the "pre-fix" state
-	os.WriteFile(filepath.Join(dir, "util_test.go"), []byte("package main\n// original test\n"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "util_test.go"), []byte("package main\n// original test\n"), 0644); err != nil {
+		t.Fatalf("write util_test.go: %v", err)
+	}
 	run("add", ".")
 	run("commit", "-m", "add test")
 	preFixCommit := run("rev-parse", "HEAD")
 
 	// Simulate model modifying the test file (adds its own tests)
-	os.WriteFile(filepath.Join(dir, "util_test.go"), []byte("package main\n// model changed this entirely\n"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "util_test.go"), []byte("package main\n// model changed this entirely\n"), 0644); err != nil {
+		t.Fatalf("overwrite util_test.go: %v", err)
+	}
 
 	// Reference PR patch that modifies the original file
 	patch := `diff --git a/util_test.go b/util_test.go
@@ -213,8 +221,8 @@ deleted file mode 100644
 
 func TestParseGoTestCounts(t *testing.T) {
 	tests := []struct {
-		name     string
-		output   string
+		name      string
+		output    string
 		wantTotal int
 		wantFail  int
 	}{
@@ -273,8 +281,8 @@ ok  	example.com/pkg	0.03s
 
 func TestParsePytestCounts(t *testing.T) {
 	tests := []struct {
-		name     string
-		output   string
+		name      string
+		output    string
 		wantTotal int
 		wantFail  int
 	}{
@@ -313,8 +321,8 @@ func TestParsePytestCounts(t *testing.T) {
 
 func TestParseJestCounts(t *testing.T) {
 	tests := []struct {
-		name     string
-		output   string
+		name      string
+		output    string
 		wantTotal int
 		wantFail  int
 	}{
@@ -353,8 +361,8 @@ func TestParseJestCounts(t *testing.T) {
 
 func TestParseCTestCounts(t *testing.T) {
 	tests := []struct {
-		name     string
-		output   string
+		name      string
+		output    string
 		wantTotal int
 		wantFail  int
 	}{

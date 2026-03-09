@@ -1038,6 +1038,10 @@ type AutomationConfig struct {
 
 // HostingConfig defines git hosting provider settings.
 type HostingConfig struct {
+	// Account selects a named hosting account from ~/.orc/hosting_accounts.yaml.
+	// This should normally be set in ~/.orc/projects/<project-id>/config.yaml.
+	Account string `yaml:"account" json:"account,omitempty"`
+
 	// Provider type: "github", "gitlab", or "auto" (default).
 	// When "auto", the provider is detected from the git remote URL.
 	Provider string `yaml:"provider" json:"provider"`
@@ -1047,7 +1051,7 @@ type HostingConfig struct {
 	BaseURL string `yaml:"base_url" json:"base_url,omitempty"`
 
 	// TokenEnvVar overrides the default token environment variable name.
-	// Default: GITHUB_TOKEN for GitHub, GITLAB_TOKEN for GitLab.
+	// Default: ORC_GITHUB_TOKEN for GitHub, ORC_GITLAB_TOKEN for GitLab.
 	TokenEnvVar string `yaml:"token_env_var" json:"token_env_var,omitempty"`
 }
 

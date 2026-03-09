@@ -123,6 +123,7 @@ func init() {
 
 	// Configuration
 	addCmd(newConfigCmd(), groupConfig)
+	addCmd(newHostingCmd(), groupConfig)
 	addCmd(newConstitutionCmd(), groupConfig)
 	addCmd(newDocsCmd(), groupConfig)
 	addCmd(newTemplateCmd(), groupConfig)
