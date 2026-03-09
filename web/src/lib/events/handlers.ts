@@ -203,11 +203,7 @@ export function handleEvent(event: Event): void {
 		case 'taskUpdated': {
 			const { taskId, task } = event.payload.value;
 			if (task) {
-				// Proto types match directly - no conversion needed
-				taskStore.updateTask(taskId, {
-					currentPhase: task.currentPhase,
-					status: task.status,
-				});
+				taskStore.updateTask(taskId, task);
 			}
 			break;
 		}
@@ -429,4 +425,3 @@ export function handleEvent(event: Event): void {
 		}
 	}
 }
-

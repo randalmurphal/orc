@@ -8,6 +8,7 @@ export {
 	useTask,
 	useTaskState,
 	useTaskActivity,
+	useTaskSessionMetrics,
 	type TaskActivity,
 } from './taskStore';
 

@@ -228,8 +228,11 @@ Examples:
 			if p != nil && len(p.Phases) > 0 {
 				fmt.Printf("\nPhases:\n")
 				for _, phase := range p.Phases {
-					status := phaseStatusIcon(phase.Status)
+					status := phaseDisplayIcon(phase.Status, t, phase.ID)
 					fmt.Printf("  %s %s", status, phase.ID)
+					if runtimeState := phaseRuntimeStateLabel(t, phase.ID); runtimeState != "" {
+						fmt.Printf(" (%s)", runtimeState)
+					}
 					if phase.CommitSHA != "" {
 						fmt.Printf(" (commit: %s)", phase.CommitSHA[:7])
 					}
@@ -656,5 +659,33 @@ func mergePhaseStatesProto(p *executor.Plan, t *orcv1.Task) {
 			// PENDING or any legacy value stays as PENDING
 			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
 		}
+	}
+}
+
+func phaseDisplayIcon(status orcv1.PhaseStatus, t *orcv1.Task, phaseID string) string {
+	if phaseRuntimeStateLabel(t, phaseID) == "running" {
+		return "◐"
+	}
+	if phaseRuntimeStateLabel(t, phaseID) == "failed" {
+		return "✗"
+	}
+	return phaseStatusIcon(status)
+}
+
+func phaseRuntimeStateLabel(t *orcv1.Task, phaseID string) string {
+	if t == nil {
+		return ""
+	}
+	if task.GetCurrentPhaseProto(t) != phaseID {
+		return ""
+	}
+
+	switch t.Status {
+	case orcv1.TaskStatus_TASK_STATUS_RUNNING, orcv1.TaskStatus_TASK_STATUS_FINALIZING:
+		return "running"
+	case orcv1.TaskStatus_TASK_STATUS_FAILED:
+		return "failed"
+	default:
+		return ""
 	}
 }

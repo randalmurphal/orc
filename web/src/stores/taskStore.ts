@@ -260,3 +260,7 @@ export const useTaskState = (taskId: string) =>
 // Individual task activity selector
 export const useTaskActivity = (taskId: string) =>
 	useTaskStore((state) => state.taskActivities.get(taskId));
+
+// Individual task session metrics selector
+export const useTaskSessionMetrics = (taskId: string) =>
+	useTaskStore((state) => state.taskSessionMetrics.get(taskId));

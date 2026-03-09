@@ -14,7 +14,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ProjectCard } from './ProjectCard';
 import { createMockProjectStatus, createMockTaskSummary } from '@/test/factories';
-import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import { TooltipProvider } from '@/components/ui';
 
 function renderProjectCard(

@@ -52,23 +52,21 @@ export function ProjectSidebar({ onProjectChange }: ProjectSidebarProps) {
 			</div>
 
 			<div className="project-sidebar__running-tasks">
-				<span className="project-sidebar__running-label">Running</span>
+				<span className="project-sidebar__running-label">Running Tasks</span>
 				<span className="project-sidebar__running-count">{runningTasks.length}</span>
 			</div>
 
 			<div className="project-sidebar__section">
-				{(threads.length > 0 || error) && (
-					<div className="project-sidebar__threads-header">
-						<span>Threads</span>
-						<button
-							className="project-sidebar__new-thread"
-							onClick={handleNewThread}
-							aria-label="New Thread"
-						>
-							+
-						</button>
-					</div>
-				)}
+				<div className="project-sidebar__threads-header">
+					<span>Threads</span>
+					<button
+						className="project-sidebar__new-thread"
+						onClick={handleNewThread}
+						aria-label="New Thread"
+					>
+						+
+					</button>
+				</div>
 
 				{error && (
 					<div className="project-sidebar__error">
@@ -85,14 +83,8 @@ export function ProjectSidebar({ onProjectChange }: ProjectSidebarProps) {
 
 				{!error && threads.length === 0 && (
 					<div className="project-sidebar__empty-threads">
-						<span>No threads yet</span>
-						<button
-							className="project-sidebar__new-thread"
-							onClick={handleNewThread}
-							aria-label="New Thread"
-						>
-							+
-						</button>
+						<span>No discussion threads</span>
+						<span>Threads are separate from running tasks.</span>
 					</div>
 				)}
 

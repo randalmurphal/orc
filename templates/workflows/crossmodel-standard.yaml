@@ -55,7 +55,10 @@ phases:
     sequence: 4
     depends_on: ["review_cross"]
     condition: >-
-      {"field":"phase_output.plan.risk_assessment.requires_browser_qa","op":"eq","value":"true"}
+      {"any":[
+        {"field":"phase_output.plan.risk_assessment.requires_browser_qa","op":"eq","value":"true"},
+        {"field":"phase_output.plan.verification_plan.e2e","op":"neq","value":""}
+      ]}
     loop_config:
       loop_to_phase: implement_codex
       condition: "has_findings"

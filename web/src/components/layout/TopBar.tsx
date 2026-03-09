@@ -21,7 +21,10 @@ import {
 	useIsPaused,
 	useSessionStore,
 	useCurrentProjectId,
+	useRunningTasks,
+	formatDuration,
 } from '@/stores';
+import { formatCost, formatNumber } from '@/lib/format';
 import './TopBar.css';
 
 interface TopBarProps {
@@ -65,6 +68,7 @@ export function TopBar({
 	const formattedTokens = useFormattedTokens();
 	const formattedCost = useFormattedCost();
 	const isPaused = useIsPaused();
+	const runningTasks = useRunningTasks();
 	const pauseAll = useSessionStore((s) => s.pauseAll);
 	const resumeAll = useSessionStore((s) => s.resumeAll);
 
@@ -106,6 +110,35 @@ export function TopBar({
 
 	const classes = ['top-bar', className].filter(Boolean).join(' ');
 	const searchClasses = ['search-box', searchExpanded && 'search-expanded'].filter(Boolean).join(' ');
+	const fallbackStartTime = runningTasks.reduce<Date | null>((earliest, task) => {
+		if (!task.startedAt?.seconds) {
+			return earliest;
+		}
+		const startedAt = new Date(Number(task.startedAt.seconds) * 1000);
+		if (!earliest || startedAt < earliest) {
+			return startedAt;
+		}
+		return earliest;
+	}, null);
+	const fallbackDuration = fallbackStartTime ? formatDuration(fallbackStartTime) : duration;
+	const fallbackTokensValue = runningTasks.reduce(
+		(total, task) => total + (task.execution?.tokens?.totalTokens ?? 0),
+		0
+	);
+	const fallbackCostValue = runningTasks.reduce(
+		(total, task) => total + (task.execution?.cost?.totalCostUsd ?? 0),
+		0
+	);
+	const displayDuration =
+		duration === '0m' && runningTasks.length > 0 && fallbackStartTime ? fallbackDuration : duration;
+	const displayTokens =
+		formattedTokens === '0' && fallbackTokensValue > 0
+			? formatNumber(fallbackTokensValue)
+			: formattedTokens;
+	const displayCost =
+		formattedCost === '$0.00' && fallbackCostValue > 0
+			? formatCost(fallbackCostValue)
+			: formattedCost;
 
 	return (
 		<header className={classes} role="banner">
@@ -153,21 +186,21 @@ export function TopBar({
 					<SessionStat
 						icon="clock"
 						label="Session"
-						value={duration}
+						value={displayDuration}
 						colorClass="purple"
 					/>
 					<div className="session-divider" />
 					<SessionStat
 						icon="zap"
 						label="Tokens"
-						value={formattedTokens}
+						value={displayTokens}
 						colorClass="amber"
 					/>
 					<div className="session-divider" />
 					<SessionStat
 						icon="dollar"
 						label="Cost"
-						value={formattedCost}
+						value={displayCost}
 						colorClass="green"
 					/>
 				</div>

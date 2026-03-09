@@ -3,8 +3,10 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
 import { TopBar } from './TopBar';
-import { useProjectStore, useSessionStore } from '@/stores';
-import { createTimestamp } from '@/test/factories';
+import { useProjectStore, useSessionStore, useTaskStore } from '@/stores';
+import { createMockTask, createTimestamp } from '@/test/factories';
+import { CostTrackingSchema, TokenUsageSchema } from '@/gen/orc/v1/common_pb';
+import { ExecutionStateSchema, TaskStatus } from '@/gen/orc/v1/task_pb';
 import { ProjectSchema } from '@/gen/orc/v1/project_pb';
 
 const renderWithRouter = (ui: React.ReactElement) =>
@@ -40,6 +42,7 @@ describe('TopBar', () => {
 			formattedCost: '$2.34',
 			formattedTokens: '847K',
 		});
+		useTaskStore.setState({ tasks: [] });
 	});
 
 	describe('rendering', () => {
@@ -96,6 +99,49 @@ describe('TopBar', () => {
 			expect(screen.getByText('$5.00')).toBeInTheDocument();
 			expect(screen.getByText('1.2M')).toBeInTheDocument();
 			expect(screen.getByText('2h 45m')).toBeInTheDocument();
+		});
+
+		it('falls back to running task metrics when session store is empty', () => {
+			useSessionStore.setState({
+				sessionId: null,
+				startTime: null,
+				totalTokens: 0,
+				totalCost: 0,
+				inputTokens: 0,
+				outputTokens: 0,
+				isPaused: false,
+				activeTaskCount: 0,
+				duration: '0m',
+				formattedCost: '$0.00',
+				formattedTokens: '0',
+			});
+			useTaskStore.setState({
+				tasks: [
+					createMockTask({
+						id: 'TASK-001',
+						status: TaskStatus.RUNNING,
+						startedAt: createTimestamp('2024-01-01T00:00:00Z'),
+						execution: create(ExecutionStateSchema, {
+							tokens: create(TokenUsageSchema, {
+								inputTokens: 30000,
+								outputTokens: 15200,
+								totalTokens: 45200,
+							}),
+							cost: create(CostTrackingSchema, {
+								totalCostUsd: 1.96,
+								phaseCosts: {},
+							}),
+							phases: {},
+							gates: [],
+						}),
+					}),
+				],
+			});
+
+			renderWithRouter(<TopBar />);
+
+			expect(screen.getByText('45.2K')).toBeInTheDocument();
+			expect(screen.getByText('$1.96')).toBeInTheDocument();
 		});
 	});
 
@@ -235,4 +281,3 @@ describe('TopBar', () => {
 		});
 	});
 });
-

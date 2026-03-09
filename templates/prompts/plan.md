@@ -267,7 +267,7 @@ Risk tags must be specific. Use tags such as:
 - `ui_demo`
 - `cli`
 
-Set `requires_browser_qa` to `true` when the task changes a browser-visible flow, demo, UI interaction, or anything that needs Playwright verification. Otherwise set it to `false`.
+Set `requires_browser_qa` to `true` when the task changes a browser-visible flow, demo, UI interaction, or anything that needs Playwright verification. Also set it to `true` when the task description or success criteria explicitly require browser, Playwright, or E2E validation even if the code change is mostly backend. Otherwise set it to `false`.
 
 Set `requires_human_gate` to `true` when the blast radius or failure mode warrants explicit human review, especially for money movement, auth, migrations, external integrations, or high/critical risk changes.
 
@@ -276,6 +276,7 @@ Set `requires_human_gate` to `true` when the blast radius or failure mode warran
 - `lint`: the exact lint/static-analysis command, or `""` if none exists
 - `tests`: every exact automated test command required for this task
 - `e2e`: the exact browser/E2E command when needed, otherwise `""`
+- If `verification_plan.e2e` is non-empty, it must agree with `requires_browser_qa=true`
 
 ## Step 6: Scope and Assumptions
 

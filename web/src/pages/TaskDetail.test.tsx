@@ -22,6 +22,7 @@ const mockListReviewComments = vi.fn();
 const mockGetDiff = vi.fn();
 const mockListFeedback = vi.fn();
 const mockGetReviewFindings = vi.fn();
+const mockListTaskGeneratedNotes = vi.fn();
 
 vi.mock('@/lib/client', () => ({
 	taskClient: {
@@ -33,6 +34,9 @@ vi.mock('@/lib/client', () => ({
 	},
 	feedbackClient: {
 		listFeedback: (...args: unknown[]) => mockListFeedback(...args),
+	},
+	initiativeClient: {
+		listTaskGeneratedNotes: (...args: unknown[]) => mockListTaskGeneratedNotes(...args),
 	},
 }));
 
@@ -107,6 +111,7 @@ describe('TaskDetail', () => {
 		mockListFeedback.mockResolvedValue({ feedback: [] });
 		// taskClient.getReviewFindings returns { findings: [] }
 		mockGetReviewFindings.mockResolvedValue({ findings: [] });
+		mockListTaskGeneratedNotes.mockResolvedValue({ notes: [] });
 	});
 
 	afterEach(() => {

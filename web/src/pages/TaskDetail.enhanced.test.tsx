@@ -37,6 +37,9 @@ vi.mock('@/lib/client', () => ({
     getTask: vi.fn(),
     getTaskPlan: vi.fn(),
   },
+  initiativeClient: {
+    listTaskGeneratedNotes: vi.fn().mockResolvedValue({ notes: [] }),
+  },
 }));
 
 // Import the mocked client so we can configure it in tests
@@ -57,6 +60,7 @@ vi.mock('@/stores/taskStore', () => ({
 
 vi.mock('@/stores', () => ({
   useCurrentProjectId: () => 'test-project',
+  useTaskSessionMetrics: () => null,
 }));
 
 // Mock react-router

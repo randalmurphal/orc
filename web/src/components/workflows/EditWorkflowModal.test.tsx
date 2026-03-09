@@ -726,7 +726,10 @@ describe('EditWorkflowModal', () => {
 			await user.click(editButton);
 
 			// Edit model override
-			const modelSelect = await screen.findByLabelText(/model/i);
+			const phaseEditor = await screen.findByText(/edit phase:/i);
+			const modelSelect = within(phaseEditor.closest('.phase-edit-dialog')!).getByRole('combobox', {
+				name: /^model$/i,
+			});
 			await user.click(modelSelect);
 			const opusOption = await screen.findByRole('option', { name: /opus/i });
 			await user.click(opusOption);

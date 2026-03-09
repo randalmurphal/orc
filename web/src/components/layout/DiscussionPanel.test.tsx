@@ -99,7 +99,7 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 			createMockMessage({ id: BigInt(2), role: 'assistant', content: 'Assistant message' }),
 		];
 
-		const { container } = renderWithProviders(
+		renderWithProviders(
 			<DiscussionPanel
 				threadId="thread-001"
 				projectId="proj-001"

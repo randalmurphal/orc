@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { taskClient } from '@/lib/client';
 import { useTaskSubscription, useDocumentTitle } from '@/hooks';
 import { useTask as useStoreTask } from '@/stores/taskStore';
-import { useCurrentProjectId } from '@/stores';
+import { useCurrentProjectId, useTaskSessionMetrics } from '@/stores';
 import type { Task, TaskPlan } from '@/gen/orc/v1/task_pb';
 import { GetTaskRequestSchema, GetTaskPlanRequestSchema, TaskStatus } from '@/gen/orc/v1/task_pb';
 import type { InitiativeNote } from '@/gen/orc/v1/initiative_pb';
@@ -64,15 +64,16 @@ export function TaskDetail() {
 
 	// Get task from store (updated by WebSocket events)
 	const storeTask = useStoreTask(id ?? '');
+	const liveSessionMetrics = useTaskSessionMetrics(id ?? '');
 
 	// Sync local task state with store task when WebSocket updates arrive
 	useEffect(() => {
 		if (storeTask) {
 			setTask((prev) => {
-				if (prev && (prev.status !== storeTask.status || prev.currentPhase !== storeTask.currentPhase)) {
-					return { ...prev, status: storeTask.status, currentPhase: storeTask.currentPhase };
+				if (prev) {
+					return { ...prev, ...storeTask };
 				}
-				return prev;
+				return storeTask;
 			});
 		}
 	}, [storeTask]);
@@ -160,14 +161,28 @@ export function TaskDetail() {
 
 	// Build metrics from task state
 	const metrics = useMemo(() => {
-		if (!taskState) return null;
-		// Extract metrics from taskState if available
-		// The actual structure depends on the WebSocket event format
+		if (liveSessionMetrics) {
+			return {
+				tokens: liveSessionMetrics.totalTokens,
+				cost: liveSessionMetrics.estimatedCostUSD,
+				inputTokens: liveSessionMetrics.inputTokens,
+				outputTokens: liveSessionMetrics.outputTokens,
+			};
+		}
+
+		const executionTokens = task?.execution?.tokens;
+		const executionCost = task?.execution?.cost;
+		if (!executionTokens && !executionCost) {
+			return null;
+		}
+
 		return {
-			tokens: 0,
-			cost: 0,
+			tokens: executionTokens?.totalTokens ?? 0,
+			cost: executionCost?.totalCostUsd ?? 0,
+			inputTokens: executionTokens?.inputTokens ?? 0,
+			outputTokens: executionTokens?.outputTokens ?? 0,
 		};
-	}, [taskState]);
+	}, [liveSessionMetrics, task]);
 
 	// Loading state
 	if (loading) {
@@ -241,7 +256,14 @@ export function TaskDetail() {
 						<div className="task-detail-panel">
 							<h2 className="task-detail-panel__title">Live Output</h2>
 							<div className="task-detail-panel__content">
-								<TranscriptTab taskId={task.id} streamingLines={streamingTranscript} />
+								<TranscriptTab
+									taskId={task.id}
+									streamingLines={streamingTranscript}
+									isRunning={
+										task.status === TaskStatus.RUNNING ||
+										task.status === TaskStatus.FINALIZING
+									}
+								/>
 							</div>
 						</div>
 					}

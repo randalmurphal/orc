@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { create } from '@bufbuild/protobuf';
-import { ThreadSchema, ThreadMessageSchema } from '@/gen/orc/v1/thread_pb';
+import { ThreadSchema } from '@/gen/orc/v1/thread_pb';
 import { createTimestamp } from '@/test/factories';
 
 // Mock the threadClient from client.ts
@@ -36,17 +36,6 @@ function createMockThread(overrides: Record<string, unknown> = {}) {
 		createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 		updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
 		messages: [],
-		...overrides,
-	});
-}
-
-function createMockMessage(overrides: Record<string, unknown> = {}) {
-	return create(ThreadMessageSchema, {
-		id: BigInt(1),
-		threadId: 'thread-001',
-		role: 'user',
-		content: 'Hello',
-		createdAt: createTimestamp('2024-01-01T00:00:00Z'),
 		...overrides,
 	});
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
 import { ProjectSidebar } from './ProjectSidebar';
@@ -130,7 +130,7 @@ describe('ProjectSidebar rendering (SC-1)', () => {
 	it('should render thread section heading', () => {
 		renderWithProviders(<ProjectSidebar />);
 
-		expect(screen.getByText(/threads/i)).toBeInTheDocument();
+		expect(screen.getByText('Threads')).toBeInTheDocument();
 	});
 
 	it('should render running task count from taskStore', () => {
@@ -190,7 +190,7 @@ describe('ProjectSidebar thread list (SC-2)', () => {
 			],
 		});
 
-		const { container } = renderWithProviders(<ProjectSidebar />);
+		renderWithProviders(<ProjectSidebar />);
 
 		// Status indicator should be present (a colored dot)
 		const openItem = screen.getByText('Open Thread').closest('[class*="thread"]');
@@ -215,7 +215,8 @@ describe('ProjectSidebar thread list (SC-2)', () => {
 
 		renderWithProviders(<ProjectSidebar />);
 
-		expect(screen.getByText(/no threads yet/i)).toBeInTheDocument();
+		expect(screen.getByText(/no discussion threads/i)).toBeInTheDocument();
+		expect(screen.getByText(/separate from running tasks/i)).toBeInTheDocument();
 	});
 
 	it('should show error state when thread loading fails', () => {
@@ -325,7 +326,7 @@ describe('ProjectSidebar edge cases', () => {
 		);
 		useThreadStore.setState({ threads: manyThreads });
 
-		const { container } = renderWithProviders(<ProjectSidebar />);
+		renderWithProviders(<ProjectSidebar />);
 
 		// Thread list section should have overflow-y: auto or similar
 		// Verify threads are rendered
