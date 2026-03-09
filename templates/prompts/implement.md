@@ -15,13 +15,14 @@ This happens when:
 <output_format>
 ## Pre-Completion Verification (MANDATORY - DO NOT SKIP)
 
-Before outputting completion JSON, you MUST run all FIVE checks and include evidence for each:
+Before outputting completion JSON, you MUST run all SIX checks and include evidence for each:
 
 1. **Tests**: Run `{{TEST_COMMAND}}` — your tests must pass. If tests fail in packages you didn't touch, note as pre-existing.
 2. **Success Criteria**: For each SC-X in spec, run its verification method, record PASS/FAIL with evidence. If any FAIL: fix and re-verify.
 3. **Build**: {{#if BUILD_COMMAND}}Run `{{BUILD_COMMAND}}`{{else}}Run the project build command{{/if}} — fix build errors ONLY in files you modified.
 4. **Linting**: Run linter on files you changed (`git diff --name-only`). Fix lint errors in YOUR code only. Pre-existing issues in other files are out of scope.
 5. **Wiring**: For EVERY new file created, grep the codebase to find which production file imports it. If no production file imports it → dead code → FAIL.
+6. **Browser validation**: If the implemented diff changes browser-visible behavior, including backend or API changes that alter what the UI renders or how it behaves, run browser validation and record concrete evidence.
 
 ## Verification Status Rules
 
@@ -46,7 +47,7 @@ Example:
 
 ## Completion Output Format
 
-ONLY after ALL verifications PASS, output JSON with `status`, `summary`, and `verification` fields containing `tests`, `success_criteria`, `build`, `linting`, and `wiring` — each with `status` and `evidence`. See `<example_good_completion>` below for exact schema.
+ONLY after ALL verifications PASS, output JSON with `status`, `summary`, and `verification` fields containing `tests`, `success_criteria`, `build`, `linting`, `wiring`, and `browser_validation`. See `<example_good_completion>` below for exact schema.
 
 **Wiring verification evidence format:**
 ```json
@@ -59,6 +60,20 @@ ONLY after ALL verifications PASS, output JSON with `status`, `summary`, and `ve
 }
 ```
 If ANY new file has no production importer, wiring status is "FAIL".
+
+**Browser validation evidence format:**
+```json
+"browser_validation": {
+  "browser_surface_change": true,
+  "required": true,
+  "performed": true,
+  "reason": "This diff changes browser-visible behavior.",
+  "evidence": "Used browser tools to exercise the changed flow and verified the expected UI behavior.",
+  "artifacts": []
+}
+```
+If `browser_surface_change` is `true`, then `required` MUST also be `true`.
+If `required` is `true`, then `performed` MUST be `true` and `evidence` cannot be empty.
 
 **CRITICAL:** The `verification` field is MANDATORY. Completion without verification evidence will be REJECTED.
 
@@ -132,6 +147,15 @@ interface Props {
 <verification_mandate>
 The most common failure is declaring completion without running verification. If you haven't run `{{TEST_COMMAND}}` and seen all tests pass, you are not done. If you haven't verified every success criterion, you are not done.
 </verification_mandate>
+
+<browser_validation_mandate>
+The plan phase may recommend browser validation. Treat that as advisory only.
+
+You must make the final browser-validation decision from the implemented diff:
+- If the change affects anything a user sees or does in a browser surface, browser validation is required.
+- This includes backend, API, proto, or configuration changes that alter what the UI displays or how it behaves.
+- If browser validation is required and you cannot execute it, return `blocked` instead of claiming completion.
+</browser_validation_mandate>
 
 <context>
 # Implementation Phase
@@ -341,7 +365,8 @@ Execute all checks and include evidence for each in your completion output:
 3. {{#if BUILD_COMMAND}}Run `{{BUILD_COMMAND}}`{{else}}Run the project build command{{/if}} — fix build errors ONLY in files you modified. Pre-existing build failures are not your responsibility.
 4. {{#if LINT_COMMAND}}Run `{{LINT_COMMAND}}` on the files you changed (not the whole project){{else}}Run the project linter on files you changed{{/if}} — fix lint errors ONLY in your changes. Pre-existing lint failures in other files are not your problem. Use `git diff --name-only` to identify your files.
 5. **Wiring check** — For each new file created, grep the codebase to confirm a production file imports it. Dead code = FAIL.
-6. **Behavioral parity check** — If you added a parallel/async path, verify ALL original behaviors are present.
+6. **Browser validation check** — If the implemented diff changes browser-visible behavior, run browser validation now and capture evidence in `verification.browser_validation`.
+7. **Behavioral parity check** — If you added a parallel/async path, verify ALL original behaviors are present.
 
 **Only output completion JSON after all checks pass.** See Output Format for the exact schema.
 
@@ -392,7 +417,8 @@ AMEND-001: [Original] → [Actual] — [Reason]
     ],
     "build": {"status": "PASS", "evidence": "go build ./... exits 0"},
     "linting": {"status": "PASS", "evidence": "golangci-lint run exits 0"},
-    "wiring": {"status": "PASS", "evidence": "internal/middleware/rate_limit.go is imported by internal/api/router.go:45", "new_files": [{"file": "internal/middleware/rate_limit.go", "imported_by": "internal/api/router.go:45"}]}
+    "wiring": {"status": "PASS", "evidence": "internal/middleware/rate_limit.go is imported by internal/api/router.go:45", "new_files": [{"file": "internal/middleware/rate_limit.go", "imported_by": "internal/api/router.go:45"}]},
+    "browser_validation": {"browser_surface_change": false, "required": false, "performed": false, "reason": "No browser-visible behavior changed in this task.", "evidence": "Not applicable.", "artifacts": []}
   },
   "pre_existing_issues": []
 }

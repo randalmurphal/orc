@@ -489,7 +489,15 @@ func TestValidateImplementCompletion(t *testing.T) {
 					],
 					"build": {"status": "PASS"},
 					"linting": {"status": "PASS"},
-					"wiring": {"status": "PASS", "evidence": "new file imported by production code"}
+					"wiring": {"status": "PASS", "evidence": "new file imported by production code"},
+					"browser_validation": {
+						"browser_surface_change": false,
+						"required": false,
+						"performed": false,
+						"reason": "No browser-visible behavior changed.",
+						"evidence": "Not applicable.",
+						"artifacts": []
+					}
 				},
 				"pre_existing_issues": []
 			}`,
@@ -514,7 +522,15 @@ func TestValidateImplementCompletion(t *testing.T) {
 					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
 					"build": {"status": "PASS"},
 					"linting": {"status": "PASS"},
-					"wiring": {"status": "PASS"}
+					"wiring": {"status": "PASS"},
+					"browser_validation": {
+						"browser_surface_change": false,
+						"required": false,
+						"performed": false,
+						"reason": "No browser-visible behavior changed.",
+						"evidence": "Not applicable.",
+						"artifacts": []
+					}
 				}
 			}`,
 			wantErr: true,
@@ -533,7 +549,15 @@ func TestValidateImplementCompletion(t *testing.T) {
 					],
 					"build": {"status": "PASS"},
 					"linting": {"status": "PASS"},
-					"wiring": {"status": "PASS"}
+					"wiring": {"status": "PASS"},
+					"browser_validation": {
+						"browser_surface_change": false,
+						"required": false,
+						"performed": false,
+						"reason": "No browser-visible behavior changed.",
+						"evidence": "Not applicable.",
+						"artifacts": []
+					}
 				}
 			}`,
 			wantErr: true,
@@ -549,7 +573,15 @@ func TestValidateImplementCompletion(t *testing.T) {
 					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
 					"build": {"status": "FAIL"},
 					"linting": {"status": "PASS"},
-					"wiring": {"status": "PASS"}
+					"wiring": {"status": "PASS"},
+					"browser_validation": {
+						"browser_surface_change": false,
+						"required": false,
+						"performed": false,
+						"reason": "No browser-visible behavior changed.",
+						"evidence": "Not applicable.",
+						"artifacts": []
+					}
 				}
 			}`,
 			wantErr: true,
@@ -581,7 +613,15 @@ func TestValidateImplementCompletion(t *testing.T) {
 					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
 					"build": {"status": "SKIPPED"},
 					"linting": {"status": "SKIPPED"},
-					"wiring": {"status": "PASS"}
+					"wiring": {"status": "PASS"},
+					"browser_validation": {
+						"browser_surface_change": false,
+						"required": false,
+						"performed": false,
+						"reason": "No browser-visible behavior changed.",
+						"evidence": "Not applicable.",
+						"artifacts": []
+					}
 				}
 			}`,
 			wantErr: false,
@@ -595,7 +635,15 @@ func TestValidateImplementCompletion(t *testing.T) {
 					"tests": {"status": "PASS"},
 					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
 					"build": {"status": "PASS"},
-					"linting": {"status": "PASS"}
+					"linting": {"status": "PASS"},
+					"browser_validation": {
+						"browser_surface_change": false,
+						"required": false,
+						"performed": false,
+						"reason": "No browser-visible behavior changed.",
+						"evidence": "Not applicable.",
+						"artifacts": []
+					}
 				}
 			}`,
 			wantErr: true,
@@ -611,7 +659,15 @@ func TestValidateImplementCompletion(t *testing.T) {
 					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
 					"build": {"status": "PASS"},
 					"linting": {"status": "PASS"},
-					"wiring": {"status": "FAIL", "evidence": "new file has no production importer"}
+					"wiring": {"status": "FAIL", "evidence": "new file has no production importer"},
+					"browser_validation": {
+						"browser_surface_change": false,
+						"required": false,
+						"performed": false,
+						"reason": "No browser-visible behavior changed.",
+						"evidence": "Not applicable.",
+						"artifacts": []
+					}
 				}
 			}`,
 			wantErr: true,
@@ -626,11 +682,83 @@ func TestValidateImplementCompletion(t *testing.T) {
 					"tests": {"status": "PASS"},
 					"build": {"status": "PASS"},
 					"linting": {"status": "PASS"},
-					"wiring": {"status": "PASS"}
+					"wiring": {"status": "PASS"},
+					"browser_validation": {
+						"browser_surface_change": false,
+						"required": false,
+						"performed": false,
+						"reason": "No browser-visible behavior changed.",
+						"evidence": "Not applicable.",
+						"artifacts": []
+					}
 				}
 			}`,
 			wantErr: true,
 			errMsg:  "success criteria verification missing",
+		},
+		{
+			name: "completion missing browser validation verdict - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS"},
+					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
+					"build": {"status": "PASS"},
+					"linting": {"status": "PASS"},
+					"wiring": {"status": "PASS"}
+				}
+			}`,
+			wantErr: true,
+			errMsg:  "browser validation verdict missing",
+		},
+		{
+			name: "browser-surface change without required browser validation - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS"},
+					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
+					"build": {"status": "PASS"},
+					"linting": {"status": "PASS"},
+					"wiring": {"status": "PASS"},
+					"browser_validation": {
+						"browser_surface_change": true,
+						"required": false,
+						"performed": false,
+						"reason": "Skipped because the plan did not require it.",
+						"evidence": "Not applicable.",
+						"artifacts": []
+					}
+				}
+			}`,
+			wantErr: true,
+			errMsg:  "browser validation required for browser-surface change",
+		},
+		{
+			name: "required browser validation without evidence - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS"},
+					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
+					"build": {"status": "PASS"},
+					"linting": {"status": "PASS"},
+					"wiring": {"status": "PASS"},
+					"browser_validation": {
+						"browser_surface_change": true,
+						"required": true,
+						"performed": true,
+						"reason": "Browser-visible behavior changed.",
+						"evidence": "",
+						"artifacts": []
+					}
+				}
+			}`,
+			wantErr: true,
+			errMsg:  "browser validation evidence missing",
 		},
 	}
 

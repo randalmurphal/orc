@@ -97,6 +97,10 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/randalmurphal/llmkit v1.6.2 h1:JO9dtGp90779WN6nkwa3JzkaQE5llBZ7eNMt6UMu6HE=
 github.com/randalmurphal/llmkit v1.6.2/go.mod h1:fm+Y+Dsyu866vN5OR2Jl+HFxBV8SG5pdG1wv93zD8ic=
+github.com/randalmurphal/llmkit v1.8.1 h1:GVvQ4qIoUGNuDpL3Ou1N45cwpI81OwOr1n8OV712L60=
+github.com/randalmurphal/llmkit v1.8.1/go.mod h1:fm+Y+Dsyu866vN5OR2Jl+HFxBV8SG5pdG1wv93zD8ic=
+github.com/randalmurphal/llmkit v1.8.2 h1:haxBs9WcQMuKG4E1TfDzND62nzX4RsGhdIy60Cv3SQg=
+github.com/randalmurphal/llmkit v1.8.2/go.mod h1:fm+Y+Dsyu866vN5OR2Jl+HFxBV8SG5pdG1wv93zD8ic=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=

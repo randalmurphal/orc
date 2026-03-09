@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -24,6 +25,7 @@ type TranscriptStreamHandler struct {
 	sessionID string
 	runID     string // workflow run ID for linking
 	model     string
+	publisher *events.PublishHelper
 	mu        sync.Mutex // protects writes
 
 	// storedMessageIDs tracks which messages we've already stored to avoid duplicates.
@@ -41,6 +43,7 @@ func NewTranscriptStreamHandler(
 	backend storage.Backend,
 	logger *slog.Logger,
 	taskID, phaseID, sessionID, runID, model string,
+	publisher *events.PublishHelper,
 	captureHookEvents []string,
 ) *TranscriptStreamHandler {
 	return &TranscriptStreamHandler{
@@ -51,6 +54,7 @@ func NewTranscriptStreamHandler(
 		sessionID:         sessionID,
 		runID:             runID,
 		model:             model,
+		publisher:         publisher,
 		storedMessageIDs:  make(map[string]bool),
 		captureHookEvents: captureHookEvents,
 	}
@@ -85,6 +89,16 @@ func (h *TranscriptStreamHandler) StoreUserPrompt(prompt string) {
 			"error", err,
 		)
 	}
+	if h.publisher != nil {
+		h.publisher.Transcript(h.taskID, h.phaseID, 1, "prompt", prompt)
+	}
+}
+
+// UpdateSessionID updates the session ID used for subsequent transcript rows.
+func (h *TranscriptStreamHandler) UpdateSessionID(sessionID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.sessionID = sessionID
 }
 
 // OnEvent handles streaming events from Claude and stores transcripts in real-time.
@@ -204,6 +218,24 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent
 			"error", err,
 		)
 	}
+	if h.publisher != nil {
+		h.publisher.TranscriptWithUsage(
+			h.taskID,
+			h.phaseID,
+			1,
+			"response",
+			event.Assistant.Text,
+			model,
+			&events.TokenUpdate{
+				Phase:                    h.phaseID,
+				InputTokens:              event.Assistant.Usage.InputTokens,
+				OutputTokens:             event.Assistant.Usage.OutputTokens,
+				CacheCreationInputTokens: event.Assistant.Usage.CacheCreationInputTokens,
+				CacheReadInputTokens:     event.Assistant.Usage.CacheReadInputTokens,
+				TotalTokens:              event.Assistant.Usage.InputTokens + event.Assistant.Usage.OutputTokens + event.Assistant.Usage.CacheCreationInputTokens + event.Assistant.Usage.CacheReadInputTokens,
+			},
+		)
+	}
 }
 
 // shouldCaptureHook checks if a hook event should be captured based on config.
@@ -256,6 +288,14 @@ func (h *TranscriptStreamHandler) storeHookEvent(event claude.StreamEvent) {
 // StoreAssistantText stores a plain text assistant response.
 // Used by Codex and other providers that return text instead of content blocks.
 func (h *TranscriptStreamHandler) StoreAssistantText(text, model, messageID string, inputTokens, outputTokens int) {
+	h.StoreAssistantTextWithUsage(text, model, messageID, inputTokens, outputTokens, 0, 0)
+}
+
+// StoreAssistantTextWithUsage stores a plain text assistant response with full token usage.
+func (h *TranscriptStreamHandler) StoreAssistantTextWithUsage(
+	text, model, messageID string,
+	inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens int,
+) {
 	if h.backend == nil || h.taskID == "" {
 		return
 	}
@@ -278,18 +318,20 @@ func (h *TranscriptStreamHandler) StoreAssistantText(text, model, messageID stri
 	}
 
 	transcript := &storage.Transcript{
-		TaskID:        h.taskID,
-		Phase:         h.phaseID,
-		SessionID:     h.sessionID,
-		WorkflowRunID: h.runID,
-		MessageUUID:   messageID,
-		Type:          "assistant",
-		Role:          "assistant",
-		Content:       text,
-		Model:         model,
-		InputTokens:   inputTokens,
-		OutputTokens:  outputTokens,
-		Timestamp:     time.Now().UnixMilli(),
+		TaskID:              h.taskID,
+		Phase:               h.phaseID,
+		SessionID:           h.sessionID,
+		WorkflowRunID:       h.runID,
+		MessageUUID:         messageID,
+		Type:                "assistant",
+		Role:                "assistant",
+		Content:             text,
+		Model:               model,
+		InputTokens:         inputTokens,
+		OutputTokens:        outputTokens,
+		CacheCreationTokens: cacheCreationTokens,
+		CacheReadTokens:     cacheReadTokens,
+		Timestamp:           time.Now().UnixMilli(),
 	}
 
 	if err := h.backend.AddTranscript(transcript); err != nil {
@@ -300,5 +342,60 @@ func (h *TranscriptStreamHandler) StoreAssistantText(text, model, messageID stri
 			"error", err,
 		)
 	}
+	if h.publisher != nil {
+		h.publisher.TranscriptWithUsage(
+			h.taskID,
+			h.phaseID,
+			1,
+			"response",
+			text,
+			model,
+			&events.TokenUpdate{
+				Phase:                    h.phaseID,
+				InputTokens:              inputTokens,
+				OutputTokens:             outputTokens,
+				CacheCreationInputTokens: cacheCreationTokens,
+				CacheReadInputTokens:     cacheReadTokens,
+				TotalTokens:              inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens,
+			},
+		)
+	}
 }
 
+// StoreChunkText stores a streaming assistant chunk for live transcript visibility.
+func (h *TranscriptStreamHandler) StoreChunkText(text, model string) {
+	if h.backend == nil || h.taskID == "" || text == "" {
+		return
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if model == "" {
+		model = h.model
+	}
+
+	transcript := &storage.Transcript{
+		TaskID:        h.taskID,
+		Phase:         h.phaseID,
+		SessionID:     h.sessionID,
+		WorkflowRunID: h.runID,
+		MessageUUID:   uuid.NewString(),
+		Type:          "chunk",
+		Role:          "assistant",
+		Content:       text,
+		Model:         model,
+		Timestamp:     time.Now().UnixMilli(),
+	}
+
+	if err := h.backend.AddTranscript(transcript); err != nil {
+		h.logger.Warn("failed to store assistant chunk",
+			"task", h.taskID,
+			"phase", h.phaseID,
+			"error", err,
+		)
+	}
+	if h.publisher != nil {
+		h.publisher.TranscriptChunk(h.taskID, h.phaseID, 1, text)
+	}
+}

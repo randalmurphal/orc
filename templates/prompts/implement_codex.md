@@ -59,7 +59,15 @@ When complete, output JSON:
     "success_criteria": [{"id": "SC-1", "status": "PASS", "evidence": "proof"}],
     "build": {"status": "PASS", "evidence": "command output"},
     "linting": {"status": "PASS", "evidence": "command output"},
-    "wiring": {"status": "PASS", "evidence": "new files are imported by production code", "new_files": [{"file": "path", "imported_by": "path:line"}]}
+    "wiring": {"status": "PASS", "evidence": "new files are imported by production code", "new_files": [{"file": "path", "imported_by": "path:line"}]},
+    "browser_validation": {
+      "browser_surface_change": true,
+      "required": true,
+      "performed": true,
+      "reason": "This task changes browser-visible behavior, including rendered UI state and interactions.",
+      "evidence": "Used Playwright/browser tools to exercise the changed flow and verify the expected UI behavior.",
+      "artifacts": []
+    }
   },
   "pre_existing_issues": []
 }
@@ -84,6 +92,9 @@ If blocked, still return the same top-level keys. Use `null` or `[]` for fields 
 3. Run verification only on files you changed (`git diff --name-only`). Pre-existing failures in other files are not your scope — list them in `pre_existing_issues`.
 4. Commit before outputting completion JSON.
 5. DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
+6. Treat the plan phase's `risk_assessment.requires_browser_qa` and `verification_plan.e2e` as advisory only, not final authority. Decide from the implemented diff whether browser-visible behavior changed.
+7. If the implemented change affects browser-visible behavior in any way, including backend or API changes that alter what the UI renders or how it behaves, `verification.browser_validation.required` must be `true` and you must perform browser validation yourself before claiming completion.
+8. If browser validation is required but the browser app cannot be run or validated, return `blocked` instead of claiming completion.
 
 ## Verification Status Rules
 
@@ -98,6 +109,21 @@ If a repo-wide test/build/lint command fails for unrelated pre-existing reasons:
 3. Mark that verification entry as `SKIPPED`, not `FAIL`.
 4. Explain in `evidence` that the command is blocked by unrelated pre-existing failures.
 
+## Browser Validation Rules
+
+Populate `verification.browser_validation` on every completion:
+- `browser_surface_change`: `true` when the implemented behavior changes anything a user sees or does in a browser surface, even if the code change is mostly backend, API, or proto wiring.
+- `required`: `true` when browser validation was needed for the implemented diff.
+- `performed`: `true` only if you actually executed browser validation.
+- `reason`: explain why browser validation was or was not required.
+- `evidence`: describe the exact browser flow you validated and what you observed.
+- `artifacts`: include screenshot, trace, or log paths when you produced them; otherwise use `[]`.
+
+If `browser_surface_change=true`, then `required` must also be `true`.
+If `required=true`, then `performed` must be `true` and `evidence` must be concrete.
+
+When browser validation is required, use the browser tools available in this environment to exercise the changed flow. Validate the real user-visible behavior, not just unit tests.
+
 ## Process
 
 1. Read the specification and referenced code.
@@ -107,9 +133,10 @@ If a repo-wide test/build/lint command fails for unrelated pre-existing reasons:
 5. {{#if BUILD_COMMAND}}Run `{{BUILD_COMMAND}}`.{{else}}Build the project.{{/if}} Fix errors in your files only.
 6. {{#if LINT_COMMAND}}Run `{{LINT_COMMAND}}` on changed files.{{else}}Lint changed files.{{/if}} Fix your lint errors only.
 7. For each new file, verify a production file imports it.
-8. Verify each success criterion from the spec with concrete evidence.
-9. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
-10. Output completion JSON.
+8. Decide whether the implemented diff changed browser-visible behavior. If it did, run browser validation now and capture evidence in `verification.browser_validation`.
+9. Verify each success criterion from the spec with concrete evidence.
+10. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
+11. Output completion JSON.
 
 {{#if TDD_TESTS_CONTENT}}
 If tests fail: fix your implementation, not the tests. If a test contradicts the spec, document as `AMEND-NNN`.

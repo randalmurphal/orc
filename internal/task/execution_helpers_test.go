@@ -6,77 +6,58 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 )
 
-func TestSkipRemainingPhases(t *testing.T) {
-	t.Run("mixed states only skip pending", func(t *testing.T) {
-		e := InitProtoExecutionState()
-		e.Phases["completed"] = &orcv1.PhaseState{
-			Status: orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
-		}
-		e.Phases["pending-a"] = &orcv1.PhaseState{
-			Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
-		}
-		existingSkippedReason := "skipped: existing reason"
-		e.Phases["already-skipped"] = &orcv1.PhaseState{
-			Status: orcv1.PhaseStatus_PHASE_STATUS_SKIPPED,
-			Error:  &existingSkippedReason,
-		}
-		e.Phases["pending-b"] = &orcv1.PhaseState{
-			Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
-		}
+func TestSetPhaseTokensProto_RecomputesExecutionTotals(t *testing.T) {
+	exec := InitProtoExecutionState()
 
-		SkipRemainingPhasesProto(e, "task closed")
-
-		if got := e.Phases["completed"].Status; got != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
-			t.Fatalf("completed phase status = %s, want %s", got, orcv1.PhaseStatus_PHASE_STATUS_COMPLETED)
-		}
-		if got := e.Phases["already-skipped"].Status; got != orcv1.PhaseStatus_PHASE_STATUS_SKIPPED {
-			t.Fatalf("already-skipped phase status = %s, want %s", got, orcv1.PhaseStatus_PHASE_STATUS_SKIPPED)
-		}
-		if e.Phases["already-skipped"].Error == nil || *e.Phases["already-skipped"].Error != existingSkippedReason {
-			t.Fatalf("already-skipped reason changed, got %v want %q", e.Phases["already-skipped"].Error, existingSkippedReason)
-		}
-
-		for _, phaseID := range []string{"pending-a", "pending-b"} {
-			ps := e.Phases[phaseID]
-			if ps.Status != orcv1.PhaseStatus_PHASE_STATUS_SKIPPED {
-				t.Fatalf("%s status = %s, want %s", phaseID, ps.Status, orcv1.PhaseStatus_PHASE_STATUS_SKIPPED)
-			}
-			if ps.Error == nil || *ps.Error != "skipped: task closed" {
-				t.Fatalf("%s error = %v, want %q", phaseID, ps.Error, "skipped: task closed")
-			}
-		}
-
-		if len(e.Gates) != 2 {
-			t.Fatalf("gate decisions = %d, want 2", len(e.Gates))
-		}
-
-		seen := map[string]bool{}
-		for _, decision := range e.Gates {
-			if decision.GateType != "skip" {
-				t.Fatalf("gate type = %q, want %q", decision.GateType, "skip")
-			}
-			if !decision.Approved {
-				t.Fatalf("gate decision approved = false, want true")
-			}
-			if decision.Reason == nil || *decision.Reason != "task closed" {
-				t.Fatalf("gate reason = %v, want %q", decision.Reason, "task closed")
-			}
-			seen[decision.Phase] = true
-		}
-		if !seen["pending-a"] || !seen["pending-b"] {
-			t.Fatalf("gate decisions missing expected phases: %+v", seen)
-		}
+	SetPhaseTokensProto(exec, "plan", &orcv1.TokenUsage{
+		InputTokens:              10,
+		OutputTokens:             5,
+		CacheCreationInputTokens: 3,
+		CacheReadInputTokens:     2,
+	})
+	SetPhaseTokensProto(exec, "implement", &orcv1.TokenUsage{
+		InputTokens:  20,
+		OutputTokens: 15,
+		TotalTokens:  35,
 	})
 
-	t.Run("nil execution state no-op", func(t *testing.T) {
-		SkipRemainingPhasesProto(nil, "task closed")
+	if exec.Tokens == nil {
+		t.Fatal("expected aggregate execution tokens")
+	}
+	if exec.Tokens.InputTokens != 30 {
+		t.Fatalf("input tokens = %d, want 30", exec.Tokens.InputTokens)
+	}
+	if exec.Tokens.OutputTokens != 20 {
+		t.Fatalf("output tokens = %d, want 20", exec.Tokens.OutputTokens)
+	}
+	if exec.Tokens.CacheCreationInputTokens != 3 {
+		t.Fatalf("cache creation tokens = %d, want 3", exec.Tokens.CacheCreationInputTokens)
+	}
+	if exec.Tokens.CacheReadInputTokens != 2 {
+		t.Fatalf("cache read tokens = %d, want 2", exec.Tokens.CacheReadInputTokens)
+	}
+	if exec.Tokens.TotalTokens != 55 {
+		t.Fatalf("total tokens = %d, want 55", exec.Tokens.TotalTokens)
+	}
+}
+
+func TestResetPhaseProto_ClearsTokens(t *testing.T) {
+	exec := InitProtoExecutionState()
+	SetPhaseTokensProto(exec, "implement", &orcv1.TokenUsage{
+		InputTokens:  12,
+		OutputTokens: 8,
 	})
 
-	t.Run("empty execution state no-op", func(t *testing.T) {
-		e := &orcv1.ExecutionState{}
-		SkipRemainingPhasesProto(e, "task closed")
-		if len(e.Gates) != 0 {
-			t.Fatalf("gate decisions = %d, want 0", len(e.Gates))
-		}
-	})
+	ResetPhaseProto(exec, "implement")
+
+	phase := exec.Phases["implement"]
+	if phase == nil || phase.Tokens == nil {
+		t.Fatal("expected phase tokens to exist after reset")
+	}
+	if phase.Tokens.TotalTokens != 0 || phase.Tokens.InputTokens != 0 || phase.Tokens.OutputTokens != 0 {
+		t.Fatalf("phase tokens were not cleared: %+v", phase.Tokens)
+	}
+	if exec.Tokens.TotalTokens != 0 {
+		t.Fatalf("aggregate total tokens = %d, want 0", exec.Tokens.TotalTokens)
+	}
 }

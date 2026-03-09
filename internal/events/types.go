@@ -101,6 +101,8 @@ type TranscriptLine struct {
 	Type      string    `json:"type"` // prompt, response, tool, error
 	Content   string    `json:"content"`
 	Timestamp time.Time `json:"timestamp"`
+	Model     string    `json:"model,omitempty"`
+	Tokens    *TokenUpdate `json:"tokens,omitempty"`
 }
 
 // PhaseUpdate represents a phase status change.

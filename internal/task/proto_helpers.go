@@ -275,7 +275,7 @@ func PopulateComputedFieldsProto(tasks []*orcv1.Task) {
 	}
 
 	// Build reverse lookup maps in O(N) instead of O(N²)
-	blocksMap := make(map[string][]string)    // blockerID -> []taskIDs that it blocks
+	blocksMap := make(map[string][]string)       // blockerID -> []taskIDs that it blocks
 	referencedByMap := make(map[string][]string) // refID -> []taskIDs that reference it
 
 	for _, t := range tasks {
@@ -475,6 +475,34 @@ func SetCurrentPhaseProto(t *orcv1.Task, phase string) {
 	} else {
 		t.CurrentPhase = &phase
 	}
+}
+
+// GetPhaseSessionIDProto returns the stored session ID for a phase, or empty string if none.
+func GetPhaseSessionIDProto(t *orcv1.Task, phaseID string) string {
+	if t == nil || t.Execution == nil || t.Execution.Phases == nil {
+		return ""
+	}
+	phase := t.Execution.Phases[phaseID]
+	if phase == nil || phase.SessionId == nil {
+		return ""
+	}
+	return *phase.SessionId
+}
+
+// GetPhaseProviderProto returns the configured provider metadata for a phase.
+func GetPhaseProviderProto(t *orcv1.Task, phaseID string) string {
+	if t == nil || t.Metadata == nil {
+		return ""
+	}
+	return t.Metadata["phase:"+phaseID+":provider"]
+}
+
+// GetPhaseModelProto returns the configured model metadata for a phase.
+func GetPhaseModelProto(t *orcv1.Task, phaseID string) string {
+	if t == nil || t.Metadata == nil {
+		return ""
+	}
+	return t.Metadata["phase:"+phaseID+":model"]
 }
 
 // GetWorkflowIDProto returns the workflow ID, or empty string if nil.

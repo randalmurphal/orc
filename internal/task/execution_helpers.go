@@ -158,6 +158,8 @@ func ResetPhaseProto(e *orcv1.ExecutionState, phaseID string) {
 	e.Phases[phaseID].CompletedAt = nil
 	e.Phases[phaseID].InterruptedAt = nil
 	e.Phases[phaseID].SessionId = nil // Clear session so retry starts fresh with full prompt
+	e.Phases[phaseID].Tokens = &orcv1.TokenUsage{}
+	recomputeExecutionTokensProto(e)
 }
 
 // ResetExecutionStateProto resets the entire execution state back to initial pending state.
@@ -212,6 +214,33 @@ func SetPhaseSessionIDProto(e *orcv1.ExecutionState, phaseID, sessionID string) 
 	e.Phases[phaseID].SessionId = &sessionID
 }
 
+// SetPhaseTokensProto stores token usage for a specific phase and recomputes task totals.
+func SetPhaseTokensProto(e *orcv1.ExecutionState, phaseID string, usage *orcv1.TokenUsage) {
+	if e == nil {
+		return
+	}
+	EnsurePhaseProto(e, phaseID)
+	if usage == nil {
+		e.Phases[phaseID].Tokens = &orcv1.TokenUsage{}
+		recomputeExecutionTokensProto(e)
+		return
+	}
+
+	total := usage.TotalTokens
+	if total == 0 {
+		total = usage.InputTokens + usage.OutputTokens + usage.CacheCreationInputTokens + usage.CacheReadInputTokens
+	}
+
+	e.Phases[phaseID].Tokens = &orcv1.TokenUsage{
+		InputTokens:              usage.InputTokens,
+		OutputTokens:             usage.OutputTokens,
+		CacheCreationInputTokens: usage.CacheCreationInputTokens,
+		CacheReadInputTokens:     usage.CacheReadInputTokens,
+		TotalTokens:              total,
+	}
+	recomputeExecutionTokensProto(e)
+}
+
 // SetErrorProto sets the error string.
 func SetErrorProto(e *orcv1.ExecutionState, errMsg string) {
 	if e == nil {
@@ -235,4 +264,26 @@ func SetPhaseCommitSHAProto(e *orcv1.ExecutionState, phaseID, sha string) {
 	} else {
 		e.Phases[phaseID].CommitSha = &sha
 	}
+}
+
+func recomputeExecutionTokensProto(e *orcv1.ExecutionState) {
+	if e == nil {
+		return
+	}
+	if e.Tokens == nil {
+		e.Tokens = &orcv1.TokenUsage{}
+	}
+
+	total := &orcv1.TokenUsage{}
+	for _, phase := range e.Phases {
+		if phase == nil || phase.Tokens == nil {
+			continue
+		}
+		total.InputTokens += phase.Tokens.InputTokens
+		total.OutputTokens += phase.Tokens.OutputTokens
+		total.CacheCreationInputTokens += phase.Tokens.CacheCreationInputTokens
+		total.CacheReadInputTokens += phase.Tokens.CacheReadInputTokens
+	}
+	total.TotalTokens = total.InputTokens + total.OutputTokens + total.CacheCreationInputTokens + total.CacheReadInputTokens
+	e.Tokens = total
 }
