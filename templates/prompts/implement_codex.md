@@ -85,6 +85,19 @@ If blocked, still return the same top-level keys. Use `null` or `[]` for fields 
 4. Commit before outputting completion JSON.
 5. DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 
+## Verification Status Rules
+
+Use verification statuses precisely:
+- `PASS` only when the check succeeded for your changes.
+- `FAIL` only when the failure is caused by your changes or proves the task is incomplete.
+- `SKIPPED` when the check is not applicable OR when a repo-wide command is blocked by pre-existing unrelated failures outside your diff.
+
+If a repo-wide test/build/lint command fails for unrelated pre-existing reasons:
+1. Do NOT start fixing unrelated files.
+2. Record the issue in `pre_existing_issues`.
+3. Mark that verification entry as `SKIPPED`, not `FAIL`.
+4. Explain in `evidence` that the command is blocked by unrelated pre-existing failures.
+
 ## Process
 
 1. Read the specification and referenced code.

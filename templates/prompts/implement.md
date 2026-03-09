@@ -23,6 +23,27 @@ Before outputting completion JSON, you MUST run all FIVE checks and include evid
 4. **Linting**: Run linter on files you changed (`git diff --name-only`). Fix lint errors in YOUR code only. Pre-existing issues in other files are out of scope.
 5. **Wiring**: For EVERY new file created, grep the codebase to find which production file imports it. If no production file imports it → dead code → FAIL.
 
+## Verification Status Rules
+
+Use verification statuses precisely:
+- `PASS` only when the check succeeded for your changes.
+- `FAIL` only when the failure is caused by your changes or proves the task is incomplete.
+- `SKIPPED` when the check is not applicable OR when a repo-wide command is blocked by pre-existing unrelated failures outside your diff.
+
+If a repo-wide test/build/lint command fails for unrelated pre-existing reasons:
+1. Do NOT start fixing unrelated files.
+2. Record the issue in `pre_existing_issues`.
+3. Mark that verification entry as `SKIPPED`, not `FAIL`.
+4. Explain in `evidence` that the command is blocked by unrelated pre-existing failures.
+
+Example:
+```json
+"linting": {
+  "status": "SKIPPED",
+  "evidence": "golangci-lint run is blocked by unrelated pre-existing errcheck failures in internal/bench/...; no lint failures found in files from git diff --name-only",
+}
+```
+
 ## Completion Output Format
 
 ONLY after ALL verifications PASS, output JSON with `status`, `summary`, and `verification` fields containing `tests`, `success_criteria`, `build`, `linting`, and `wiring` — each with `status` and `evidence`. See `<example_good_completion>` below for exact schema.
