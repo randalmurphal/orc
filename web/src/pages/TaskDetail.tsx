@@ -280,7 +280,7 @@ export function TaskDetail() {
 		return plan.phases.filter((phase) => phase.status === PhaseStatus.COMPLETED);
 	}, [plan]);
 
-	const failedPhase = useMemo(() => task?.currentPhase ?? '', [task?.currentPhase]);
+	const failedPhase = task?.currentPhase ?? '';
 
 	const errorMessage = useMemo(() => {
 		if (!task?.currentPhase) {

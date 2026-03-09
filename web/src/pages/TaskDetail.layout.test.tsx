@@ -365,8 +365,14 @@ describe('TaskDetail Layout (TASK-736)', () => {
 			const retryButton = screen.getByRole('button', { name: /retry implement/i });
 			fireEvent.click(retryButton);
 
-			// Verify API was called with feedback (the exact API structure TBD during implementation)
-			// This test will be refined when the TaskFooter component is implemented
+			await waitFor(() => {
+				expect(mockRetryTask).toHaveBeenCalledWith(
+					expect.objectContaining({
+						fromPhase: 'implement',
+						instructions: 'Use validateSession instead',
+					})
+				);
+			});
 		});
 	});
 
