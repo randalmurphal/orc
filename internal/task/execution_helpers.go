@@ -108,6 +108,20 @@ func SkipPhaseProto(e *orcv1.ExecutionState, phaseID string, reason string) {
 	RecordGateDecisionProto(e, phaseID, "skip", true, reason)
 }
 
+// SkipRemainingPhasesProto marks all pending phases as skipped.
+// Completed/skipped phases are preserved.
+func SkipRemainingPhasesProto(e *orcv1.ExecutionState, reason string) {
+	if e == nil || e.Phases == nil {
+		return
+	}
+
+	for phaseID, phase := range e.Phases {
+		if phase == nil || phase.Status == orcv1.PhaseStatus_PHASE_STATUS_PENDING {
+			SkipPhaseProto(e, phaseID, reason)
+		}
+	}
+}
+
 // RecordGateDecisionProto records a gate evaluation result.
 func RecordGateDecisionProto(e *orcv1.ExecutionState, phase, gateType string, approved bool, reason string) {
 	if e == nil {
