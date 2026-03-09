@@ -13,7 +13,7 @@ import { TaskDetail } from './TaskDetail';
 import { useTaskStore, useProjectStore } from '@/stores';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { type Task, TaskStatus } from '@/gen/orc/v1/task_pb';
-import { createMockTask } from '@/test/factories';
+import { createMockTask, createTimestamp } from '@/test/factories';
 
 // Mock the Connect RPC client
 const mockGetTask = vi.fn();
@@ -254,6 +254,51 @@ describe('TaskDetail', () => {
 			const storeTask = useTaskStore.getState().getTask('TASK-001');
 			expect(storeTask?.status).toBe(TaskStatus.COMPLETED);
 			expect(storeTask?.currentPhase).toBe('test');
+		});
+	});
+
+	describe('elapsed time behavior', () => {
+		it('uses completedAt to freeze elapsed time for completed tasks', async () => {
+			const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(200_000);
+			const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+
+			mockGetTask.mockResolvedValue({
+				task: createTask({
+					status: TaskStatus.COMPLETED,
+					startedAt: createTimestamp(new Date(100_000)),
+					completedAt: createTimestamp(new Date(150_000)),
+				}),
+			});
+
+			renderTaskDetail();
+
+			await waitFor(() => {
+				expect(screen.getByText('0:50')).toBeInTheDocument();
+			});
+
+			expect(setIntervalSpy).not.toHaveBeenCalledWith(expect.any(Function), 1000);
+			setIntervalSpy.mockRestore();
+			nowSpy.mockRestore();
+		});
+
+		it('does not start elapsed timer interval for failed tasks', async () => {
+			const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+
+			mockGetTask.mockResolvedValue({
+				task: createTask({
+					status: TaskStatus.FAILED,
+					startedAt: createTimestamp(new Date(100_000)),
+				}),
+			});
+
+			renderTaskDetail();
+
+			await waitFor(() => {
+				expect(screen.getByText('Test Task')).toBeInTheDocument();
+			});
+
+			expect(setIntervalSpy).not.toHaveBeenCalledWith(expect.any(Function), 1000);
+			setIntervalSpy.mockRestore();
 		});
 	});
 });

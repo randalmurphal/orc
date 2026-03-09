@@ -83,6 +83,16 @@ export function TaskFooter({
 	const completedPhases =
 		plan?.phases.filter((p) => p.status === PhaseStatus.COMPLETED) ?? [];
 
+	const findMostRecentRetryFromPhase = (failedPhase: string | undefined) => {
+		for (let i = completedPhases.length - 1; i >= 0; i -= 1) {
+			const phase = completedPhases[i];
+			if (phase.name !== failedPhase) {
+				return phase;
+			}
+		}
+		return null;
+	};
+
 	/**
 	 * Handle pause task
 	 */
@@ -192,6 +202,7 @@ export function TaskFooter({
 	if (isFailed) {
 		const failedPhase = taskState?.phase || task.currentPhase;
 		const errorMessage = taskState?.error || 'Task failed';
+		const retryFromPhase = findMostRecentRetryFromPhase(failedPhase);
 
 		return (
 			<footer className="task-footer task-footer--failed">
@@ -234,18 +245,17 @@ export function TaskFooter({
 						Retry {failedPhase}
 					</Button>
 
-					{/* Retry from earlier phases (only show if there are completed phases before current) */}
-					{completedPhases.map((phase) => (
+					{/* Retry from most recent completed phase before failure */}
+					{retryFromPhase && (
 						<Button
-							key={phase.id}
 							variant="secondary"
-							onClick={() => handleRetry(phase.name)}
+							onClick={() => handleRetry(retryFromPhase.name)}
 							loading={isLoading}
-							aria-label={`Retry from ${phase.name}`}
+							aria-label={`Retry from ${retryFromPhase.name}`}
 						>
-							Retry earlier
+							Retry from {retryFromPhase.name}
 						</Button>
-					))}
+					)}
 				</div>
 			</footer>
 		);

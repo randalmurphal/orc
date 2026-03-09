@@ -100,6 +100,20 @@
 	color: var(--red);
 }
 
+.workflow-progress__phase--skipped {
+	opacity: 0.75;
+	border-color: var(--border);
+	background: var(--bg-card);
+}
+
+.workflow-progress__phase--skipped .workflow-progress__phase-indicator {
+	color: var(--text-muted);
+}
+
+.workflow-progress__phase--skipped .workflow-progress__phase-name {
+	color: var(--text-muted);
+}
+
 /* Clickable phase */
 .workflow-progress__phase--clickable {
 	cursor: pointer;
