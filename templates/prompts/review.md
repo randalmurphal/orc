@@ -276,6 +276,20 @@ Red flags for incomplete implementation:
 
 If success criteria are vague or untestable, this is a blocking finding — the spec phase failed and implementation cannot be properly reviewed.
 
+## Check 5b: Browser Validation Contract (CRITICAL for browser-visible work)
+
+Inspect the implementation completion JSON when available (`{{OUTPUT_IMPLEMENT_CODEX}}` or `{{OUTPUT_IMPLEMENT}}`) in addition to the diff and tests.
+
+- Determine whether the implemented change affects browser-visible behavior.
+- This includes backend, API, proto, or config changes that alter what the UI displays or how it behaves.
+- If browser-visible behavior changed, implementation must include `verification.browser_validation` with:
+  - `browser_surface_change=true`
+  - `required=true`
+  - `performed=true`
+  - concrete `evidence`
+- If browser validation should have happened and that evidence is missing, weak, or contradicted by the diff, this is a HIGH-SEVERITY finding and you MUST block.
+- Do not accept “planner said no browser QA” as an excuse. Review the implemented behavior, not the plan's guess.
+
 ## Check 6: Integration Completeness (CRITICAL - Find ALL Call Sites)
 
 **Are new components actually wired into the system?**

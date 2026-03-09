@@ -22,10 +22,14 @@ import './TaskDetail.css';
 /**
  * Format elapsed time since a timestamp
  */
-function formatElapsedTime(startedAt: { seconds: bigint } | undefined): string {
+function formatElapsedTime(
+	startedAt: { seconds: bigint } | undefined,
+	completedAt?: { seconds: bigint }
+): string {
 	if (!startedAt) return '—';
 	const startMs = Number(startedAt.seconds) * 1000;
-	const elapsed = Date.now() - startMs;
+	const endMs = completedAt ? Number(completedAt.seconds) * 1000 : Date.now();
+	const elapsed = endMs - startMs;
 	const totalSeconds = Math.floor(elapsed / 1000);
 	const minutes = Math.floor(totalSeconds / 60);
 	const seconds = totalSeconds % 60;
@@ -133,9 +137,16 @@ export function TaskDetail() {
 	// Update elapsed time every second when task is running
 	useEffect(() => {
 		if (!task?.startedAt) return;
+		const isTerminalTask =
+			task.status === TaskStatus.COMPLETED || task.status === TaskStatus.FAILED;
+		const completedAt = isTerminalTask ? task.completedAt : undefined;
 
 		// Initial update
-		setElapsedTime(formatElapsedTime(task.startedAt));
+		setElapsedTime(formatElapsedTime(task.startedAt, completedAt));
+
+		if (isTerminalTask) {
+			return;
+		}
 
 		// Update every second
 		const interval = setInterval(() => {
@@ -143,7 +154,7 @@ export function TaskDetail() {
 		}, 1000);
 
 		return () => clearInterval(interval);
-	}, [task?.startedAt]);
+	}, [task?.startedAt, task?.completedAt, task?.status]);
 
 	// Handle task update (from footer actions)
 	const handleTaskUpdate = useCallback((updatedTask: Task) => {

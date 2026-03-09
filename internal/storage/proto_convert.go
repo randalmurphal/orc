@@ -274,25 +274,34 @@ func protoPhaseToDBPhase(taskID, phaseID string, ps *orcv1.PhaseState) *db.Phase
 		}
 	}
 
-	var inputTokens, outputTokens int
+	var inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens, totalTokens int
 	if ps.Tokens != nil {
 		inputTokens = int(ps.Tokens.InputTokens)
 		outputTokens = int(ps.Tokens.OutputTokens)
+		cacheCreationTokens = int(ps.Tokens.CacheCreationInputTokens)
+		cacheReadTokens = int(ps.Tokens.CacheReadInputTokens)
+		totalTokens = int(ps.Tokens.TotalTokens)
+		if totalTokens == 0 {
+			totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
+		}
 	}
 
 	return &db.Phase{
-		TaskID:       taskID,
-		PhaseID:      phaseID,
-		Status:       task.PhaseStatusFromProto(ps.Status),
-		Iterations:   int(ps.Iterations),
-		StartedAt:    startedAt,
-		CompletedAt:  completedAt,
-		InputTokens:  inputTokens,
-		OutputTokens: outputTokens,
-		CostUSD:      0, // Not stored at phase level
-		ErrorMessage: ptrToString(ps.Error),
-		CommitSHA:    ptrToString(ps.CommitSha),
-		SessionID:    ptrToString(ps.SessionId),
+		TaskID:              taskID,
+		PhaseID:             phaseID,
+		Status:              task.PhaseStatusFromProto(ps.Status),
+		Iterations:          int(ps.Iterations),
+		StartedAt:           startedAt,
+		CompletedAt:         completedAt,
+		InputTokens:         inputTokens,
+		OutputTokens:        outputTokens,
+		CacheCreationTokens: cacheCreationTokens,
+		CacheReadTokens:     cacheReadTokens,
+		TotalTokens:         totalTokens,
+		CostUSD:             0, // Not stored at phase level
+		ErrorMessage:        ptrToString(ps.Error),
+		CommitSHA:           ptrToString(ps.CommitSha),
+		SessionID:           ptrToString(ps.SessionId),
 	}
 }
 
@@ -319,8 +328,11 @@ func dbPhaseToProtoPhase(dbPhase *db.Phase) *orcv1.PhaseState {
 		CommitSha:   stringToPtr(dbPhase.CommitSHA),
 		SessionId:   stringToPtr(dbPhase.SessionID),
 		Tokens: &orcv1.TokenUsage{
-			InputTokens:  int32(dbPhase.InputTokens),
-			OutputTokens: int32(dbPhase.OutputTokens),
+			InputTokens:              int32(dbPhase.InputTokens),
+			OutputTokens:             int32(dbPhase.OutputTokens),
+			CacheCreationInputTokens: int32(dbPhase.CacheCreationTokens),
+			CacheReadInputTokens:     int32(dbPhase.CacheReadTokens),
+			TotalTokens:              int32(dbPhase.TotalTokens),
 		},
 	}
 }

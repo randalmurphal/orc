@@ -1,13 +1,13 @@
 id: crossmodel-standard
 name: "Cross-Model Standard"
-description: "Strict default path: Opus plans, GPT 5.4 implements, Opus reviews, GPT 5.4 cross-checks, browser QA when required, then targeted docs."
+description: "Strict default path: Opus plans, GPT 5.4 implements (including browser validation when needed), Opus reviews, GPT 5.4 cross-checks, then targeted docs."
 
 # Model strategy:
 #   plan         → Opus (ambiguity handling, risk classification, codebase exploration)
 #   implement    → GPT 5.4 via Codex (single-owner implementation + tests)
 #   review       → Opus (primary independent review)
 #   review_cross → GPT 5.4 via Codex (second independent review)
-#   qa_e2e_test  → conditional browser verification when the plan requires it
+#   implement    → includes browser validation when implemented behavior requires it
 #   docs         → GPT 5.4 via Codex (targeted operational docs updates or explicit no-op)
 
 phases:
@@ -51,21 +51,8 @@ phases:
         value: "true"
       max_loops: 2
 
-  - template: qa_e2e_test
-    sequence: 4
-    depends_on: ["review_cross"]
-    condition: >-
-      {"any":[
-        {"field":"phase_output.plan.risk_assessment.requires_browser_qa","op":"eq","value":"true"},
-        {"field":"phase_output.plan.verification_plan.e2e","op":"neq","value":""}
-      ]}
-    loop_config:
-      loop_to_phase: implement_codex
-      condition: "has_findings"
-      max_loops: 2
-
   - template: docs
-    sequence: 5
+    sequence: 4
     depends_on: ["review_cross"]
     provider_override: codex
     model_override: gpt-5.4

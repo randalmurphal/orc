@@ -67,6 +67,7 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - Do tests prove the real behavior through production paths, not just isolated helpers?
 - Are edge cases and failure modes covered where the change is risky?
 - If the implementation claims a fix, is there evidence the bug would have been caught before and is prevented now?
+- Inspect the implementation completion JSON when available (`{{OUTPUT_IMPLEMENT_CODEX}}` or `{{OUTPUT_IMPLEMENT}}`) and verify `verification.browser_validation` is present and credible when the implemented diff changes browser-visible behavior.
 
 **5. Edge Cases & Boundaries**
 - What happens with empty input, nil values, zero-length collections?
@@ -105,6 +106,7 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - Obvious performance regressions on hot or scalable paths
 - Over-engineered changes that materially increase complexity without need
 - Missing or misleading tests for critical behavior
+- Missing browser-validation evidence when the implemented diff changes browser-visible behavior, including backend or API changes that affect what the UI renders
 </critical_constraints>
 
 <context>
@@ -143,9 +145,10 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 4. **Check the production risks first** — security, integrity, performance, simplicity, tests
 5. **Hunt for edge cases** — what inputs, states, or timing would break this code?
 6. **Check error paths** — trace every error from origin to handler. Any gaps?
-7. **Verify integration** — new code is reachable from production paths
-8. If you found small issues, fix and commit them
-9. Output your structured response
+7. **Check browser validation** — if the implemented diff changes browser-visible behavior, verify the implementation output includes real browser-validation evidence rather than a planner guess
+8. **Verify integration** — new code is reachable from production paths
+9. If you found small issues, fix and commit them
+10. Output your structured response
 
 ## Success Criteria Verification (MANDATORY)
 

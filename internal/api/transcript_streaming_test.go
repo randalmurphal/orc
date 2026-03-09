@@ -8,10 +8,12 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
-	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // TestTranscriptStreaming_API tests the new streaming API endpoints for live output panel
@@ -56,7 +58,7 @@ func TestTranscriptServer_StreamTranscript(t *testing.T) {
 
 func TestTranscriptServer_GetLiveTranscript(t *testing.T) {
 	t.Run("SC-8: GetLiveTranscript should return current streaming state", func(t *testing.T) {
-		// Arrange: Set up backend with some persisted and streaming content
+		// Arrange: Set up backend with persisted content
 		mockBackend := &MockStreamingBackend{
 			transcripts: []storage.Transcript{
 				{
@@ -76,16 +78,11 @@ func TestTranscriptServer_GetLiveTranscript(t *testing.T) {
 					Timestamp: time.Now().Add(-4 * time.Minute).UnixMilli(),
 				},
 			},
-			liveTranscript: []TranscriptStreamEvent{
-				{
-					TaskID:    "TASK-001",
-					ProjectID: "test-project",
-					Content:   "Live streaming content",
-					Type:      "response",
-					Phase:     "implement",
-					Timestamp: time.Now(),
-				},
-			},
+			task: func() *orcv1.Task {
+				t := task.NewProtoTask("TASK-001", "Test")
+				task.SetCurrentPhaseProto(t, "implement")
+				return t
+			}(),
 		}
 
 		server := &transcriptServer{
@@ -101,26 +98,15 @@ func TestTranscriptServer_GetLiveTranscript(t *testing.T) {
 
 		resp, err := server.GetLiveTranscript(context.Background(), req)
 
-		// Assert: Should include both persisted and live content
+		// Assert: Should include persisted content
 		require.NoError(t, err)
 		assert.NotNil(t, resp.Msg.Transcript)
 
 		transcript := resp.Msg.Transcript
 		assert.Equal(t, "TASK-001", transcript.TaskId)
 		assert.Equal(t, "implement", transcript.Phase)
-
-		// Should have persisted entries plus live entries
-		assert.GreaterOrEqual(t, len(transcript.Entries), 3)
-
-		// Check that live content is included
-		hasLiveContent := false
-		for _, entry := range transcript.Entries {
-			if entry.Content == "Live streaming content" {
-				hasLiveContent = true
-				break
-			}
-		}
-		assert.True(t, hasLiveContent, "Response should include live streaming content")
+		assert.Len(t, transcript.Entries, 2)
+		assert.False(t, resp.Msg.HasLiveContent)
 	})
 
 	t.Run("should return empty transcript for non-existent task", func(t *testing.T) {
@@ -143,6 +129,36 @@ func TestTranscriptServer_GetLiveTranscript(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, len(resp.Msg.Transcript.Entries))
 	})
+}
+
+func TestTranscriptServer_GetSession_UsesPhaseScopedSession(t *testing.T) {
+	sessionStart := time.Now().Add(-2 * time.Minute)
+	mockBackend := &MockStreamingBackend{
+		task: func() *orcv1.Task {
+			t := task.NewProtoTask("TASK-001", "Test")
+			task.SetCurrentPhaseProto(t, "implement")
+			task.SetPhaseSessionIDProto(t.Execution, "implement", "codex-thread-123")
+			t.Metadata["phase:implement:provider"] = "codex"
+			t.Metadata["phase:implement:model"] = "gpt-5.4"
+			t.Execution.Phases["implement"].StartedAt = timestamppb.New(sessionStart)
+			return t
+		}(),
+		transcripts: []storage.Transcript{
+			{ID: 1, TaskID: "TASK-001", Phase: "implement", Type: "assistant", Content: "one", Timestamp: sessionStart.UnixMilli()},
+			{ID: 2, TaskID: "TASK-001", Phase: "implement", Type: "assistant", Content: "two", Timestamp: time.Now().UnixMilli()},
+		},
+	}
+
+	server := &transcriptServer{backend: mockBackend}
+	resp, err := server.GetSession(context.Background(), &connect.Request[orcv1.GetSessionRequest]{
+		Msg: &orcv1.GetSessionRequest{TaskId: "TASK-001"},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp.Msg.Session)
+	assert.Equal(t, "codex-thread-123", resp.Msg.Session.Id)
+	assert.Equal(t, "gpt-5.4", resp.Msg.Session.Model)
+	assert.Equal(t, int32(2), resp.Msg.Session.TurnCount)
+	require.NotNil(t, resp.Msg.Session.CreatedAt)
 }
 
 func TestTranscriptServer_EventIntegration(t *testing.T) {
@@ -229,6 +245,7 @@ type MockStreamingBackend struct {
 	transcripts    []storage.Transcript
 	streamEvents   chan TranscriptStreamEvent
 	liveTranscript []TranscriptStreamEvent
+	task           *orcv1.Task
 }
 
 func (m *MockStreamingBackend) GetTranscripts(taskID string) ([]storage.Transcript, error) {
@@ -239,6 +256,13 @@ func (m *MockStreamingBackend) GetTranscripts(taskID string) ([]storage.Transcri
 		}
 	}
 	return result, nil
+}
+
+func (m *MockStreamingBackend) LoadTask(taskID string) (*orcv1.Task, error) {
+	if m.task != nil && m.task.Id == taskID {
+		return m.task, nil
+	}
+	return nil, assert.AnError
 }
 
 func (m *MockStreamingBackend) EmitTranscriptEvent(event TranscriptStreamEvent) {

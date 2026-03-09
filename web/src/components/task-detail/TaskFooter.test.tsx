@@ -344,6 +344,36 @@ describe('TaskFooter', () => {
 				);
 			});
 		});
+
+		it('limits retry options to failed phase and most recent completed phase', () => {
+			const task = createMockTask({
+				status: TaskStatus.FAILED,
+				currentPhase: 'phase-8',
+			});
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'phase-1', status: PhaseStatus.COMPLETED }),
+					createMockPhase({ id: 'phase-2', name: 'phase-2', status: PhaseStatus.COMPLETED }),
+					createMockPhase({ id: 'phase-3', name: 'phase-3', status: PhaseStatus.COMPLETED }),
+					createMockPhase({ id: 'phase-4', name: 'phase-4', status: PhaseStatus.COMPLETED }),
+					createMockPhase({ id: 'phase-5', name: 'phase-5', status: PhaseStatus.COMPLETED }),
+					createMockPhase({ id: 'phase-6', name: 'phase-6', status: PhaseStatus.COMPLETED }),
+					createMockPhase({ id: 'phase-7', name: 'phase-7', status: PhaseStatus.COMPLETED }),
+					createMockPhase({ id: 'phase-8', name: 'phase-8', status: PhaseStatus.PENDING }),
+					createMockPhase({ id: 'phase-9', name: 'phase-9', status: PhaseStatus.PENDING }),
+					createMockPhase({ id: 'phase-10', name: 'phase-10', status: PhaseStatus.PENDING }),
+				],
+			});
+			const taskState = { error: 'Test error', phase: 'phase-8' };
+
+			render(<TaskFooter task={task} plan={plan} taskState={taskState} metrics={null} />);
+
+			expect(screen.getByRole('button', { name: /retry phase-8/i })).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: /retry from phase-7/i })).toBeInTheDocument();
+
+			const retryButtons = screen.getAllByRole('button', { name: /retry/i });
+			expect(retryButtons).toHaveLength(2);
+		});
 	});
 
 	describe('SC-12: Guidance textarea for retry feedback', () => {

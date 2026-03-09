@@ -1,9 +1,12 @@
 package executor
 
 import (
+	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestCodexExecutor_ImplementsTurnExecutor(t *testing.T) {
@@ -269,6 +272,81 @@ func TestEnsureAdditionalPropertiesFalse(t *testing.T) {
 			t.Fatalf("optional command field should become nullable, got %v", commandTypes)
 		}
 	})
+}
+
+func TestCodexExecutor_ExecuteSingleTurn_StreamsAndCapturesSession(t *testing.T) {
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join(tmpDir, "fake-codex.sh")
+	script := `#!/bin/sh
+echo '{"type":"thread.started","thread_id":"sess-123"}'
+echo '{"type":"item.completed","item":{"type":"assistant_message","text":"partial "}}'
+sleep 0.2
+echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}}'
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake codex script: %v", err)
+	}
+
+	backend := &mockTranscriptBackend{}
+	exec := NewCodexExecutor(
+		WithCodexPath(scriptPath),
+		WithCodexWorkdir(tmpDir),
+		WithCodexModel("gpt-5.4"),
+		WithCodexPhaseID("implement"),
+		WithCodexBackend(backend),
+		WithCodexTaskID("TASK-001"),
+		WithCodexRunID("RUN-001"),
+	)
+
+	done := make(chan struct {
+		result *TurnResult
+		err    error
+	}, 1)
+	go func() {
+		result, err := exec.executeSingleTurn(context.Background(), "do the thing", "", time.Now())
+		done <- struct {
+			result *TurnResult
+			err    error
+		}{result: result, err: err}
+	}()
+
+	time.Sleep(75 * time.Millisecond)
+	if len(backend.transcripts) < 2 {
+		t.Fatalf("expected prompt and chunk transcripts before completion, got %d", len(backend.transcripts))
+	}
+	if backend.transcripts[0].Type != "user" {
+		t.Fatalf("first transcript type = %q, want user", backend.transcripts[0].Type)
+	}
+	if backend.transcripts[1].Type != "chunk" {
+		t.Fatalf("second transcript type = %q, want chunk", backend.transcripts[1].Type)
+	}
+
+	outcome := <-done
+	if outcome.err != nil {
+		t.Fatalf("executeSingleTurn failed: %v", outcome.err)
+	}
+	if outcome.result.SessionID != "sess-123" {
+		t.Fatalf("session id = %q, want sess-123", outcome.result.SessionID)
+	}
+	if outcome.result.Content != "final answer" {
+		t.Fatalf("content = %q, want %q", outcome.result.Content, "final answer")
+	}
+	if outcome.result.Usage == nil || outcome.result.Usage.TotalTokens != 15 {
+		t.Fatalf("usage = %+v, want total 15", outcome.result.Usage)
+	}
+
+	if len(backend.transcripts) != 3 {
+		t.Fatalf("expected 3 transcripts after completion, got %d", len(backend.transcripts))
+	}
+	if backend.transcripts[2].Type != "assistant" {
+		t.Fatalf("final transcript type = %q, want assistant", backend.transcripts[2].Type)
+	}
+	if backend.transcripts[2].SessionID != "sess-123" {
+		t.Fatalf("final transcript session_id = %q, want sess-123", backend.transcripts[2].SessionID)
+	}
+	if backend.transcripts[2].Content != "final answer" {
+		t.Fatalf("final transcript content = %q, want final answer", backend.transcripts[2].Content)
+	}
 }
 
 func TestExtractLastJSON(t *testing.T) {

@@ -26,10 +26,13 @@ interface WorkflowProgressProps {
 function getPhaseState(
 	phase: PlanPhase,
 	task: Task
-): 'completed' | 'running' | 'pending' | 'failed' {
+): 'completed' | 'running' | 'pending' | 'failed' | 'skipped' {
 	// Check phase status first
 	if (phase.status === PhaseStatus.COMPLETED) {
 		return 'completed';
+	}
+	if (phase.status === PhaseStatus.SKIPPED) {
+		return 'skipped';
 	}
 
 	// Check if this is the current phase and task failed
@@ -74,8 +77,8 @@ function getGateType(
  * Determine gate visual state based on adjacent phases
  */
 function getGateState(
-	prevPhaseState: 'completed' | 'running' | 'pending' | 'failed' | null,
-	nextPhaseState: 'completed' | 'running' | 'pending' | 'failed',
+	prevPhaseState: 'completed' | 'running' | 'pending' | 'failed' | 'skipped' | null,
+	nextPhaseState: 'completed' | 'running' | 'pending' | 'failed' | 'skipped',
 	task: Task
 ): 'passed' | 'blocked' | null {
 	// If task is blocked and this is the gate before the current phase, show blocked
@@ -91,8 +94,10 @@ function getGateState(
 
 	// If the previous phase is completed and current is running/completed, gate passed
 	if (
-		prevPhaseState === 'completed' &&
-		(nextPhaseState === 'completed' || nextPhaseState === 'running')
+		(prevPhaseState === 'completed' || prevPhaseState === 'skipped') &&
+		(nextPhaseState === 'completed' ||
+			nextPhaseState === 'running' ||
+			nextPhaseState === 'skipped')
 	) {
 		return 'passed';
 	}
@@ -189,6 +194,7 @@ export function WorkflowProgress({
 								{phaseState === 'running' && '●'}
 								{phaseState === 'pending' && '○'}
 								{phaseState === 'failed' && '✗'}
+								{phaseState === 'skipped' && '⊘'}
 							</span>
 							<span className="workflow-progress__phase-name">{phase.name}</span>
 						</div>

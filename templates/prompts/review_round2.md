@@ -136,10 +136,12 @@ While reviewing the fixes:
 - Are tests convincing, or do they still only prove isolated behavior?
 
 **Critical re-verification:**
+- [ ] Re-check `{{OUTPUT_IMPLEMENT_CODEX}}` or `{{OUTPUT_IMPLEMENT}}` when available instead of trusting prior summaries
 - [ ] All dependents still updated (no new broken references)
 - [ ] Preservation requirements still met (fixes didn't remove preserved features)
 - [ ] Build/typecheck still passes
 - [ ] Critical tests cover the production path, failure cases, and relevant edge cases
+- [ ] Browser-validation evidence is now present and credible if the implemented diff changes browser-visible behavior
 - [ ] The final implementation is still simple enough to maintain and reason about
 
 ## Step 4: Make Final Decision

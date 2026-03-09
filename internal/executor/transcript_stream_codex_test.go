@@ -21,7 +21,7 @@ func (m *mockTranscriptBackend) AddTranscript(t *storage.Transcript) error {
 
 func TestStoreAssistantText_Basic(t *testing.T) {
 	backend := &mockTranscriptBackend{}
-	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil)
+	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil, nil)
 
 	h.StoreAssistantText("Hello world", "gpt-5", "msg-1", 100, 50)
 
@@ -48,7 +48,7 @@ func TestStoreAssistantText_Basic(t *testing.T) {
 
 func TestStoreAssistantText_Deduplication(t *testing.T) {
 	backend := &mockTranscriptBackend{}
-	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil)
+	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil, nil)
 
 	h.StoreAssistantText("msg1", "gpt-5", "same-id", 10, 5)
 	h.StoreAssistantText("msg2", "gpt-5", "same-id", 10, 5) // duplicate
@@ -60,7 +60,7 @@ func TestStoreAssistantText_Deduplication(t *testing.T) {
 
 func TestStoreAssistantText_EmptyMessageID(t *testing.T) {
 	backend := &mockTranscriptBackend{}
-	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil)
+	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil, nil)
 
 	h.StoreAssistantText("test", "", "", 10, 5) // empty message ID -> auto-generated
 
@@ -74,7 +74,7 @@ func TestStoreAssistantText_EmptyMessageID(t *testing.T) {
 
 func TestStoreAssistantText_FallbackModel(t *testing.T) {
 	backend := &mockTranscriptBackend{}
-	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "default-model", nil)
+	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "default-model", nil, nil)
 
 	h.StoreAssistantText("test", "", "msg-1", 10, 5) // empty model -> use handler default
 
@@ -84,8 +84,24 @@ func TestStoreAssistantText_FallbackModel(t *testing.T) {
 }
 
 func TestStoreAssistantText_NilBackend(t *testing.T) {
-	h := NewTranscriptStreamHandler(nil, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil)
+	h := NewTranscriptStreamHandler(nil, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil, nil)
 	// Should not panic
 	h.StoreAssistantText("test", "gpt-5", "msg-1", 10, 5)
 }
 
+func TestStoreChunkText(t *testing.T) {
+	backend := &mockTranscriptBackend{}
+	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil, nil)
+
+	h.StoreChunkText("partial output", "gpt-5")
+
+	if len(backend.transcripts) != 1 {
+		t.Fatalf("expected 1 transcript, got %d", len(backend.transcripts))
+	}
+	if backend.transcripts[0].Type != "chunk" {
+		t.Fatalf("type = %q, want chunk", backend.transcripts[0].Type)
+	}
+	if backend.transcripts[0].Content != "partial output" {
+		t.Fatalf("content = %q, want partial output", backend.transcripts[0].Content)
+	}
+}

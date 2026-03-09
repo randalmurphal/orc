@@ -258,7 +258,7 @@ Examples:
 
 			// Print session info if requested
 			if showSession {
-				printSessionInfoProto(t, id)
+				printSessionInfoProto(backend, t, id)
 			}
 
 			// Print cost info if requested
@@ -303,26 +303,73 @@ Examples:
 }
 
 // printSessionInfoProto displays session information for a task (proto version).
-func printSessionInfoProto(t *orcv1.Task, id string) {
+func printSessionInfoProto(backend storage.Backend, t *orcv1.Task, id string) {
 	fmt.Printf("\nSession\n")
 	fmt.Printf("─────────────────────────\n")
 
-	if t.Execution == nil || t.Execution.Session == nil {
+	currentPhase := task.GetCurrentPhaseProto(t)
+	if currentPhase == "" {
 		fmt.Printf("No session information recorded.\n")
 		fmt.Println("Session info is recorded after the task starts running.")
 		return
 	}
 
-	session := t.Execution.Session
-	fmt.Printf("Session ID:    %s\n", session.Id)
-	fmt.Printf("Model:         %s\n", session.Model)
-	fmt.Printf("Status:        %s\n", session.Status)
-	fmt.Printf("Turn Count:    %d\n", session.TurnCount)
-	if session.CreatedAt != nil {
-		fmt.Printf("Created:       %s\n", session.CreatedAt.AsTime().Format("2006-01-02 15:04:05"))
+	sessionID := task.GetPhaseSessionIDProto(t, currentPhase)
+	model := task.GetPhaseModelProto(t, currentPhase)
+	provider := task.GetPhaseProviderProto(t, currentPhase)
+	if sessionID == "" && model == "" && provider == "" {
+		fmt.Printf("No session information recorded.\n")
+		fmt.Println("Session info is recorded after the phase starts running.")
+		return
 	}
-	if session.LastActivity != nil {
-		fmt.Printf("Last Activity: %s\n", session.LastActivity.AsTime().Format("2006-01-02 15:04:05"))
+
+	fmt.Printf("Phase:         %s\n", currentPhase)
+	if sessionID != "" {
+		fmt.Printf("Session ID:    %s\n", sessionID)
+	} else {
+		fmt.Printf("Session ID:    pending\n")
+	}
+	if provider != "" {
+		fmt.Printf("Provider:      %s\n", provider)
+	}
+	if model != "" {
+		fmt.Printf("Model:         %s\n", model)
+	}
+	fmt.Printf("Status:        %s\n", task.StatusFromProto(t.Status))
+
+	if t.Execution != nil && t.Execution.Phases != nil {
+		if phaseState := t.Execution.Phases[currentPhase]; phaseState != nil {
+			if phaseState.StartedAt != nil {
+				fmt.Printf("Created:       %s\n", phaseState.StartedAt.AsTime().Format("2006-01-02 15:04:05"))
+			}
+			if phaseState.CompletedAt != nil {
+				fmt.Printf("Last Activity: %s\n", phaseState.CompletedAt.AsTime().Format("2006-01-02 15:04:05"))
+			}
+		}
+	}
+
+	if backend != nil {
+		transcripts, err := backend.GetTranscripts(id)
+		if err == nil {
+			turnCount := 0
+			var lastActivity time.Time
+			for _, transcript := range transcripts {
+				if transcript.Phase != currentPhase {
+					continue
+				}
+				if transcript.Type == "assistant" {
+					turnCount++
+				}
+				ts := time.UnixMilli(transcript.Timestamp)
+				if ts.After(lastActivity) {
+					lastActivity = ts
+				}
+			}
+			fmt.Printf("Turn Count:    %d\n", turnCount)
+			if !lastActivity.IsZero() {
+				fmt.Printf("Last Activity: %s\n", lastActivity.Format("2006-01-02 15:04:05"))
+			}
+		}
 	}
 
 	// Show resume hint if task is paused or blocked (task.Status is single source of truth)

@@ -390,3 +390,26 @@ func TestReviewTemplates_ProductionQualityFocus(t *testing.T) {
 		})
 	}
 }
+
+func TestReviewTemplates_RequireBrowserValidationChecks(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{"review.md", "review_cross.md", "review_round2.md"}
+	for _, file := range tests {
+		file := file
+		t.Run(file, func(t *testing.T) {
+			t.Parallel()
+
+			content := strings.ToLower(readReviewTemplate(t, file))
+			for _, needle := range []string{
+				"browser",
+				"browser-visible",
+				"output_implement",
+			} {
+				if !strings.Contains(content, needle) {
+					t.Errorf("%s should mention %q for browser-validation review", file, needle)
+				}
+			}
+		})
+	}
+}

@@ -124,6 +124,30 @@ describe('WorkflowProgress', () => {
 			expect(pendingPhases.length).toBe(2); // implement and review are pending
 		});
 
+		it('renders skipped phases with distinct indicator and class', () => {
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+					createMockPhase({ id: 'phase-2', name: 'review', status: PhaseStatus.SKIPPED }),
+				],
+			});
+			const task = createMockTask({
+				status: TaskStatus.RUNNING,
+				currentPhase: 'spec',
+			});
+
+			const { container } = render(<WorkflowProgress task={task} plan={plan} />);
+
+			const skippedPhase = container.querySelector('.workflow-progress__phase--skipped');
+			expect(skippedPhase).toBeInTheDocument();
+
+			const skippedIndicator = skippedPhase?.querySelector(
+				'.workflow-progress__phase-indicator'
+			);
+			expect(skippedIndicator).toHaveTextContent('⊘');
+			expect(skippedIndicator).not.toHaveTextContent('○');
+		});
+
 		it('renders single phase workflow correctly', () => {
 			const plan = createMockTaskPlan({
 				phases: [
@@ -362,6 +386,25 @@ describe('WorkflowProgress', () => {
 			// Gate before blocked phase should show blocked status (red overrides yellow)
 			const blockedGate = container.querySelector('.workflow-progress__gate--blocked');
 			expect(blockedGate).toBeInTheDocument();
+		});
+
+		it('renders gate as passed between completed and skipped phases', () => {
+			const plan = createMockTaskPlan({
+				phases: [
+					createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+					createMockPhase({ id: 'phase-2', name: 'review', status: PhaseStatus.SKIPPED }),
+					createMockPhase({ id: 'phase-3', name: 'docs', status: PhaseStatus.PENDING }),
+				],
+			});
+			const task = createMockTask({
+				status: TaskStatus.RUNNING,
+				currentPhase: 'docs',
+			});
+
+			const { container } = render(<WorkflowProgress task={task} plan={plan} />);
+
+			const passedGates = container.querySelectorAll('.workflow-progress__gate--passed');
+			expect(passedGates.length).toBeGreaterThanOrEqual(1);
 		});
 	});
 
