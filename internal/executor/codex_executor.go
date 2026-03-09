@@ -23,9 +23,10 @@ import (
 // Ensure CodexExecutor implements TurnExecutor.
 var _ TurnExecutor = (*CodexExecutor)(nil)
 
-// CodexExecutor wraps CodexCLI for phase execution with structured output
-// via --output-schema. Unlike Claude's constrained decoding, Codex's
-// structured output is NOT guaranteed — responses are validated and retried.
+// CodexExecutor wraps CodexCLI for phase execution with structured output via
+// --output-schema. PackageName: executor. Unlike Claude's constrained decoding,
+// Codex's structured output is NOT guaranteed — responses are validated and
+// retried.
 type CodexExecutor struct {
 	codexPath string
 	workdir   string
