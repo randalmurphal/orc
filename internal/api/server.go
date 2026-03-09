@@ -24,6 +24,7 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/git"
+	"github.com/randalmurphal/orc/internal/knowledge"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
@@ -70,6 +71,9 @@ type Server struct {
 
 	// Automation service for trigger-based automation
 	automationSvc *automation.Service
+
+	// Knowledge service for knowledge query APIs
+	knowledgeSvc *knowledge.Service
 
 	// Pending gate decisions (for human approval gates in API mode)
 	pendingDecisions *gate.PendingDecisionStore
@@ -179,18 +183,22 @@ func New(cfg *Config) *Server {
 	}
 
 	s := &Server{
-		addr:             cfg.Addr,
-		workDir:          workDir,
-		maxPortAttempts:  maxPortAttempts,
-		mux:              http.NewServeMux(),
-		logger:           logger,
-		orcConfig:        orcCfg,
-		publisher:        pub,
-		backend:          backend,
-		projectDB:        backend.DB(),
-		runningTasks:     make(map[string]context.CancelFunc),
-		diffCache:        diff.NewCache(100), // Cache up to 100 file diffs
-		automationSvc:    automationSvc,
+		addr:            cfg.Addr,
+		workDir:         workDir,
+		maxPortAttempts: maxPortAttempts,
+		mux:             http.NewServeMux(),
+		logger:          logger,
+		orcConfig:       orcCfg,
+		publisher:       pub,
+		backend:         backend,
+		projectDB:       backend.DB(),
+		runningTasks:    make(map[string]context.CancelFunc),
+		diffCache:       diff.NewCache(100), // Cache up to 100 file diffs
+		automationSvc:   automationSvc,
+		knowledgeSvc: knowledge.NewService(knowledge.ServiceConfig{
+			Enabled: orcCfg.Knowledge.Enabled,
+			Backend: orcCfg.Knowledge.Backend,
+		}),
 		pendingDecisions: gate.NewPendingDecisionStore(),
 		serverCtx:        serverCtx,
 		serverCtxCancel:  serverCtxCancel,
@@ -240,7 +248,6 @@ func New(cfg *Config) *Server {
 	s.registerConnectHandlers()
 	return s
 }
-
 
 // parseAddr extracts host and port from an address string like ":8080" or "127.0.0.1:8080"
 func parseAddr(addr string) (host string, port int, err error) {
