@@ -3,6 +3,7 @@ package executor
 import (
 	"log/slog"
 
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -28,16 +29,17 @@ type TurnExecutorConfig struct {
 	ClaudeConfig     *PhaseClaudeConfig
 
 	// Codex-specific
-	BypassApprovalsAndSandbox bool   // Always true for orc execution
-	LocalProvider             string // "ollama" or "lmstudio" for local routing
-	ReasoningEffort string // Codex model_reasoning_effort
-	WebSearchMode   string // Codex web_search mode
-	Env             map[string]string // Additional env vars for codex process
-	AddDirs         []string          // Additional accessible directories
+	BypassApprovalsAndSandbox bool              // Always true for orc execution
+	LocalProvider             string            // "ollama" or "lmstudio" for local routing
+	ReasoningEffort           string            // Codex model_reasoning_effort
+	WebSearchMode             string            // Codex web_search mode
+	Env                       map[string]string // Additional env vars for codex process
+	AddDirs                   []string          // Additional accessible directories
 
 	// Shared
-	Backend storage.Backend
-	Logger  *slog.Logger
+	Backend   storage.Backend
+	Logger    *slog.Logger
+	Publisher *events.PublishHelper
 }
 
 // NewTurnExecutor creates the appropriate TurnExecutor based on provider.
@@ -88,6 +90,7 @@ func newCodexTurnExecutor(cfg TurnExecutorConfig) TurnExecutor {
 		WithCodexBackend(cfg.Backend),
 		WithCodexTaskID(cfg.TaskID),
 		WithCodexRunID(cfg.RunID),
+		WithCodexPublisher(cfg.Publisher),
 	}
 
 	if cfg.CodexPath != "" {

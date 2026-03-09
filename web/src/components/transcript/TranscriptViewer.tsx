@@ -38,6 +38,8 @@ export interface TranscriptViewerProps {
 	showSearch?: boolean;
 	/** Initial phase filter */
 	initialPhase?: string;
+	/** Streaming lines from the live task subscription */
+	streamingLines?: TranscriptLine[];
 }
 
 /** Section data structure for hierarchical display */
@@ -59,6 +61,7 @@ export function TranscriptViewer({
 	showNav = true,
 	showSearch = true,
 	initialPhase,
+	streamingLines: externalStreamingLines = [],
 }: TranscriptViewerProps) {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [searchResults, setSearchResults] = useState<number[]>([]);
@@ -102,11 +105,13 @@ export function TranscriptViewer({
 	);
 
 	// TODO: Transcript streaming will be implemented via Connect RPC event streaming
-	// The event handler will dispatch transcript events to this component via stores
+	// Streaming content currently comes from task subscription props while the hook
+	// still supports internally appended lines for other call sites.
+	const liveStreamingLines = externalStreamingLines.length > 0 ? externalStreamingLines : streamingLines;
 
 	// Refresh to sync streaming lines to DB periodically
 	useEffect(() => {
-		if (!isRunning || streamingLines.length === 0) return;
+		if (!isRunning || liveStreamingLines.length === 0) return;
 
 		// Refresh every 5 seconds to sync streaming lines
 		const interval = setInterval(() => {
@@ -115,7 +120,7 @@ export function TranscriptViewer({
 		}, 5000);
 
 		return () => clearInterval(interval);
-	}, [isRunning, streamingLines.length, refresh, clearStreamingLines]);
+	}, [isRunning, liveStreamingLines.length, refresh, clearStreamingLines]);
 
 	// Handle infinite scroll
 	const handleScroll = useCallback(() => {
@@ -319,7 +324,26 @@ export function TranscriptViewer({
 		[]
 	);
 
-	const sections = buildSections(transcripts, streamingLines);
+	const sections = buildSections(transcripts, liveStreamingLines);
+
+	useEffect(() => {
+		const container = scrollContainerRef.current;
+		if (!container) {
+			return;
+		}
+		if (sections.length === 0) {
+			return;
+		}
+		if (!isRunning && transcripts.length === 0) {
+			return;
+		}
+
+		const timer = window.setTimeout(() => {
+			container.scrollTop = container.scrollHeight;
+		}, 0);
+
+		return () => window.clearTimeout(timer);
+	}, [currentPhase, isRunning, transcripts.length, liveStreamingLines.length, sections.length]);
 
 	// Render content for a section
 	const renderSectionContent = (section: SectionData, highlightedId?: number): ReactNode => {
@@ -377,7 +401,7 @@ export function TranscriptViewer({
 		);
 	}
 
-	if (transcripts.length === 0 && streamingLines.length === 0) {
+	if (transcripts.length === 0 && liveStreamingLines.length === 0) {
 		return (
 			<div className="transcript-viewer" style={{ height }}>
 				<div className="transcript-viewer-empty">
@@ -413,7 +437,7 @@ export function TranscriptViewer({
 					)}
 					<span className="transcript-count">
 						{transcripts.length} messages
-						{streamingLines.length > 0 && ` + ${streamingLines.length} streaming`}
+						{liveStreamingLines.length > 0 && ` + ${liveStreamingLines.length} streaming`}
 					</span>
 				</div>
 
@@ -529,7 +553,7 @@ export function TranscriptViewer({
 					)}
 
 					{/* Streaming indicator */}
-					{isRunning && streamingLines.length > 0 && (
+					{isRunning && liveStreamingLines.length > 0 && (
 						<div className="streaming-indicator">
 							<Icon name="activity" size={14} className="streaming-pulse" />
 							<span>Live streaming...</span>

@@ -218,6 +218,13 @@ func (we *WorkflowExecutor) executePhase(
 			} else {
 				task.CompletePhaseProto(we.task.Execution, tmpl.ID, "")
 			}
+			task.SetPhaseTokensProto(we.task.Execution, tmpl.ID, &orcv1.TokenUsage{
+				InputTokens:              int32(result.InputTokens),
+				OutputTokens:             int32(result.OutputTokens),
+				CacheCreationInputTokens: int32(result.CacheCreationTokens),
+				CacheReadInputTokens:     int32(result.CacheReadTokens),
+				TotalTokens:              int32(result.InputTokens + result.OutputTokens + result.CacheCreationTokens + result.CacheReadTokens),
+			})
 			if err := we.backend.SaveTask(we.task); err != nil {
 				we.logger.Warn("failed to save task execution state for non-LLM phase", "error", err)
 			}
@@ -560,6 +567,13 @@ func (we *WorkflowExecutor) executePhase(
 			}
 		}
 		task.CompletePhaseProto(we.task.Execution, tmpl.ID, commitSHA)
+		task.SetPhaseTokensProto(we.task.Execution, tmpl.ID, &orcv1.TokenUsage{
+			InputTokens:              int32(result.InputTokens),
+			OutputTokens:             int32(result.OutputTokens),
+			CacheCreationInputTokens: int32(result.CacheCreationTokens),
+			CacheReadInputTokens:     int32(result.CacheReadTokens),
+			TotalTokens:              int32(result.InputTokens + result.OutputTokens + result.CacheCreationTokens + result.CacheReadTokens),
+		})
 		currentPhase := ""
 		if we.task.CurrentPhase != nil {
 			currentPhase = *we.task.CurrentPhase
@@ -995,9 +1009,10 @@ func (we *WorkflowExecutor) executePhaseWithTimeout(
 	// This ensures `orc status` can read the current phase directly from the task record.
 	if t != nil {
 		task.SetCurrentPhaseProto(t, tmpl.ID)
+		task.StartPhaseProto(t.Execution, tmpl.ID)
 		if err := we.backend.SaveTask(t); err != nil {
 			// Non-fatal: workflow run still tracks the phase. Log and continue.
-			we.logger.Warn("failed to save task CurrentPhase", "task", t.Id, "phase", tmpl.ID, "error", err)
+			we.logger.Warn("failed to save task phase start", "task", t.Id, "phase", tmpl.ID, "error", err)
 		}
 	}
 

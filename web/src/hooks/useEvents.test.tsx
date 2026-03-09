@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useTaskSubscription } from './useEvents';
 import { EventProvider } from './EventProvider';
 import { useTaskStore } from '@/stores/taskStore';
@@ -21,13 +21,18 @@ import { create } from '@bufbuild/protobuf';
 import { ExecutionStateSchema, type ExecutionState } from '@/gen/orc/v1/task_pb';
 import type { ReactNode } from 'react';
 
+const connectMock = vi.fn();
+const disconnectMock = vi.fn();
+const onMock = vi.fn(() => () => {});
+const onStatusChangeMock = vi.fn(() => () => {});
+
 // Mock the EventSubscription class to avoid actual network calls
 vi.mock('@/lib/events', () => ({
 	EventSubscription: vi.fn().mockImplementation(() => ({
-		onStatusChange: vi.fn(() => () => {}),
-		on: vi.fn(() => () => {}),
-		connect: vi.fn(),
-		disconnect: vi.fn(),
+		onStatusChange: onStatusChangeMock,
+		on: onMock,
+		connect: connectMock,
+		disconnect: disconnectMock,
 		isConnected: vi.fn(() => false),
 	})),
 	handleEvent: vi.fn(),
@@ -50,11 +55,21 @@ function createWrapper() {
 	};
 }
 
+function createAutoConnectWrapper() {
+	return function Wrapper({ children }: { children: ReactNode }) {
+		return <EventProvider autoConnect={true}>{children}</EventProvider>;
+	};
+}
+
 describe('useTaskSubscription - SC-1: Returns execution state from taskStore', () => {
 	beforeEach(() => {
 		// Reset the store before each test
 		useTaskStore.getState().reset();
 		vi.clearAllMocks();
+		connectMock.mockClear();
+		disconnectMock.mockClear();
+		onMock.mockClear();
+		onStatusChangeMock.mockClear();
 	});
 
 	it('should return null when no execution state exists in store', () => {
@@ -105,6 +120,17 @@ describe('useTaskSubscription - SC-1: Returns execution state from taskStore', (
 		});
 
 		expect(result.current.state).toBeNull();
+	});
+
+	it('keeps the global event stream when subscribing to a task', async () => {
+		renderHook(() => useTaskSubscription('TASK-001'), {
+			wrapper: createAutoConnectWrapper(),
+		});
+
+		await waitFor(() => expect(connectMock).toHaveBeenCalled());
+		expect(
+			connectMock.mock.calls.every(([options]) => options?.taskId === undefined)
+		).toBe(true);
 	});
 });
 

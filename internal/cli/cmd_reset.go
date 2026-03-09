@@ -79,15 +79,12 @@ Examples:
 				}
 			}
 
-			// Reset execution state (task.Execution contains all execution-related state)
-			task.EnsureExecutionProto(t)
-			task.ResetExecutionStateProto(t.Execution)
-			task.SetCurrentPhaseProto(t, "")
-
-			// Update task status
-			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+			task.ResetTaskForFreshRunProto(t)
 			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
+			}
+			if err := backend.ClearTaskExecutor(t.Id); err != nil {
+				return fmt.Errorf("clear task executor: %w", err)
 			}
 
 			fmt.Printf("🔄 Task %s reset to initial state\n", id)

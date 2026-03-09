@@ -357,6 +357,10 @@ func (d *DatabaseBackend) loadTaskUnlocked(id string) (*orcv1.Task, error) {
 		t.Execution.Gates = dbGatesToProtoGates(dbGates)
 	}
 
+	if t.Execution != nil {
+		task.RecomputeExecutionTokensProto(t.Execution)
+	}
+
 	return t, nil
 }
 
@@ -416,6 +420,10 @@ func (d *DatabaseBackend) LoadAllTasks() ([]*orcv1.Task, error) {
 		// Apply pre-fetched gates
 		if gates, ok := allGates[t.Id]; ok {
 			t.Execution.Gates = dbGatesToProtoGates(gates)
+		}
+
+		if t.Execution != nil {
+			task.RecomputeExecutionTokensProto(t.Execution)
 		}
 
 		tasks = append(tasks, t)

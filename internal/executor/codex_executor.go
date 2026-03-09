@@ -15,7 +15,9 @@ import (
 	"github.com/randalmurphal/llmkit/codex"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // Ensure CodexExecutor implements TurnExecutor.
@@ -50,9 +52,11 @@ type CodexExecutor struct {
 	loopIteration int
 
 	// Transcript storage
-	backend storage.Backend
-	taskID  string
-	runID   string
+	backend           storage.Backend
+	taskID            string
+	runID             string
+	publisher         *events.PublishHelper
+	transcriptHandler *TranscriptStreamHandler
 
 	// Codex-specific settings
 	bypassApprovalsAndSandbox bool
@@ -147,6 +151,11 @@ func WithCodexRunID(id string) CodexExecutorOption {
 	return func(e *CodexExecutor) { e.runID = id }
 }
 
+// WithCodexPublisher sets the event publisher for live transcript updates.
+func WithCodexPublisher(p *events.PublishHelper) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.publisher = p }
+}
+
 // WithCodexBypassApprovalsAndSandbox enables --dangerously-bypass-approvals-and-sandbox.
 // This is the default and only supported mode for orc execution.
 func WithCodexBypassApprovalsAndSandbox(bypass bool) CodexExecutorOption {
@@ -202,6 +211,19 @@ func NewCodexExecutor(opts ...CodexExecutorOption) *CodexExecutor {
 	}
 	for _, opt := range opts {
 		opt(e)
+	}
+	if e.backend != nil && e.taskID != "" {
+		e.transcriptHandler = NewTranscriptStreamHandler(
+			e.backend,
+			e.logger,
+			e.taskID,
+			e.phaseID,
+			e.sessionID,
+			e.runID,
+			e.model,
+			e.publisher,
+			nil,
+		)
 	}
 	return e
 }
@@ -332,6 +354,30 @@ func (e *CodexExecutor) UpdateSessionID(id string) {
 	e.logger.Debug("updating codex session ID", "old_id", e.sessionID, "new_id", id, "old_resume", e.resume)
 	e.sessionID = id
 	e.resume = true
+	if e.transcriptHandler != nil {
+		e.transcriptHandler.UpdateSessionID(id)
+	}
+}
+
+func (e *CodexExecutor) persistLiveSessionID(sessionID string) {
+	if e.backend == nil || e.taskID == "" || e.phaseID == "" || sessionID == "" {
+		return
+	}
+
+	t, err := e.backend.LoadTask(e.taskID)
+	if err != nil {
+		e.logger.Warn("failed to load task for live codex session persistence", "task", e.taskID, "phase", e.phaseID, "error", err)
+		return
+	}
+	if t == nil {
+		e.logger.Warn("task not found while persisting live codex session", "task", e.taskID, "phase", e.phaseID)
+		return
+	}
+
+	task.SetPhaseSessionIDProto(t.Execution, e.phaseID, sessionID)
+	if saveErr := e.backend.SaveTask(t); saveErr != nil {
+		e.logger.Warn("failed to persist live codex session ID", "task", e.taskID, "phase", e.phaseID, "session_id", sessionID, "error", saveErr)
+	}
 }
 
 // SessionID returns the current session ID.
@@ -341,110 +387,148 @@ func (e *CodexExecutor) SessionID() string {
 
 // executeSingleTurn runs a single codex completion or resume call.
 func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFile string, start time.Time) (*TurnResult, error) {
-	// Build common options
-	cliOpts := e.buildCLIOptions(schemaFile)
-	cli := codex.NewCodexCLI(cliOpts...)
+	ctx, cancel := e.codexContextWithTimeout(ctx)
+	defer cancel()
 
-	var resp *codex.CompletionResponse
-	var err error
-
-	// Always use Complete() — resume is handled via WithSessionID() which
-	// causes buildExecArgs() to emit `exec resume <thread_id>` with filtered flags.
-	req := codex.CompletionRequest{
-		Messages: []codex.Message{{Role: codex.RoleUser, Content: prompt}},
+	if e.transcriptHandler != nil {
+		e.transcriptHandler.StoreUserPrompt(prompt)
 	}
-	resp, err = cli.Complete(ctx, req)
 
+	cli := codex.NewCodexCLI(e.buildCLIOptions(schemaFile)...)
+	stream, err := cli.Stream(ctx, codex.CompletionRequest{
+		Messages: []codex.Message{{Role: codex.RoleUser, Content: prompt}},
+	})
 	if err != nil {
 		return &TurnResult{
 			Duration:  time.Since(start),
 			IsError:   true,
 			ErrorText: err.Error(),
-		}, fmt.Errorf("codex complete: %w", err)
+		}, fmt.Errorf("codex stream: %w", err)
 	}
 
+	var (
+		contentBuilder strings.Builder
+		finalContent   string
+		usage          *codex.TokenUsage
+		sessionID      = e.sessionID
+		numTurns       int
+	)
+
+	for chunk := range stream {
+		if chunk.SessionID != "" && chunk.SessionID != sessionID {
+			sessionID = chunk.SessionID
+			e.UpdateSessionID(sessionID)
+			e.persistLiveSessionID(sessionID)
+		}
+		if chunk.Content != "" {
+			contentBuilder.WriteString(chunk.Content)
+			if e.transcriptHandler != nil {
+				e.transcriptHandler.StoreChunkText(chunk.Content, e.model)
+			}
+		}
+		if chunk.FinalContent != "" {
+			finalContent = chunk.FinalContent
+		}
+		if chunk.Usage != nil {
+			usage = chunk.Usage
+		}
+		if chunk.Done {
+			numTurns++
+		}
+		if chunk.Error != nil {
+			content := strings.TrimSpace(contentBuilder.String())
+			if finalContent != "" {
+				content = strings.TrimSpace(finalContent)
+			}
+			return &TurnResult{
+				Content:   content,
+				Duration:  time.Since(start),
+				IsError:   true,
+				ErrorText: chunk.Error.Error(),
+				SessionID: sessionID,
+			}, fmt.Errorf("codex stream: %w", chunk.Error)
+		}
+	}
+
+	content := strings.TrimSpace(contentBuilder.String())
+	if finalContent != "" {
+		content = strings.TrimSpace(finalContent)
+	}
 	result := &TurnResult{
-		Content:   resp.Content,
-		NumTurns:  resp.NumTurns,
-		CostUSD:   resp.CostUSD,
-		SessionID: resp.SessionID,
+		Content:   content,
+		NumTurns:  numTurns,
+		SessionID: sessionID,
 		Duration:  time.Since(start),
-		Usage: &orcv1.TokenUsage{
-			InputTokens:  int32(resp.Usage.InputTokens),
-			OutputTokens: int32(resp.Usage.OutputTokens),
-			TotalTokens:  int32(resp.Usage.TotalTokens),
-		},
 	}
-
-	if resp.FinishReason == "error" {
-		result.IsError = true
-		result.ErrorText = resp.Content
+	if usage != nil {
+		result.Usage = &orcv1.TokenUsage{
+			InputTokens:              int32(usage.InputTokens),
+			OutputTokens:             int32(usage.OutputTokens),
+			CacheCreationInputTokens: int32(usage.CacheCreationInputTokens),
+			CacheReadInputTokens:     int32(usage.CacheReadInputTokens),
+			TotalTokens:              int32(usage.TotalTokens),
+		}
 	}
-
-	// Store transcript if backend is configured
-	if e.backend != nil && e.taskID != "" {
-		e.storeTranscript(prompt, resp)
+	if e.transcriptHandler != nil {
+		inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens := 0, 0, 0, 0
+		if usage != nil {
+			inputTokens = usage.InputTokens
+			outputTokens = usage.OutputTokens
+			cacheCreationTokens = usage.CacheCreationInputTokens
+			cacheReadTokens = usage.CacheReadInputTokens
+		}
+		e.transcriptHandler.StoreAssistantTextWithUsage(content, e.model, "", inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens)
 	}
 
 	return result, nil
 }
 
-// buildCLIOptions constructs codex CLI options for a turn.
 func (e *CodexExecutor) buildCLIOptions(schemaFile string) []codex.CodexOption {
 	opts := []codex.CodexOption{
 		codex.WithWorkdir(e.workdir),
 		codex.WithTimeout(e.timeout),
 	}
-
 	if e.bypassApprovalsAndSandbox {
 		opts = append(opts, codex.WithDangerouslyBypassApprovalsAndSandbox())
 	}
-
 	if e.codexPath != "" {
 		opts = append(opts, codex.WithCodexPath(e.codexPath))
 	}
-
 	if e.model != "" {
 		opts = append(opts, codex.WithModel(e.model))
 	}
-
-	// Session handling — only pass session ID when resuming (with a real codex thread_id).
-	// For fresh calls, codex assigns its own thread_id which we capture from the response.
 	if e.resume && e.sessionID != "" {
 		opts = append(opts, codex.WithSessionID(e.sessionID))
 	}
-
-	// Schema file for structured output
 	if schemaFile != "" {
 		opts = append(opts, codex.WithOutputSchema(schemaFile))
 	}
-
-	// Local model routing
 	if e.localProvider != "" {
 		opts = append(opts, codex.WithLocalProvider(e.localProvider))
 	}
-
-	// Reasoning effort (model_reasoning_effort)
 	if e.reasoningEffort != "" {
 		opts = append(opts, codex.WithReasoningEffort(e.reasoningEffort))
 	}
-
-	// Web search mode
 	if e.webSearchMode != "" {
 		opts = append(opts, codex.WithWebSearchMode(codex.WebSearchMode(e.webSearchMode)))
 	}
-
-	// Additional environment variables
 	if len(e.env) > 0 {
 		opts = append(opts, codex.WithEnv(e.env))
 	}
-
-	// Additional accessible directories
 	if len(e.addDirs) > 0 {
 		opts = append(opts, codex.WithAddDirs(e.addDirs))
 	}
-
 	return opts
+}
+
+func (e *CodexExecutor) codexContextWithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if e.timeout <= 0 {
+		return ctx, func() {}
+	}
+	if _, ok := ctx.Deadline(); ok {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, e.timeout)
 }
 
 // writeSchemaFile writes a JSON schema string to a temp file and returns the path.
@@ -582,45 +666,6 @@ func extractLastJSON(content string) string {
 	}
 
 	return content // Return as-is if no valid JSON found; caller will handle error.
-}
-
-// storeTranscript stores prompt and response as transcript entries.
-func (e *CodexExecutor) storeTranscript(prompt string, resp *codex.CompletionResponse) {
-	now := time.Now().UnixMilli()
-
-	// Store user prompt
-	userTranscript := &storage.Transcript{
-		TaskID:        e.taskID,
-		Phase:         e.phaseID,
-		SessionID:     e.sessionID,
-		WorkflowRunID: e.runID,
-		MessageUUID:   fmt.Sprintf("codex-user-%d", now),
-		Role:          "user",
-		Type:          "user",
-		Content:       prompt,
-		Model:         e.model,
-		Timestamp:     now,
-	}
-	if err := e.backend.AddTranscript(userTranscript); err != nil {
-		e.logger.Warn("failed to store codex user transcript", "error", err)
-	}
-
-	// Store assistant response
-	assistantTranscript := &storage.Transcript{
-		TaskID:        e.taskID,
-		Phase:         e.phaseID,
-		SessionID:     resp.SessionID,
-		WorkflowRunID: e.runID,
-		MessageUUID:   fmt.Sprintf("codex-assistant-%d", now),
-		Role:          "assistant",
-		Type:          "assistant",
-		Content:       resp.Content,
-		Model:         resp.Model,
-		Timestamp:     now,
-	}
-	if err := e.backend.AddTranscript(assistantTranscript); err != nil {
-		e.logger.Warn("failed to store codex assistant transcript", "error", err)
-	}
 }
 
 // isJSONParseError checks if an error is related to JSON parsing (worth retrying).

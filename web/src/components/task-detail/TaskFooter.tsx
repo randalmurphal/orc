@@ -1,8 +1,7 @@
 /**
  * TaskFooter component
  *
- * Footer bar displaying session metrics and action buttons.
- * Handles pause/resume, cancel, and retry with feedback.
+ * Footer bar displaying session metrics and compact status/actions.
  */
 
 import { useState, useCallback } from 'react';
@@ -12,19 +11,10 @@ import { Icon } from '@/components/ui/Icon';
 import { taskClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 import { useCurrentProjectId } from '@/stores';
-import {
-	PauseTaskRequestSchema,
-	ResumeTaskRequestSchema,
-	RetryTaskRequestSchema,
-} from '@/gen/orc/v1/task_pb';
-import type { Task, TaskPlan } from '@/gen/orc/v1/task_pb';
-import { TaskStatus, PhaseStatus } from '@/gen/orc/v1/task_pb';
+import { PauseTaskRequestSchema, ResumeTaskRequestSchema } from '@/gen/orc/v1/task_pb';
+import type { Task } from '@/gen/orc/v1/task_pb';
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import './TaskFooter.css';
-
-interface TaskState {
-	error?: string;
-	phase?: string;
-}
 
 interface TaskMetrics {
 	tokens: number;
@@ -35,8 +25,6 @@ interface TaskMetrics {
 
 interface TaskFooterProps {
 	task: Task;
-	plan?: TaskPlan | null;
-	taskState?: TaskState | null;
 	metrics: TaskMetrics | null;
 	onTaskUpdate?: (task: Task) => void;
 }
@@ -63,25 +51,14 @@ function formatCost(cost: number): string {
 	return `$${cost.toFixed(2)}`;
 }
 
-export function TaskFooter({
-	task,
-	plan,
-	taskState,
-	metrics,
-	onTaskUpdate,
-}: TaskFooterProps) {
+export function TaskFooter({ task, metrics, onTaskUpdate }: TaskFooterProps) {
 	const projectId = useCurrentProjectId();
 	const [isLoading, setIsLoading] = useState(false);
-	const [feedback, setFeedback] = useState('');
 
 	const isRunning = task.status === TaskStatus.RUNNING;
 	const isPaused = task.status === TaskStatus.PAUSED;
 	const isFailed = task.status === TaskStatus.FAILED;
 	const isCompleted = task.status === TaskStatus.COMPLETED;
-
-	// Get completed phases for "retry from" options
-	const completedPhases =
-		plan?.phases.filter((p) => p.status === PhaseStatus.COMPLETED) ?? [];
 
 	/**
 	 * Handle pause task
@@ -126,36 +103,6 @@ export function TaskFooter({
 	}, [projectId, task.id, onTaskUpdate]);
 
 	/**
-	 * Handle retry task from a specific phase
-	 */
-	const handleRetry = useCallback(
-		async (fromPhase: string) => {
-			if (!projectId) return;
-			setIsLoading(true);
-			try {
-				const result = await taskClient.retryTask(
-					create(RetryTaskRequestSchema, {
-						projectId,
-						taskId: task.id,
-						fromPhase,
-						instructions: feedback || undefined,
-					})
-				);
-				if (result.task) {
-					onTaskUpdate?.(result.task);
-				}
-				toast.success('Task retry started');
-				setFeedback('');
-			} catch (e) {
-				toast.error(e instanceof Error ? e.message : 'Failed to retry task');
-			} finally {
-				setIsLoading(false);
-			}
-		},
-		[projectId, task.id, feedback, onTaskUpdate]
-	);
-
-	/**
 	 * Handle cancel task
 	 */
 	const handleCancel = useCallback(async () => {
@@ -164,13 +111,17 @@ export function TaskFooter({
 		await handlePause();
 	}, [handlePause]);
 
-	// Completed state
-	if (isCompleted) {
+	if (isCompleted || isFailed) {
+		const statusIcon = isCompleted ? 'check-circle' : 'alert-circle';
+		const statusText = isCompleted ? 'Completed' : 'Failed';
+
 		return (
-			<footer className="task-footer task-footer--completed">
+			<footer
+				className={`task-footer ${isCompleted ? 'task-footer--completed' : 'task-footer--failed'}`}
+			>
 				<div className="task-footer__status">
-					<Icon name="check-circle" size={16} className="task-footer__status-icon" />
-					<span>Completed</span>
+					<Icon name={statusIcon} size={16} className="task-footer__status-icon" />
+					<span>{statusText}</span>
 				</div>
 				{metrics && (
 					<div className="task-footer__metrics">
@@ -184,69 +135,6 @@ export function TaskFooter({
 						</span>
 					</div>
 				)}
-			</footer>
-		);
-	}
-
-	// Failed state with error display and retry options
-	if (isFailed) {
-		const failedPhase = taskState?.phase || task.currentPhase;
-		const errorMessage = taskState?.error || 'Task failed';
-
-		return (
-			<footer className="task-footer task-footer--failed">
-				{/* Error summary */}
-				<div className="task-footer__error">
-					<div className="task-footer__error-header">
-						<Icon name="alert-circle" size={16} className="task-footer__error-icon" />
-						<span>
-							Error at <strong>{failedPhase}</strong>
-						</span>
-					</div>
-					<div
-						className="task-footer__error-details"
-						style={{ overflow: 'auto', maxHeight: '80px' }}
-					>
-						{errorMessage}
-					</div>
-				</div>
-
-				{/* Guidance textarea */}
-				<div className="task-footer__guidance">
-					<textarea
-						className="task-footer__feedback"
-						placeholder="Add guidance or feedback for retry..."
-						value={feedback}
-						onChange={(e) => setFeedback(e.target.value)}
-						rows={2}
-					/>
-				</div>
-
-				{/* Retry actions */}
-				<div className="task-footer__actions">
-					{/* Retry from current phase */}
-					<Button
-						variant="primary"
-						onClick={() => handleRetry(failedPhase || '')}
-						loading={isLoading}
-						leftIcon={<Icon name="refresh" size={14} />}
-					>
-						Retry {failedPhase}
-					</Button>
-
-					{/* Retry from earlier phases (only show if there are completed phases before current) */}
-					{completedPhases.map((phase) => (
-						<Button
-							key={phase.id}
-							variant="secondary"
-							onClick={() => handleRetry(phase.name)}
-							loading={isLoading}
-							aria-label={`Retry from ${phase.name}`}
-						>
-							Retry earlier
-						</Button>
-					))}
-				</div>
 			</footer>
 		);
 	}

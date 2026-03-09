@@ -192,6 +192,7 @@ Example:
 					} else {
 						t.WorkflowId = &newWorkflow
 					}
+					task.ResetTaskForFreshRunProto(t)
 					changes = append(changes, "workflow")
 				}
 			}

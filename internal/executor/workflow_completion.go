@@ -579,10 +579,9 @@ func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *orcv1.Task) 
 		we.logger.Warn("fetch failed, continuing anyway", "error", err)
 	}
 
-	// CRITICAL: Sync with remote feature branch first
-	// This prevents push failures when the remote branch already exists with different commits
-	// (e.g., from a previous run that was interrupted/resumed)
-	if t.Branch != "" {
+	// Only pull remote feature-branch history into resumed/incremental runs.
+	// Fresh runs should start from target and let PushWithForceFallback reconcile any stale remote branch later.
+	if t.Branch != "" && !task.HasFreshResetMarkerProto(t) {
 		remoteFeature := "origin/" + t.Branch
 		featureExists, err := gitOps.RemoteBranchExists("origin", t.Branch)
 		if err != nil {
@@ -618,6 +617,16 @@ func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *orcv1.Task) 
 			} else {
 				we.logger.Debug("local branch is up-to-date with remote feature branch",
 					"remote", remoteFeature)
+			}
+		}
+	} else if t.Branch != "" {
+		we.logger.Info("skipping remote feature branch sync for fresh run",
+			"task", t.Id,
+			"branch", t.Branch)
+		task.ClearFreshResetMarkerProto(t)
+		if we.backend != nil {
+			if err := we.backend.SaveTask(t); err != nil {
+				we.logger.Warn("failed to clear fresh reset marker after sync skip", "task", t.Id, "error", err)
 			}
 		}
 	}

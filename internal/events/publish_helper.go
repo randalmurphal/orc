@@ -66,12 +66,19 @@ func (ep *PublishHelper) PhaseFailed(taskID, phase string, err error) {
 // Transcript publishes a transcript line event (prompt, response, tool, error).
 // Database persistence is handled separately via JSONL sync.
 func (ep *PublishHelper) Transcript(taskID, phase string, iteration int, msgType, content string) {
+	ep.TranscriptWithUsage(taskID, phase, iteration, msgType, content, "", nil)
+}
+
+// TranscriptWithUsage publishes a transcript line event with optional model and token usage.
+func (ep *PublishHelper) TranscriptWithUsage(taskID, phase string, iteration int, msgType, content, model string, tokens *TokenUpdate) {
 	ep.Publish(NewEvent(EventTranscript, taskID, TranscriptLine{
 		Phase:     phase,
 		Iteration: iteration,
 		Type:      msgType,
 		Content:   content,
 		Timestamp: time.Now(),
+		Model:     model,
+		Tokens:    tokens,
 	}))
 }
 

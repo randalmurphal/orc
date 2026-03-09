@@ -10,11 +10,19 @@ import { FeedbackPanel } from '@/components/task-detail/FeedbackPanel';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { taskClient } from '@/lib/client';
+import { toast } from '@/stores/uiStore';
 import { useTaskSubscription, useDocumentTitle } from '@/hooks';
 import { useTask as useStoreTask } from '@/stores/taskStore';
 import { useCurrentProjectId, useTaskSessionMetrics } from '@/stores';
 import type { Task, TaskPlan } from '@/gen/orc/v1/task_pb';
-import { GetTaskRequestSchema, GetTaskPlanRequestSchema, TaskStatus } from '@/gen/orc/v1/task_pb';
+import {
+	GetTaskRequestSchema,
+	GetTaskPlanRequestSchema,
+	RetryTaskRequestSchema,
+	TaskStatus,
+	PhaseStatus,
+	UpdateTaskRequestSchema,
+} from '@/gen/orc/v1/task_pb';
 import type { InitiativeNote } from '@/gen/orc/v1/initiative_pb';
 import { initiativeClient } from '@/lib/client';
 import './TaskDetail.css';
@@ -51,6 +59,11 @@ export function TaskDetail() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [elapsedTime, setElapsedTime] = useState('—');
+	const [retryGuidance, setRetryGuidance] = useState('');
+	const [retryFromPhase, setRetryFromPhase] = useState('');
+	const [isRetrying, setIsRetrying] = useState(false);
+	const [isFixingManually, setIsFixingManually] = useState(false);
+	const [isAborting, setIsAborting] = useState(false);
 
 	// Task-generated notes state
 	const [generatedNotes, setGeneratedNotes] = useState<InitiativeNote[]>([]);
@@ -150,6 +163,80 @@ export function TaskDetail() {
 		setTask(updatedTask);
 	}, []);
 
+	const handleRetry = useCallback(
+		async (fromPhase: string) => {
+			if (!projectId || !id || !fromPhase) return;
+			setIsRetrying(true);
+			try {
+				const result = await taskClient.retryTask(
+					create(RetryTaskRequestSchema, {
+						projectId,
+						taskId: id,
+						fromPhase,
+						instructions: retryGuidance.trim() || undefined,
+					})
+				);
+				if (result.task) {
+					setTask(result.task);
+				}
+				setRetryGuidance('');
+				toast.success('Task retry started');
+			} catch (e) {
+				toast.error(e instanceof Error ? e.message : 'Failed to retry task');
+			} finally {
+				setIsRetrying(false);
+			}
+		},
+		[id, projectId, retryGuidance]
+	);
+
+	const handleFixManually = useCallback(async () => {
+		if (!projectId || !id) return;
+		setIsFixingManually(true);
+		try {
+			const result = await taskClient.updateTask(
+				create(UpdateTaskRequestSchema, {
+					projectId,
+					taskId: id,
+					status: TaskStatus.PAUSED,
+					manualFix: true,
+				})
+			);
+			if (result.task) {
+				setTask(result.task);
+			}
+			toast.success('Task paused for manual fix');
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to pause task for manual fix');
+		} finally {
+			setIsFixingManually(false);
+		}
+	}, [id, projectId]);
+
+	const handleAbortTask = useCallback(async () => {
+		if (!projectId || !id) return;
+		if (!window.confirm('Abort this task? This marks it as closed.')) return;
+
+		setIsAborting(true);
+		try {
+			const result = await taskClient.updateTask(
+				create(UpdateTaskRequestSchema, {
+					projectId,
+					taskId: id,
+					status: TaskStatus.CLOSED,
+				})
+			);
+			if (result.task) {
+				setTask(result.task);
+			}
+			toast.success('Task closed');
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to close task');
+		} finally {
+			setIsAborting(false);
+		}
+	}, [id, projectId]);
+
 	// Handle phase click from WorkflowProgress - scroll to transcript section
 	const handlePhaseClick = useCallback((phaseName: string) => {
 		// Find the transcript section with matching data-phase attribute
@@ -161,7 +248,11 @@ export function TaskDetail() {
 
 	// Build metrics from task state
 	const metrics = useMemo(() => {
-		if (liveSessionMetrics) {
+		const useLiveMetrics =
+			liveSessionMetrics &&
+			(task?.status === TaskStatus.RUNNING || task?.status === TaskStatus.FINALIZING);
+
+		if (useLiveMetrics) {
 			return {
 				tokens: liveSessionMetrics.totalTokens,
 				cost: liveSessionMetrics.estimatedCostUSD,
@@ -183,6 +274,36 @@ export function TaskDetail() {
 			outputTokens: executionTokens?.outputTokens ?? 0,
 		};
 	}, [liveSessionMetrics, task]);
+
+	const completedPhases = useMemo(() => {
+		if (!plan) return [];
+		return plan.phases.filter((phase) => phase.status === PhaseStatus.COMPLETED);
+	}, [plan]);
+
+	const failedPhase = task?.currentPhase ?? '';
+
+	const errorMessage = useMemo(() => {
+		if (!task?.currentPhase) {
+			return task?.execution?.error ?? 'Task failed';
+		}
+		return (
+			taskState?.phases[task.currentPhase]?.error ??
+			task?.execution?.error ??
+			'Task failed'
+		);
+	}, [task?.currentPhase, task?.execution?.error, taskState?.phases]);
+
+	useEffect(() => {
+		if (!completedPhases.length) {
+			setRetryFromPhase('');
+			return;
+		}
+		setRetryFromPhase((current) => {
+			const hasCurrent = completedPhases.some((phase) => phase.name === current);
+			if (hasCurrent) return current;
+			return completedPhases[0]?.name ?? '';
+		});
+	}, [completedPhases]);
 
 	// Loading state
 	if (loading) {
@@ -251,6 +372,95 @@ export function TaskDetail() {
 
 			{/* Main content: Split pane */}
 			<div className="task-detail-content">
+				{task.status === TaskStatus.FAILED && (
+					<section
+						className="task-detail-error-panel"
+						aria-label="Task failure details"
+						data-testid="task-detail-error-panel"
+					>
+						<div className="task-detail-error-panel__header">
+							<Icon name="alert-circle" size={18} />
+							<div>
+								<h2>
+									Error in <code>{failedPhase || 'unknown phase'}</code>
+								</h2>
+								<p>{errorMessage}</p>
+							</div>
+						</div>
+
+						<div className="task-detail-error-panel__details" role="region" aria-label="Error output">
+							{errorMessage}
+						</div>
+
+						<div className="task-detail-error-panel__guidance">
+							<label htmlFor="retry-guidance">Guidance for retry</label>
+							<textarea
+								id="retry-guidance"
+								placeholder="Add guidance for the retry..."
+								value={retryGuidance}
+								onChange={(event) => setRetryGuidance(event.target.value)}
+								rows={3}
+							/>
+						</div>
+
+						<div className="task-detail-error-panel__actions">
+							<Button
+								variant="primary"
+								onClick={() => handleRetry(failedPhase)}
+								loading={isRetrying}
+								disabled={!failedPhase || isFixingManually || isAborting}
+								leftIcon={<Icon name="refresh" size={14} />}
+							>
+								Retry {failedPhase || 'phase'}
+							</Button>
+
+							<div className="task-detail-error-panel__retry-earlier">
+								<select
+									value={retryFromPhase}
+									onChange={(event) => setRetryFromPhase(event.target.value)}
+									aria-label="Retry from earlier phase"
+									disabled={!completedPhases.length || isRetrying}
+								>
+									<option value="" disabled>
+										Select phase
+									</option>
+									{completedPhases.map((phase) => (
+										<option key={phase.id} value={phase.name}>
+											{phase.name}
+										</option>
+									))}
+								</select>
+								<Button
+									variant="secondary"
+									onClick={() => handleRetry(retryFromPhase)}
+									loading={isRetrying}
+									disabled={!retryFromPhase || isFixingManually || isAborting}
+								>
+									Retry from earlier
+								</Button>
+							</div>
+
+							<Button
+								variant="secondary"
+								onClick={handleFixManually}
+								loading={isFixingManually}
+								disabled={isRetrying || isAborting}
+							>
+								Fix Manually
+							</Button>
+
+							<Button
+								variant="ghost"
+								onClick={handleAbortTask}
+								loading={isAborting}
+								disabled={isRetrying || isFixingManually}
+							>
+								Abort Task
+							</Button>
+						</div>
+					</section>
+				)}
+
 				<SplitPane
 					left={
 						<div className="task-detail-panel">
@@ -259,6 +469,7 @@ export function TaskDetail() {
 								<TranscriptTab
 									taskId={task.id}
 									streamingLines={streamingTranscript}
+									currentPhase={task.currentPhase ?? undefined}
 									isRunning={
 										task.status === TaskStatus.RUNNING ||
 										task.status === TaskStatus.FINALIZING
@@ -339,14 +550,6 @@ export function TaskDetail() {
 			{/* Footer */}
 			<TaskFooter
 				task={task}
-				plan={plan}
-				taskState={taskState && task.currentPhase
-					? {
-						error: taskState.phases[task.currentPhase]?.error,
-						phase: task.currentPhase,
-					}
-					: null
-				}
 				metrics={metrics}
 				onTaskUpdate={handleTaskUpdate}
 			/>

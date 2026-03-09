@@ -77,15 +77,18 @@ export function EventProvider({
 	}, [autoConnect, projectId]);
 
 	// Stable callbacks for context value
-	const subscribe = useCallback((taskId: string) => {
-		const projectIds = projectId ? [projectId] : [];
-		subscriptionRef.current?.connect({ projectIds, taskId, includeHeartbeat: true });
-	}, [projectId]);
-
-	const subscribeGlobal = useCallback(() => {
+	const connectGlobal = useCallback(() => {
 		const projectIds = projectId ? [projectId] : [];
 		subscriptionRef.current?.connect({ projectIds, includeHeartbeat: true });
 	}, [projectId]);
+
+	const subscribeGlobal = useCallback(() => {
+		connectGlobal();
+	}, [connectGlobal]);
+
+	const subscribe = useCallback((_taskId: string) => {
+		connectGlobal();
+	}, [connectGlobal]);
 
 	const disconnect = useCallback(() => {
 		subscriptionRef.current?.disconnect();

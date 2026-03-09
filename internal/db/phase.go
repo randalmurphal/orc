@@ -8,20 +8,23 @@ import (
 
 // Phase represents a phase execution state.
 type Phase struct {
-	TaskID       string
-	PhaseID      string
-	Status       string
-	Iterations   int
-	StartedAt    *time.Time
-	CompletedAt  *time.Time
-	InputTokens  int
-	OutputTokens int
-	CostUSD      float64
-	ErrorMessage string
-	CommitSHA    string
-	SkipReason   string
-	SessionID    string // Claude CLI session UUID for --resume
-	ExecutedBy   string // User who executed this phase (references users.id in GlobalDB)
+	TaskID              string
+	PhaseID             string
+	Status              string
+	Iterations          int
+	StartedAt           *time.Time
+	CompletedAt         *time.Time
+	InputTokens         int
+	OutputTokens        int
+	CacheCreationTokens int
+	CacheReadTokens     int
+	TotalTokens         int
+	CostUSD             float64
+	ErrorMessage        string
+	CommitSHA           string
+	SkipReason          string
+	SessionID           string // Claude/Codex session UUID for --resume
+	ExecutedBy          string // User who executed this phase (references users.id in GlobalDB)
 }
 
 // SavePhase creates or updates a phase.
@@ -37,8 +40,8 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 	}
 
 	_, err := p.Exec(`
-		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(task_id, phase_id) DO UPDATE SET
 			status = excluded.status,
 			iterations = excluded.iterations,
@@ -46,6 +49,9 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 			completed_at = excluded.completed_at,
 			input_tokens = excluded.input_tokens,
 			output_tokens = excluded.output_tokens,
+			cache_creation_tokens = excluded.cache_creation_tokens,
+			cache_read_tokens = excluded.cache_read_tokens,
+			total_tokens = excluded.total_tokens,
 			cost_usd = excluded.cost_usd,
 			error_message = excluded.error_message,
 			commit_sha = excluded.commit_sha,
@@ -53,7 +59,8 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 			session_id = COALESCE(excluded.session_id, phases.session_id),
 			executed_by = excluded.executed_by
 	`, ph.TaskID, ph.PhaseID, ph.Status, ph.Iterations, startedAt, completedAt,
-		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID, ph.ExecutedBy)
+		ph.InputTokens, ph.OutputTokens, ph.CacheCreationTokens, ph.CacheReadTokens, ph.TotalTokens,
+		ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID, ph.ExecutedBy)
 	if err != nil {
 		return fmt.Errorf("save phase: %w", err)
 	}
@@ -63,7 +70,7 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 // GetPhases retrieves all phases for a task.
 func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 	rows, err := p.Query(`
-		SELECT task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by
+		SELECT task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by
 		FROM phases WHERE task_id = ?
 	`, taskID)
 	if err != nil {
@@ -76,7 +83,8 @@ func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 		var ph Phase
 		var startedAt, completedAt, errorMsg, commitSHA, skipReason, sessionID, executedBy sql.NullString
 		if err := rows.Scan(&ph.TaskID, &ph.PhaseID, &ph.Status, &ph.Iterations, &startedAt, &completedAt,
-			&ph.InputTokens, &ph.OutputTokens, &ph.CostUSD, &errorMsg, &commitSHA, &skipReason, &sessionID, &executedBy); err != nil {
+			&ph.InputTokens, &ph.OutputTokens, &ph.CacheCreationTokens, &ph.CacheReadTokens, &ph.TotalTokens,
+			&ph.CostUSD, &errorMsg, &commitSHA, &skipReason, &sessionID, &executedBy); err != nil {
 			return nil, fmt.Errorf("scan phase: %w", err)
 		}
 		if startedAt.Valid {
@@ -144,8 +152,8 @@ func SavePhaseTx(tx *TxOps, ph *Phase) error {
 	}
 
 	_, err := tx.Exec(`
-		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(task_id, phase_id) DO UPDATE SET
 			status = excluded.status,
 			iterations = excluded.iterations,
@@ -153,6 +161,9 @@ func SavePhaseTx(tx *TxOps, ph *Phase) error {
 			completed_at = excluded.completed_at,
 			input_tokens = excluded.input_tokens,
 			output_tokens = excluded.output_tokens,
+			cache_creation_tokens = excluded.cache_creation_tokens,
+			cache_read_tokens = excluded.cache_read_tokens,
+			total_tokens = excluded.total_tokens,
 			cost_usd = excluded.cost_usd,
 			error_message = excluded.error_message,
 			commit_sha = excluded.commit_sha,
@@ -160,7 +171,8 @@ func SavePhaseTx(tx *TxOps, ph *Phase) error {
 			session_id = COALESCE(excluded.session_id, phases.session_id),
 			executed_by = excluded.executed_by
 	`, ph.TaskID, ph.PhaseID, ph.Status, ph.Iterations, startedAt, completedAt,
-		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID, ph.ExecutedBy)
+		ph.InputTokens, ph.OutputTokens, ph.CacheCreationTokens, ph.CacheReadTokens, ph.TotalTokens,
+		ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID, ph.ExecutedBy)
 	if err != nil {
 		return fmt.Errorf("save phase: %w", err)
 	}
@@ -173,7 +185,7 @@ func SavePhaseTx(tx *TxOps, ph *Phase) error {
 func (p *ProjectDB) GetAllPhasesGrouped() (map[string][]Phase, error) {
 	rows, err := p.Query(`
 		SELECT task_id, phase_id, status, iterations, started_at, completed_at,
-		       input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by
+		       input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id, executed_by
 		FROM phases ORDER BY task_id
 	`)
 	if err != nil {
@@ -186,7 +198,8 @@ func (p *ProjectDB) GetAllPhasesGrouped() (map[string][]Phase, error) {
 		var ph Phase
 		var startedAt, completedAt, errorMsg, commitSHA, skipReason, sessionID, executedBy sql.NullString
 		if err := rows.Scan(&ph.TaskID, &ph.PhaseID, &ph.Status, &ph.Iterations, &startedAt, &completedAt,
-			&ph.InputTokens, &ph.OutputTokens, &ph.CostUSD, &errorMsg, &commitSHA, &skipReason, &sessionID, &executedBy); err != nil {
+			&ph.InputTokens, &ph.OutputTokens, &ph.CacheCreationTokens, &ph.CacheReadTokens, &ph.TotalTokens,
+			&ph.CostUSD, &errorMsg, &commitSHA, &skipReason, &sessionID, &executedBy); err != nil {
 			return nil, fmt.Errorf("scan phase: %w", err)
 		}
 		if startedAt.Valid {

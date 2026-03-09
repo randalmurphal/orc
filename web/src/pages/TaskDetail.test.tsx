@@ -7,13 +7,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { TaskDetail } from './TaskDetail';
 import { useTaskStore, useProjectStore } from '@/stores';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import { type Task, TaskStatus } from '@/gen/orc/v1/task_pb';
-import { createMockTask } from '@/test/factories';
+import { type Task, TaskStatus, PhaseStatus } from '@/gen/orc/v1/task_pb';
+import { createMockTask, createMockTaskPlan, createMockPhase } from '@/test/factories';
 
 // Mock the Connect RPC client
 const mockGetTask = vi.fn();
@@ -23,11 +23,16 @@ const mockGetDiff = vi.fn();
 const mockListFeedback = vi.fn();
 const mockGetReviewFindings = vi.fn();
 const mockListTaskGeneratedNotes = vi.fn();
+const mockRetryTask = vi.fn();
+const mockUpdateTask = vi.fn();
+const mockUseTaskSubscription = vi.fn();
 
 vi.mock('@/lib/client', () => ({
 	taskClient: {
 		getTask: (...args: unknown[]) => mockGetTask(...args),
 		getTaskPlan: (...args: unknown[]) => mockGetTaskPlan(...args),
+		retryTask: (...args: unknown[]) => mockRetryTask(...args),
+		updateTask: (...args: unknown[]) => mockUpdateTask(...args),
 		listReviewComments: (...args: unknown[]) => mockListReviewComments(...args),
 		getDiff: (...args: unknown[]) => mockGetDiff(...args),
 		getReviewFindings: (...args: unknown[]) => mockGetReviewFindings(...args),
@@ -42,13 +47,7 @@ vi.mock('@/lib/client', () => ({
 
 // Mock hooks module — must include all hooks imported by TaskDetail
 vi.mock('@/hooks', () => ({
-	useTaskSubscription: vi.fn(() => ({
-		state: undefined,
-		transcript: [],
-		isSubscribed: false,
-		connectionStatus: 'connected',
-		clearTranscript: vi.fn(),
-	})),
+	useTaskSubscription: (...args: unknown[]) => mockUseTaskSubscription(...args),
 	useDocumentTitle: vi.fn(),
 }));
 
@@ -112,6 +111,15 @@ describe('TaskDetail', () => {
 		// taskClient.getReviewFindings returns { findings: [] }
 		mockGetReviewFindings.mockResolvedValue({ findings: [] });
 		mockListTaskGeneratedNotes.mockResolvedValue({ notes: [] });
+		mockRetryTask.mockResolvedValue({ task: createTask({ status: TaskStatus.RUNNING }) });
+		mockUpdateTask.mockResolvedValue({ task: createTask({ status: TaskStatus.PAUSED }) });
+		mockUseTaskSubscription.mockReturnValue({
+			state: undefined,
+			transcript: [],
+			isSubscribed: false,
+			connectionStatus: 'connected',
+			clearTranscript: vi.fn(),
+		});
 	});
 
 	afterEach(() => {
@@ -255,5 +263,252 @@ describe('TaskDetail', () => {
 			expect(storeTask?.status).toBe(TaskStatus.COMPLETED);
 			expect(storeTask?.currentPhase).toBe('test');
 		});
+	});
+
+	describe('failed task error panel', () => {
+		it('SC-1: renders failed phase, summary, and scrollable output in page body', async () => {
+			useTaskStore.getState().addTask(
+				createTask({ status: TaskStatus.FAILED, currentPhase: 'implement' })
+			);
+			mockGetTask.mockResolvedValue({
+				task: createTask({
+					status: TaskStatus.FAILED,
+					currentPhase: 'implement',
+					execution: { error: 'Execution-level error' } as Task['execution'],
+				}),
+			});
+			mockUseTaskSubscription.mockReturnValue({
+				state: {
+					phases: {
+						implement: { error: 'Validation failed in implement phase' },
+					},
+				},
+				transcript: [],
+			});
+
+			renderTaskDetail();
+
+			await waitFor(() => {
+				expect(screen.getByTestId('task-detail-error-panel')).toBeInTheDocument();
+			});
+
+			expect(screen.getByText(/error in/i)).toHaveTextContent('implement');
+			expect(screen.getAllByText(/validation failed in implement phase/i)).toHaveLength(2);
+			const details = screen.getByRole('region', { name: /error output/i });
+			expect(details).toHaveClass('task-detail-error-panel__details');
+		});
+
+		it('SC-2: renders action buttons and dispatches retry/update requests', async () => {
+			useTaskStore.getState().addTask(
+				createTask({ status: TaskStatus.FAILED, currentPhase: 'implement' })
+			);
+			mockGetTask.mockResolvedValue({
+				task: createTask({
+					status: TaskStatus.FAILED,
+					currentPhase: 'implement',
+				}),
+			});
+			mockGetTaskPlan.mockResolvedValue({
+				plan: createMockTaskPlan({
+					phases: [
+						createMockPhase({ id: 'phase-1', name: 'spec', status: PhaseStatus.COMPLETED }),
+						createMockPhase({ id: 'phase-2', name: 'implement', status: PhaseStatus.PENDING }),
+					],
+				}),
+			});
+			mockUseTaskSubscription.mockReturnValue({
+				state: {
+					phases: {
+						implement: { error: 'Implement failed' },
+					},
+				},
+				transcript: [],
+			});
+			mockRetryTask.mockResolvedValue({
+				task: createTask({
+					status: TaskStatus.FAILED,
+					currentPhase: 'implement',
+				}),
+			});
+			mockUpdateTask.mockResolvedValue({ task: createTask({ status: TaskStatus.PAUSED }) });
+
+			renderTaskDetail();
+
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /retry implement/i })).toBeInTheDocument();
+			});
+
+			const errorPanel = screen.getByTestId('task-detail-error-panel');
+			expect(within(errorPanel).getByRole('button', { name: /retry from earlier/i })).toBeInTheDocument();
+			expect(within(errorPanel).getByRole('button', { name: /fix manually/i })).toBeInTheDocument();
+			expect(within(errorPanel).getByRole('button', { name: /abort task/i })).toBeInTheDocument();
+			expect(within(errorPanel).getByRole('combobox')).toBeInTheDocument();
+
+			fireEvent.click(within(errorPanel).getByRole('button', { name: /retry implement/i }));
+			await waitFor(() => {
+				expect(mockRetryTask).toHaveBeenNthCalledWith(
+					1,
+					expect.objectContaining({ fromPhase: 'implement' })
+				);
+			});
+
+			fireEvent.change(within(errorPanel).getByRole('combobox'), {
+				target: { value: 'spec' },
+			});
+			fireEvent.click(within(errorPanel).getByRole('button', { name: /retry from earlier/i }));
+			await waitFor(() => {
+				expect(mockRetryTask).toHaveBeenNthCalledWith(
+					2,
+					expect.objectContaining({ fromPhase: 'spec' })
+				);
+			});
+
+			fireEvent.click(within(errorPanel).getByRole('button', { name: /fix manually/i }));
+			await waitFor(() => {
+				expect(mockUpdateTask).toHaveBeenCalledWith(
+					expect.objectContaining({
+						status: TaskStatus.PAUSED,
+						manualFix: true,
+					})
+				);
+			});
+		});
+
+		it('SC-3: Fix Manually pauses task and removes failed panel', async () => {
+			useTaskStore.getState().addTask(
+				createTask({ status: TaskStatus.FAILED, currentPhase: 'implement' })
+			);
+			mockGetTask.mockResolvedValue({
+				task: createTask({
+					status: TaskStatus.FAILED,
+					currentPhase: 'implement',
+				}),
+			});
+			mockUseTaskSubscription.mockReturnValue({
+				state: { phases: { implement: { error: 'Implement failed' } } },
+				transcript: [],
+			});
+			mockUpdateTask.mockResolvedValue({ task: createTask({ status: TaskStatus.PAUSED }) });
+
+			renderTaskDetail();
+
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /fix manually/i })).toBeInTheDocument();
+			});
+
+			fireEvent.click(screen.getByRole('button', { name: /fix manually/i }));
+
+			await waitFor(() => {
+				expect(mockUpdateTask).toHaveBeenCalledWith(
+					expect.objectContaining({
+						status: TaskStatus.PAUSED,
+						manualFix: true,
+					})
+				);
+			});
+
+			await waitFor(() => {
+				expect(screen.queryByTestId('task-detail-error-panel')).not.toBeInTheDocument();
+			});
+		});
+
+		it('SC-4: Abort Task confirms and closes task', async () => {
+			useTaskStore.getState().addTask(
+				createTask({ status: TaskStatus.FAILED, currentPhase: 'implement' })
+			);
+			mockGetTask.mockResolvedValue({
+				task: createTask({
+					status: TaskStatus.FAILED,
+					currentPhase: 'implement',
+				}),
+			});
+			mockUseTaskSubscription.mockReturnValue({
+				state: { phases: { implement: { error: 'Implement failed' } } },
+				transcript: [],
+			});
+			mockUpdateTask.mockResolvedValue({ task: createTask({ status: TaskStatus.CLOSED }) });
+
+			renderTaskDetail();
+
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /abort task/i })).toBeInTheDocument();
+			});
+
+			fireEvent.click(screen.getByRole('button', { name: /abort task/i }));
+
+			await waitFor(() => {
+				expect(window.confirm).toHaveBeenCalled();
+				expect(mockUpdateTask).toHaveBeenCalledWith(
+					expect.objectContaining({
+						status: TaskStatus.CLOSED,
+					})
+				);
+			});
+		});
+
+		it('SC-5: passes guidance textarea value to retry instructions', async () => {
+			useTaskStore.getState().addTask(
+				createTask({ status: TaskStatus.FAILED, currentPhase: 'implement' })
+			);
+			mockGetTask.mockResolvedValue({
+				task: createTask({
+					status: TaskStatus.FAILED,
+					currentPhase: 'implement',
+				}),
+			});
+			mockUseTaskSubscription.mockReturnValue({
+				state: { phases: { implement: { error: 'Implement failed' } } },
+				transcript: [],
+			});
+
+			renderTaskDetail();
+
+			await waitFor(() => {
+				expect(screen.getByPlaceholderText(/guidance/i)).toBeInTheDocument();
+			});
+
+			fireEvent.change(screen.getByPlaceholderText(/guidance/i), {
+				target: { value: 'Use the previous schema parser in this phase.' },
+			});
+			fireEvent.click(screen.getByRole('button', { name: /retry implement/i }));
+
+			await waitFor(() => {
+				expect(mockRetryTask).toHaveBeenCalledWith(
+					expect.objectContaining({
+						fromPhase: 'implement',
+						instructions: 'Use the previous schema parser in this phase.',
+					})
+				);
+			});
+		});
+
+		it.each([TaskStatus.RUNNING, TaskStatus.PAUSED, TaskStatus.COMPLETED, TaskStatus.CREATED])(
+			'SC-6: hides error panel when task status is %s',
+			async (status) => {
+				useTaskStore.getState().addTask(
+					createTask({
+						status,
+						currentPhase: 'implement',
+					})
+				);
+				mockGetTask.mockResolvedValue({
+					task: createTask({
+						status,
+						currentPhase: 'implement',
+					}),
+				});
+				mockUseTaskSubscription.mockReturnValue({
+					state: { phases: { implement: { error: 'Implement failed' } } },
+					transcript: [],
+				});
+
+				renderTaskDetail();
+
+				await waitFor(() => {
+					expect(screen.getByText('Test Task')).toBeInTheDocument();
+				});
+				expect(screen.queryByTestId('task-detail-error-panel')).not.toBeInTheDocument();
+			}
+		);
 	});
 });

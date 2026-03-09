@@ -22,21 +22,10 @@ import type { Task, ExecutionState } from '@/gen/orc/v1/task_pb';
  * Interface for the subset of TaskStore methods used by event handlers
  */
 interface TaskStoreActions {
-	getRunningTasks: () => Task[];
+	getTask: (taskId: string) => Task | undefined;
 	getTaskState: (taskId: string) => ExecutionState | undefined;
 	updateSessionMetrics: (taskId: string, metrics: SessionMetrics) => void;
 	updatePhaseProgress: (taskId: string, progress: PhaseProgress) => void;
-}
-
-/**
- * Metrics payload from session_metrics events
- */
-interface GlobalMetrics {
-	totalTokens: number;
-	estimatedCostUsd: number;
-	inputTokens: number;
-	outputTokens: number;
-	durationSeconds: number | bigint;
 }
 
 /**
@@ -62,37 +51,6 @@ function getActivityStateString(activity: ActivityState): string {
 		default:
 			return 'unknown_activity';
 	}
-}
-
-/**
- * Update task-specific session metrics for running tasks
- */
-function updateTaskSpecificMetrics(taskStore: TaskStoreActions, globalMetrics: GlobalMetrics): void {
-	// Get running tasks and distribute metrics proportionally
-	const runningTasks = taskStore.getRunningTasks();
-
-	if (runningTasks.length === 0) {
-		return;
-	}
-
-	// For now, divide metrics equally among running tasks
-	// In a real implementation, this might be more sophisticated
-	const tasksRunning = runningTasks.length;
-	const tokensPerTask = Math.floor(globalMetrics.totalTokens / tasksRunning);
-	const costPerTask = globalMetrics.estimatedCostUsd / tasksRunning;
-
-	runningTasks.forEach((task: Task) => {
-		const taskMetrics: SessionMetrics = {
-			totalTokens: tokensPerTask,
-			estimatedCostUSD: costPerTask,
-			inputTokens: Math.floor(globalMetrics.inputTokens / tasksRunning),
-			outputTokens: Math.floor(globalMetrics.outputTokens / tasksRunning),
-			durationSeconds: Number(globalMetrics.durationSeconds),
-			tasksRunning: 1 // This task specifically
-		};
-
-		taskStore.updateSessionMetrics(task.id, taskMetrics);
-	});
 }
 
 /**
@@ -273,6 +231,27 @@ export function handleEvent(event: Event): void {
 		case 'tokensUpdated': {
 			const { taskId, tokens } = event.payload.value;
 			if (tokens) {
+				const taskRecord = taskStore.getTask(taskId);
+				const startedAtSeconds = taskRecord?.startedAt?.seconds;
+				const durationSeconds = startedAtSeconds
+					? Math.max(0, Math.floor(Date.now() / 1000) - Number(startedAtSeconds))
+					: 0;
+				const estimatedCostUSD = taskRecord?.execution?.cost?.totalCostUsd ?? 0;
+				const totalTokens =
+					tokens.totalTokens ||
+					tokens.inputTokens +
+					tokens.outputTokens +
+					(tokens.cacheCreationInputTokens ?? 0) +
+					(tokens.cacheReadInputTokens ?? 0);
+				taskStore.updateSessionMetrics(taskId, {
+					totalTokens,
+					estimatedCostUSD,
+					inputTokens: tokens.inputTokens,
+					outputTokens: tokens.outputTokens,
+					durationSeconds,
+					tasksRunning: 1,
+				});
+
 				const existingState = taskStore.getTaskState(taskId);
 				if (existingState) {
 					// Proto types match directly - no conversion needed
@@ -387,9 +366,6 @@ export function handleEvent(event: Event): void {
 				tasksRunning: metrics.tasksRunning,
 				isPaused: metrics.isPaused,
 			});
-
-			// Update task-specific metrics for running tasks
-			updateTaskSpecificMetrics(taskStore, metrics);
 			break;
 		}
 
