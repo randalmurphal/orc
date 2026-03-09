@@ -87,6 +87,10 @@ func (s *Server) registerConnectHandlers() {
 	briefSvc := NewBriefServer(s.backend, s.projectCache)
 	threadSvc := NewThreadServer(s.backend, s.publisher, s.logger)
 	threadSvc.SetProjectCache(s.projectCache)
+	knowledgeSvc := NewKnowledgeServer(s.backend, s.knowledgeSvc)
+	if ks, ok := knowledgeSvc.(*knowledgeServer); ok {
+		ks.SetProjectCache(s.projectCache)
+	}
 
 	// Create and register Connect handlers with CORS support
 	// Each NewXxxServiceHandler returns (path string, handler http.Handler)
@@ -142,7 +146,10 @@ func (s *Server) registerConnectHandlers() {
 	threadPath, threadHandler := orcv1connect.NewThreadServiceHandler(threadSvc, interceptors)
 	s.mux.Handle(threadPath, corsHandler(threadHandler))
 
-	s.logger.Info("registered Connect RPC handlers", "count", 17)
+	knowledgePath, knowledgeHandler := orcv1connect.NewKnowledgeServiceHandler(knowledgeSvc, interceptors)
+	s.mux.Handle(knowledgePath, corsHandler(knowledgeHandler))
+
+	s.logger.Info("registered Connect RPC handlers", "count", 18)
 }
 
 // corsHandler wraps a handler with CORS support for Connect/gRPC-web clients.

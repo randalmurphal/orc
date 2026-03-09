@@ -24,6 +24,7 @@ import { MCPService } from '@/gen/orc/v1/mcp_pb';
 import { FeedbackService } from '@/gen/orc/v1/feedback_pb';
 import { AttentionDashboardService } from '@/gen/orc/v1/attention_dashboard_pb';
 import { ThreadService } from '@/gen/orc/v1/thread_pb';
+import { KnowledgeService } from '@/gen/orc/v1/knowledge_pb';
 
 /**
  * Connect transport configured for the orc API.
@@ -51,3 +52,4 @@ export const mcpClient = createClient(MCPService, transport);
 export const feedbackClient = createClient(FeedbackService, transport);
 export const attentionDashboardClient = createClient(AttentionDashboardService, transport);
 export const threadClient = createClient(ThreadService, transport);
+export const knowledgeClient = createClient(KnowledgeService, transport);

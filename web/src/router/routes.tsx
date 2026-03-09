@@ -23,6 +23,7 @@ const WorkflowsPage = lazy(() => import('@/pages/WorkflowsPage').then(m => ({ de
 const WorkflowEditorPage = lazy(() => import('@/components/workflow-editor').then(m => ({ default: m.WorkflowEditorPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 const MyWorkPage = lazy(() => import('@/pages/MyWorkPage').then(m => ({ default: m.MyWorkPage })));
+const KnowledgePage = lazy(() => import('@/pages/KnowledgePage').then(m => ({ default: m.KnowledgePage })));
 
 // Environment pages (accessed via Settings navigation)
 const EnvHooks = lazy(() => import('@/pages/environment/Hooks').then(m => ({ default: m.Hooks })));
@@ -169,6 +170,15 @@ export const routes: RouteObject[] = [
 				element: (
 					<LazyRoute>
 						<Board />
+					</LazyRoute>
+				),
+			},
+			// Knowledge - knowledge exploration search page
+			{
+				path: 'knowledge',
+				element: (
+					<LazyRoute>
+						<KnowledgePage />
 					</LazyRoute>
 				),
 			},

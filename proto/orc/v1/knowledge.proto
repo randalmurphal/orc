@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum KnowledgeResultType {
+  KNOWLEDGE_RESULT_TYPE_UNSPECIFIED = 0;
+  KNOWLEDGE_RESULT_TYPE_CODE = 1;
+  KNOWLEDGE_RESULT_TYPE_FINDING = 2;
+  KNOWLEDGE_RESULT_TYPE_DECISION = 3;
+  KNOWLEDGE_RESULT_TYPE_PATTERN = 4;
+}
+
+// =============================================================================
+// DOMAIN MESSAGES
+// =============================================================================
+
+message KnowledgeResult {
+  string id = 1;
+  KnowledgeResultType type = 2;
+  string title = 3;
+  string content = 4;
+  string summary = 5;
+  string file_path = 6;
+  int32 start_line = 7;
+  int32 end_line = 8;
+  double score = 9;
+  string severity = 10;
+  string status = 11;
+  string initiative_id = 12;
+  string initiative_title = 13;
+  string rationale = 14;
+  int32 member_count = 15;
+  google.protobuf.Timestamp updated_at = 16;
+}
+
+message KnowledgeStatus {
+  bool enabled = 1;
+  bool running = 2;
+  bool neo4j = 3;
+  bool qdrant = 4;
+  bool redis = 5;
+}
+
+message KnowledgeHotFileInsight {
+  string file_path = 1;
+  int32 hit_count = 2;
+  string summary = 3;
+}
+
+message KnowledgePatternInsight {
+  string name = 1;
+  int32 member_count = 2;
+  string summary = 3;
+}
+
+message KnowledgeConstitutionUpdate {
+  string title = 1;
+  string summary = 2;
+  google.protobuf.Timestamp updated_at = 3;
+  string source = 4;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service KnowledgeService {
+  rpc Query(QueryKnowledgeRequest) returns (QueryKnowledgeResponse);
+  rpc GetStatus(GetKnowledgeStatusRequest) returns (GetKnowledgeStatusResponse);
+  rpc GetInsights(GetKnowledgeInsightsRequest) returns (GetKnowledgeInsightsResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+message QueryKnowledgeRequest {
+  string project_id = 1;
+  string query = 2;
+  string preset = 3;
+  int32 limit = 4;
+  int32 max_tokens = 5;
+  double min_score = 6;
+  bool summary_only = 7;
+}
+
+message QueryKnowledgeResponse {
+  repeated KnowledgeResult results = 1;
+  int32 tokens_used = 2;
+}
+
+message GetKnowledgeStatusRequest {
+  string project_id = 1;
+}
+
+message GetKnowledgeStatusResponse {
+  KnowledgeStatus status = 1;
+}
+
+message GetKnowledgeInsightsRequest {
+  string project_id = 1;
+}
+
+message GetKnowledgeInsightsResponse {
+  repeated KnowledgeHotFileInsight hot_files = 1;
+  repeated KnowledgePatternInsight recurring_patterns = 2;
+  repeated KnowledgeConstitutionUpdate constitution_updates = 3;
+}
