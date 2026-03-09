@@ -426,6 +426,11 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 				e.transcriptHandler.StoreChunkText(chunk.Content, e.model)
 			}
 		}
+		if len(chunk.ToolCalls) > 0 && e.transcriptHandler != nil {
+			for _, toolCall := range chunk.ToolCalls {
+				e.transcriptHandler.StoreToolCall(toolCall.Name, toolCall.Arguments, e.model)
+			}
+		}
 		if chunk.FinalContent != "" {
 			finalContent = chunk.FinalContent
 		}

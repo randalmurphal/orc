@@ -3,6 +3,7 @@
 package executor
 
 import (
+	"bytes"
 	"encoding/json"
 	"log/slog"
 	"slices"
@@ -398,4 +399,57 @@ func (h *TranscriptStreamHandler) StoreChunkText(text, model string) {
 	if h.publisher != nil {
 		h.publisher.TranscriptChunk(h.taskID, h.phaseID, 1, text)
 	}
+}
+
+// StoreToolCall stores a Codex tool invocation for live transcript visibility.
+func (h *TranscriptStreamHandler) StoreToolCall(name string, arguments json.RawMessage, model string) {
+	if h.backend == nil || h.taskID == "" || name == "" {
+		return
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if model == "" {
+		model = h.model
+	}
+
+	content := formatToolCallContent(name, arguments)
+	transcript := &storage.Transcript{
+		TaskID:        h.taskID,
+		Phase:         h.phaseID,
+		SessionID:     h.sessionID,
+		WorkflowRunID: h.runID,
+		MessageUUID:   uuid.NewString(),
+		Type:          "tool",
+		Role:          "assistant",
+		Content:       content,
+		Model:         model,
+		Timestamp:     time.Now().UnixMilli(),
+	}
+
+	if err := h.backend.AddTranscript(transcript); err != nil {
+		h.logger.Warn("failed to store tool call",
+			"task", h.taskID,
+			"phase", h.phaseID,
+			"tool", name,
+			"error", err,
+		)
+	}
+	if h.publisher != nil {
+		h.publisher.Transcript(h.taskID, h.phaseID, 1, "tool", content)
+	}
+}
+
+func formatToolCallContent(name string, arguments json.RawMessage) string {
+	if len(arguments) == 0 {
+		return name
+	}
+
+	var pretty bytes.Buffer
+	if err := json.Indent(&pretty, arguments, "", "  "); err == nil && pretty.Len() > 0 {
+		return name + "\n" + pretty.String()
+	}
+
+	return name + "\n" + string(arguments)
 }

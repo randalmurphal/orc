@@ -352,6 +352,72 @@ echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{
 	}
 }
 
+func TestCodexExecutor_ExecuteSingleTurn_StreamsToolCallsBeforeCompletion(t *testing.T) {
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join(tmpDir, "fake-codex-tool.sh")
+	script := `#!/bin/sh
+echo '{"type":"thread.started","thread_id":"sess-tool-123"}'
+echo '{"type":"item.completed","item":{"type":"tool_call","id":"tool-1","name":"Read","arguments":{"file_path":"main.go"}}}'
+sleep 0.2
+echo '{"type":"turn.completed","output":[{"text":"done"}],"turn_usage":{"input_tokens":5,"output_tokens":2,"total_tokens":7}}'
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake codex script: %v", err)
+	}
+
+	backend := &mockTranscriptBackend{}
+	exec := NewCodexExecutor(
+		WithCodexPath(scriptPath),
+		WithCodexWorkdir(tmpDir),
+		WithCodexModel("gpt-5.4"),
+		WithCodexPhaseID("implement_codex"),
+		WithCodexBackend(backend),
+		WithCodexTaskID("TASK-001"),
+		WithCodexRunID("RUN-001"),
+	)
+
+	done := make(chan struct {
+		result *TurnResult
+		err    error
+	}, 1)
+	go func() {
+		result, err := exec.executeSingleTurn(context.Background(), "do the thing", "", time.Now())
+		done <- struct {
+			result *TurnResult
+			err    error
+		}{result: result, err: err}
+	}()
+
+	time.Sleep(75 * time.Millisecond)
+	if len(backend.transcripts) < 2 {
+		t.Fatalf("expected prompt and tool transcripts before completion, got %d", len(backend.transcripts))
+	}
+	if backend.transcripts[0].Type != "user" {
+		t.Fatalf("first transcript type = %q, want user", backend.transcripts[0].Type)
+	}
+	if backend.transcripts[1].Type != "tool" {
+		t.Fatalf("second transcript type = %q, want tool", backend.transcripts[1].Type)
+	}
+	if backend.transcripts[1].SessionID != "sess-tool-123" {
+		t.Fatalf("tool transcript session_id = %q, want sess-tool-123", backend.transcripts[1].SessionID)
+	}
+
+	outcome := <-done
+	if outcome.err != nil {
+		t.Fatalf("executeSingleTurn failed: %v", outcome.err)
+	}
+	if outcome.result.Content != "done" {
+		t.Fatalf("content = %q, want done", outcome.result.Content)
+	}
+	if len(backend.transcripts) < 3 {
+		t.Fatalf("expected tool streaming plus final assistant transcript, got %d rows", len(backend.transcripts))
+	}
+	last := backend.transcripts[len(backend.transcripts)-1]
+	if last.Type != "assistant" {
+		t.Fatalf("final transcript type = %q, want assistant", last.Type)
+	}
+}
+
 func TestCodexExecutor_ExecuteSingleTurn_PersistsLiveSessionID(t *testing.T) {
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join(tmpDir, "fake-codex-session.sh")

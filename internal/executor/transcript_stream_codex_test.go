@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"encoding/json"
 	"log/slog"
 	"testing"
 
@@ -112,5 +113,33 @@ func TestStoreChunkText(t *testing.T) {
 	}
 	if backend.transcripts[0].Content != "partial output" {
 		t.Fatalf("content = %q, want partial output", backend.transcripts[0].Content)
+	}
+}
+
+func TestStoreToolCall(t *testing.T) {
+	backend := &mockTranscriptBackend{}
+	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil, nil)
+
+	args, err := json.Marshal(map[string]string{"file_path": "main.go"})
+	if err != nil {
+		t.Fatalf("marshal args: %v", err)
+	}
+
+	h.StoreToolCall("Read", args, "gpt-5")
+
+	if len(backend.transcripts) != 1 {
+		t.Fatalf("expected 1 transcript, got %d", len(backend.transcripts))
+	}
+	if backend.transcripts[0].Type != "tool" {
+		t.Fatalf("type = %q, want tool", backend.transcripts[0].Type)
+	}
+	if backend.transcripts[0].Role != "assistant" {
+		t.Fatalf("role = %q, want assistant", backend.transcripts[0].Role)
+	}
+	if backend.transcripts[0].Model != "gpt-5" {
+		t.Fatalf("model = %q, want gpt-5", backend.transcripts[0].Model)
+	}
+	if got := backend.transcripts[0].Content; got != "Read\n{\n  \"file_path\": \"main.go\"\n}" {
+		t.Fatalf("content = %q", got)
 	}
 }
