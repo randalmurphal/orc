@@ -2,11 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/hosting"
 )
 
 type doctorCheck struct {
@@ -56,6 +58,14 @@ func runWorkflowDoctorChecks(cfg *config.Config, gdb *db.GlobalDB, workflowID st
 
 	if workflowUsesPhase(gdb, workflowID, "qa_e2e_test") {
 		checks = append(checks, commandPresenceCheck("playwright runtime", "npx"))
+	}
+
+	completionCheck, err := completionAuthCheck(cfg, gdb, workflowID)
+	if err != nil {
+		return nil, err
+	}
+	if completionCheck != nil {
+		checks = append(checks, *completionCheck)
 	}
 
 	return checks, nil
@@ -173,4 +183,103 @@ func failWorkflowDoctorChecks(checks []doctorCheck, failClosed bool) error {
 		}
 	}
 	return nil
+}
+
+func completionAuthCheck(cfg *config.Config, gdb *db.GlobalDB, workflowID string) (*doctorCheck, error) {
+	action, err := resolveWorkflowCompletionAction(cfg, gdb, workflowID)
+	if err != nil {
+		return nil, err
+	}
+	if action == "" || action == "none" || action == "commit" {
+		return nil, nil
+	}
+
+	workDir, err := ResolveProjectPath()
+	if err != nil {
+		return &doctorCheck{
+			Name:   "completion hosting auth",
+			OK:     false,
+			Detail: fmt.Sprintf("resolve project path: %v", err),
+		}, nil
+	}
+
+	provider, err := resolveHostingProviderForDoctor(workDir, cfg)
+	if err != nil {
+		return &doctorCheck{
+			Name:   "completion hosting auth",
+			OK:     false,
+			Detail: err.Error(),
+		}, nil
+	}
+
+	tokenEnvVar := resolveHostingTokenEnvVar(cfg, provider)
+	if strings.TrimSpace(os.Getenv(tokenEnvVar)) == "" {
+		return &doctorCheck{
+			Name:   "completion hosting auth",
+			OK:     false,
+			Detail: fmt.Sprintf("%s is not set for %s completion action %q", tokenEnvVar, provider, action),
+		}, nil
+	}
+
+	return &doctorCheck{
+		Name:   "completion hosting auth",
+		OK:     true,
+		Detail: fmt.Sprintf("%s is set for %s completion action %q", tokenEnvVar, provider, action),
+	}, nil
+}
+
+func resolveWorkflowCompletionAction(cfg *config.Config, gdb *db.GlobalDB, workflowID string) (string, error) {
+	if cfg == nil {
+		return "", fmt.Errorf("config is required")
+	}
+
+	action := cfg.ResolveCompletionAction(workflowID)
+	workflowDef, err := gdb.GetWorkflow(workflowID)
+	if err != nil {
+		return "", fmt.Errorf("load workflow %s: %w", workflowID, err)
+	}
+	if strings.TrimSpace(workflowDef.CompletionAction) != "" {
+		action = workflowDef.CompletionAction
+	}
+	return action, nil
+}
+
+func resolveHostingProviderForDoctor(workDir string, cfg *config.Config) (string, error) {
+	if cfg != nil {
+		explicit := strings.TrimSpace(cfg.Hosting.Provider)
+		if explicit != "" && explicit != "auto" {
+			return explicit, nil
+		}
+	}
+
+	remoteURL, err := getOriginRemoteURL(workDir)
+	if err != nil {
+		return "", err
+	}
+
+	provider := hosting.DetectProvider(remoteURL)
+	if provider == hosting.ProviderUnknown {
+		return "", fmt.Errorf("cannot detect hosting provider from remote URL %q", remoteURL)
+	}
+	return string(provider), nil
+}
+
+func resolveHostingTokenEnvVar(cfg *config.Config, provider string) string {
+	if cfg != nil && strings.TrimSpace(cfg.Hosting.TokenEnvVar) != "" {
+		return cfg.Hosting.TokenEnvVar
+	}
+	if provider == string(hosting.ProviderGitLab) {
+		return "GITLAB_TOKEN"
+	}
+	return "GITHUB_TOKEN"
+}
+
+func getOriginRemoteURL(workDir string) (string, error) {
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	cmd.Dir = workDir
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("get origin remote URL: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
 }
