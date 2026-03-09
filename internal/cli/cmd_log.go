@@ -235,6 +235,9 @@ func displaySingleTranscript(t storage.Transcript, opts transcriptDisplayOptions
 	case "assistant":
 		typeIndicator = "ASSISTANT"
 		typeColor = ansiGreen
+	case "chunk":
+		typeIndicator = "STREAM"
+		typeColor = ansiGreen
 	}
 
 	// Header line
@@ -245,7 +248,7 @@ func displaySingleTranscript(t storage.Transcript, opts transcriptDisplayOptions
 	}
 
 	// Show model for assistant messages
-	if t.Model != "" && t.Type == "assistant" {
+	if t.Model != "" && (t.Type == "assistant" || t.Type == "chunk") {
 		if opts.useColor {
 			fmt.Printf(" %s(%s)%s", ansiMagenta, t.Model, ansiReset)
 		} else {
@@ -254,7 +257,7 @@ func displaySingleTranscript(t storage.Transcript, opts transcriptDisplayOptions
 	}
 
 	// Show token usage for assistant messages
-	if t.Type == "assistant" && (t.InputTokens > 0 || t.OutputTokens > 0) {
+	if (t.Type == "assistant" || t.Type == "chunk") && (t.InputTokens > 0 || t.OutputTokens > 0) {
 		if opts.useColor {
 			fmt.Printf(" %s[in:%d out:%d]%s", ansiDim, t.InputTokens, t.OutputTokens, ansiReset)
 		} else {

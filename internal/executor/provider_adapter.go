@@ -131,6 +131,7 @@ func (a *claudeAdapter) BuildTurnExecutorConfig(cfg *PhaseExecutionConfig, pctx 
 		ClaudeConfig:     cfg.ClaudeConfig,
 		Backend:          we.backend,
 		Logger:           we.logger,
+		Publisher:        we.publisher,
 	}
 }
 
@@ -194,6 +195,7 @@ func (a *codexAdapter) BuildTurnExecutorConfig(cfg *PhaseExecutionConfig, pctx *
 		LocalProvider:             localCodexProvider(cfg.Provider),
 		Backend:                   we.backend,
 		Logger:                    we.logger,
+		Publisher:                 we.publisher,
 		BypassApprovalsAndSandbox: true,
 	}
 

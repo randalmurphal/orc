@@ -530,6 +530,15 @@ export function DiffViewModal({
 										placeholder="Search files..."
 										value={searchQuery}
 										onChange={(e) => setSearchQuery(e.target.value)}
+										onKeyDown={(e) => {
+											if (e.key === 'Escape') {
+												setSearchVisible(false);
+												setSearchQuery('');
+												fileListRef.current?.focus();
+												e.preventDefault();
+												e.stopPropagation();
+											}
+										}}
 										data-testid="search-input"
 										aria-label="Search files"
 									/>

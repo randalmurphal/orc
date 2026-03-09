@@ -716,7 +716,11 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				}
 			}
 		}
-		t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+		if t.StartedAt == nil {
+			task.MarkStartedProto(t)
+		} else {
+			t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+		}
 		if err := we.backend.SaveTask(t); err != nil {
 			we.logger.Error("failed to save task status running", "task_id", t.Id, "error", err)
 		}

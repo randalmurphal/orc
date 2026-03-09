@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"connectrpc.com/connect"
@@ -14,11 +15,11 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
 )
-
 
 // TranscriptStreamEvent represents a real-time transcript chunk.
 type TranscriptStreamEvent struct {
@@ -126,7 +127,7 @@ func (s *transcriptServer) ListTranscripts(
 			result = append(result, &orcv1.TranscriptFile{
 				Path:      "", // Path not stored in DB-backed transcripts
 				Phase:     phase,
-				Iteration: 1, // Default iteration since storage doesn't track it
+				Iteration: 1,                 // Default iteration since storage doesn't track it
 				Size:      int64(len(group)), // Number of entries
 				CreatedAt: timestamppb.New(timestampToTime(group[0].Timestamp)),
 			})
@@ -208,7 +209,7 @@ func (s *transcriptServer) GetTranscript(
 			OutputTokens:             totalOutput,
 			CacheReadInputTokens:     totalCacheRead,
 			CacheCreationInputTokens: totalCacheCreation,
-			TotalTokens:              totalInput + totalOutput,
+			TotalTokens:              totalInput + totalOutput + totalCacheRead + totalCacheCreation,
 		},
 		StartedAt: entries[0].Timestamp,
 	}
@@ -304,7 +305,7 @@ func (s *transcriptServer) GetTokens(
 			OutputTokens:             int32(usage.TotalOutput),
 			CacheReadInputTokens:     int32(usage.TotalCacheRead),
 			CacheCreationInputTokens: int32(usage.TotalCacheCreation),
-			TotalTokens:              int32(usage.TotalInput + usage.TotalOutput),
+			TotalTokens:              int32(usage.TotalInput + usage.TotalOutput + usage.TotalCacheRead + usage.TotalCacheCreation),
 		},
 	}), nil
 }
@@ -329,13 +330,50 @@ func (s *transcriptServer) GetSession(
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("task not found"))
 	}
 
-	return connect.NewResponse(&orcv1.GetSessionResponse{
-		Session: &orcv1.SessionInfo{
-			Id:     req.Msg.TaskId,
-			Model:  "", // Would need transcript scan to get model
-			Status: t.Status.String(),
-		},
-	}), nil
+	currentPhase := task.GetCurrentPhaseProto(t)
+	session := &orcv1.SessionInfo{
+		Id:     task.GetPhaseSessionIDProto(t, currentPhase),
+		Model:  task.GetPhaseModelProto(t, currentPhase),
+		Status: t.Status.String(),
+	}
+	if session.Id == "" {
+		session.Id = req.Msg.TaskId
+	}
+
+	if currentPhase != "" && t.Execution != nil && t.Execution.Phases != nil {
+		if phaseState := t.Execution.Phases[currentPhase]; phaseState != nil {
+			if phaseState.StartedAt != nil {
+				session.CreatedAt = phaseState.StartedAt
+			}
+			if phaseState.CompletedAt != nil {
+				session.LastActivity = phaseState.CompletedAt
+			}
+		}
+	}
+
+	transcripts, err := backend.GetTranscripts(req.Msg.TaskId)
+	if err == nil {
+		assistantCount := int32(0)
+		var lastActivity time.Time
+		for _, transcript := range transcripts {
+			if currentPhase != "" && transcript.Phase != currentPhase {
+				continue
+			}
+			if transcript.Type == "assistant" {
+				assistantCount++
+			}
+			ts := timestampToTime(transcript.Timestamp)
+			if ts.After(lastActivity) {
+				lastActivity = ts
+			}
+		}
+		session.TurnCount = assistantCount
+		if !lastActivity.IsZero() {
+			session.LastActivity = timestamppb.New(lastActivity)
+		}
+	}
+
+	return connect.NewResponse(&orcv1.GetSessionResponse{Session: session}), nil
 }
 
 // GetTodos returns the current todo list for a task.
@@ -449,67 +487,49 @@ func (s *transcriptServer) StreamTranscript(
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	// For this implementation, we'll simulate streaming by creating mock events
-	// In a real implementation, this would subscribe to a real event stream
-
-	// Mock streaming for testing purposes
-	// Create some sample transcript events
-	events := []TranscriptStreamEvent{
-		{
-			TaskID:    req.Msg.TaskId,
-			ProjectID: req.Msg.ProjectId,
-			Content:   "Starting implementation...",
-			Type:      "prompt",
-			Phase:     req.Msg.GetPhase(),
-			Timestamp: time.Now(),
-		},
-		{
-			TaskID:    req.Msg.TaskId,
-			ProjectID: req.Msg.ProjectId,
-			Content:   "I'll implement the feature...",
-			Type:      "response",
-			Phase:     req.Msg.GetPhase(),
-			Timestamp: time.Now(),
-			Tokens: &TokenCount{
-				Input:  150,
-				Output: 300,
-			},
-		},
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
 
-	// Stream the events
-	for _, event := range events {
-		chunk := &orcv1.TranscriptChunk{
-			TaskId:    event.TaskID,
-			Type:      event.Type,
-			Content:   event.Content,
-			Phase:     event.Phase,
-			Timestamp: timestamppb.New(event.Timestamp),
-		}
-
-		if event.Tokens != nil {
-			chunk.Tokens = &orcv1.TokenUsage{
-				InputTokens:  event.Tokens.Input,
-				OutputTokens: event.Tokens.Output,
-				TotalTokens:  event.Tokens.Input + event.Tokens.Output,
+	lastSeenID := int64(0)
+	if existing, err := backend.GetTranscripts(req.Msg.TaskId); err == nil {
+		for _, transcript := range existing {
+			if transcript.ID > lastSeenID {
+				lastSeenID = transcript.ID
 			}
 		}
+	}
 
-		if err := stream.Send(&orcv1.StreamTranscriptResponse{
-			Chunk: chunk,
-		}); err != nil {
-			return err
-		}
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
 
-		// Small delay to simulate real-time streaming
+	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(100 * time.Millisecond):
+		case <-ticker.C:
+			transcripts, err := backend.GetTranscripts(req.Msg.TaskId)
+			if err != nil {
+				return connect.NewError(connect.CodeInternal, fmt.Errorf("get transcripts: %w", err))
+			}
+			sort.Slice(transcripts, func(i, j int) bool { return transcripts[i].ID < transcripts[j].ID })
+			for _, transcript := range transcripts {
+				if transcript.ID <= lastSeenID {
+					continue
+				}
+				if req.Msg.Phase != nil && transcript.Phase != *req.Msg.Phase {
+					continue
+				}
+				if err := stream.Send(&orcv1.StreamTranscriptResponse{
+					Chunk: transcriptToChunk(transcript),
+				}); err != nil {
+					return err
+				}
+				lastSeenID = transcript.ID
+			}
 		}
 	}
-
-	return nil
 }
 
 // GetLiveTranscript returns both persisted and live transcript content.
@@ -534,7 +554,7 @@ func (s *transcriptServer) GetLiveTranscript(
 
 	// Filter to specific phase if requested
 	var entries []*orcv1.TranscriptEntry
-	var totalInput, totalOutput int32
+	var totalInput, totalOutput, totalCacheRead, totalCacheCreation int32
 
 	for _, t := range transcripts {
 		if req.Msg.Phase != nil && t.Phase != *req.Msg.Phase {
@@ -550,26 +570,8 @@ func (s *transcriptServer) GetLiveTranscript(
 
 		totalInput += int32(t.InputTokens)
 		totalOutput += int32(t.OutputTokens)
-	}
-
-	// Add live content if available from backend (for streaming backends that support it)
-	hasLiveContent := false
-	if streamingBackend, ok := backend.(interface {
-		GetLiveTranscript(string) []TranscriptStreamEvent
-	}); ok {
-		liveEvents := streamingBackend.GetLiveTranscript(req.Msg.TaskId)
-		for _, event := range liveEvents {
-			// Filter by phase if requested
-			if req.Msg.Phase == nil || event.Phase == *req.Msg.Phase {
-				liveEvent := &orcv1.TranscriptEntry{
-					Timestamp: timestamppb.New(event.Timestamp),
-					Type:      event.Type,
-					Content:   event.Content,
-				}
-				entries = append(entries, liveEvent)
-				hasLiveContent = true
-			}
-		}
+		totalCacheRead += int32(t.CacheReadTokens)
+		totalCacheCreation += int32(t.CacheCreationTokens)
 	}
 
 	// Determine phase from the transcript data or request
@@ -584,16 +586,18 @@ func (s *transcriptServer) GetLiveTranscript(
 		Phase:   phase,
 		Entries: entries,
 		TotalTokens: &orcv1.TokenUsage{
-			InputTokens:  totalInput,
-			OutputTokens: totalOutput,
-			TotalTokens:  totalInput + totalOutput,
+			InputTokens:              totalInput,
+			OutputTokens:             totalOutput,
+			CacheReadInputTokens:     totalCacheRead,
+			CacheCreationInputTokens: totalCacheCreation,
+			TotalTokens:              totalInput + totalOutput + totalCacheRead + totalCacheCreation,
 		},
 		StartedAt: timestamppb.New(time.Now()),
 	}
 
 	return connect.NewResponse(&orcv1.GetLiveTranscriptResponse{
 		Transcript:     transcript,
-		HasLiveContent: hasLiveContent,
+		HasLiveContent: false,
 	}), nil
 }
 
@@ -625,4 +629,24 @@ func (s *transcriptServer) StoreTranscriptEntry(
 	}
 
 	return nil
+}
+
+func transcriptToChunk(transcript storage.Transcript) *orcv1.TranscriptChunk {
+	chunk := &orcv1.TranscriptChunk{
+		TaskId:    transcript.TaskID,
+		Type:      transcript.Type,
+		Content:   transcript.Content,
+		Phase:     transcript.Phase,
+		Timestamp: timestamppb.New(timestampToTime(transcript.Timestamp)),
+	}
+	if transcript.InputTokens > 0 || transcript.OutputTokens > 0 || transcript.CacheCreationTokens > 0 || transcript.CacheReadTokens > 0 {
+		chunk.Tokens = &orcv1.TokenUsage{
+			InputTokens:              int32(transcript.InputTokens),
+			OutputTokens:             int32(transcript.OutputTokens),
+			CacheCreationInputTokens: int32(transcript.CacheCreationTokens),
+			CacheReadInputTokens:     int32(transcript.CacheReadTokens),
+			TotalTokens:              int32(transcript.InputTokens + transcript.OutputTokens + transcript.CacheCreationTokens + transcript.CacheReadTokens),
+		}
+	}
+	return chunk
 }

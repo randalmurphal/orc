@@ -36,7 +36,7 @@ name: Phase Provider Test
 phases:
   - template: implement
     sequence: 1
-    provider: ollama
+    provider_override: ollama
   - template: review
     sequence: 2
 `)
@@ -61,10 +61,10 @@ phases:
     sequence: 1
   - template: implement
     sequence: 2
-    provider: ollama
+    provider_override: ollama
   - template: review
     sequence: 3
-    provider: claude
+    provider_override: claude
 `)
 
 	wf, err := parseWorkflowYAML(yamlData)
@@ -100,14 +100,14 @@ func TestProviderYAML_EmptyProviderOmittedFromOutput(t *testing.T) {
 	_, hasDefaultProvider := raw["default_provider"]
 	assert.False(t, hasDefaultProvider, "empty default_provider should be omitted from YAML output")
 
-	// Check phases don't have provider key
+	// Check phases don't have provider_override key when empty
 	phases, ok := raw["phases"].([]any)
 	require.True(t, ok)
 	for i, p := range phases {
 		phaseMap, ok := p.(map[string]any)
 		require.True(t, ok)
-		_, hasProvider := phaseMap["provider"]
-		assert.False(t, hasProvider, "phase %d: empty provider should be omitted from YAML output", i)
+		_, hasProviderOverride := phaseMap["provider_override"]
+		assert.False(t, hasProviderOverride, "phase %d: empty provider_override should be omitted from YAML output", i)
 	}
 }
 
@@ -217,6 +217,66 @@ func TestProviderYAML_DefaultProviderOmittedWhenEmpty(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(data, &raw))
 	_, hasDefault := raw["default_provider"]
 	assert.False(t, hasDefault, "empty default_provider should be omitted from YAML output")
+}
+
+func TestProviderYAML_PhaseModelAndProviderOverrides(t *testing.T) {
+	t.Parallel()
+
+	yamlData := []byte(`
+id: test-phase-overrides
+name: Phase Override Test
+phases:
+  - template: implement_codex
+    sequence: 1
+    provider_override: codex
+    model_override: gpt-5.4
+`)
+
+	wf, err := parseWorkflowYAML(yamlData)
+	require.NoError(t, err)
+	require.Len(t, wf.Phases, 1)
+	assert.Equal(t, "codex", wf.Phases[0].ProviderOverride)
+	assert.Equal(t, "gpt-5.4", wf.Phases[0].ModelOverride)
+}
+
+func TestProviderYAML_RoundTrip_PhaseOverridesUseOverrideKeys(t *testing.T) {
+	t.Parallel()
+
+	original := &Workflow{
+		ID:   "round-trip-overrides",
+		Name: "Round Trip Overrides",
+		Phases: []WorkflowPhase{
+			{
+				PhaseTemplateID:  "implement_codex",
+				Sequence:         1,
+				ModelOverride:    "gpt-5.4",
+				ProviderOverride: "codex",
+			},
+		},
+	}
+
+	data, err := marshalWorkflowYAML(original)
+	require.NoError(t, err)
+
+	var raw map[string]any
+	require.NoError(t, yaml.Unmarshal(data, &raw))
+	phases, ok := raw["phases"].([]any)
+	require.True(t, ok)
+	require.Len(t, phases, 1)
+	phaseMap, ok := phases[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "gpt-5.4", phaseMap["model_override"])
+	assert.Equal(t, "codex", phaseMap["provider_override"])
+	_, hasLegacyModel := phaseMap["model"]
+	assert.False(t, hasLegacyModel)
+	_, hasLegacyProvider := phaseMap["provider"]
+	assert.False(t, hasLegacyProvider)
+
+	parsed, err := parseWorkflowYAML(data)
+	require.NoError(t, err)
+	require.Len(t, parsed.Phases, 1)
+	assert.Equal(t, "gpt-5.4", parsed.Phases[0].ModelOverride)
+	assert.Equal(t, "codex", parsed.Phases[0].ProviderOverride)
 }
 
 func TestProviderYAML_NoProviderFieldsDefault(t *testing.T) {

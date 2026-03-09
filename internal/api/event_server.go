@@ -4,6 +4,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -483,6 +484,36 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 			return nil
 		}
 
+	case events.EventTranscript:
+		var line events.TranscriptLine
+		switch data := e.Data.(type) {
+		case *events.TranscriptLine:
+			line = *data
+		case events.TranscriptLine:
+			line = data
+		default:
+			return nil
+		}
+		details, _ := json.Marshal(map[string]any{
+			"phase":     line.Phase,
+			"type":      transcriptEventType(line.Type),
+			"content":   line.Content,
+			"timestamp": line.Timestamp.Format(time.RFC3339Nano),
+			"model":     line.Model,
+			"tokens": map[string]int{
+				"input":  transcriptTokenValue(line.Tokens, func(t events.TokenUpdate) int { return t.InputTokens }),
+				"output": transcriptTokenValue(line.Tokens, func(t events.TokenUpdate) int { return t.OutputTokens }),
+			},
+		})
+		result.Payload = &orcv1.Event_Activity{
+			Activity: &orcv1.ActivityEvent{
+				TaskId:   e.TaskID,
+				PhaseId:  line.Phase,
+				Activity: orcv1.ActivityState_ACTIVITY_STATE_STREAMING,
+				Details:  func() *string { s := string(details); return &s }(),
+			},
+		}
+
 	case events.EventSessionUpdate:
 		if update, ok := e.Data.(*events.SessionUpdate); ok {
 			result.Payload = &orcv1.Event_SessionMetrics{
@@ -714,6 +745,20 @@ func getInt32(m map[string]any, key string) int32 {
 		}
 	}
 	return 0
+}
+
+func transcriptTokenValue(tokens *events.TokenUpdate, selector func(events.TokenUpdate) int) int {
+	if tokens == nil {
+		return 0
+	}
+	return selector(*tokens)
+}
+
+func transcriptEventType(t string) string {
+	if t == "chunk" {
+		return "response"
+	}
+	return t
 }
 
 // filterEventByInitiative returns true if the event should be filtered out based on initiative.

@@ -181,6 +181,86 @@ func TestSaveTask_QualityMetrics_Empty(t *testing.T) {
 	}
 }
 
+func TestLoadTask_RebuildsAggregateExecutionTokensFromPhases(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	testTask := task.NewProtoTask("TASK-AGG-001", "Aggregate token reload")
+	task.StartPhaseProto(testTask.Execution, "plan")
+	task.SetPhaseTokensProto(testTask.Execution, "plan", &orcv1.TokenUsage{
+		InputTokens:              100,
+		OutputTokens:             25,
+		CacheCreationInputTokens: 10,
+		CacheReadInputTokens:     15,
+	})
+	task.StartPhaseProto(testTask.Execution, "implement")
+	task.SetPhaseTokensProto(testTask.Execution, "implement", &orcv1.TokenUsage{
+		InputTokens:          200,
+		OutputTokens:         75,
+		CacheReadInputTokens: 20,
+	})
+
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	loaded, err := backend.LoadTask("TASK-AGG-001")
+	if err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+
+	if loaded.Execution == nil || loaded.Execution.Tokens == nil {
+		t.Fatal("expected execution tokens to be rebuilt")
+	}
+	if got := loaded.Execution.Tokens.InputTokens; got != 300 {
+		t.Fatalf("input tokens = %d, want 300", got)
+	}
+	if got := loaded.Execution.Tokens.OutputTokens; got != 100 {
+		t.Fatalf("output tokens = %d, want 100", got)
+	}
+	if got := loaded.Execution.Tokens.CacheCreationInputTokens; got != 10 {
+		t.Fatalf("cache creation tokens = %d, want 10", got)
+	}
+	if got := loaded.Execution.Tokens.CacheReadInputTokens; got != 35 {
+		t.Fatalf("cache read tokens = %d, want 35", got)
+	}
+	if got := loaded.Execution.Tokens.TotalTokens; got != 445 {
+		t.Fatalf("total tokens = %d, want 445", got)
+	}
+}
+
+func TestLoadTask_ParsesSQLiteUpdatedAtFormat(t *testing.T) {
+	t.Parallel()
+
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	testTask := task.NewProtoTask("TASK-SQLITE-UPDATED", "SQLite updated_at parsing")
+	testTask.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	_, err := backend.db.Exec(`UPDATE tasks SET updated_at = datetime('now') WHERE id = ?`, testTask.Id)
+	if err != nil {
+		t.Fatalf("update task updated_at: %v", err)
+	}
+
+	loaded, err := backend.LoadTask(testTask.Id)
+	if err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+
+	if loaded.UpdatedAt == nil {
+		t.Fatal("expected updated_at to be set")
+	}
+	if loaded.UpdatedAt.AsTime().IsZero() {
+		t.Fatal("expected updated_at to parse from SQLite datetime format")
+	}
+}
+
 // TestSaveInitiative_Transaction verifies initiative and related data are saved atomically.
 func TestSaveInitiative_Transaction(t *testing.T) {
 	t.Parallel()

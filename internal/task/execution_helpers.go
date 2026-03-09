@@ -158,6 +158,8 @@ func ResetPhaseProto(e *orcv1.ExecutionState, phaseID string) {
 	e.Phases[phaseID].CompletedAt = nil
 	e.Phases[phaseID].InterruptedAt = nil
 	e.Phases[phaseID].SessionId = nil // Clear session so retry starts fresh with full prompt
+	e.Phases[phaseID].Tokens = &orcv1.TokenUsage{}
+	recomputeExecutionTokensProto(e)
 }
 
 // ResetExecutionStateProto resets the entire execution state back to initial pending state.
@@ -165,20 +167,15 @@ func ResetExecutionStateProto(e *orcv1.ExecutionState) {
 	if e == nil {
 		return
 	}
-	// Clear all phase states
-	for phaseID := range e.Phases {
-		e.Phases[phaseID] = &orcv1.PhaseState{
-			Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
-			Tokens: &orcv1.TokenUsage{},
-		}
-	}
 
-	// Reset to initial state
-	// Note: retry state is stored in task metadata, not execution state
+	// Reset to a clean state with no persisted phase history.
 	e.CurrentIteration = 0
-	e.Error = nil
-	e.Session = nil
+	e.Phases = make(map[string]*orcv1.PhaseState)
 	e.Gates = nil
+	e.Tokens = &orcv1.TokenUsage{}
+	e.Cost = &orcv1.CostTracking{}
+	e.Session = nil
+	e.Error = nil
 }
 
 // AddCostProto adds cost to the execution state and optionally to the current phase.
@@ -212,6 +209,33 @@ func SetPhaseSessionIDProto(e *orcv1.ExecutionState, phaseID, sessionID string) 
 	e.Phases[phaseID].SessionId = &sessionID
 }
 
+// SetPhaseTokensProto stores token usage for a specific phase and recomputes task totals.
+func SetPhaseTokensProto(e *orcv1.ExecutionState, phaseID string, usage *orcv1.TokenUsage) {
+	if e == nil {
+		return
+	}
+	EnsurePhaseProto(e, phaseID)
+	if usage == nil {
+		e.Phases[phaseID].Tokens = &orcv1.TokenUsage{}
+		recomputeExecutionTokensProto(e)
+		return
+	}
+
+	total := usage.TotalTokens
+	if total == 0 {
+		total = usage.InputTokens + usage.OutputTokens + usage.CacheCreationInputTokens + usage.CacheReadInputTokens
+	}
+
+	e.Phases[phaseID].Tokens = &orcv1.TokenUsage{
+		InputTokens:              usage.InputTokens,
+		OutputTokens:             usage.OutputTokens,
+		CacheCreationInputTokens: usage.CacheCreationInputTokens,
+		CacheReadInputTokens:     usage.CacheReadInputTokens,
+		TotalTokens:              total,
+	}
+	RecomputeExecutionTokensProto(e)
+}
+
 // SetErrorProto sets the error string.
 func SetErrorProto(e *orcv1.ExecutionState, errMsg string) {
 	if e == nil {
@@ -235,4 +259,33 @@ func SetPhaseCommitSHAProto(e *orcv1.ExecutionState, phaseID, sha string) {
 	} else {
 		e.Phases[phaseID].CommitSha = &sha
 	}
+}
+
+func recomputeExecutionTokensProto(e *orcv1.ExecutionState) {
+	RecomputeExecutionTokensProto(e)
+}
+
+// RecomputeExecutionTokensProto rebuilds aggregate execution token totals from
+// the per-phase token usage. This is the authoritative aggregation path for the
+// proto execution state and should be used after loading phases from storage.
+func RecomputeExecutionTokensProto(e *orcv1.ExecutionState) {
+	if e == nil {
+		return
+	}
+	if e.Tokens == nil {
+		e.Tokens = &orcv1.TokenUsage{}
+	}
+
+	total := &orcv1.TokenUsage{}
+	for _, phase := range e.Phases {
+		if phase == nil || phase.Tokens == nil {
+			continue
+		}
+		total.InputTokens += phase.Tokens.InputTokens
+		total.OutputTokens += phase.Tokens.OutputTokens
+		total.CacheCreationInputTokens += phase.Tokens.CacheCreationInputTokens
+		total.CacheReadInputTokens += phase.Tokens.CacheReadInputTokens
+	}
+	total.TotalTokens = total.InputTokens + total.OutputTokens + total.CacheCreationInputTokens + total.CacheReadInputTokens
+	e.Tokens = total
 }

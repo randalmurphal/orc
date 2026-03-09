@@ -100,11 +100,11 @@ func setupSyncRemoteFeatureTest(t *testing.T, taskID string) *syncRemoteFeatureT
 	}
 
 	if err := projectDB.SaveWorkflow(&db.Workflow{
-		ID:           "test-workflow",
-		Name:         "Test Workflow",
+		ID:   "test-workflow",
+		Name: "Test Workflow",
 
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}); err != nil {
 		t.Fatalf("SaveWorkflow: %v", err)
 	}
@@ -246,6 +246,57 @@ func TestSyncOnTaskStart_MergesRemoteFeatureBranch(t *testing.T) {
 		!strings.Contains(logOutputStr, "behind") {
 		t.Logf("Log output: %s", logOutputStr)
 		// Note: This is informational - the key test is whether the files exist
+	}
+}
+
+// TestSyncOnTaskStart_FreshRunSkipsRemoteFeatureBranch verifies that a fresh reset/run
+// does not import stale remote task-branch history before execution starts.
+func TestSyncOnTaskStart_FreshRunSkipsRemoteFeatureBranch(t *testing.T) {
+	t.Parallel()
+
+	env := setupSyncRemoteFeatureTest(t, "TASK-SYNC-FRESH")
+
+	tmpClone := t.TempDir()
+	runGitCmdOrFatal(t, tmpClone, "clone", env.remoteDir, ".")
+	runGitCmdOrFatal(t, tmpClone, "config", "user.email", "test@example.com")
+	runGitCmdOrFatal(t, tmpClone, "config", "user.name", "Test")
+	runGitCmdOrFatal(t, tmpClone, "checkout", "-b", env.branchName())
+	writeTestFile(t, tmpClone, "stale_remote_only.txt", "stale remote history\n")
+	runGitCmdOrFatal(t, tmpClone, "add", "stale_remote_only.txt")
+	runGitCmdOrFatal(t, tmpClone, "commit", "-m", "Push stale task branch history")
+	runGitCmdOrFatal(t, tmpClone, "push", "-u", "origin", env.branchName())
+
+	task.ResetTaskForFreshRunProto(env.tsk)
+	if err := env.backend.SaveTask(env.tsk); err != nil {
+		t.Fatalf("save fresh task state: %v", err)
+	}
+
+	result, err := SetupWorktreeForTask(env.tsk, env.cfg, env.gitOps, nil)
+	if err != nil {
+		t.Fatalf("SetupWorktreeForTask: %v", err)
+	}
+
+	wtGit := env.gitOps.InWorktree(result.Path)
+
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	we := &WorkflowExecutor{
+		worktreeGit:  wtGit,
+		worktreePath: result.Path,
+		orcConfig:    env.cfg,
+		logger:       logger,
+	}
+
+	if err := we.syncOnTaskStart(context.Background(), env.tsk); err != nil {
+		t.Fatalf("syncOnTaskStart failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(result.Path, "stale_remote_only.txt")); !os.IsNotExist(err) {
+		t.Fatalf("fresh run should not import stale remote branch file, stat err=%v", err)
+	}
+	if !strings.Contains(logBuf.String(), "skipping remote feature branch sync for fresh run") {
+		t.Fatalf("expected fresh-run skip log, got:\n%s", logBuf.String())
 	}
 }
 

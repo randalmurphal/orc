@@ -7,10 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // createEditTestBackend creates a backend for testing edit operations.
@@ -230,6 +233,81 @@ func TestEditCommand_CannotEditRunningTask(t *testing.T) {
 	}
 }
 
+func TestEditCommand_WorkflowChangeResetsExecutionState(t *testing.T) {
+	backendIface, tmpDir := createEditTestBackend(t)
+	backend := backendIface.(*storage.DatabaseBackend)
+
+	origDir := setupTestWorkDir(t, tmpDir)
+	defer restoreWorkDir(t, origDir)
+
+	now := time.Now()
+	if err := backend.DB().SaveWorkflow(&db.Workflow{
+		ID:        "crossmodel-standard",
+		Name:      "Crossmodel Standard",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}); err != nil {
+		t.Fatalf("save workflow: %v", err)
+	}
+
+	tk := task.NewProtoTask("TASK-007", "Workflow swap")
+	task.SetWorkflowIDProto(tk, "implement-medium")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_CLOSED
+	tk.StartedAt = timestamppb.Now()
+	tk.CompletedAt = timestamppb.Now()
+	tk.Metadata = map[string]string{
+		"closed":                   "true",
+		"phase:implement:provider": "claude",
+	}
+	tk.Execution.Phases["spec"] = &orcv1.PhaseState{
+		Status:    orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+		StartedAt: timestamppb.Now(),
+		Tokens:    &orcv1.TokenUsage{TotalTokens: 12},
+	}
+	tk.Pr = &orcv1.PRInfo{
+		Url:    testStringPtr("https://example.com/pr/7"),
+		Number: testCLIInt32Ptr(7),
+		Status: orcv1.PRStatus_PR_STATUS_PENDING_REVIEW,
+	}
+	tk.Quality = &orcv1.QualityMetrics{
+		PhaseRetries:       map[string]int32{"review": 1},
+		ManualIntervention: true,
+	}
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	cmd := newEditCmd()
+	cmd.SetArgs([]string{"TASK-007", "--workflow", "crossmodel-standard"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute edit command: %v", err)
+	}
+
+	updated, err := backend.LoadTask("TASK-007")
+	if err != nil {
+		t.Fatalf("reload task: %v", err)
+	}
+
+	if got := task.GetWorkflowIDProto(updated); got != "crossmodel-standard" {
+		t.Fatalf("workflow = %q, want crossmodel-standard", got)
+	}
+	if updated.Status != orcv1.TaskStatus_TASK_STATUS_PLANNED {
+		t.Fatalf("status = %v, want planned", updated.Status)
+	}
+	if len(updated.Execution.Phases) != 0 {
+		t.Fatalf("execution phases should be cleared on workflow change, got %d", len(updated.Execution.Phases))
+	}
+	if updated.Pr != nil {
+		t.Fatalf("PR info should be cleared on workflow change, got %+v", updated.Pr)
+	}
+	if updated.Quality != nil {
+		t.Fatalf("quality metrics should be cleared on workflow change, got %+v", updated.Quality)
+	}
+	if !task.HasFreshResetMarkerProto(updated) || len(updated.Metadata) != 1 {
+		t.Fatalf("expected only fresh reset marker after workflow change, got %+v", updated.Metadata)
+	}
+}
+
 // hasSubstring checks if substr is in s (helper for tests).
 func hasSubstring(s, substr string) bool {
 	for i := 0; i+len(substr) <= len(s); i++ {
@@ -270,3 +348,6 @@ func restoreWorkDir(t *testing.T, dir string) {
 	}
 }
 
+func testStringPtr(v string) *string { return &v }
+
+func testCLIInt32Ptr(v int32) *int32 { return &v }

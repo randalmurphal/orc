@@ -88,3 +88,32 @@ func TestImplementPrompts_PreExistingVerificationFailuresUseSkipped(t *testing.T
 		})
 	}
 }
+
+func TestImplementPrompts_RequireBrowserValidationContract(t *testing.T) {
+	t.Parallel()
+
+	files := []string{"prompts/implement.md", "prompts/implement_codex.md"}
+	for _, file := range files {
+		file := file
+		t.Run(file, func(t *testing.T) {
+			t.Parallel()
+
+			content, err := Prompts.ReadFile(file)
+			if err != nil {
+				t.Fatalf("failed to read %s: %v", file, err)
+			}
+
+			text := string(content)
+			for _, required := range []string{
+				"browser_validation",
+				"browser-visible behavior",
+				"backend, API",
+				"advisory only",
+			} {
+				if !strings.Contains(text, required) {
+					t.Errorf("%s missing browser-validation guidance %q", file, required)
+				}
+			}
+		})
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -255,6 +256,54 @@ func TestShowCommand_SpecFlag_JSON_NoSpec(t *testing.T) {
 	// Verify spec is null in JSON
 	if result["spec"] != nil {
 		t.Errorf("spec should be null, got %v", result["spec"])
+	}
+}
+
+func TestPrintSessionInfoProto_FallsBackToTranscriptSessionAndPrintsSingleLastActivity(t *testing.T) {
+	tmpDir := withShowTestDir(t)
+	backend := createShowTestBackend(t, tmpDir)
+
+	tk := task.NewProtoTask("TASK-SESSION-001", "Session fallback")
+	task.SetCurrentPhaseProto(tk, "implement")
+	task.StartPhaseProto(tk.Execution, "implement")
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	if err := backend.AddTranscript(&storage.Transcript{
+		TaskID:    "TASK-SESSION-001",
+		Phase:     "implement",
+		SessionID: "codex-thread-123",
+		Type:      "assistant",
+		Role:      "assistant",
+		Model:     "gpt-5.4",
+		Content:   "working",
+		Timestamp: time.Now().UnixMilli(),
+	}); err != nil {
+		t.Fatalf("add transcript: %v", err)
+	}
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printSessionInfoProto(backend, tk, tk.Id)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	output := buf.String()
+
+	if !strings.Contains(output, "Session ID:    codex-thread-123") {
+		t.Fatalf("expected transcript session fallback, got:\n%s", output)
+	}
+	if !strings.Contains(output, "Model:         gpt-5.4") {
+		t.Fatalf("expected transcript model fallback, got:\n%s", output)
+	}
+	if got := strings.Count(output, "Last Activity:"); got != 1 {
+		t.Fatalf("expected one Last Activity line, got %d\noutput:\n%s", got, output)
 	}
 }
 

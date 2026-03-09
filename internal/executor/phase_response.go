@@ -169,6 +169,38 @@ const ImplementCompletionSchema = `{
 							}
 						}
 					}
+				},
+				"browser_validation": {
+					"type": "object",
+					"description": "Browser-validation decision and evidence for user-visible browser behavior.",
+					"properties": {
+						"browser_surface_change": {
+							"type": "boolean",
+							"description": "True when the implemented change affects browser-visible behavior, even through backend/API changes."
+						},
+						"required": {
+							"type": "boolean",
+							"description": "True when browser validation was required for this implementation."
+						},
+						"performed": {
+							"type": "boolean",
+							"description": "True when browser validation was actually performed."
+						},
+						"reason": {
+							"type": "string",
+							"description": "Why browser validation was or was not required."
+						},
+						"evidence": {
+							"type": "string",
+							"description": "What browser validation proved, including commands or observed behavior."
+						},
+						"artifacts": {
+							"type": "array",
+							"description": "Optional screenshots, logs, or trace artifact paths.",
+							"items": {"type": "string"}
+						}
+					},
+					"required": ["browser_surface_change", "required", "performed", "reason", "evidence", "artifacts"]
 				}
 			}
 		},
@@ -381,6 +413,7 @@ type ImplementVerification struct {
 	Build           *VerificationStatus      `json:"build,omitempty"`
 	Linting         *VerificationStatus      `json:"linting,omitempty"`
 	Wiring          *WiringVerification      `json:"wiring,omitempty"`
+	BrowserValidation *BrowserValidation     `json:"browser_validation,omitempty"`
 }
 
 // VerificationStatus represents a single verification check result.
@@ -408,6 +441,16 @@ type WiringVerification struct {
 type WiringNewFile struct {
 	File       string `json:"file"`
 	ImportedBy string `json:"imported_by"`
+}
+
+// BrowserValidation records whether browser validation was required and what evidence was gathered.
+type BrowserValidation struct {
+	BrowserSurfaceChange bool     `json:"browser_surface_change"`
+	Required             bool     `json:"required"`
+	Performed            bool     `json:"performed"`
+	Reason               string   `json:"reason"`
+	Evidence             string   `json:"evidence"`
+	Artifacts            []string `json:"artifacts,omitempty"`
 }
 
 // ImplementResponse extends PhaseResponse with verification evidence.
@@ -472,6 +515,9 @@ func ValidateImplementCompletion(content string) error {
 	if resp.Verification.Wiring == nil {
 		failures = append(failures, "wiring verification missing")
 	}
+	if resp.Verification.BrowserValidation == nil {
+		failures = append(failures, "browser validation verdict missing")
+	}
 
 	// Check tests passed
 	if resp.Verification.Tests != nil && resp.Verification.Tests.Status == "FAIL" {
@@ -498,6 +544,22 @@ func ValidateImplementCompletion(content string) error {
 	// Check wiring passed (dead code must block completion)
 	if resp.Verification.Wiring != nil && resp.Verification.Wiring.Status == "FAIL" {
 		failures = append(failures, "wiring failed")
+	}
+
+	if resp.Verification.BrowserValidation != nil {
+		browserValidation := resp.Verification.BrowserValidation
+		if browserValidation.BrowserSurfaceChange && !browserValidation.Required {
+			failures = append(failures, "browser validation required for browser-surface change")
+		}
+		if browserValidation.Required && !browserValidation.Performed {
+			failures = append(failures, "browser validation required but not performed")
+		}
+		if browserValidation.Required && strings.TrimSpace(browserValidation.Evidence) == "" {
+			failures = append(failures, "browser validation evidence missing")
+		}
+		if browserValidation.Performed && strings.TrimSpace(browserValidation.Evidence) == "" {
+			failures = append(failures, "browser validation evidence missing")
+		}
 	}
 
 	if len(failures) > 0 {

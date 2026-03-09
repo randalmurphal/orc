@@ -470,8 +470,8 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 			PhaseTemplateID:  p.Template,
 			Sequence:         p.Sequence,
 			DependsOn:        p.DependsOn,
-			ModelOverride:    p.Model,
-			ProviderOverride: p.Provider,
+			ModelOverride:    p.ModelOverride,
+			ProviderOverride: p.ProviderOverride,
 		}
 		if p.Thinking != nil {
 			wp.ThinkingOverride = p.Thinking
@@ -590,15 +590,15 @@ type workflowTriggerYAML struct {
 }
 
 type workflowPhaseYAML struct {
-	Template   string   `yaml:"template"`
-	Sequence   int      `yaml:"sequence"`
-	DependsOn  []string `yaml:"depends_on,omitempty"`
-	Model      string   `yaml:"model,omitempty"`
-	Provider   string   `yaml:"provider,omitempty"`
-	Thinking   *bool    `yaml:"thinking,omitempty"`
-	GateType   string   `yaml:"gate_type,omitempty"`
-	Condition  string   `yaml:"condition,omitempty"`
-	LoopConfig any      `yaml:"loop_config,omitempty"` // Parsed as any, converted to JSON string
+	Template         string   `yaml:"template"`
+	Sequence         int      `yaml:"sequence"`
+	DependsOn        []string `yaml:"depends_on,omitempty"`
+	ModelOverride    string   `yaml:"model_override,omitempty"`
+	ProviderOverride string   `yaml:"provider_override,omitempty"`
+	Thinking         *bool    `yaml:"thinking,omitempty"`
+	GateType         string   `yaml:"gate_type,omitempty"`
+	Condition        string   `yaml:"condition,omitempty"`
+	LoopConfig       any      `yaml:"loop_config,omitempty"` // Parsed as any, converted to JSON string
 }
 
 type variableYAML struct {

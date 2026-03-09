@@ -986,7 +986,7 @@ func (s *Server) GetSessionMetrics(projectID string) SessionMetricsResponse {
 
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	var running, completed int
-	var totalInput, totalOutput int
+	var totalInput, totalOutput, totalCache int
 	var totalCost float64
 
 	for _, t := range tasks {
@@ -1005,6 +1005,7 @@ func (s *Server) GetSessionMetrics(projectID string) SessionMetricsResponse {
 						if tokens := ps.GetTokens(); tokens != nil {
 							totalInput += int(tokens.InputTokens)
 							totalOutput += int(tokens.OutputTokens)
+							totalCache += int(tokens.CacheCreationInputTokens + tokens.CacheReadInputTokens)
 						}
 					}
 				}
@@ -1024,7 +1025,7 @@ func (s *Server) GetSessionMetrics(projectID string) SessionMetricsResponse {
 		SessionID:        s.sessionID,
 		StartedAt:        s.sessionStart,
 		DurationSeconds:  duration,
-		TotalTokens:      totalInput + totalOutput,
+		TotalTokens:      totalInput + totalOutput + totalCache,
 		InputTokens:      totalInput,
 		OutputTokens:     totalOutput,
 		EstimatedCostUSD: totalCost,

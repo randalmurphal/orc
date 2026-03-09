@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -294,6 +295,58 @@ func TestInternalEventToProto_EventSessionUpdate(t *testing.T) {
 				t.Errorf("expected is_paused %v, got %v", tt.wantIsPaused, metrics.IsPaused)
 			}
 		})
+	}
+}
+
+func TestInternalEventToProto_EventTranscript(t *testing.T) {
+	t.Parallel()
+
+	result := internalEventToProto(events.Event{
+		Type:   events.EventTranscript,
+		TaskID: "TASK-001",
+		Time:   time.Now(),
+		Data: events.TranscriptLine{
+			Phase:     "implement",
+			Type:      "chunk",
+			Content:   "partial output",
+			Timestamp: time.Now(),
+			Model:     "gpt-5.4",
+			Tokens: &events.TokenUpdate{
+				InputTokens:  12,
+				OutputTokens: 8,
+			},
+		},
+	})
+	if result == nil {
+		t.Fatal("expected proto event, got nil")
+	}
+
+	activity := result.GetActivity()
+	if activity == nil {
+		t.Fatal("expected activity payload for transcript event")
+	}
+	if activity.TaskId != "TASK-001" {
+		t.Fatalf("task_id = %q, want TASK-001", activity.TaskId)
+	}
+	if activity.PhaseId != "implement" {
+		t.Fatalf("phase_id = %q, want implement", activity.PhaseId)
+	}
+	if activity.Activity != orcv1.ActivityState_ACTIVITY_STATE_STREAMING {
+		t.Fatalf("activity = %v, want STREAMING", activity.Activity)
+	}
+
+	var details map[string]any
+	if activity.Details == nil {
+		t.Fatal("expected transcript details")
+	}
+	if err := json.Unmarshal([]byte(*activity.Details), &details); err != nil {
+		t.Fatalf("unmarshal details: %v", err)
+	}
+	if details["type"] != "response" {
+		t.Fatalf("details.type = %v, want response", details["type"])
+	}
+	if details["content"] != "partial output" {
+		t.Fatalf("details.content = %v, want partial output", details["content"])
 	}
 }
 
@@ -720,7 +773,6 @@ func TestInternalEventToProto_TaskEvents(t *testing.T) {
 		}
 	})
 }
-
 
 // TestDbEventToProto_UsesDatabaseID verifies that dbEventToProto uses the database
 // event ID instead of generating a new UUID. This prevents duplicate events from

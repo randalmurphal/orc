@@ -197,6 +197,7 @@ func NewClaudeExecutor(opts ...ClaudeExecutorOption) *ClaudeExecutor {
 			e.backend, e.logger,
 			e.taskID, e.phaseID, e.sessionID, e.runID,
 			e.model,
+			nil,
 			captureHookEvents,
 		)
 	}

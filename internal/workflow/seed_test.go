@@ -251,3 +251,61 @@ func TestBuiltinWorkflowsHavePhases(t *testing.T) {
 		}
 	}
 }
+
+func TestSeedBuiltins_CrossModelStandardPersistsPhaseOverrides(t *testing.T) {
+	t.Parallel()
+
+	gdb := openTestGlobalDB(t)
+
+	_, err := SeedBuiltins(gdb)
+	if err != nil {
+		t.Fatalf("SeedBuiltins failed: %v", err)
+	}
+
+	phases, err := gdb.GetWorkflowPhases("crossmodel-standard")
+	if err != nil {
+		t.Fatalf("GetWorkflowPhases(crossmodel-standard) failed: %v", err)
+	}
+
+	if len(phases) == 0 {
+		t.Fatal("expected crossmodel-standard to have phases")
+	}
+
+	byID := make(map[string]*db.WorkflowPhase, len(phases))
+	for _, phase := range phases {
+		byID[phase.PhaseTemplateID] = phase
+	}
+
+	implement := byID["implement_codex"]
+	if implement == nil {
+		t.Fatal("implement_codex phase missing from crossmodel-standard")
+	}
+	if got := implement.ModelOverride; got != "gpt-5.4" {
+		t.Fatalf("implement_codex model_override = %q, want %q", got, "gpt-5.4")
+	}
+	if got := implement.ProviderOverride; got != "" {
+		t.Fatalf("implement_codex provider_override = %q, want empty string", got)
+	}
+
+	reviewCross := byID["review_cross"]
+	if reviewCross == nil {
+		t.Fatal("review_cross phase missing from crossmodel-standard")
+	}
+	if got := reviewCross.ProviderOverride; got != "codex" {
+		t.Fatalf("review_cross provider_override = %q, want %q", got, "codex")
+	}
+	if got := reviewCross.ModelOverride; got != "gpt-5.4" {
+		t.Fatalf("review_cross model_override = %q, want %q", got, "gpt-5.4")
+	}
+
+	docs := byID["docs"]
+	if docs == nil {
+		t.Fatal("docs phase missing from crossmodel-standard")
+	}
+	if got := docs.ProviderOverride; got != "codex" {
+		t.Fatalf("docs provider_override = %q, want %q", got, "codex")
+	}
+	if got := docs.ModelOverride; got != "gpt-5.4" {
+		t.Fatalf("docs model_override = %q, want %q", got, "gpt-5.4")
+	}
+}
