@@ -804,9 +804,7 @@ func scanTask(row *sql.Row) (*Task, error) {
 	}
 	// Updated timestamp
 	if updatedAt.Valid {
-		if ts, err := time.Parse(time.RFC3339, updatedAt.String); err == nil {
-			t.UpdatedAt = ts
-		}
+		t.UpdatedAt = parseTimestamp(updatedAt.String)
 	}
 
 	// Branch control fields
@@ -976,9 +974,7 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	}
 	// Updated timestamp
 	if updatedAt.Valid {
-		if ts, err := time.Parse(time.RFC3339, updatedAt.String); err == nil {
-			t.UpdatedAt = ts
-		}
+		t.UpdatedAt = parseTimestamp(updatedAt.String)
 	}
 
 	// Branch control fields

@@ -230,6 +230,37 @@ func TestLoadTask_RebuildsAggregateExecutionTokensFromPhases(t *testing.T) {
 	}
 }
 
+func TestLoadTask_ParsesSQLiteUpdatedAtFormat(t *testing.T) {
+	t.Parallel()
+
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	testTask := task.NewProtoTask("TASK-SQLITE-UPDATED", "SQLite updated_at parsing")
+	testTask.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	_, err := backend.db.Exec(`UPDATE tasks SET updated_at = datetime('now') WHERE id = ?`, testTask.Id)
+	if err != nil {
+		t.Fatalf("update task updated_at: %v", err)
+	}
+
+	loaded, err := backend.LoadTask(testTask.Id)
+	if err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+
+	if loaded.UpdatedAt == nil {
+		t.Fatal("expected updated_at to be set")
+	}
+	if loaded.UpdatedAt.AsTime().IsZero() {
+		t.Fatal("expected updated_at to parse from SQLite datetime format")
+	}
+}
+
 // TestSaveInitiative_Transaction verifies initiative and related data are saved atomically.
 func TestSaveInitiative_Transaction(t *testing.T) {
 	t.Parallel()
