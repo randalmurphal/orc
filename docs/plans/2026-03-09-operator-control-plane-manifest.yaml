@@ -1,0 +1,219 @@
+version: 1
+
+create_initiative:
+  title: "Operator Control Plane"
+  vision: |
+    Orc becomes the multi-project control plane for CLI-first agent work.
+
+    The root experience is a cross-project attention hub. Project-level
+    surfaces handle execution visibility, discussion, recommendations, and
+    review. Recommendations never enter the real backlog automatically:
+    they require explicit human acceptance or discussion before promotion
+    into tasks or initiative decisions.
+
+    Design doc: docs/plans/2026-03-09-operator-control-plane.md
+
+decisions:
+  - text: "Orc UI is a control plane, not a browser IDE"
+    rationale: "CLI and the editor remain the primary authoring environment. The UI focuses on oversight, review, discussion, and handoff."
+
+  - text: "Recommendations require explicit human acceptance or discussion before becoming backlog tasks or initiative decisions"
+    rationale: "Agents should surface follow-up work aggressively, but backlog creation stays a human decision for production projects."
+
+  - text: "The root command center is multi-project, while threads, recommendations, and execution stay project-scoped"
+    rationale: "Cross-project triage is useful. Cross-project execution context is noise."
+
+  - text: "Knowledge features stay lightweight and support briefs, recommendations, and context packs instead of becoming a first-class product surface"
+    rationale: "The value is better decisions and handoffs, not a separate knowledge UI."
+
+  - text: "Existing thread, layout, brief, and acceptance-criteria work from INIT-003 is reused as foundation rather than rebuilt"
+    rationale: "The old initiative produced useful substrate even though the overall Development OS direction was too broad."
+
+tasks:
+  - id: 1
+    title: "Recommendation inbox and data model"
+    workflow: crossmodel-standard
+    category: feature
+    priority: critical
+    description: |
+      Intent: add a first-class Recommendation model and inbox so agents can
+      surface cleanup, risks, follow-up work, and decision requests without
+      polluting the real backlog.
+
+      Success criteria:
+      - Recommendations are stored separately from tasks
+      - Recommendations support states like open, accepted, rejected, and discussing
+      - Recommendations retain source task/thread/run context
+      - CLI, API, and UI expose accept/reject/discuss actions
+      - Project-scoped recommendations roll up into cross-project attention counts
+
+      Testing:
+      - Persistence and status-transition tests
+      - API contract tests
+      - Event emission tests
+      - Basic inbox rendering tests
+
+  - id: 2
+    title: "Human acceptance flow for recommendations and draft plans"
+    workflow: crossmodel-standard
+    category: feature
+    priority: critical
+    depends_on: [1]
+    description: |
+      Intent: make recommendation and draft-plan promotion explicit instead of automatic.
+
+      Success criteria:
+      - A human can accept, reject, or request revision/discussion
+      - The decision is durable and visible in task/initiative history
+      - Accepted items promote into tasks or initiative decisions without manual re-entry
+      - This stays scoped to recommendation/plan acceptance, not a generic human-phase framework
+
+      Testing:
+      - CLI and API action tests
+      - UI state-transition tests
+      - Event-update tests
+
+  - id: 3
+    title: "Discussion workspace: thread history, linkage, and promotion"
+    workflow: crossmodel-standard
+    category: feature
+    priority: high
+    depends_on: [1]
+    description: |
+      Intent: turn threads into useful project artifacts instead of thin chat panes.
+
+      Success criteria:
+      - Threads can link to initiatives, tasks, recommendations, and relevant files/diffs
+      - Reopening a thread restores history and current context cleanly
+      - A thread can promote content into a draft task or initiative decision
+      - Discussion state is clearly separated from execution state
+
+      Testing:
+      - Linkage persistence tests
+      - Reopen behavior tests
+      - Promotion-flow tests
+      - Event-update tests
+
+  - id: 4
+    title: "Post-completion recommendation trigger"
+    workflow: crossmodel-standard
+    category: feature
+    priority: high
+    depends_on: [1]
+    description: |
+      Intent: surface likely follow-up work, cleanup, coverage gaps, and
+      decision requests as recommendations when tasks complete.
+
+      Success criteria:
+      - Task completion can generate project-scoped recommendations from findings and verification results
+      - Recommendations include source evidence and a proposed action
+      - No automatic backlog creation
+      - Duplicate or low-signal recommendations are suppressed
+
+      Testing:
+      - Trigger execution tests
+      - Recommendation generation contract tests
+      - Duplicate-suppression tests
+      - Inbox visibility tests
+
+  - id: 5
+    title: "Multi-project command center and project home"
+    workflow: crossmodel-standard
+    category: feature
+    priority: critical
+    depends_on: [1, 3, 4]
+    description: |
+      Intent: make orc useful as a daily control plane across many repos while
+      preserving project-level depth.
+
+      Success criteria:
+      - Root command center shows running work, human-attention items, discussions, and recommendations across projects
+      - Project home shows active work, blocked items, recent completions, recommendations, and discussion state for that project
+      - Existing My Work and task-detail surfaces are reused where possible
+      - Operators have clear next actions instead of dashboard noise
+
+      Testing:
+      - Cross-project aggregation tests
+      - Project selection and drill-down tests
+      - Attention-state rendering tests
+      - Primary operator-action tests
+
+  - id: 6
+    title: "CLI handoff actions and context packs"
+    workflow: crossmodel-standard
+    category: feature
+    priority: high
+    depends_on: [1, 3]
+    description: |
+      Intent: make the UI feed real Codex/Claude CLI sessions instead of pretending to replace them.
+
+      Success criteria:
+      - Users can copy exact CLI commands, bootstrap prompts, and compact context packs
+      - Context packs work from tasks, threads, and recommendations
+      - Outputs stay compact, high-signal, and pasteable into Codex or Claude Code
+
+      Testing:
+      - Generation contract tests
+      - Clipboard-action tests
+      - Context-pack rendering tests for task, thread, and recommendation sources
+
+  - id: 7
+    title: "Operator command palette and exact actions"
+    workflow: crossmodel-standard
+    category: feature
+    priority: normal
+    depends_on: [6]
+    description: |
+      Intent: replace dead top-bar search with an action surface that helps operators move work.
+
+      Success criteria:
+      - The top-level command surface exposes actions like show, log, resume, approve, finalize, open thread, and copy exact CLI command
+      - Actions respect project scope and current selection
+      - Keyboard interaction is faster than drilling through navigation chrome
+
+      Testing:
+      - Command registration tests
+      - Filtering and keyboard interaction tests
+      - Action-routing tests
+
+  - id: 8
+    title: "Recommendation and decision artifact indexing"
+    workflow: crossmodel-standard
+    category: feature
+    priority: normal
+    depends_on: [1, 4]
+    description: |
+      Intent: retain enough project memory to improve briefs, recommendation
+      deduping, and handoffs without reviving the giant Development OS graph plan.
+
+      Success criteria:
+      - Accepted recommendations, initiative decisions, high-signal findings, and task outcomes enrich the existing brief/context layer
+      - Retrieval helps recommendation deduping and context-pack generation
+      - No heavyweight knowledge product surface is introduced
+
+      Testing:
+      - Indexing trigger tests
+      - Retrieval-input tests
+      - Brief/context enrichment tests
+
+  - id: 9
+    title: "Prompt and context discipline for control-plane flows"
+    workflow: crossmodel-standard
+    category: refactor
+    priority: normal
+    depends_on: [6, 8]
+    description: |
+      Intent: tighten the prompts and structured outputs used by recommendations,
+      thread promotion, and handoff generation so the system produces compact,
+      pasteable, reviewable artifacts.
+
+      Success criteria:
+      - Relevant prompts and schemas prefer compact structured outputs over prose dumps
+      - Outputs survive context compaction
+      - Copied prompts and context packs stay consistent across Claude and Codex paths
+      - Discussion state and execution state are clearly separated in prompt contracts
+
+      Testing:
+      - Prompt/schema parity tests
+      - Compact-output regression tests
+      - Promotion and recommendation generation regression tests
