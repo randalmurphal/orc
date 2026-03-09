@@ -101,6 +101,7 @@ See also:
 				useColor:     !noColor && isatty.IsTerminal(os.Stdout.Fd()),
 				raw:          raw,
 				phase:        phase,
+				showAllRuns:  all,
 			}
 
 			// Follow mode - poll database for new transcripts
@@ -126,6 +127,10 @@ See also:
 				fmt.Println("\nThe task may not have run yet.")
 				fmt.Printf("Try: orc run %s\n", id)
 				return nil
+			}
+
+			if !all {
+				transcripts = filterToLatestWorkflowRun(transcripts)
 			}
 
 			// Filter by phase if specified
@@ -198,6 +203,7 @@ type transcriptDisplayOptions struct {
 	useColor     bool   // Enable color output
 	raw          bool   // Show raw JSON content
 	phase        string // Filter by phase
+	showAllRuns  bool   // Show transcripts from every workflow run
 }
 
 // displayTranscripts renders transcripts to stdout
@@ -238,6 +244,9 @@ func displaySingleTranscript(t storage.Transcript, opts transcriptDisplayOptions
 	case "chunk":
 		typeIndicator = "STREAM"
 		typeColor = ansiGreen
+	case "tool":
+		typeIndicator = "TOOL"
+		typeColor = ansiYellow
 	}
 
 	// Header line
@@ -353,6 +362,30 @@ func collectPhases(transcripts []storage.Transcript) []string {
 	return phases
 }
 
+func filterToLatestWorkflowRun(transcripts []storage.Transcript) []storage.Transcript {
+	latestRunID := latestWorkflowRunID(transcripts)
+	if latestRunID == "" {
+		return transcripts
+	}
+
+	filtered := make([]storage.Transcript, 0, len(transcripts))
+	for _, transcript := range transcripts {
+		if transcript.WorkflowRunID == latestRunID {
+			filtered = append(filtered, transcript)
+		}
+	}
+	return filtered
+}
+
+func latestWorkflowRunID(transcripts []storage.Transcript) string {
+	for i := len(transcripts) - 1; i >= 0; i-- {
+		if transcripts[i].WorkflowRunID != "" {
+			return transcripts[i].WorkflowRunID
+		}
+	}
+	return ""
+}
+
 // followTranscripts polls the database for new transcripts during task execution.
 // This provides real-time streaming without relying on filesystem-based JSONL files.
 func followTranscripts(taskID string, opts transcriptDisplayOptions) error {
@@ -399,6 +432,10 @@ func followTranscripts(taskID string, opts transcriptDisplayOptions) error {
 				// Log but continue polling
 				fmt.Fprintf(os.Stderr, "Warning: failed to get transcripts: %v\n", err)
 				continue
+			}
+
+			if !opts.showAllRuns {
+				transcripts = filterToLatestWorkflowRun(transcripts)
 			}
 
 			// Filter to only new transcripts

@@ -86,6 +86,26 @@ func TestCollectPhases(t *testing.T) {
 	}
 }
 
+func TestFilterToLatestWorkflowRun(t *testing.T) {
+	transcripts := []storage.Transcript{
+		{ID: 1, Phase: "plan", WorkflowRunID: "RUN-399"},
+		{ID: 2, Phase: "implement_codex", WorkflowRunID: "RUN-399"},
+		{ID: 3, Phase: "plan", WorkflowRunID: "RUN-400"},
+		{ID: 4, Phase: "implement_codex", WorkflowRunID: "RUN-400"},
+	}
+
+	filtered := filterToLatestWorkflowRun(transcripts)
+
+	if len(filtered) != 2 {
+		t.Fatalf("expected 2 transcripts from latest run, got %d", len(filtered))
+	}
+	for _, transcript := range filtered {
+		if transcript.WorkflowRunID != "RUN-400" {
+			t.Fatalf("unexpected run id %q in filtered transcripts", transcript.WorkflowRunID)
+		}
+	}
+}
+
 func TestDisplaySingleTranscript(t *testing.T) {
 	transcript := storage.Transcript{
 		Phase:        "implement",
@@ -124,6 +144,35 @@ func TestDisplaySingleTranscript(t *testing.T) {
 		if !bytes.Contains([]byte(output), []byte(expected)) {
 			t.Errorf("expected output to contain %q, got: %q", expected, output)
 		}
+	}
+}
+
+func TestDisplaySingleTranscriptTool(t *testing.T) {
+	transcript := storage.Transcript{
+		Phase:     "implement_codex",
+		Type:      "tool",
+		Content:   `/bin/zsh -lc "sed -n '1,80p' web/src/components/board/BoardView.tsx"`,
+		Timestamp: 1705320000000,
+	}
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	displaySingleTranscript(transcript, transcriptDisplayOptions{useColor: false})
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	output := buf.String()
+
+	if !bytes.Contains([]byte(output), []byte("TOOL")) {
+		t.Fatalf("expected TOOL indicator, got: %q", output)
+	}
+	if !bytes.Contains([]byte(output), []byte("BoardView.tsx")) {
+		t.Fatalf("expected tool content, got: %q", output)
 	}
 }
 
