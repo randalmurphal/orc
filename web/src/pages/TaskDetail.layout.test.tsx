@@ -28,8 +28,12 @@ const mockGetTask = vi.fn();
 const mockGetTaskPlan = vi.fn();
 const mockPauseTask = vi.fn();
 const mockResumeTask = vi.fn();
+const mockRetryTask = vi.fn();
+const mockUpdateTask = vi.fn();
+const mockGetDiff = vi.fn();
 const mockListReviewComments = vi.fn();
 const mockListFeedback = vi.fn();
+const mockListTaskGeneratedNotes = vi.fn();
 
 vi.mock('@/lib/client', () => ({
 	taskClient: {
@@ -37,10 +41,16 @@ vi.mock('@/lib/client', () => ({
 		getTaskPlan: (...args: unknown[]) => mockGetTaskPlan(...args),
 		pauseTask: (...args: unknown[]) => mockPauseTask(...args),
 		resumeTask: (...args: unknown[]) => mockResumeTask(...args),
+		retryTask: (...args: unknown[]) => mockRetryTask(...args),
+		updateTask: (...args: unknown[]) => mockUpdateTask(...args),
+		getDiff: (...args: unknown[]) => mockGetDiff(...args),
 		listReviewComments: (...args: unknown[]) => mockListReviewComments(...args),
 	},
 	feedbackClient: {
 		listFeedback: (...args: unknown[]) => mockListFeedback(...args),
+	},
+	initiativeClient: {
+		listTaskGeneratedNotes: (...args: unknown[]) => mockListTaskGeneratedNotes(...args),
 	},
 }));
 
@@ -109,6 +119,10 @@ describe('TaskDetail Layout (TASK-736)', () => {
 		// Default mock responses for child components
 		mockListReviewComments.mockResolvedValue({ comments: [] });
 		mockListFeedback.mockResolvedValue({ feedback: [] });
+		mockRetryTask.mockResolvedValue({ task: createMockTask({ status: TaskStatus.RUNNING }) });
+		mockUpdateTask.mockResolvedValue({ task: createMockTask({ status: TaskStatus.PAUSED }) });
+		mockGetDiff.mockResolvedValue({ files: [], stats: {} });
+		mockListTaskGeneratedNotes.mockResolvedValue({ notes: [] });
 
 		// Default mock responses
 		mockGetTask.mockResolvedValue({

@@ -17,86 +17,26 @@
 	border-top-color: var(--green);
 }
 
-.task-footer__status {
-	display: flex;
-	align-items: center;
-	gap: var(--space-2);
-	color: var(--green);
-	font-weight: var(--font-medium);
-}
-
-.task-footer__status-icon {
-	color: var(--green);
-}
-
-/* Failed state */
 .task-footer--failed {
-	flex-direction: column;
-	align-items: stretch;
-	gap: var(--space-3);
 	background: var(--red-dim);
 	border-top-color: var(--red);
 }
 
-.task-footer__error {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-2);
-}
-
-.task-footer__error-header {
+.task-footer__status {
 	display: flex;
 	align-items: center;
 	gap: var(--space-2);
-	color: var(--red);
 	font-weight: var(--font-medium);
 }
 
-.task-footer__error-icon {
+.task-footer--completed .task-footer__status,
+.task-footer--completed .task-footer__status-icon {
+	color: var(--green);
+}
+
+.task-footer--failed .task-footer__status,
+.task-footer--failed .task-footer__status-icon {
 	color: var(--red);
-	flex-shrink: 0;
-}
-
-.task-footer__error-details {
-	padding: var(--space-2);
-	background: var(--bg-card);
-	border: 1px solid var(--red-border);
-	border-radius: var(--radius-sm);
-	font-family: var(--font-mono);
-	font-size: var(--text-xs);
-	color: var(--text-secondary);
-	white-space: pre-wrap;
-	word-break: break-word;
-}
-
-/* Guidance section */
-.task-footer__guidance {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-2);
-}
-
-.task-footer__feedback {
-	width: 100%;
-	padding: var(--space-2);
-	background: var(--bg-card);
-	border: 1px solid var(--border);
-	border-radius: var(--radius-sm);
-	font-family: var(--font-body);
-	font-size: var(--text-sm);
-	color: var(--text-primary);
-	resize: vertical;
-	min-height: 48px;
-}
-
-.task-footer__feedback::placeholder {
-	color: var(--text-muted);
-}
-
-.task-footer__feedback:focus {
-	outline: none;
-	border-color: var(--primary);
-	box-shadow: 0 0 0 2px var(--primary-dim);
 }
 
 /* Metrics */
@@ -125,8 +65,4 @@
 	align-items: center;
 	gap: var(--space-2);
 	flex-wrap: wrap;
-}
-
-.task-footer--failed .task-footer__actions {
-	justify-content: flex-end;
 }
