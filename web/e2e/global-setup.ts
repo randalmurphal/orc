@@ -18,9 +18,6 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import * as yaml from 'js-yaml';
-
-// ES module compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -35,6 +32,31 @@ interface SandboxState {
 	projectPath: string;
 	projectName: string;
 	createdAt: string;
+}
+
+interface ProjectRegistryEntry {
+	id: string;
+	name: string;
+	path: string;
+	default?: boolean;
+}
+
+function runOrc(command: string, cwd: string): string {
+	return execSync(`${ORC_BIN} ${command}`, {
+		cwd,
+		encoding: 'utf-8',
+		stdio: ['ignore', 'pipe', 'pipe'],
+	});
+}
+
+function getProjectByPath(projectPath: string): ProjectRegistryEntry {
+	const output = runOrc('projects --json', projectPath);
+	const projects = JSON.parse(output) as ProjectRegistryEntry[];
+	const project = projects.find((entry) => entry.path === projectPath);
+	if (!project) {
+		throw new Error(`Failed to find sandbox project in registry for ${projectPath}`);
+	}
+	return project;
 }
 
 export default async function globalSetup() {
@@ -77,64 +99,66 @@ export default async function globalSetup() {
 	console.log('   Initializing orc...');
 	execSync(`${ORC_BIN} init --yes`, { cwd: sandboxPath, stdio: 'pipe' });
 
-	// Get the project ID from registry
-	const homeDir = process.env.HOME || '/home/runner';
-	const registryPath = path.join(homeDir, '.orc', 'projects.yaml');
-	const registryContent = fs.readFileSync(registryPath, 'utf-8');
-	const registry = yaml.load(registryContent) as {
-		projects: Array<{ id: string; path: string; name: string }>;
-	};
-
-	const project = registry.projects.find((p) => p.path === sandboxPath);
-	if (!project) {
-		throw new Error('Failed to find sandbox project in registry');
-	}
+	const project = getProjectByPath(sandboxPath);
 
 	console.log(`   Project ID: ${project.id}`);
 
 	// Create test tasks using orc CLI (data goes to SQLite, not YAML files)
 	console.log('   Creating test tasks...');
 
-	// Helper to run orc commands in sandbox
-	const runOrc = (cmd: string) => {
-		execSync(`${ORC_BIN} ${cmd}`, { cwd: sandboxPath, stdio: 'pipe' });
-	};
-
 	// Task 1: Planned task (normal priority, feature)
-	runOrc('new "E2E Test: Planned Task" -d "A planned task for testing board rendering" -w medium -p normal -c feature');
+	runOrc(
+		'new "E2E Test: Planned Task" -d "A planned task for testing board rendering" --workflow implement-medium -p normal -c feature',
+		sandboxPath
+	);
 
 	// Task 2: High priority bug
-	runOrc('new "E2E Test: High Priority Task" -d "A high priority task for testing sorting" -w small -p high -c bug');
+	runOrc(
+		'new "E2E Test: High Priority Task" -d "A high priority task for testing sorting" --workflow implement-small -p high -c bug',
+		sandboxPath
+	);
 
 	// Task 3: Low priority refactor task
-	runOrc('new "E2E Test: Refactor Task" -d "A refactoring task for testing different categories" -w large -p low -c refactor');
+	runOrc(
+		'new "E2E Test: Refactor Task" -d "A refactoring task for testing different categories" --workflow implement-large -p low -c refactor',
+		sandboxPath
+	);
 
 	// Task 4: Task to mark as completed
-	runOrc('new "E2E Test: Completed Task" -d "A completed task for testing Done column" -w small -p normal -c feature');
+	runOrc(
+		'new "E2E Test: Completed Task" -d "A completed task for testing Done column" --workflow implement-small -p normal -c feature',
+		sandboxPath
+	);
 	// Mark task 4 as completed
-	runOrc('edit TASK-004 --status completed');
+	runOrc('edit TASK-004 --status completed', sandboxPath);
 
 	// Task 5: Task to mark as paused
-	runOrc('new "E2E Test: Paused Task" -d "A paused task for testing resume functionality" -w medium -p normal -c feature');
+	runOrc(
+		'new "E2E Test: Paused Task" -d "A paused task for testing resume functionality" --workflow implement-medium -p normal -c feature',
+		sandboxPath
+	);
 	// Mark task 5 as paused
-	runOrc('edit TASK-005 --status paused');
+	runOrc('edit TASK-005 --status paused', sandboxPath);
 
 	// Task 6: Critical priority bug
-	runOrc('new "E2E Test: Critical Task" -d "A critical priority task for testing priority display" -w medium -p critical -c bug');
+	runOrc(
+		'new "E2E Test: Critical Task" -d "A critical priority task for testing priority display" --workflow implement-medium -p critical -c bug',
+		sandboxPath
+	);
 
 	// Create test initiatives using orc CLI
 	console.log('   Creating test initiatives...');
 
 	// Initiative 1: Active with some tasks
-	runOrc('initiative new "E2E Test Initiative" --vision "An initiative for testing filtering"');
+	runOrc('initiative new "E2E Test Initiative" --vision "An initiative for testing filtering"', sandboxPath);
 
 	// Initiative 2: Another active initiative
-	runOrc('initiative new "Second Test Initiative" --vision "Another initiative for testing swimlanes"');
+	runOrc('initiative new "Second Test Initiative" --vision "Another initiative for testing swimlanes"', sandboxPath);
 
 	// Link tasks to initiatives
-	runOrc('edit TASK-001 --initiative INIT-001');
-	runOrc('edit TASK-002 --initiative INIT-001');
-	runOrc('edit TASK-003 --initiative INIT-002');
+	runOrc('edit TASK-001 --initiative INIT-001', sandboxPath);
+	runOrc('edit TASK-002 --initiative INIT-001', sandboxPath);
+	runOrc('edit TASK-003 --initiative INIT-002', sandboxPath);
 
 	// Save state for tests and teardown
 	const state: SandboxState = {

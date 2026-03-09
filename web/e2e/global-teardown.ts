@@ -10,21 +10,20 @@
  */
 
 import * as fs from 'fs';
+import { execSync } from 'child_process';
 import * as path from 'path';
-import * as yaml from 'js-yaml';
+import { fileURLToPath } from 'url';
 
 const STATE_FILE = '/tmp/orc-e2e-state.json';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ORC_BIN = path.resolve(__dirname, '../../bin/orc');
 
 interface SandboxState {
 	projectId: string;
 	projectPath: string;
 	projectName: string;
 	createdAt: string;
-}
-
-interface ProjectRegistry {
-	projects: Array<{ id: string; path: string; name: string }>;
-	default_project?: string;
 }
 
 export default async function globalTeardown() {
@@ -47,33 +46,14 @@ export default async function globalTeardown() {
 	console.log(`   Project ID: ${state.projectId}`);
 	console.log(`   Project Path: ${state.projectPath}`);
 
-	// Remove from project registry
-	const homeDir = process.env.HOME || '/home/runner';
-	const registryPath = path.join(homeDir, '.orc', 'projects.yaml');
-
-	if (fs.existsSync(registryPath)) {
+	if (fs.existsSync(ORC_BIN)) {
 		try {
-			const registryContent = fs.readFileSync(registryPath, 'utf-8');
-			const registry = yaml.load(registryContent) as ProjectRegistry;
-
-			const originalCount = registry.projects.length;
-			registry.projects = registry.projects.filter(
-				(p) => p.id !== state.projectId
-			);
-
-			if (registry.projects.length < originalCount) {
-				// Clear default if it was the sandbox
-				if (registry.default_project === state.projectId) {
-					registry.default_project = undefined;
-				}
-
-				fs.writeFileSync(registryPath, yaml.dump(registry));
-				console.log('   ✓ Removed from project registry');
-			} else {
-				console.log('   Project not found in registry (already removed?)');
-			}
+			execSync(`${ORC_BIN} projects remove ${state.projectPath}`, {
+				stdio: 'pipe',
+			});
+			console.log('   ✓ Removed from project registry');
 		} catch (error) {
-			console.log('   Failed to update registry:', error);
+			console.log('   Failed to remove project from registry:', error);
 		}
 	}
 
@@ -93,7 +73,7 @@ export default async function globalTeardown() {
 	try {
 		fs.unlinkSync(STATE_FILE);
 		console.log('   ✓ Removed state file');
-	} catch (error) {
+	} catch (_error) {
 		// Ignore - file might not exist
 	}
 

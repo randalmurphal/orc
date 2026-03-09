@@ -61,7 +61,7 @@ export default defineConfig({
 		/* Visual regression tests - single browser, consistent viewport */
 		{
 			name: 'visual',
-			testMatch: /visual\.spec\.ts$/,
+			testMatch: /(?:visual|board-kanban-validation)\.spec\.ts$/,
 			use: {
 				...devices['Desktop Chrome'],
 				viewport: { width: 1440, height: 900 },

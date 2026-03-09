@@ -22,12 +22,14 @@
  */
 
 import { type ReactNode, useState, useCallback, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ProjectSidebar } from './ProjectSidebar';
 import { TopBar } from './TopBar';
 import { ContextPanel, type ContextPanelMode } from './ContextPanel';
 import { TerminalDrawer } from './TerminalDrawer';
 import { UrlParamSync } from './UrlParamSync';
-import { AppShellProvider } from './AppShellContext';
+import { AppShellProvider, useAppShell } from './AppShellContext';
+import { BoardCommandPanel } from '@/components/board';
 import { useThreadStore } from '@/stores/threadStore';
 import './AppShell.css';
 
@@ -56,8 +58,11 @@ function AppShellInner({
 	onNewTask,
 	onProjectChange,
 }: AppShellProps) {
+	const location = useLocation();
+	const { isRightPanelOpen } = useAppShell();
 	const [contextPanelMode, setContextPanelMode] = useState<ContextPanelMode | undefined>(undefined);
 	const selectedThreadId = useThreadStore((state) => state.selectedThreadId);
+	const isBoardRoute = location.pathname === '/board';
 
 	// When a thread is selected, switch to discussion mode
 	useEffect(() => {
@@ -70,7 +75,11 @@ function AppShellInner({
 		setContextPanelMode(mode);
 	}, []);
 
-	const shellClasses = ['app-shell', className].filter(Boolean).join(' ');
+	const shellClasses = [
+		'app-shell',
+		isBoardRoute && 'app-shell--board-route',
+		className,
+	].filter(Boolean).join(' ');
 
 	return (
 		<div className={shellClasses}>
@@ -108,11 +117,15 @@ function AppShellInner({
 
 			{/* ContextPanel (right column) */}
 			<div className="app-shell__context-panel">
-				<ContextPanel
-					mode={contextPanelMode}
-					onModeChange={handleModeChange}
-					threadId={selectedThreadId ?? undefined}
-				/>
+				{isBoardRoute ? (
+					isRightPanelOpen ? <BoardCommandPanel /> : null
+				) : (
+					<ContextPanel
+						mode={contextPanelMode}
+						onModeChange={handleModeChange}
+						threadId={selectedThreadId ?? undefined}
+					/>
+				)}
 			</div>
 		</div>
 	);
