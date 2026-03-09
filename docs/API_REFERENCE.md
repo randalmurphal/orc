@@ -23,6 +23,7 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Workflow Runs](#workflow-runs) | `/api/workflow-runs/*` | Workflow execution instances |
 | [Real-time](#websocket-protocol) | `/api/ws` | WebSocket events |
 | [Feedback](#feedbackservice) | Connect RPC | Real-time user feedback to agents |
+| [Knowledge Search](#knowledgeservice) | Connect RPC | Knowledge graph search and insights |
 
 ---
 
@@ -2364,6 +2365,29 @@ Project knowledge queue (patterns, gotchas, decisions).
 | POST | `/api/knowledge/:id/validate` | Validate (reset staleness) |
 | DELETE | `/api/knowledge/:id` | Delete entry |
 | POST | `/api/knowledge/approve-all` | Approve all pending |
+
+### KnowledgeService
+
+Connect RPC service for knowledge graph search and insights. Requires knowledge infrastructure (Neo4j, Qdrant, Redis). When knowledge is disabled, `GetStatus` returns `running: false` and `Query`/`GetInsights` return empty results.
+
+**Connect RPC: KnowledgeService** (`proto/orc/v1/knowledge.proto`)
+
+| RPC | Description |
+|-----|-------------|
+| `Query` | Search the knowledge graph with natural language. Accepts `query`, `preset` (standard/fast/deep/graph-first/recency), `limit`, `max_tokens`, `min_score`, `summary_only`. Returns typed results (code, finding, decision, pattern) with scores. |
+| `GetStatus` | Check knowledge infrastructure availability. Returns `enabled`, `running`, and per-service status (`neo4j`, `qdrant`, `redis`). |
+| `GetInsights` | Get enrichment data: hot files, recurring patterns, and constitution updates. Returns empty lists for sections with no data. |
+
+**Result types** (`KnowledgeResultType`):
+
+| Type | Key Fields |
+|------|------------|
+| `CODE` | `file_path`, `start_line`, `end_line` |
+| `FINDING` | `severity`, `status` |
+| `DECISION` | `initiative_id`, `initiative_title`, `rationale` |
+| `PATTERN` | `member_count` |
+
+All result types share: `id`, `title`, `content`, `summary`, `score`, `updated_at`.
 
 ---
 
