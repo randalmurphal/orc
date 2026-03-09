@@ -238,7 +238,7 @@ func SetPhaseTokensProto(e *orcv1.ExecutionState, phaseID string, usage *orcv1.T
 		CacheReadInputTokens:     usage.CacheReadInputTokens,
 		TotalTokens:              total,
 	}
-	recomputeExecutionTokensProto(e)
+	RecomputeExecutionTokensProto(e)
 }
 
 // SetErrorProto sets the error string.
@@ -267,6 +267,13 @@ func SetPhaseCommitSHAProto(e *orcv1.ExecutionState, phaseID, sha string) {
 }
 
 func recomputeExecutionTokensProto(e *orcv1.ExecutionState) {
+	RecomputeExecutionTokensProto(e)
+}
+
+// RecomputeExecutionTokensProto rebuilds aggregate execution token totals from
+// the per-phase token usage. This is the authoritative aggregation path for the
+// proto execution state and should be used after loading phases from storage.
+func RecomputeExecutionTokensProto(e *orcv1.ExecutionState) {
 	if e == nil {
 		return
 	}

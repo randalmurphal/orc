@@ -161,7 +161,11 @@ export function TaskDetail() {
 
 	// Build metrics from task state
 	const metrics = useMemo(() => {
-		if (liveSessionMetrics) {
+		const useLiveMetrics =
+			liveSessionMetrics &&
+			(task?.status === TaskStatus.RUNNING || task?.status === TaskStatus.FINALIZING);
+
+		if (useLiveMetrics) {
 			return {
 				tokens: liveSessionMetrics.totalTokens,
 				cost: liveSessionMetrics.estimatedCostUSD,
@@ -259,6 +263,7 @@ export function TaskDetail() {
 								<TranscriptTab
 									taskId={task.id}
 									streamingLines={streamingTranscript}
+									currentPhase={task.currentPhase ?? undefined}
 									isRunning={
 										task.status === TaskStatus.RUNNING ||
 										task.status === TaskStatus.FINALIZING

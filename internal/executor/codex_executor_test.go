@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 func TestCodexExecutor_ImplementsTurnExecutor(t *testing.T) {
@@ -349,6 +352,57 @@ echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{
 	}
 }
 
+func TestCodexExecutor_ExecuteSingleTurn_PersistsLiveSessionID(t *testing.T) {
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join(tmpDir, "fake-codex-session.sh")
+	script := `#!/bin/sh
+echo '{"type":"thread.started","thread_id":"sess-live-123"}'
+sleep 0.2
+echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}}'
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake codex script: %v", err)
+	}
+
+	taskRecord := task.NewProtoTask("TASK-LIVE-001", "live codex session")
+	task.StartPhaseProto(taskRecord.Execution, "implement")
+	backend := &codexSessionBackend{
+		mockTranscriptBackend: mockTranscriptBackend{},
+		task:                  taskRecord,
+	}
+
+	exec := NewCodexExecutor(
+		WithCodexPath(scriptPath),
+		WithCodexWorkdir(tmpDir),
+		WithCodexModel("gpt-5.4"),
+		WithCodexPhaseID("implement"),
+		WithCodexBackend(backend),
+		WithCodexTaskID("TASK-LIVE-001"),
+	)
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := exec.executeSingleTurn(context.Background(), "do the thing", "", time.Now())
+		done <- err
+	}()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if got := task.GetPhaseSessionIDProto(backend.task, "implement"); got == "sess-live-123" {
+			break
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+
+	if got := task.GetPhaseSessionIDProto(backend.task, "implement"); got != "sess-live-123" {
+		t.Fatalf("live phase session id = %q, want %q", got, "sess-live-123")
+	}
+
+	if err := <-done; err != nil {
+		t.Fatalf("executeSingleTurn failed: %v", err)
+	}
+}
+
 func TestExtractLastJSON(t *testing.T) {
 	tests := []struct {
 		name string
@@ -425,3 +479,20 @@ func TestExtractLastJSON(t *testing.T) {
 type errString string
 
 func (e errString) Error() string { return string(e) }
+
+type codexSessionBackend struct {
+	mockTranscriptBackend
+	task *orcv1.Task
+}
+
+func (b *codexSessionBackend) LoadTask(taskID string) (*orcv1.Task, error) {
+	if b.task != nil && b.task.Id == taskID {
+		return b.task, nil
+	}
+	return nil, nil
+}
+
+func (b *codexSessionBackend) SaveTask(t *orcv1.Task) error {
+	b.task = t
+	return nil
+}

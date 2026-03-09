@@ -46,6 +46,8 @@ interface TranscriptTabProps {
 	streamingLines?: TranscriptLine[];
 	/** Whether the task is currently running */
 	isRunning?: boolean;
+	/** Current task phase for initial transcript focus */
+	currentPhase?: string;
 }
 
 // Parse content blocks from JSON string
@@ -123,6 +125,7 @@ export function TranscriptTab({
 	taskId,
 	streamingLines = [],
 	isRunning = false,
+	currentPhase,
 }: TranscriptTabProps) {
 	const projectId = useCurrentProjectId();
 	const [transcriptsForExport, setTranscriptsForExport] = useState<FlatExportEntry[]>([]);
@@ -273,6 +276,8 @@ export function TranscriptTab({
 				height="calc(100% - 60px)"
 				showNav={true}
 				showSearch={true}
+				initialPhase={currentPhase}
+				streamingLines={streamingLines}
 			/>
 		</div>
 	);

@@ -17,6 +17,7 @@ import {
 } from '@/gen/orc/v1/transcript_pb';
 import { timestampToISO } from '@/lib/time';
 import type { TranscriptLine } from '@/hooks/useEvents';
+import { useCurrentProjectId } from '@/stores';
 
 /**
  * Flattened transcript entry for UI consumption.
@@ -158,6 +159,7 @@ export function useTranscripts({
 	initialPhase,
 	autoScroll = true,
 }: UseTranscriptsOptions): UseTranscriptsResult {
+	const projectId = useCurrentProjectId();
 	const [transcripts, setTranscripts] = useState<FlatTranscriptEntry[]>([]);
 	const [phases, setPhases] = useState<PhaseSummary[]>([]);
 	const [currentPhase, setCurrentPhase] = useState<string | null>(initialPhase ?? null);
@@ -172,11 +174,19 @@ export function useTranscripts({
 
 	// Load transcripts from Connect RPC
 	const loadTranscripts = useCallback(async () => {
+		if (!projectId) {
+			setTranscripts([]);
+			setPhases([]);
+			setLoading(false);
+			return;
+		}
+
 		setLoading(true);
 		setError(null);
 		try {
 			// List all transcript files for this task
 			const listRequest = create(ListTranscriptsRequestSchema, {
+				projectId,
 				taskId,
 				phase: currentPhase ?? undefined,
 			});
@@ -185,7 +195,7 @@ export function useTranscripts({
 
 			// Derive phase summary
 			// For phase summary, we need all files regardless of filter
-			const allFilesRequest = create(ListTranscriptsRequestSchema, { taskId });
+			const allFilesRequest = create(ListTranscriptsRequestSchema, { projectId, taskId });
 			const allFilesResponse = await transcriptClient.listTranscripts(allFilesRequest);
 			setPhases(derivePhaseSummary(allFilesResponse.transcripts));
 
@@ -194,6 +204,7 @@ export function useTranscripts({
 			for (const file of files) {
 				try {
 					const getRequest = create(GetTranscriptRequestSchema, {
+						projectId,
 						taskId,
 						phase: file.phase,
 						iteration: file.iteration,
@@ -214,12 +225,20 @@ export function useTranscripts({
 			// Sort by timestamp
 			allEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 			setTranscripts(allEntries);
+
+			if (!currentPhase && allEntries.length > 0) {
+				setCurrentPhase(allEntries[allEntries.length - 1].phase);
+			}
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load transcripts');
 		} finally {
 			setLoading(false);
 		}
-	}, [taskId, currentPhase]);
+	}, [projectId, taskId, currentPhase]);
+
+	useEffect(() => {
+		setCurrentPhase(initialPhase ?? null);
+	}, [initialPhase]);
 
 	// Initial load
 	useEffect(() => {

@@ -317,7 +317,34 @@ func printSessionInfoProto(backend storage.Backend, t *orcv1.Task, id string) {
 	sessionID := task.GetPhaseSessionIDProto(t, currentPhase)
 	model := task.GetPhaseModelProto(t, currentPhase)
 	provider := task.GetPhaseProviderProto(t, currentPhase)
-	if sessionID == "" && model == "" && provider == "" {
+
+	turnCount := 0
+	var transcriptLastActivity time.Time
+	if backend != nil {
+		transcripts, err := backend.GetTranscripts(id)
+		if err == nil {
+			for _, transcript := range transcripts {
+				if transcript.Phase != currentPhase {
+					continue
+				}
+				if sessionID == "" && transcript.SessionID != "" {
+					sessionID = transcript.SessionID
+				}
+				if model == "" && transcript.Model != "" {
+					model = transcript.Model
+				}
+				if transcript.Type == "assistant" {
+					turnCount++
+				}
+				ts := time.UnixMilli(transcript.Timestamp)
+				if ts.After(transcriptLastActivity) {
+					transcriptLastActivity = ts
+				}
+			}
+		}
+	}
+
+	if sessionID == "" && model == "" && provider == "" && turnCount == 0 {
 		fmt.Printf("No session information recorded.\n")
 		fmt.Println("Session info is recorded after the phase starts running.")
 		return
@@ -337,39 +364,28 @@ func printSessionInfoProto(backend storage.Backend, t *orcv1.Task, id string) {
 	}
 	fmt.Printf("Status:        %s\n", task.StatusFromProto(t.Status))
 
+	var phaseStartedAt time.Time
+	var phaseLastActivity time.Time
 	if t.Execution != nil && t.Execution.Phases != nil {
 		if phaseState := t.Execution.Phases[currentPhase]; phaseState != nil {
 			if phaseState.StartedAt != nil {
-				fmt.Printf("Created:       %s\n", phaseState.StartedAt.AsTime().Format("2006-01-02 15:04:05"))
+				phaseStartedAt = phaseState.StartedAt.AsTime()
+				fmt.Printf("Created:       %s\n", phaseStartedAt.Format("2006-01-02 15:04:05"))
 			}
 			if phaseState.CompletedAt != nil {
-				fmt.Printf("Last Activity: %s\n", phaseState.CompletedAt.AsTime().Format("2006-01-02 15:04:05"))
+				phaseLastActivity = phaseState.CompletedAt.AsTime()
 			}
 		}
 	}
 
-	if backend != nil {
-		transcripts, err := backend.GetTranscripts(id)
-		if err == nil {
-			turnCount := 0
-			var lastActivity time.Time
-			for _, transcript := range transcripts {
-				if transcript.Phase != currentPhase {
-					continue
-				}
-				if transcript.Type == "assistant" {
-					turnCount++
-				}
-				ts := time.UnixMilli(transcript.Timestamp)
-				if ts.After(lastActivity) {
-					lastActivity = ts
-				}
-			}
-			fmt.Printf("Turn Count:    %d\n", turnCount)
-			if !lastActivity.IsZero() {
-				fmt.Printf("Last Activity: %s\n", lastActivity.Format("2006-01-02 15:04:05"))
-			}
-		}
+	lastActivity := phaseLastActivity
+	if transcriptLastActivity.After(lastActivity) {
+		lastActivity = transcriptLastActivity
+	}
+
+	fmt.Printf("Turn Count:    %d\n", turnCount)
+	if !lastActivity.IsZero() {
+		fmt.Printf("Last Activity: %s\n", lastActivity.Format("2006-01-02 15:04:05"))
 	}
 
 	// Show resume hint if task is paused or blocked (task.Status is single source of truth)

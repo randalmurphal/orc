@@ -17,6 +17,7 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // Ensure CodexExecutor implements TurnExecutor.
@@ -358,6 +359,27 @@ func (e *CodexExecutor) UpdateSessionID(id string) {
 	}
 }
 
+func (e *CodexExecutor) persistLiveSessionID(sessionID string) {
+	if e.backend == nil || e.taskID == "" || e.phaseID == "" || sessionID == "" {
+		return
+	}
+
+	t, err := e.backend.LoadTask(e.taskID)
+	if err != nil {
+		e.logger.Warn("failed to load task for live codex session persistence", "task", e.taskID, "phase", e.phaseID, "error", err)
+		return
+	}
+	if t == nil {
+		e.logger.Warn("task not found while persisting live codex session", "task", e.taskID, "phase", e.phaseID)
+		return
+	}
+
+	task.SetPhaseSessionIDProto(t.Execution, e.phaseID, sessionID)
+	if saveErr := e.backend.SaveTask(t); saveErr != nil {
+		e.logger.Warn("failed to persist live codex session ID", "task", e.taskID, "phase", e.phaseID, "session_id", sessionID, "error", saveErr)
+	}
+}
+
 // SessionID returns the current session ID.
 func (e *CodexExecutor) SessionID() string {
 	return e.sessionID
@@ -396,6 +418,7 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 		if chunk.SessionID != "" && chunk.SessionID != sessionID {
 			sessionID = chunk.SessionID
 			e.UpdateSessionID(sessionID)
+			e.persistLiveSessionID(sessionID)
 		}
 		if chunk.Content != "" {
 			contentBuilder.WriteString(chunk.Content)

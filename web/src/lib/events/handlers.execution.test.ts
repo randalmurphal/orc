@@ -33,7 +33,7 @@ import {
 	TokensUpdatedEventSchema,
 	type Event,
 } from '@/gen/orc/v1/events_pb';
-import { PhaseStatus } from '@/gen/orc/v1/task_pb';
+import { ExecutionStateSchema, PhaseStatus, TaskStatus } from '@/gen/orc/v1/task_pb';
 import { TokenUsageSchema } from '@/gen/orc/v1/common_pb';
 import {
 	createMockWorkflow,
@@ -389,6 +389,31 @@ describe('handleEvent - phaseChanged for workflow editor', () => {
 			const state = useWorkflowEditorStore.getState();
 			// This test verifies the event is routed appropriately
 			expect(state.activeRun).not.toBeNull();
+		});
+
+		it('stores precise per-task metrics from tokensUpdated events', () => {
+			const startedAt = createTimestamp();
+			useTaskStore.getState().addTask({
+				id: 'TASK-001',
+				title: 'Live task',
+				status: TaskStatus.RUNNING,
+				startedAt,
+				execution: create(ExecutionStateSchema, {
+					cost: { totalCostUsd: 1.25 },
+					phases: {},
+					gates: [],
+				}),
+			} as any);
+
+			handleEvent(createTokensUpdatedEvent('TASK-001', 5000, 2000));
+
+			const metrics = useTaskStore.getState().getSessionMetrics('TASK-001');
+			expect(metrics).toBeDefined();
+			expect(metrics?.totalTokens).toBe(7000);
+			expect(metrics?.inputTokens).toBe(5000);
+			expect(metrics?.outputTokens).toBe(2000);
+			expect(metrics?.estimatedCostUSD).toBe(1.25);
+			expect(metrics?.tasksRunning).toBe(1);
 		});
 
 		it('should not update metrics when event task does not match active run', () => {

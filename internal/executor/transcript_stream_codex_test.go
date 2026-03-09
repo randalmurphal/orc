@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -16,6 +17,14 @@ type mockTranscriptBackend struct {
 
 func (m *mockTranscriptBackend) AddTranscript(t *storage.Transcript) error {
 	m.transcripts = append(m.transcripts, t)
+	return nil
+}
+
+func (m *mockTranscriptBackend) LoadTask(string) (*orcv1.Task, error) {
+	return nil, nil
+}
+
+func (m *mockTranscriptBackend) SaveTask(*orcv1.Task) error {
 	return nil
 }
 
