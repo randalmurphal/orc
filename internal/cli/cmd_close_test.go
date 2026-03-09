@@ -1252,6 +1252,143 @@ func TestCloseCommand_ForceOnRunningTask(t *testing.T) {
 	}
 }
 
+func TestCloseCommand_PhasesSkipped(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
+
+	backend := createCloseTestBackend(t, tmpDir)
+	tk := task.NewProtoTask("TASK-PHASES-SKIPPED", "Test phase cleanup")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	tk.Execution = task.InitProtoExecutionState()
+	tk.Execution.Phases["spec"] = &orcv1.PhaseState{
+		Status: orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+	}
+	tk.Execution.Phases["implement"] = &orcv1.PhaseState{
+		Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
+	}
+	tk.Execution.Phases["review"] = &orcv1.PhaseState{
+		Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
+	}
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	cmd := newCloseCmd()
+	cmd.SetArgs([]string{"TASK-PHASES-SKIPPED", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("close command failed: %v", err)
+	}
+
+	backend = createCloseTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-PHASES-SKIPPED")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Execution.Phases["spec"].Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
+		t.Fatalf("spec phase status = %s, want %s",
+			reloaded.Execution.Phases["spec"].Status,
+			orcv1.PhaseStatus_PHASE_STATUS_COMPLETED)
+	}
+
+	for _, phaseID := range []string{"implement", "review"} {
+		ps := reloaded.Execution.Phases[phaseID]
+		if ps.Status != orcv1.PhaseStatus_PHASE_STATUS_SKIPPED {
+			t.Fatalf("%s status = %s, want %s", phaseID, ps.Status, orcv1.PhaseStatus_PHASE_STATUS_SKIPPED)
+		}
+		if ps.Error == nil || *ps.Error != "skipped: task closed" {
+			t.Fatalf("%s error = %v, want %q", phaseID, ps.Error, "skipped: task closed")
+		}
+	}
+}
+
+func TestCloseCommand_ClearsExecutorState(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
+
+	backend := createCloseTestBackend(t, tmpDir)
+	tk := task.NewProtoTask("TASK-CLEAR-EXECUTOR", "Test executor cleanup")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	task.SetCurrentPhaseProto(tk, "implement")
+	tk.ExecutorPid = 424242
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	cmd := newCloseCmd()
+	cmd.SetArgs([]string{"TASK-CLEAR-EXECUTOR", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("close command failed: %v", err)
+	}
+
+	backend = createCloseTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-CLEAR-EXECUTOR")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if task.GetCurrentPhaseProto(reloaded) != "" {
+		t.Fatalf("current phase = %q, want empty", task.GetCurrentPhaseProto(reloaded))
+	}
+	if reloaded.ExecutorPid != 0 {
+		t.Fatalf("executor pid = %d, want 0", reloaded.ExecutorPid)
+	}
+}
+
+func TestCloseCommand_ForceClose(t *testing.T) {
+	tmpDir := withCloseTestDir(t)
+
+	backend := createCloseTestBackend(t, tmpDir)
+	tk := task.NewProtoTask("TASK-FORCE-CLOSE", "Test force close cleanup")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	task.SetCurrentPhaseProto(tk, "implement")
+	tk.ExecutorPid = 777777
+	tk.Execution = task.InitProtoExecutionState()
+	tk.Execution.Phases["spec"] = &orcv1.PhaseState{
+		Status: orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+	}
+	tk.Execution.Phases["implement"] = &orcv1.PhaseState{
+		Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
+	}
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	cmd := newCloseCmd()
+	cmd.SetArgs([]string{"TASK-FORCE-CLOSE", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("close command failed: %v", err)
+	}
+
+	backend = createCloseTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-FORCE-CLOSE")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_CLOSED {
+		t.Fatalf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_CLOSED)
+	}
+	if task.GetCurrentPhaseProto(reloaded) != "" {
+		t.Fatalf("current phase = %q, want empty", task.GetCurrentPhaseProto(reloaded))
+	}
+	if reloaded.ExecutorPid != 0 {
+		t.Fatalf("executor pid = %d, want 0", reloaded.ExecutorPid)
+	}
+	if reloaded.Execution.Phases["implement"].Status != orcv1.PhaseStatus_PHASE_STATUS_SKIPPED {
+		t.Fatalf("implement phase status = %s, want %s",
+			reloaded.Execution.Phases["implement"].Status,
+			orcv1.PhaseStatus_PHASE_STATUS_SKIPPED)
+	}
+}
+
 // TestCloseCommand_ForceOnPausedTask verifies --force works on paused tasks.
 func TestCloseCommand_ForceOnPausedTask(t *testing.T) {
 	tmpDir := withCloseTestDir(t)
