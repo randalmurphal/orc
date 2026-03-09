@@ -30,7 +30,7 @@ func TestNewCommand_WorkflowDefaultsResolution(t *testing.T) {
 		Bug:      "hotfix-urgent",
 		Refactor: "refactor-safe",
 		Chore:    "maintenance",
-		Default:  "implement-standard",
+		Default:  "crossmodel-standard",
 	}
 
 	if err := cfg.SaveTo(configPath); err != nil {
@@ -77,7 +77,7 @@ func TestNewCommand_WorkflowDefaultsResolution(t *testing.T) {
 			name:               "unknown category uses general default",
 			taskTitle:          "Write documentation",
 			categoryFlag:       "docs",
-			expectedWorkflowID: "implement-standard",
+			expectedWorkflowID: "crossmodel-standard",
 		},
 		{
 			name:               "explicit workflow overrides category default",
@@ -94,9 +94,9 @@ func TestNewCommand_WorkflowDefaultsResolution(t *testing.T) {
 			expectedWorkflowID: "implement-small", // From weight mapping
 		},
 		{
-			name:         "no category and no weight uses general default",
-			taskTitle:    "Generic task",
-			expectedWorkflowID: "implement-standard",
+			name:               "no category and no weight uses general default",
+			taskTitle:          "Generic task",
+			expectedWorkflowID: "crossmodel-standard",
 		},
 	}
 
@@ -223,7 +223,7 @@ func TestNewCommand_WorkflowDefaultsValidation(t *testing.T) {
 	cfg := config.Default()
 	cfg.WorkflowDefaults = config.WorkflowDefaults{
 		Feature: "nonexistent-feature-workflow",
-		Default: "implement-standard", // Valid
+		Default: "crossmodel-standard", // Valid
 	}
 
 	if err := cfg.SaveTo(configPath); err != nil {
@@ -430,17 +430,9 @@ func resolveWorkflowWithPriority(explicit, weight, category string, cfg *config.
 		}
 	}
 
-	// 3. Category-based default
-	if workflowID := cfg.WorkflowDefaults.GetDefaultWorkflow(category); workflowID != "" {
-		return workflowID
-	}
-
-	// 4. Legacy single workflow (last resort)
-	if cfg.Workflow != "" {
-		return cfg.Workflow
-	}
-
-	return ""
+	// 3. Use the production config resolution order for category/general/legacy
+	resolvedWorkflow, _ := cfg.ResolveWorkflow("", category)
+	return resolvedWorkflow
 }
 
 // Helper functions
@@ -452,15 +444,18 @@ func startsWithDash(s string) bool {
 func isValidWorkflowID(id string) bool {
 	// Simplified validation - in real implementation would check against available workflows
 	validWorkflows := map[string]bool{
-		"feature-advanced":    true,
-		"hotfix-urgent":       true,
-		"refactor-safe":       true,
-		"maintenance":         true,
-		"implement-standard":  true,
-		"implement-small":     true,
-		"legacy-workflow":     true,
-		"default-workflow":    true,
-		"explicit-workflow":   true,
+		"feature-advanced":        true,
+		"hotfix-urgent":           true,
+		"refactor-safe":           true,
+		"maintenance":             true,
+		"crossmodel-standard":     true,
+		"implement-trivial":       true,
+		"implement-small":         true,
+		"implement-medium":        true,
+		"implement-large":         true,
+		"legacy-workflow":         true,
+		"default-workflow":        true,
+		"explicit-workflow":       true,
 		"custom-feature-workflow": true,
 	}
 	return validWorkflows[id]
@@ -478,4 +473,3 @@ func findSubstring(s, substr string) int {
 	}
 	return -1
 }
-

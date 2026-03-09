@@ -207,13 +207,13 @@ func (s *Store) SaveTask(ctx context.Context, t *Task) error {
 // GetTask returns a task by ID.
 func (s *Store) GetTask(ctx context.Context, id string) (*Task, error) {
 	row := s.drv.QueryRow(ctx, `
-		SELECT id, project_id, tier, category, title, description, pre_fix_commit, reference_pr_url, reference_diff, test_patch, created_at
+		SELECT id, project_id, tier, category, title, description, pre_fix_commit, reference_pr_url, reference_diff, test_patch, excluded, exclude_reason, created_at
 		FROM bench_tasks WHERE id = ?
 	`, id)
 
 	t := &Task{}
 	var createdAt string
-	if err := row.Scan(&t.ID, &t.ProjectID, &t.Tier, &t.Category, &t.Title, &t.Description, &t.PreFixCommit, &t.ReferencePRURL, &t.ReferenceDiff, &t.TestPatch, &createdAt); err != nil {
+	if err := row.Scan(&t.ID, &t.ProjectID, &t.Tier, &t.Category, &t.Title, &t.Description, &t.PreFixCommit, &t.ReferencePRURL, &t.ReferenceDiff, &t.TestPatch, &t.Excluded, &t.ExcludeReason, &createdAt); err != nil {
 		return nil, fmt.Errorf("get task %s: %w", id, err)
 	}
 	t.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
@@ -222,7 +222,7 @@ func (s *Store) GetTask(ctx context.Context, id string) (*Task, error) {
 
 // ListTasks returns all tasks, optionally filtered by project and/or tier.
 func (s *Store) ListTasks(ctx context.Context, projectID string, tier Tier) ([]*Task, error) {
-	query := `SELECT id, project_id, tier, category, title, description, pre_fix_commit, reference_pr_url, reference_diff, test_patch, created_at FROM bench_tasks WHERE 1=1`
+	query := `SELECT id, project_id, tier, category, title, description, pre_fix_commit, reference_pr_url, reference_diff, test_patch, excluded, exclude_reason, created_at FROM bench_tasks WHERE 1=1`
 	var args []any
 
 	if projectID != "" {
@@ -245,13 +245,31 @@ func (s *Store) ListTasks(ctx context.Context, projectID string, tier Tier) ([]*
 	for rows.Next() {
 		t := &Task{}
 		var createdAt string
-		if err := rows.Scan(&t.ID, &t.ProjectID, &t.Tier, &t.Category, &t.Title, &t.Description, &t.PreFixCommit, &t.ReferencePRURL, &t.ReferenceDiff, &t.TestPatch, &createdAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.ProjectID, &t.Tier, &t.Category, &t.Title, &t.Description, &t.PreFixCommit, &t.ReferencePRURL, &t.ReferenceDiff, &t.TestPatch, &t.Excluded, &t.ExcludeReason, &createdAt); err != nil {
 			return nil, fmt.Errorf("scan task: %w", err)
 		}
 		t.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
 		tasks = append(tasks, t)
 	}
 	return tasks, rows.Err()
+}
+
+// ExcludeTask marks a task as excluded from comparative analysis.
+func (s *Store) ExcludeTask(ctx context.Context, id string, reason string) error {
+	_, err := s.drv.Exec(ctx, `UPDATE bench_tasks SET excluded = TRUE, exclude_reason = ? WHERE id = ?`, reason, id)
+	if err != nil {
+		return fmt.Errorf("exclude task %s: %w", id, err)
+	}
+	return nil
+}
+
+// IncludeTask removes exclusion from a task.
+func (s *Store) IncludeTask(ctx context.Context, id string) error {
+	_, err := s.drv.Exec(ctx, `UPDATE bench_tasks SET excluded = FALSE, exclude_reason = '' WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("include task %s: %w", id, err)
+	}
+	return nil
 }
 
 // DeleteTask deletes a task and all related data (runs, phase results, judgments, frozen outputs).
@@ -284,31 +302,45 @@ func (s *Store) DeleteTask(ctx context.Context, id string) error {
 	return nil
 }
 
-// TasksForVariant returns all tasks applicable to a variant's base workflow.
-// Trivial workflow only runs trivial tasks, small runs trivial+small, etc.
+// TasksForVariant returns tasks applicable to a variant based on its phase overrides.
+// Baseline (no overrides) runs all tasks. Phase-override variants only run against
+// tasks whose tier's workflow actually contains the overridden phase. For example,
+// a spec-override variant only runs against medium+large tasks (trivial/small
+// workflows have no spec phase), avoiding wasteful runs identical to baseline.
 func (s *Store) TasksForVariant(ctx context.Context, v *Variant) ([]*Task, error) {
-	var tiers []Tier
-	switch v.BaseWorkflow {
-	case "trivial":
-		tiers = []Tier{TierTrivial}
-	case "small":
-		tiers = []Tier{TierTrivial, TierSmall}
-	case "medium":
-		tiers = []Tier{TierTrivial, TierSmall, TierMedium}
-	case "large":
-		tiers = []Tier{TierTrivial, TierSmall, TierMedium, TierLarge}
-	default:
-		// Unknown workflow: return all tasks
+	// Baseline runs all tasks across all tiers
+	if v.IsBaseline || len(v.PhaseOverrides) == 0 {
 		return s.ListTasks(ctx, "", "")
 	}
 
-	var allTasks []*Task
-	for _, t := range tiers {
-		tasks, err := s.ListTasks(ctx, "", t)
-		if err != nil {
-			return nil, err
+	// Determine applicable tiers: explicit restriction > inferred from phase overrides
+	tierSet := make(map[Tier]bool)
+	if len(v.ApplicableTiers) > 0 {
+		// Variant explicitly declares which tiers it cares about
+		for _, t := range v.ApplicableTiers {
+			tierSet[t] = true
 		}
-		allTasks = append(allTasks, tasks...)
+	} else {
+		// Infer from overridden phases (original behavior)
+		for phaseID := range v.PhaseOverrides {
+			if tiers, ok := PhaseApplicableTiers[phaseID]; ok {
+				for _, t := range tiers {
+					tierSet[t] = true
+				}
+			}
+		}
+	}
+
+	// Collect tasks for applicable tiers (in order)
+	var allTasks []*Task
+	for _, tier := range []Tier{TierTrivial, TierSmall, TierMedium, TierLarge} {
+		if tierSet[tier] {
+			tasks, err := s.ListTasks(ctx, "", tier)
+			if err != nil {
+				return nil, err
+			}
+			allTasks = append(allTasks, tasks...)
+		}
 	}
 	return allTasks, nil
 }
@@ -318,15 +350,16 @@ func (s *Store) TasksForVariant(ctx context.Context, v *Variant) ([]*Task, error
 // SaveVariant creates or updates a variant.
 func (s *Store) SaveVariant(ctx context.Context, v *Variant) error {
 	_, err := s.drv.Exec(ctx, `
-		INSERT INTO bench_variants (id, name, description, base_workflow, phase_overrides, is_baseline)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO bench_variants (id, name, description, base_workflow, phase_overrides, is_baseline, applicable_tiers)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
 			base_workflow = excluded.base_workflow,
 			phase_overrides = excluded.phase_overrides,
-			is_baseline = excluded.is_baseline
-	`, v.ID, v.Name, v.Description, v.BaseWorkflow, v.OverridesJSON(), v.IsBaseline)
+			is_baseline = excluded.is_baseline,
+			applicable_tiers = excluded.applicable_tiers
+	`, v.ID, v.Name, v.Description, v.BaseWorkflow, v.OverridesJSON(), v.IsBaseline, v.ApplicableTiersJSON())
 	if err != nil {
 		return fmt.Errorf("save variant %s: %w", v.ID, err)
 	}
@@ -336,16 +369,17 @@ func (s *Store) SaveVariant(ctx context.Context, v *Variant) error {
 // GetVariant returns a variant by ID.
 func (s *Store) GetVariant(ctx context.Context, id string) (*Variant, error) {
 	row := s.drv.QueryRow(ctx, `
-		SELECT id, name, description, base_workflow, phase_overrides, is_baseline, created_at
+		SELECT id, name, description, base_workflow, phase_overrides, is_baseline, created_at, applicable_tiers
 		FROM bench_variants WHERE id = ?
 	`, id)
 
 	v := &Variant{}
-	var overridesJSON, createdAt string
-	if err := row.Scan(&v.ID, &v.Name, &v.Description, &v.BaseWorkflow, &overridesJSON, &v.IsBaseline, &createdAt); err != nil {
+	var overridesJSON, createdAt, tiersJSON string
+	if err := row.Scan(&v.ID, &v.Name, &v.Description, &v.BaseWorkflow, &overridesJSON, &v.IsBaseline, &createdAt, &tiersJSON); err != nil {
 		return nil, fmt.Errorf("get variant %s: %w", id, err)
 	}
 	v.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+	v.ApplicableTiers = ParseApplicableTiers(tiersJSON)
 	var err error
 	v.PhaseOverrides, err = ParseOverrides(overridesJSON)
 	if err != nil {
@@ -357,7 +391,7 @@ func (s *Store) GetVariant(ctx context.Context, id string) (*Variant, error) {
 // ListVariants returns all variants.
 func (s *Store) ListVariants(ctx context.Context) ([]*Variant, error) {
 	rows, err := s.drv.Query(ctx, `
-		SELECT id, name, description, base_workflow, phase_overrides, is_baseline, created_at
+		SELECT id, name, description, base_workflow, phase_overrides, is_baseline, created_at, applicable_tiers
 		FROM bench_variants ORDER BY is_baseline DESC, id
 	`)
 	if err != nil {
@@ -368,11 +402,12 @@ func (s *Store) ListVariants(ctx context.Context) ([]*Variant, error) {
 	var variants []*Variant
 	for rows.Next() {
 		v := &Variant{}
-		var overridesJSON, createdAt string
-		if err := rows.Scan(&v.ID, &v.Name, &v.Description, &v.BaseWorkflow, &overridesJSON, &v.IsBaseline, &createdAt); err != nil {
+		var overridesJSON, createdAt, tiersJSON string
+		if err := rows.Scan(&v.ID, &v.Name, &v.Description, &v.BaseWorkflow, &overridesJSON, &v.IsBaseline, &createdAt, &tiersJSON); err != nil {
 			return nil, fmt.Errorf("scan variant: %w", err)
 		}
 		v.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+		v.ApplicableTiers = ParseApplicableTiers(tiersJSON)
 		v.PhaseOverrides, err = ParseOverrides(overridesJSON)
 		if err != nil {
 			return nil, fmt.Errorf("parse overrides for variant %s: %w", v.ID, err)
@@ -385,16 +420,17 @@ func (s *Store) ListVariants(ctx context.Context) ([]*Variant, error) {
 // GetBaselineVariant returns the baseline variant (is_baseline = true).
 func (s *Store) GetBaselineVariant(ctx context.Context) (*Variant, error) {
 	row := s.drv.QueryRow(ctx, `
-		SELECT id, name, description, base_workflow, phase_overrides, is_baseline, created_at
+		SELECT id, name, description, base_workflow, phase_overrides, is_baseline, created_at, applicable_tiers
 		FROM bench_variants WHERE is_baseline = TRUE LIMIT 1
 	`)
 
 	v := &Variant{}
-	var overridesJSON, createdAt string
-	if err := row.Scan(&v.ID, &v.Name, &v.Description, &v.BaseWorkflow, &overridesJSON, &v.IsBaseline, &createdAt); err != nil {
+	var overridesJSON, createdAt, tiersJSON string
+	if err := row.Scan(&v.ID, &v.Name, &v.Description, &v.BaseWorkflow, &overridesJSON, &v.IsBaseline, &createdAt, &tiersJSON); err != nil {
 		return nil, fmt.Errorf("get baseline variant: %w", err)
 	}
 	v.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+	v.ApplicableTiers = ParseApplicableTiers(tiersJSON)
 	var parseErr error
 	v.PhaseOverrides, parseErr = ParseOverrides(overridesJSON)
 	if parseErr != nil {
@@ -450,8 +486,8 @@ func (s *Store) SaveRun(ctx context.Context, r *Run) error {
 	_, err := s.drv.Exec(ctx, `
 		INSERT INTO bench_runs (id, variant_id, task_id, trial_number, status, started_at, completed_at, error_message,
 			test_pass, test_count, regression_count, lint_warnings, build_success, security_findings,
-			model_diff, test_output, build_output)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			model_diff, test_output, build_output, lint_output, security_output)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			status = excluded.status,
 			started_at = excluded.started_at,
@@ -465,10 +501,12 @@ func (s *Store) SaveRun(ctx context.Context, r *Run) error {
 			security_findings = excluded.security_findings,
 			model_diff = excluded.model_diff,
 			test_output = excluded.test_output,
-			build_output = excluded.build_output
+			build_output = excluded.build_output,
+			lint_output = excluded.lint_output,
+			security_output = excluded.security_output
 	`, r.ID, r.VariantID, r.TaskID, r.TrialNumber, string(r.Status), startedAt, completedAt, r.ErrorMessage,
 		r.TestPass, r.TestCount, r.RegressionCount, r.LintWarnings, r.BuildSuccess, r.SecurityFindings,
-		r.ModelDiff, r.TestOutput, r.BuildOutput)
+		r.ModelDiff, r.TestOutput, r.BuildOutput, r.LintOutput, r.SecurityOutput)
 	if err != nil {
 		return fmt.Errorf("save run %s: %w", r.ID, err)
 	}
@@ -510,7 +548,7 @@ func (s *Store) GetRun(ctx context.Context, id string) (*Run, error) {
 	row := s.drv.QueryRow(ctx, `
 		SELECT id, variant_id, task_id, trial_number, status, started_at, completed_at, error_message, created_at,
 			test_pass, test_count, regression_count, lint_warnings, build_success, security_findings,
-			model_diff, test_output, build_output
+			model_diff, test_output, build_output, lint_output, security_output
 		FROM bench_runs WHERE id = ?
 	`, id)
 
@@ -518,7 +556,7 @@ func (s *Store) GetRun(ctx context.Context, id string) (*Run, error) {
 	var startedAt, completedAt, createdAt *string
 	if err := row.Scan(&r.ID, &r.VariantID, &r.TaskID, &r.TrialNumber, &r.Status, &startedAt, &completedAt, &r.ErrorMessage, &createdAt,
 		&r.TestPass, &r.TestCount, &r.RegressionCount, &r.LintWarnings, &r.BuildSuccess, &r.SecurityFindings,
-		&r.ModelDiff, &r.TestOutput, &r.BuildOutput); err != nil {
+		&r.ModelDiff, &r.TestOutput, &r.BuildOutput, &r.LintOutput, &r.SecurityOutput); err != nil {
 		return nil, fmt.Errorf("get run %s: %w", id, err)
 	}
 	if startedAt != nil {
@@ -534,6 +572,9 @@ func (s *Store) GetRun(ctx context.Context, id string) (*Run, error) {
 }
 
 // ListRuns returns runs filtered by variant and/or task and/or status.
+// Returns summary data: metrics, status, and model_diff — but omits large output
+// fields (test_output, build_output, lint_output, security_output) for performance.
+// Use GetRun for full output data.
 func (s *Store) ListRuns(ctx context.Context, variantID, taskID string, status RunStatus) ([]*Run, error) {
 	query := `SELECT id, variant_id, task_id, trial_number, status, started_at, completed_at, error_message, created_at,
 		test_pass, test_count, regression_count, lint_warnings, build_success, security_findings, model_diff

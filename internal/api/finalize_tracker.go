@@ -313,7 +313,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 		targetBranch = s.orcConfig.Completion.TargetBranch
 	}
 	execCfg := executor.ExecutorConfig{
-		MaxTurns:      10,
+		MaxTurns:           10,
 		CheckpointInterval: 1,
 		SessionPersistence: true,
 		TargetBranch:       targetBranch,
@@ -402,15 +402,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 		finState.mu.Unlock()
 		s.publishFinalizeEvent(taskID, finState)
 
-		hostingCfg := hosting.Config{}
-		if s.orcConfig != nil {
-			hostingCfg = hosting.Config{
-				Provider:    s.orcConfig.Hosting.Provider,
-				BaseURL:     s.orcConfig.Hosting.BaseURL,
-				TokenEnvVar: s.orcConfig.Hosting.TokenEnvVar,
-			}
-		}
-		hostingProvider, providerErr := hosting.NewProvider(workDir, hostingCfg)
+		hostingProvider, providerErr := hosting.NewProviderFromAppConfig(workDir, s.orcConfig)
 		if providerErr != nil {
 			s.logger.Warn("failed to create hosting provider for CI merge", "error", providerErr)
 		}

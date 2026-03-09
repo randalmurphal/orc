@@ -27,6 +27,7 @@ The most common failure is declaring round 1 issues "fixed" without verifying th
 - All medium-severity issues resolved or explicitly deferred
 - No new high/medium issues found
 - No invariant violations remain (`constitution_violation: "invariant"`)
+- Security, performance, maintainability, and testing concerns have been re-checked on the final code path
 - Code is ready for production
 
 ## FAIL Criteria
@@ -35,6 +36,7 @@ The most common failure is declaring round 1 issues "fixed" without verifying th
 - Critical medium-severity issues remain
 - New significant issues discovered
 - Fixes introduced regressions
+- Fixes are still too complex, risky, or weakly tested for the task
 - Any invariant violation remains unresolved (these cannot be deferred)
 
 ## NEEDS_USER_INPUT Criteria
@@ -56,7 +58,7 @@ Path: {{WORKTREE_PATH}}
 Branch: {{TASK_BRANCH}}
 Target: {{TARGET_BRANCH}}
 
-**Git State**: Previous phases have committed their work. Worktree is clean. Use `git diff main..HEAD` to see changes.
+**Git State**: Previous phases have committed their work. Worktree is clean. Use `git diff {{TARGET_BRANCH}}..HEAD` to see changes.
 
 DO NOT push to {{TARGET_BRANCH}} or checkout other branches. Stay on {{TASK_BRANCH}}.
 </worktree_safety>
@@ -91,6 +93,37 @@ For each issue from round 1:
 - [ ] Did the fix introduce any regressions?
 - [ ] Is the fix complete or partial?
 
+### Rationalization Anti-Patterns
+
+The implement phase rationalizes incomplete fixes. Reject these:
+
+- **"Tests pass so it works"** — Tests may cover the fix in isolation but not through production paths. Verify end-to-end.
+- **"Optional props with empty fallbacks"** — If SC says behavior works NOW, empty fallbacks = no-op. Props must be wired, not optional.
+- **"Documented as future improvement"** — SC requirements are not "future." If the spec says it works, it must work NOW.
+- **"Good progress, just needs wiring later"** — Unwired code is dead code. Task must be complete per spec.
+
+### Step 2b: Integration Re-Verification
+
+For any new files created during the fix, verify they have production callers. Fixes that create new dead code are high-severity.
+
+```bash
+# For each new file introduced by the fix:
+grep -rn "NewFunction\|new_module" path/to/production/code/  # Must find a caller
+```
+
+If the fix refactored code into a new helper/file but nothing imports it, this is a HIGH-SEVERITY finding — the fix itself introduced dead code.
+
+### Step 2c: Spec Compliance Re-Check
+
+Verify each success criterion (SC-X) from the original spec is still met after fixes. Fixes that break previously-passing criteria are regressions.
+
+For each SC:
+- [ ] Was it passing before the fix? If yes, is it still passing?
+- [ ] Did the fix change code paths that satisfy other SCs?
+- [ ] Do existing tests for unrelated SCs still pass?
+
+A fix that resolves one issue but breaks a previously-passing SC is a HIGH-SEVERITY regression — not progress.
+
 ## Step 3: Check for New Issues
 
 While reviewing the fixes:
@@ -98,11 +131,16 @@ While reviewing the fixes:
 - New over-engineering introduced during fix?
 - Patterns missed in round 1?
 - Regressions in existing functionality?
+- New performance regressions, contention, or resource leaks?
+- Security or integrity concerns created by the fix?
+- Are tests convincing, or do they still only prove isolated behavior?
 
 **Critical re-verification:**
 - [ ] All dependents still updated (no new broken references)
 - [ ] Preservation requirements still met (fixes didn't remove preserved features)
 - [ ] Build/typecheck still passes
+- [ ] Critical tests cover the production path, failure cases, and relevant edge cases
+- [ ] The final implementation is still simple enough to maintain and reason about
 
 ## Step 4: Make Final Decision
 

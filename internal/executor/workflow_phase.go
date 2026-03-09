@@ -28,14 +28,14 @@ const MaxOrcRetries = 5
 
 // PhaseExecutionConfig holds configuration for a phase execution.
 type PhaseExecutionConfig struct {
-	Prompt     string
-	Model      string
-	Provider   string // "claude", "codex", "ollama", or empty (default: claude)
-	WorkingDir string
-	TaskID     string
-	PhaseID    string
-	RunID      string
-	Thinking   bool
+	Prompt      string
+	Model       string
+	Provider    string // "claude", "codex", "ollama", or empty (default: claude)
+	WorkingDir  string
+	TaskID      string
+	PhaseID     string
+	RunID       string
+	Thinking    bool
 	ReviewRound int // For review phase: 1 = findings, 2 = decision
 
 	// For quality checks
@@ -389,6 +389,25 @@ func (we *WorkflowExecutor) executePhase(
 	if err != nil {
 		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		result.Error = err.Error()
+		// Preserve execution metrics even on error (e.g. blocked phases still ran the LLM)
+		if execResult != nil {
+			result.DurationMS = time.Since(startTime).Milliseconds()
+			result.InputTokens = execResult.InputTokens
+			result.OutputTokens = execResult.OutputTokens
+			result.CacheCreationTokens = execResult.CacheCreationTokens
+			result.CacheReadTokens = execResult.CacheReadTokens
+			result.CostUSD = execResult.CostUSD
+			result.Provider = provider
+			result.Model = model
+			result.Content = execResult.Content
+			result.RawOutput = execResult.RawOutput
+			result.OutputVarName = tmpl.OutputVarName
+			if result.CostUSD == 0 && we.tokenRates != nil && (result.InputTokens+result.OutputTokens) > 0 {
+				result.CostUSD = EstimateTokenCostUSDWithRates(we.tokenRates, provider, model,
+					int64(result.InputTokens), int64(result.OutputTokens),
+					int64(result.CacheReadTokens), int64(result.CacheCreationTokens))
+			}
+		}
 		runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		runPhase.Error = result.Error
 		runPhase.CompletedAt = timePtr(time.Now())
@@ -411,6 +430,9 @@ func (we *WorkflowExecutor) executePhase(
 	result.CacheCreationTokens = execResult.CacheCreationTokens
 	result.CacheReadTokens = execResult.CacheReadTokens
 	result.CostUSD = execResult.CostUSD
+	result.Provider = provider
+	result.Model = model
+	result.OutputVarName = tmpl.OutputVarName
 
 	// Estimate cost from token rates when provider doesn't return cost natively
 	if result.CostUSD == 0 && we.tokenRates != nil && (result.InputTokens+result.OutputTokens) > 0 {
@@ -630,8 +652,8 @@ func (we *WorkflowExecutor) executeWithProvider(ctx context.Context, cfg PhaseEx
 
 		switch status {
 		case PhaseStatusComplete:
-			// Verification gate (implement phase only, skip in test mode)
-			if cfg.PhaseID == "implement" && we.turnExecutor == nil {
+			// Verification gate (implementation phases only, skip in test mode)
+			if isImplementationPhase(cfg.PhaseID) && we.turnExecutor == nil {
 				if verifyErr := ValidateImplementCompletion(turnResult.Content); verifyErr != nil {
 					we.logger.Info("implement verification gate failed, continuing iteration",
 						"phase", cfg.PhaseID,

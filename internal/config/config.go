@@ -132,6 +132,9 @@ type Config struct {
 	// Plan/spec configuration
 	Plan PlanConfig `yaml:"plan"`
 
+	// Quality policy configuration
+	QualityPolicy QualityPolicyConfig `yaml:"quality_policy"`
+
 	// Weights configuration - maps task weights to workflow IDs
 	Weights WeightsConfig `yaml:"weights"`
 
@@ -597,7 +600,14 @@ func (c *Config) ResolveWorkflow(explicitWorkflow, category string) (string, str
 		return explicitWorkflow, "explicit"
 	}
 
-	// 2. Category-based default from WorkflowDefaults
+	// 2. Legacy single workflow field can still win when workflow_defaults
+	// are only the built-in defaults. This preserves existing configs that
+	// intentionally pinned a workflow before workflow_defaults existed.
+	if c.Workflow != "" && c.workflowDefaultsMatchBuiltins() {
+		return c.Workflow, "legacy"
+	}
+
+	// 3. Category-based default from WorkflowDefaults
 	if categoryDefault := c.WorkflowDefaults.GetDefaultWorkflow(category); categoryDefault != "" {
 		if category != "" && categoryDefault != c.WorkflowDefaults.Default {
 			return categoryDefault, "category_default"
@@ -607,18 +617,27 @@ func (c *Config) ResolveWorkflow(explicitWorkflow, category string) (string, str
 		}
 	}
 
-	// 3. General default from WorkflowDefaults
+	// 4. General default from WorkflowDefaults
 	if c.WorkflowDefaults.Default != "" {
 		return c.WorkflowDefaults.Default, "general_default"
 	}
 
-	// 4. Legacy single workflow field (backward compatibility)
+	// 5. Legacy single workflow field (backward compatibility)
 	if c.Workflow != "" {
 		return c.Workflow, "legacy"
 	}
 
 	// No workflow configured
 	return "", "none"
+}
+
+func (c *Config) workflowDefaultsMatchBuiltins() bool {
+	if c == nil {
+		return false
+	}
+
+	builtins := Default().WorkflowDefaults
+	return c.WorkflowDefaults == builtins
 }
 
 // ShouldSyncForWeight returns true if sync should be performed for this weight.
@@ -772,6 +791,9 @@ func (c *Config) ShouldReReview(riskLevel RiskLevel) bool {
 func (c *Config) GetPreMergeGateType() string {
 	gateType := c.Completion.Finalize.Gates.PreMerge
 	if gateType == "" {
+		if c.QualityPolicy.FinalizeRequiresHuman {
+			return "human"
+		}
 		return "auto"
 	}
 	return gateType

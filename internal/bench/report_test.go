@@ -86,29 +86,41 @@ func TestReportGeneratorSummary(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup: project, tasks, baseline variant, some runs
-	store.SaveProject(ctx, &Project{
+	if err := store.SaveProject(ctx, &Project{
 		ID: "test", RepoURL: "https://example.com", CommitHash: "abc",
 		Language: "go", TestCmd: "go test",
-	})
-	store.SaveTask(ctx, &Task{
+	}); err != nil {
+		t.Fatalf("save project: %v", err)
+	}
+	if err := store.SaveTask(ctx, &Task{
 		ID: "task-1", ProjectID: "test", Tier: TierMedium, Title: "Task 1",
 		Description: "Test task 1", PreFixCommit: "abc123",
-	})
-	store.SaveTask(ctx, &Task{
+	}); err != nil {
+		t.Fatalf("save task-1: %v", err)
+	}
+	if err := store.SaveTask(ctx, &Task{
 		ID: "task-2", ProjectID: "test", Tier: TierMedium, Title: "Task 2",
 		Description: "Test task 2", PreFixCommit: "def456",
-	})
-	store.SaveVariant(ctx, &Variant{
+	}); err != nil {
+		t.Fatalf("save task-2: %v", err)
+	}
+	if err := store.SaveVariant(ctx, &Variant{
 		ID: "baseline", Name: "Baseline", BaseWorkflow: "medium", IsBaseline: true,
-	})
-	store.SaveRun(ctx, &Run{
+	}); err != nil {
+		t.Fatalf("save variant: %v", err)
+	}
+	if err := store.SaveRun(ctx, &Run{
 		ID: "run-1", VariantID: "baseline", TaskID: "task-1", TrialNumber: 1,
 		Status: RunStatusPass, StartedAt: time.Now(), CompletedAt: time.Now(),
-	})
-	store.SaveRun(ctx, &Run{
+	}); err != nil {
+		t.Fatalf("save run-1: %v", err)
+	}
+	if err := store.SaveRun(ctx, &Run{
 		ID: "run-2", VariantID: "baseline", TaskID: "task-2", TrialNumber: 1,
 		Status: RunStatusFail, StartedAt: time.Now(), CompletedAt: time.Now(),
-	})
+	}); err != nil {
+		t.Fatalf("save run-2: %v", err)
+	}
 
 	rg := NewReportGenerator(store)
 	summary, err := rg.buildSummary(ctx)

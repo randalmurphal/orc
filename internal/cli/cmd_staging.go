@@ -65,7 +65,12 @@ Displays:
 Example:
   orc staging status`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load()
+			projectRoot, err := ResolveProjectPath()
+			if err != nil {
+				return fmt.Errorf("find project root: %w", err)
+			}
+
+			cfg, err := config.LoadFrom(projectRoot)
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
@@ -100,13 +105,6 @@ Example:
 			_, _ = fmt.Fprintf(out, "Sync target: %s\n", targetBranch)
 
 			// Try to get git status
-			projectRoot, err := ResolveProjectPath()
-			if err != nil {
-				_, _ = fmt.Fprintln(out)
-				_, _ = fmt.Fprintln(out, "(Not in a git repository)")
-				return nil
-			}
-
 			gitOps, err := NewGitOpsFromConfig(projectRoot, cfg)
 			if err != nil {
 				return fmt.Errorf("init git: %w", err)
@@ -154,7 +152,12 @@ Example:
   orc staging sync          # Create PR staging→main
   orc staging sync --draft  # Create as draft PR`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load()
+			projectRoot, err := ResolveProjectPath()
+			if err != nil {
+				return fmt.Errorf("find project root: %w", err)
+			}
+
+			cfg, err := config.LoadFrom(projectRoot)
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
@@ -167,21 +170,11 @@ Example:
 				return fmt.Errorf("staging is disabled; run: orc staging enable (or use --force)")
 			}
 
-			projectRoot, err := ResolveProjectPath()
-			if err != nil {
-				return fmt.Errorf("find project root: %w", err)
-			}
-
 			gitOps, err := NewGitOpsFromConfig(projectRoot, cfg)
 			if err != nil {
 				return fmt.Errorf("init git: %w", err)
 			}
-			hostingCfg := hosting.Config{
-				Provider:    cfg.Hosting.Provider,
-				BaseURL:     cfg.Hosting.BaseURL,
-				TokenEnvVar: cfg.Hosting.TokenEnvVar,
-			}
-			provider, err := hosting.NewProvider(projectRoot, hostingCfg)
+			provider, err := hosting.NewProviderFromAppConfig(projectRoot, cfg)
 			if err != nil {
 				return fmt.Errorf("init hosting provider: %w", err)
 			}

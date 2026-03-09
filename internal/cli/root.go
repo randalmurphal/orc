@@ -101,6 +101,7 @@ func init() {
 	addCmd(newDiffCmd(), groupInspection)
 	addCmd(newDepsCmd(), groupInspection)
 	addCmd(newSearchCmd(), groupInspection)
+	addCmd(newDoctorCmd(), groupInspection)
 	addCmd(newBriefCmd(), groupInspection)
 	addCmd(newCostsCmd(), groupInspection)
 	addCmd(newScratchpadCmd(), groupInspection)
@@ -122,6 +123,7 @@ func init() {
 
 	// Configuration
 	addCmd(newConfigCmd(), groupConfig)
+	addCmd(newHostingCmd(), groupConfig)
 	addCmd(newConstitutionCmd(), groupConfig)
 	addCmd(newDocsCmd(), groupConfig)
 	addCmd(newTemplateCmd(), groupConfig)

@@ -8,7 +8,7 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 )
 
-// SeedBuiltins populates the database with built-in phase templates and workflows.
+// SeedBuiltins populates the GlobalDB with built-in phase templates and workflows.
 // This uses YAML files as the source of truth (embedded in the binary).
 // Returns the number of items seeded (templates + workflows).
 func SeedBuiltins(gdb *db.GlobalDB) (int, error) {
@@ -27,6 +27,27 @@ func SeedBuiltins(gdb *db.GlobalDB) (int, error) {
 
 	if len(result.Errors) > 0 {
 		slog.Warn("seed completed with errors",
+			"total", total,
+			"errors", result.Errors)
+	}
+
+	return total, nil
+}
+
+// SeedBuiltinsToProject populates a ProjectDB with built-in phase templates and workflows.
+// ProjectDB has FK constraints on workflow_runs → workflows and workflow_run_phases → phase_templates,
+// so these definitions must exist in ProjectDB before workflow runs can be saved.
+func SeedBuiltinsToProject(pdb *db.ProjectDB) (int, error) {
+	cache := NewCacheServiceFromOrcDir("", pdb)
+	result, err := cache.SyncAll()
+	if err != nil {
+		return 0, err
+	}
+
+	total := result.WorkflowsAdded + result.WorkflowsUpdated + result.PhasesAdded + result.PhasesUpdated
+
+	if len(result.Errors) > 0 {
+		slog.Warn("project seed completed with errors",
 			"total", total,
 			"errors", result.Errors)
 	}

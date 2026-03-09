@@ -199,6 +199,38 @@ func TestLoadWithSources_EnvOverrides(t *testing.T) {
 	}
 }
 
+func TestLoadWithSources_HostingConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
+
+	orcDir := filepath.Join(tmpDir, ".orc")
+	_ = os.MkdirAll(orcDir, 0755)
+	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(`
+hosting:
+  provider: github
+  base_url: https://ghe.example.com
+  token_env_var: ORC_GHE_TOKEN
+`), 0644)
+
+	tc, err := LoadWithSourcesFrom(tmpDir)
+	if err != nil {
+		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
+	}
+
+	if tc.Config.Hosting.Provider != "github" {
+		t.Fatalf("Hosting.Provider = %q, want %q", tc.Config.Hosting.Provider, "github")
+	}
+	if tc.Config.Hosting.BaseURL != "https://ghe.example.com" {
+		t.Fatalf("Hosting.BaseURL = %q, want %q", tc.Config.Hosting.BaseURL, "https://ghe.example.com")
+	}
+	if tc.Config.Hosting.TokenEnvVar != "ORC_GHE_TOKEN" {
+		t.Fatalf("Hosting.TokenEnvVar = %q, want %q", tc.Config.Hosting.TokenEnvVar, "ORC_GHE_TOKEN")
+	}
+	if tc.GetSource("hosting.provider") != SourceShared {
+		t.Fatalf("hosting.provider source = %q, want %q", tc.GetSource("hosting.provider"), SourceShared)
+	}
+}
+
 // TestLoadWithSources_PersonalBeatsShared verifies the key 4-level hierarchy behavior:
 // Personal settings (user preferences) override shared settings (team defaults).
 func TestLoadWithSources_PersonalBeatsShared(t *testing.T) {

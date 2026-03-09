@@ -41,13 +41,14 @@ WORKFLOW EXECUTION (primary pattern):
   what work to do.
 
   Built-in workflows:
-    implement         Full workflow: spec, TDD, breakdown, implement, review, docs
-    implement-small   Lightweight: tiny_spec, implement, review, docs
-    implement-trivial Minimal: tiny_spec, implement
-    review            Code review only
-    spec              Generate specification only
-    docs              Documentation only
-    qa                QA session
+    crossmodel-standard  Strict default: plan, Codex implementation, dual review,
+                         conditional browser QA, docs
+    implement-small      Lightweight: tiny_spec, implement, review, docs
+    implement-trivial    Minimal: implement
+    review               Code review only
+    spec                 Generate specification only
+    docs                 Documentation only
+    qa-e2e               Browser QA loop
 
 TASK EXECUTION (existing task):
   orc run <task-id>
@@ -61,7 +62,7 @@ CONTEXT FLAGS:
   --pr NUMBER        Run on pull request branch
 
 Examples:
-  orc run implement "Add user authentication with JWT"
+  orc run crossmodel-standard "Add user authentication with JWT"
   orc run implement-small "Fix the login validation bug"
   orc run review --branch feature/auth
   orc run TASK-001
@@ -138,7 +139,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load config
-	orcConfig, err := config.Load()
+	orcConfig, err := config.LoadFrom(projectRoot)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
@@ -165,6 +166,12 @@ func runRun(cmd *cobra.Command, args []string) error {
 	// Seed built-in workflows if not already seeded (into global DB)
 	if _, err := workflow.SeedBuiltins(gdb); err != nil {
 		return fmt.Errorf("seed workflows: %w", err)
+	}
+
+	// Seed built-in workflows into project DB too — ProjectDB has FK constraints
+	// on workflow_runs → workflows and workflow_run_phases → phase_templates
+	if _, err := workflow.SeedBuiltinsToProject(pdb); err != nil {
+		return fmt.Errorf("seed project workflows: %w", err)
 	}
 
 	// Seed built-in agents and phase-agent associations
@@ -218,6 +225,14 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 	if wf == nil {
 		return fmt.Errorf("workflow not found: %s\n\nRun 'orc workflows' to see available workflows", workflowID)
+	}
+
+	checks, err := runWorkflowDoctorChecks(orcConfig, gdb, workflowID)
+	if err != nil {
+		return fmt.Errorf("run preflight: %w", err)
+	}
+	if err := failWorkflowDoctorChecks(checks, orcConfig.QualityPolicy.FailClosedOnMissingProvider); err != nil {
+		return err
 	}
 
 	// Determine context type

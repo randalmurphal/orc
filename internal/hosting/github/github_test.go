@@ -18,14 +18,14 @@ func TestResolveToken(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:      "GITHUB_TOKEN set",
+			name:      "ORC_GITHUB_TOKEN set",
 			cfg:       hosting.Config{},
-			envKey:    "GITHUB_TOKEN",
+			envKey:    "ORC_GITHUB_TOKEN",
 			envValue:  "ghp_test123",
 			wantToken: "ghp_test123",
 		},
 		{
-			name:    "GITHUB_TOKEN not set returns error",
+			name:    "ORC_GITHUB_TOKEN not set returns error",
 			cfg:     hosting.Config{},
 			wantErr: true,
 		},
@@ -53,7 +53,7 @@ func TestResolveToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear both potential env vars to ensure clean state.
-			t.Setenv("GITHUB_TOKEN", "")
+			t.Setenv("ORC_GITHUB_TOKEN", "")
 			t.Setenv("MY_GH_TOKEN", "")
 
 			if tt.envKey != "" {
@@ -75,7 +75,7 @@ func TestResolveToken_ErrorMessage(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv modifies process environment.
 
 	t.Run("default env var mentioned in error", func(t *testing.T) {
-		t.Setenv("GITHUB_TOKEN", "")
+		t.Setenv("ORC_GITHUB_TOKEN", "")
 
 		_, err := resolveToken(hosting.Config{})
 		if err == nil {
@@ -84,10 +84,10 @@ func TestResolveToken_ErrorMessage(t *testing.T) {
 		if got := err.Error(); got == "" {
 			t.Fatal("error message should not be empty")
 		}
-		// Error should mention GITHUB_TOKEN.
+		// Error should mention ORC_GITHUB_TOKEN.
 		errMsg := err.Error()
-		if !contains(errMsg, "GITHUB_TOKEN") {
-			t.Errorf("error message should mention GITHUB_TOKEN, got: %s", errMsg)
+		if !contains(errMsg, "ORC_GITHUB_TOKEN") {
+			t.Errorf("error message should mention ORC_GITHUB_TOKEN, got: %s", errMsg)
 		}
 	})
 

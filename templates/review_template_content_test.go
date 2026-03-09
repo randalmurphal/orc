@@ -326,3 +326,67 @@ func TestReviewTemplate_FixInPlacePreserved(t *testing.T) {
 		t.Error("Outcome 1 should preserve reviewer's ability to fix small issues")
 	}
 }
+
+func TestReviewTemplates_ProductionQualityFocus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		file     string
+		required []string
+	}{
+		{
+			name: "primary review emphasizes security performance maintainability testing",
+			file: "review.md",
+			required: []string{
+				"security",
+				"performance",
+				"maintainability",
+				"tests",
+			},
+		},
+		{
+			name: "round1 emphasizes security performance maintainability testing",
+			file: "review_round1.md",
+			required: []string{
+				"security",
+				"performance",
+				"maintainability",
+				"testing",
+			},
+		},
+		{
+			name: "round2 rechecks security performance maintainability testing",
+			file: "review_round2.md",
+			required: []string{
+				"security",
+				"performance",
+				"maintainability",
+				"tests",
+			},
+		},
+		{
+			name: "cross review emphasizes security performance simplicity testing",
+			file: "review_cross.md",
+			required: []string{
+				"security",
+				"performance",
+				"simplicity",
+				"testing",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			content := strings.ToLower(readReviewTemplate(t, tt.file))
+			for _, needle := range tt.required {
+				if !strings.Contains(content, needle) {
+					t.Errorf("%s should emphasize %q", tt.file, needle)
+				}
+			}
+		})
+	}
+}

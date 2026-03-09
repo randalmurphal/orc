@@ -1159,9 +1159,9 @@ func TestDefault_FinalizeConfig(t *testing.T) {
 			cfg.Completion.Finalize.RiskAssessment.ReReviewThreshold)
 	}
 
-	// Pre-merge gate should be auto
-	if cfg.Completion.Finalize.Gates.PreMerge != "auto" {
-		t.Errorf("Completion.Finalize.Gates.PreMerge = %s, want auto",
+	// Pre-merge gate should require human approval by default
+	if cfg.Completion.Finalize.Gates.PreMerge != "human" {
+		t.Errorf("Completion.Finalize.Gates.PreMerge = %s, want human",
 			cfg.Completion.Finalize.Gates.PreMerge)
 	}
 }
@@ -1405,9 +1405,9 @@ func TestRiskLevel_String(t *testing.T) {
 func TestGetPreMergeGateType(t *testing.T) {
 	cfg := Default()
 
-	// Default should be auto
-	if cfg.GetPreMergeGateType() != "auto" {
-		t.Errorf("GetPreMergeGateType() = %s, want auto", cfg.GetPreMergeGateType())
+	// Default should be human
+	if cfg.GetPreMergeGateType() != "human" {
+		t.Errorf("GetPreMergeGateType() = %s, want human", cfg.GetPreMergeGateType())
 	}
 
 	// Set to human
@@ -1416,10 +1416,10 @@ func TestGetPreMergeGateType(t *testing.T) {
 		t.Errorf("GetPreMergeGateType() = %s, want human", cfg.GetPreMergeGateType())
 	}
 
-	// Empty should default to auto
+	// Empty should still respect the quality policy default
 	cfg.Completion.Finalize.Gates.PreMerge = ""
-	if cfg.GetPreMergeGateType() != "auto" {
-		t.Errorf("GetPreMergeGateType() = %s, want auto (from empty)", cfg.GetPreMergeGateType())
+	if cfg.GetPreMergeGateType() != "human" {
+		t.Errorf("GetPreMergeGateType() = %s, want human (from empty)", cfg.GetPreMergeGateType())
 	}
 }
 
@@ -1568,9 +1568,9 @@ func TestShouldAssessRisk(t *testing.T) {
 func TestDefault_AutoTriggerOnApproval(t *testing.T) {
 	cfg := Default()
 
-	// Default should have auto-trigger on approval enabled
-	if !cfg.Completion.Finalize.AutoTriggerOnApproval {
-		t.Error("Completion.Finalize.AutoTriggerOnApproval should default to true")
+	// Default should require explicit human progression into finalize
+	if cfg.Completion.Finalize.AutoTriggerOnApproval {
+		t.Error("Completion.Finalize.AutoTriggerOnApproval should default to false")
 	}
 }
 

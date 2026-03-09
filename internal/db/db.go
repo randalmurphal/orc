@@ -93,6 +93,22 @@ func OpenInMemory() (*DB, error) {
 	return &DB{driver: drv, path: dsn}, nil
 }
 
+// OpenInMemoryNoFK opens an in-memory SQLite database with foreign key
+// constraints disabled. Used by bench where the in-memory DB is just a
+// scratch space for executor bookkeeping — FK violations don't matter.
+func OpenInMemoryNoFK() (*DB, error) {
+	drv := driver.NewSQLiteNoFK()
+
+	id := atomic.AddInt64(&inMemoryCounter, 1)
+	dsn := fmt.Sprintf("file:memdb_%d?mode=memory&cache=shared", id)
+
+	if err := drv.Open(dsn); err != nil {
+		return nil, err
+	}
+
+	return &DB{driver: drv, path: dsn}, nil
+}
+
 // OpenWithDialect opens a database with a specific dialect.
 func OpenWithDialect(dsn string, dialect driver.Dialect) (*DB, error) {
 	// For SQLite, create parent directory if needed

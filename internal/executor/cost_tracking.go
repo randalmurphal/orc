@@ -30,12 +30,19 @@ type TokenRate struct {
 // explicit cost values. Rates are in USD per 1M tokens.
 var providerRates = map[string]map[string]TokenRate{
 	"claude": {
-		"opus":   {Input: 15.0, Output: 75.0, CacheRead: 1.5, CacheWrite: 18.75},
+		// Opus 4.5/4.6: $5/$25 per MTok (cache read 0.1x, cache write 1.25x input)
+		"opus": {Input: 5.0, Output: 25.0, CacheRead: 0.5, CacheWrite: 6.25},
+		// Sonnet 4.5: $3/$15 per MTok
 		"sonnet": {Input: 3.0, Output: 15.0, CacheRead: 0.3, CacheWrite: 3.75},
-		"haiku":  {Input: 0.25, Output: 1.25, CacheRead: 0.03, CacheWrite: 0.3},
+		// Haiku 4.5: $1/$5 per MTok
+		"haiku": {Input: 1.0, Output: 5.0, CacheRead: 0.1, CacheWrite: 1.25},
 	},
 	"codex": {
-		"gpt-5":   {Input: 2.0, Output: 8.0, CacheRead: 0.0, CacheWrite: 0.0},
+		// GPT-5.3/5.2 Codex: $1.75/$14 per MTok
+		"gpt-5": {Input: 1.75, Output: 14.0, CacheRead: 0.0, CacheWrite: 0.0},
+		// GPT-5.1-Codex-Mini: $0.25/$2 per MTok
+		"gpt-5.1-codex-mini": {Input: 0.25, Output: 2.0, CacheRead: 0.0, CacheWrite: 0.0},
+		// GPT-4.1: $2/$8 per MTok
 		"gpt-4.1": {Input: 2.0, Output: 8.0, CacheRead: 0.0, CacheWrite: 0.0},
 	},
 	"ollama": {

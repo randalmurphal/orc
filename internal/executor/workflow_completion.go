@@ -359,15 +359,7 @@ func (we *WorkflowExecutor) getHostingProvider() (hosting.Provider, error) {
 	if we.hostingProvider != nil {
 		return we.hostingProvider, nil
 	}
-	cfg := hosting.Config{}
-	if we.orcConfig != nil {
-		cfg = hosting.Config{
-			Provider:    we.orcConfig.Hosting.Provider,
-			BaseURL:     we.orcConfig.Hosting.BaseURL,
-			TokenEnvVar: we.orcConfig.Hosting.TokenEnvVar,
-		}
-	}
-	return hosting.NewProvider(we.effectiveWorkingDir(), cfg)
+	return hosting.NewProviderFromAppConfig(we.effectiveWorkingDir(), we.orcConfig)
 }
 
 // setupWorktree creates or reuses an isolated worktree for the given task.

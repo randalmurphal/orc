@@ -299,6 +299,9 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 	if rawProviders, ok := raw["providers"].(map[string]interface{}); ok {
 		mergeProvidersConfigWithPath(cfg, fileCfg, rawProviders, tc, source, path)
 	}
+	if rawHosting, ok := raw["hosting"].(map[string]interface{}); ok {
+		mergeHostingConfigWithPath(cfg, fileCfg, rawHosting, tc, source, path)
+	}
 }
 
 func mergeGatesConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
@@ -519,6 +522,25 @@ func mergeServerConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]inte
 			cfg.Server.Auth.Type = fileCfg.Server.Auth.Type
 			tc.SetSourceWithPath("server.auth.type", source, path)
 		}
+	}
+}
+
+func mergeHostingConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]interface{}, tc *TrackedConfig, source ConfigSource, path string) {
+	if _, ok := raw["account"]; ok {
+		cfg.Hosting.Account = fileCfg.Hosting.Account
+		tc.SetSourceWithPath("hosting.account", source, path)
+	}
+	if _, ok := raw["provider"]; ok {
+		cfg.Hosting.Provider = fileCfg.Hosting.Provider
+		tc.SetSourceWithPath("hosting.provider", source, path)
+	}
+	if _, ok := raw["base_url"]; ok {
+		cfg.Hosting.BaseURL = fileCfg.Hosting.BaseURL
+		tc.SetSourceWithPath("hosting.base_url", source, path)
+	}
+	if _, ok := raw["token_env_var"]; ok {
+		cfg.Hosting.TokenEnvVar = fileCfg.Hosting.TokenEnvVar
+		tc.SetSourceWithPath("hosting.token_env_var", source, path)
 	}
 }
 

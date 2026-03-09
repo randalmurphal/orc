@@ -419,6 +419,54 @@ Rules: {{CONSTITUTION_CONTENT}}
 Rules: Important rules
 `,
 		},
+		{
+			name: "else branch - condition true",
+			vars: VariableSet{
+				"BUILD_COMMAND": "make build",
+			},
+			template: `{{#if BUILD_COMMAND}}Run ` + "`{{BUILD_COMMAND}}`" + `{{else}}Run the project build command{{/if}}`,
+			expected: "Run `make build`",
+		},
+		{
+			name: "else branch - condition false",
+			vars: VariableSet{},
+			template: `{{#if BUILD_COMMAND}}Run ` + "`{{BUILD_COMMAND}}`" + `{{else}}Run the project build command{{/if}}`,
+			expected: "Run the project build command",
+		},
+		{
+			name: "else branch - multiline",
+			vars: VariableSet{},
+			template: `{{#if BREAKDOWN_CONTENT}}
+Follow the breakdown:
+{{BREAKDOWN_CONTENT}}
+{{else}}
+Plan your changes:
+- New files to create
+- Existing files to modify
+{{/if}}`,
+			expected: `
+Plan your changes:
+- New files to create
+- Existing files to modify
+`,
+		},
+		{
+			name: "else branch - multiline with condition true",
+			vars: VariableSet{
+				"BREAKDOWN_CONTENT": "1. Fix auth\n2. Add tests",
+			},
+			template: `{{#if BREAKDOWN_CONTENT}}
+Follow the breakdown:
+{{BREAKDOWN_CONTENT}}
+{{else}}
+Plan your changes
+{{/if}}`,
+			expected: `
+Follow the breakdown:
+1. Fix auth
+2. Add tests
+`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -778,6 +826,87 @@ func TestResolveAllRetryVariables_EmptyWhenNoRetry(t *testing.T) {
 	}
 	if val, exists := vars["RETRY_REASON"]; exists && val != "" {
 		t.Errorf("RETRY_REASON should be empty when no retry active, got %q", val)
+	}
+}
+
+func TestEnvironmentOverridesBuiltins(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// Empty rctx with Environment overrides — simulates ContextStandalone
+	// where bench injects task metadata via opts.Variables
+	rctx := &ResolutionContext{
+		// TaskID is empty (standalone mode — no task loaded)
+		Environment: map[string]string{
+			"TASK_ID":          "BENCH-001",
+			"TASK_TITLE":       "Fix allocation bug",
+			"TASK_DESCRIPTION": "The allocator is broken",
+			"WORKFLOW_ID":      "medium",
+		},
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Environment entries should override empty builtins
+	tests := map[string]string{
+		"TASK_ID":          "BENCH-001",
+		"TASK_TITLE":       "Fix allocation bug",
+		"TASK_DESCRIPTION": "The allocator is broken",
+		"WORKFLOW_ID":      "medium",
+	}
+	for name, expected := range tests {
+		if vars[name] != expected {
+			t.Errorf("%s: expected %q, got %q", name, expected, vars[name])
+		}
+	}
+}
+
+func TestEnvironmentDoesNotOverrideWithEmpty(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// When rctx has a real TaskID and Environment has empty string,
+	// the builtin should NOT be overwritten (empty values are skipped)
+	rctx := &ResolutionContext{
+		TaskID: "REAL-TASK-001",
+		Environment: map[string]string{
+			"TASK_ID": "", // Empty — should not overwrite
+		},
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if vars["TASK_ID"] != "REAL-TASK-001" {
+		t.Errorf("TASK_ID: expected %q, got %q (empty env should not overwrite)", "REAL-TASK-001", vars["TASK_ID"])
+	}
+}
+
+func TestNilEnvironmentNoEffect(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// nil Environment — standard behavior, no override
+	rctx := &ResolutionContext{
+		TaskID: "TASK-001",
+		// Environment is nil (default)
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if vars["TASK_ID"] != "TASK-001" {
+		t.Errorf("TASK_ID: expected %q, got %q", "TASK-001", vars["TASK_ID"])
 	}
 }
 

@@ -66,6 +66,10 @@ type CodexExecutor struct {
 	env             map[string]string // extra env vars for process
 	addDirs         []string          // additional accessible directories
 
+	// CLI-level timeout (default: 30 minutes). The llmkit default (5m) is too
+	// short for extended reasoning on large repos.
+	timeout time.Duration
+
 	// Schema validation retry limit for non-guaranteed structured output
 	schemaRetries int
 }
@@ -174,6 +178,13 @@ func WithCodexAddDirs(dirs []string) CodexExecutorOption {
 	return func(e *CodexExecutor) { e.addDirs = dirs }
 }
 
+// WithCodexTimeout sets the CLI-level timeout for codex commands.
+// Default is 30 minutes. The llmkit default (5m) is too short for extended
+// reasoning with xhigh effort on large repositories.
+func WithCodexTimeout(d time.Duration) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.timeout = d }
+}
+
 // WithCodexSchemaRetries sets the number of schema validation retries.
 // Default is 2 (total 3 attempts including the first).
 func WithCodexSchemaRetries(retries int) CodexExecutorOption {
@@ -187,6 +198,7 @@ func NewCodexExecutor(opts ...CodexExecutorOption) *CodexExecutor {
 		logger:                    slog.Default(),
 		bypassApprovalsAndSandbox: true,
 		schemaRetries:             2,
+		timeout:                   30 * time.Minute,
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -381,6 +393,7 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 func (e *CodexExecutor) buildCLIOptions(schemaFile string) []codex.CodexOption {
 	opts := []codex.CodexOption{
 		codex.WithWorkdir(e.workdir),
+		codex.WithTimeout(e.timeout),
 	}
 
 	if e.bypassApprovalsAndSandbox {
@@ -467,9 +480,12 @@ func (e *CodexExecutor) writeSchemaFile(schema string) (string, error) {
 	return f.Name(), nil
 }
 
-// ensureAdditionalPropertiesFalse walks a JSON schema and adds
-// "additionalProperties": false to every object that has "properties"
-// but lacks "additionalProperties". OpenAI structured outputs require this.
+// ensureAdditionalPropertiesFalse walks a JSON schema and applies the OpenAI
+// structured output rules orc relies on:
+//  1. Every object with properties gets additionalProperties:false.
+//  2. Every object requires all declared property keys.
+//  3. Properties that were optional in the original schema are made nullable so
+//     the required-all-keys rule does not change their semantics.
 func ensureAdditionalPropertiesFalse(schema string) string {
 	var root map[string]any
 	if err := json.Unmarshal([]byte(schema), &root); err != nil {
@@ -483,21 +499,35 @@ func ensureAdditionalPropertiesFalse(schema string) string {
 	return string(out)
 }
 
-// enforceOpenAISchemaRules recursively fixes a JSON schema node for OpenAI compatibility:
-// 1. Adds "additionalProperties": false to any object with "properties"
-// 2. Ensures "required" lists ALL property keys (OpenAI rejects partial required)
+// enforceOpenAISchemaRules recursively fixes a JSON schema node for OpenAI compatibility.
 func enforceOpenAISchemaRules(node map[string]any) {
 	props, hasProps := node["properties"].(map[string]any)
 	if hasProps {
+		originalRequired := map[string]bool{}
+		if requiredList, ok := node["required"].([]any); ok {
+			for _, value := range requiredList {
+				key, ok := value.(string)
+				if ok {
+					originalRequired[key] = true
+				}
+			}
+		}
+
 		// Add additionalProperties: false if missing
 		if _, hasAP := node["additionalProperties"]; !hasAP {
 			node["additionalProperties"] = false
 		}
 
-		// Ensure required lists ALL property keys
+		// Ensure required lists ALL property keys, but preserve original optional
+		// semantics by making non-required properties nullable.
 		allKeys := make([]string, 0, len(props))
-		for k := range props {
+		for k, rawProp := range props {
 			allKeys = append(allKeys, k)
+			if !originalRequired[k] {
+				if propSchema, ok := rawProp.(map[string]any); ok {
+					makeSchemaNullable(propSchema)
+				}
+			}
 		}
 		node["required"] = allKeys
 
@@ -511,6 +541,23 @@ func enforceOpenAISchemaRules(node map[string]any) {
 	// Recurse into items (arrays of objects)
 	if items, ok := node["items"].(map[string]any); ok {
 		enforceOpenAISchemaRules(items)
+	}
+}
+
+func makeSchemaNullable(node map[string]any) {
+	switch typed := node["type"].(type) {
+	case string:
+		if typed == "null" {
+			return
+		}
+		node["type"] = []any{typed, "null"}
+	case []any:
+		for _, value := range typed {
+			if typeName, ok := value.(string); ok && typeName == "null" {
+				return
+			}
+		}
+		node["type"] = append(typed, "null")
 	}
 }
 
@@ -595,4 +642,3 @@ func truncate(s string, maxLen int) string {
 	}
 	return s[:maxLen] + "..."
 }
-

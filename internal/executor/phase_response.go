@@ -150,8 +150,32 @@ const ImplementCompletionSchema = `{
 					"properties": {
 						"status": {"type": "string", "enum": ["PASS", "FAIL", "SKIPPED"]}
 					}
+				},
+				"wiring": {
+					"type": "object",
+					"description": "Verification that newly-created files are imported by production code.",
+					"properties": {
+						"status": {"type": "string", "enum": ["PASS", "FAIL", "SKIPPED"]},
+						"evidence": {"type": "string", "description": "Proof that production code imports the new files"},
+						"new_files": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"file": {"type": "string"},
+									"imported_by": {"type": "string"}
+								},
+								"required": ["file", "imported_by"]
+							}
+						}
+					}
 				}
 			}
+		},
+		"pre_existing_issues": {
+			"type": "array",
+			"description": "Out-of-scope issues discovered during implementation.",
+			"items": {"type": "string"}
 		}
 	},
 	"required": ["status"]
@@ -220,13 +244,18 @@ func GetSchemaForPhaseWithRound(phaseID string, round int, producesArtifact bool
 		return DocsCompletionSchema
 	}
 
+	// Plan phase uses specialized schema with policy signals.
+	if phaseID == "plan" {
+		return PlanCompletionSchema
+	}
+
 	// Content-producing phases get schema with content field
 	if producesArtifact {
 		return ContentProducingPhaseSchema
 	}
 
-	// Implement phase uses verification schema
-	if phaseID == "implement" {
+	// Implementation phases use verification schema
+	if isImplementationPhase(phaseID) {
 		return ImplementCompletionSchema
 	}
 
@@ -236,6 +265,9 @@ func GetSchemaForPhaseWithRound(phaseID string, round int, producesArtifact bool
 			return ReviewDecisionSchema
 		}
 		// Round 1 (or unspecified) uses findings schema
+		return ReviewFindingsSchema
+	}
+	if phaseID == "review_cross" {
 		return ReviewFindingsSchema
 	}
 
@@ -282,6 +314,9 @@ func MapSchemaIdentifierToSchema(identifier string, phaseID string, producesArti
 	if phaseID == "docs" {
 		return DocsCompletionSchema
 	}
+	if phaseID == "plan" {
+		return PlanCompletionSchema
+	}
 
 	// Content-producing phases always use ContentProducingPhaseSchema
 	if producesArtifact {
@@ -289,7 +324,7 @@ func MapSchemaIdentifierToSchema(identifier string, phaseID string, producesArti
 	}
 
 	switch phaseID {
-	case "review":
+	case "review", "review_cross":
 		switch identifier {
 		case "findings", "":
 			return ReviewFindingsSchema
@@ -307,7 +342,7 @@ func MapSchemaIdentifierToSchema(identifier string, phaseID string, producesArti
 			return PhaseCompletionSchema
 		}
 
-	case "implement":
+	case "implement", "implement_codex":
 		return ImplementCompletionSchema
 
 	case "qa_e2e_test":
@@ -322,6 +357,15 @@ func MapSchemaIdentifierToSchema(identifier string, phaseID string, producesArti
 	}
 }
 
+func isImplementationPhase(phaseID string) bool {
+	switch phaseID {
+	case "implement", "implement_codex":
+		return true
+	default:
+		return false
+	}
+}
+
 // PhaseResponse represents the structured response from a phase execution.
 type PhaseResponse struct {
 	Status  string `json:"status"`            // "complete", "blocked", or "continue"
@@ -332,10 +376,11 @@ type PhaseResponse struct {
 
 // ImplementVerification represents the verification evidence for implement phase completion.
 type ImplementVerification struct {
-	Tests           *VerificationStatus          `json:"tests,omitempty"`
-	SuccessCriteria []SuccessCriterionResult     `json:"success_criteria,omitempty"`
-	Build           *VerificationStatus          `json:"build,omitempty"`
-	Linting         *VerificationStatus          `json:"linting,omitempty"`
+	Tests           *VerificationStatus      `json:"tests,omitempty"`
+	SuccessCriteria []SuccessCriterionResult `json:"success_criteria,omitempty"`
+	Build           *VerificationStatus      `json:"build,omitempty"`
+	Linting         *VerificationStatus      `json:"linting,omitempty"`
+	Wiring          *WiringVerification      `json:"wiring,omitempty"`
 }
 
 // VerificationStatus represents a single verification check result.
@@ -352,12 +397,26 @@ type SuccessCriterionResult struct {
 	Evidence string `json:"evidence,omitempty"`
 }
 
+// WiringVerification records proof that new files are reachable from production code.
+type WiringVerification struct {
+	Status   string          `json:"status"`
+	Evidence string          `json:"evidence,omitempty"`
+	NewFiles []WiringNewFile `json:"new_files,omitempty"`
+}
+
+// WiringNewFile records the production importer for a newly-created file.
+type WiringNewFile struct {
+	File       string `json:"file"`
+	ImportedBy string `json:"imported_by"`
+}
+
 // ImplementResponse extends PhaseResponse with verification evidence.
 type ImplementResponse struct {
-	Status       string                 `json:"status"`
-	Reason       string                 `json:"reason,omitempty"`
-	Summary      string                 `json:"summary,omitempty"`
-	Verification *ImplementVerification `json:"verification,omitempty"`
+	Status            string                 `json:"status"`
+	Reason            string                 `json:"reason,omitempty"`
+	Summary           string                 `json:"summary,omitempty"`
+	Verification      *ImplementVerification `json:"verification,omitempty"`
+	PreExistingIssues []string               `json:"pre_existing_issues,omitempty"`
 }
 
 // ParseImplementResponse parses implement phase JSON response with verification.
@@ -398,6 +457,22 @@ func ValidateImplementCompletion(content string) error {
 
 	var failures []string
 
+	if resp.Verification.Tests == nil {
+		failures = append(failures, "tests verification missing")
+	}
+	if len(resp.Verification.SuccessCriteria) == 0 {
+		failures = append(failures, "success criteria verification missing")
+	}
+	if resp.Verification.Build == nil {
+		failures = append(failures, "build verification missing")
+	}
+	if resp.Verification.Linting == nil {
+		failures = append(failures, "linting verification missing")
+	}
+	if resp.Verification.Wiring == nil {
+		failures = append(failures, "wiring verification missing")
+	}
+
 	// Check tests passed
 	if resp.Verification.Tests != nil && resp.Verification.Tests.Status == "FAIL" {
 		failures = append(failures, "tests failed")
@@ -418,6 +493,11 @@ func ValidateImplementCompletion(content string) error {
 	// Check linting passed (if not skipped)
 	if resp.Verification.Linting != nil && resp.Verification.Linting.Status == "FAIL" {
 		failures = append(failures, "linting failed")
+	}
+
+	// Check wiring passed (dead code must block completion)
+	if resp.Verification.Wiring != nil && resp.Verification.Wiring.Status == "FAIL" {
+		failures = append(failures, "wiring failed")
 	}
 
 	if len(failures) > 0 {
@@ -585,8 +665,8 @@ func ParsePhaseSpecificResponse(phaseID string, reviewRound int, content string)
 	content = strings.TrimSpace(content)
 
 	// Review phase uses specialized schemas
-	if phaseID == "review" {
-		if reviewRound == 2 {
+	if phaseID == "review" || phaseID == "review_cross" {
+		if phaseID == "review" && reviewRound == 2 {
 			// Round 2: ReviewDecisionSchema with pass/fail/needs_user_input
 			decision, err := ParseReviewDecision(content)
 			if err != nil {

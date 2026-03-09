@@ -211,6 +211,8 @@ automation:
     global_cooldown: 30m0s
     max_concurrent: 1
     default_mode: auto
+workflow_defaults:
+    default: crossmodel-standard
 model: opus
 max_turns: 150
 timeout: 60m0s

@@ -125,15 +125,7 @@ func (p *PRPoller) pollAll(ctx context.Context) {
 	p.logger.Debug("polling PR status", "task_count", len(tasksToCheck))
 
 	// Create hosting provider
-	cfg := hosting.Config{}
-	if p.orcConfig != nil {
-		cfg = hosting.Config{
-			Provider:    p.orcConfig.Hosting.Provider,
-			BaseURL:     p.orcConfig.Hosting.BaseURL,
-			TokenEnvVar: p.orcConfig.Hosting.TokenEnvVar,
-		}
-	}
-	provider, err := hosting.NewProvider(p.workDir, cfg)
+	provider, err := hosting.NewProviderFromAppConfig(p.workDir, p.orcConfig)
 	if err != nil {
 		p.logger.Debug("failed to create hosting provider for PR polling", "error", err)
 		return
@@ -261,15 +253,7 @@ func (p *PRPoller) PollTask(ctx context.Context, taskID string) error {
 		return errors.New("task has no PR")
 	}
 
-	cfg := hosting.Config{}
-	if p.orcConfig != nil {
-		cfg = hosting.Config{
-			Provider:    p.orcConfig.Hosting.Provider,
-			BaseURL:     p.orcConfig.Hosting.BaseURL,
-			TokenEnvVar: p.orcConfig.Hosting.TokenEnvVar,
-		}
-	}
-	provider, err := hosting.NewProvider(p.workDir, cfg)
+	provider, err := hosting.NewProviderFromAppConfig(p.workDir, p.orcConfig)
 	if err != nil {
 		return err
 	}

@@ -342,6 +342,9 @@ Use --force to close anyway (e.g., if work is already complete)`, id, id, id)
 
 			// Update task status to closed (distinct from completed to indicate no actual work done)
 			t.Status = orcv1.TaskStatus_TASK_STATUS_CLOSED
+			task.SkipRemainingPhasesProto(t.Execution, "task closed")
+			task.SetCurrentPhaseProto(t, "")
+			t.ExecutorPid = 0
 			now := time.Now()
 
 			// Track manual intervention in quality metrics
@@ -381,6 +384,9 @@ Use --force to close anyway (e.g., if work is already complete)`, id, id, id)
 
 			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
+			}
+			if err := backend.ClearTaskExecutor(t.Id); err != nil {
+				return fmt.Errorf("clear task executor: %w", err)
 			}
 
 			// Output results

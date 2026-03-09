@@ -80,6 +80,23 @@ func NewInMemoryBackend() (*DatabaseBackend, error) {
 	}, nil
 }
 
+// NewInMemoryBackendNoFK creates an in-memory backend with foreign key
+// constraints disabled. Used by bench where the in-memory DB is scratch
+// space for executor bookkeeping — FK violations don't matter.
+func NewInMemoryBackendNoFK() (*DatabaseBackend, error) {
+	pdb, err := db.OpenProjectInMemoryNoFK()
+	if err != nil {
+		return nil, err
+	}
+
+	return &DatabaseBackend{
+		projectPath: ":memory:",
+		db:          pdb,
+		cfg:         nil,
+		logger:      log.New(io.Discard, "", 0),
+	}, nil
+}
+
 // SetLogger sets the logger for warnings and debug messages.
 func (d *DatabaseBackend) SetLogger(l *log.Logger) {
 	d.mu.Lock()

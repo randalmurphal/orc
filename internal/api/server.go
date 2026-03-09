@@ -725,6 +725,11 @@ func (s *Server) resumeTask(id string, projectID string) (map[string]any, error)
 			return
 		}
 
+		// Seed built-in workflows into project DB (FK constraints require it)
+		if _, err := workflow.SeedBuiltinsToProject(backend.DB()); err != nil {
+			s.logger.Error("failed to seed project workflows", "task", id, "error", err)
+		}
+
 		// Create WorkflowExecutor
 		we := executor.NewWorkflowExecutor(
 			backend,
@@ -814,6 +819,11 @@ func (s *Server) startTask(id string, projectID string) error {
 			delete(s.runningTasks, id)
 			s.runningTasksMu.Unlock()
 		}()
+
+		// Seed built-in workflows into project DB (FK constraints require it)
+		if _, err := workflow.SeedBuiltinsToProject(backend.DB()); err != nil {
+			s.logger.Error("failed to seed project workflows", "task", id, "error", err)
+		}
 
 		// Create WorkflowExecutor
 		we := executor.NewWorkflowExecutor(

@@ -1,0 +1,16 @@
+id: plan
+name: "Plan"
+description: "Lightweight planning: what to change, what to test, success criteria"
+
+prompt_source: embedded
+prompt_path: prompts/plan.md
+
+input_variables: ["TASK_DESCRIPTION", "TASK_CATEGORY", "INITIATIVE_CONTEXT"]
+output_var_name: "SPEC_CONTENT"
+output_type: document
+produces_artifact: true
+artifact_type: spec
+
+thinking: true
+gate_type: auto
+checkpoint: true

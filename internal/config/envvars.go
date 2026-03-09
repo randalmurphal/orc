@@ -9,34 +9,38 @@ import (
 
 // EnvVarMapping defines the mapping between environment variables and config paths.
 var EnvVarMapping = map[string]string{
-	"ORC_PROFILE":              "profile",
-	"ORC_PROVIDER":             "provider",
-	"ORC_MODEL":                "model",
-	"ORC_MAX_TURNS":            "max_turns",
-	"ORC_CODEX_PATH":           "codex_path",
-	"ORC_TIMEOUT":              "timeout",
-	"ORC_CLAUDE_PATH":          "claude_path",
-	"ORC_RETRY_ENABLED":        "retry.enabled",
-	"ORC_RETRY_MAX_RETRIES":    "retry.max_retries",
-	"ORC_EXECUTOR_MAX_RETRIES": "executor.max_retries",
-	"ORC_GATES_DEFAULT":        "gates.default_type",
-	"ORC_GATES_MAX_RETRIES":    "gates.max_retries",
-	"ORC_WORKTREE_ENABLED":     "worktree.enabled",
-	"ORC_WORKTREE_DIR":         "worktree.dir",
-	"ORC_COMPLETION_ACTION":    "completion.action",
-	"ORC_BRANCH_PREFIX":        "branch_prefix",
-	"ORC_COMMIT_PREFIX":        "commit_prefix",
-	"ORC_POOL_ENABLED":         "pool.enabled",
-	"ORC_HOST":                 "server.host",
-	"ORC_PORT":                 "server.port",
-	"ORC_AUTH_ENABLED":         "server.auth.enabled",
-	"ORC_AUTH_TYPE":            "server.auth.type",
-	"ORC_TEAM_NAME":            "team.name",
-	"ORC_TEAM_ACTIVITY_LOG":    "team.activity_logging",
-	"ORC_TEAM_TASK_CLAIMING":   "team.task_claiming",
-	"ORC_TEAM_VISIBILITY":      "team.visibility",
-	"ORC_TEAM_MODE":            "team.mode",
-	"ORC_TEAM_SERVER":          "team.server_url",
+	"ORC_PROFILE":               "profile",
+	"ORC_PROVIDER":              "provider",
+	"ORC_MODEL":                 "model",
+	"ORC_MAX_TURNS":             "max_turns",
+	"ORC_CODEX_PATH":            "codex_path",
+	"ORC_TIMEOUT":               "timeout",
+	"ORC_CLAUDE_PATH":           "claude_path",
+	"ORC_RETRY_ENABLED":         "retry.enabled",
+	"ORC_RETRY_MAX_RETRIES":     "retry.max_retries",
+	"ORC_EXECUTOR_MAX_RETRIES":  "executor.max_retries",
+	"ORC_GATES_DEFAULT":         "gates.default_type",
+	"ORC_GATES_MAX_RETRIES":     "gates.max_retries",
+	"ORC_WORKTREE_ENABLED":      "worktree.enabled",
+	"ORC_WORKTREE_DIR":          "worktree.dir",
+	"ORC_COMPLETION_ACTION":     "completion.action",
+	"ORC_BRANCH_PREFIX":         "branch_prefix",
+	"ORC_COMMIT_PREFIX":         "commit_prefix",
+	"ORC_POOL_ENABLED":          "pool.enabled",
+	"ORC_HOSTING_ACCOUNT":       "hosting.account",
+	"ORC_HOSTING_PROVIDER":      "hosting.provider",
+	"ORC_HOSTING_BASE_URL":      "hosting.base_url",
+	"ORC_HOSTING_TOKEN_ENV_VAR": "hosting.token_env_var",
+	"ORC_HOST":                  "server.host",
+	"ORC_PORT":                  "server.port",
+	"ORC_AUTH_ENABLED":          "server.auth.enabled",
+	"ORC_AUTH_TYPE":             "server.auth.type",
+	"ORC_TEAM_NAME":             "team.name",
+	"ORC_TEAM_ACTIVITY_LOG":     "team.activity_logging",
+	"ORC_TEAM_TASK_CLAIMING":    "team.task_claiming",
+	"ORC_TEAM_VISIBILITY":       "team.visibility",
+	"ORC_TEAM_MODE":             "team.mode",
+	"ORC_TEAM_SERVER":           "team.server_url",
 	// Timeouts
 	"ORC_PHASE_MAX_TIMEOUT":  "timeouts.phase_max",
 	"ORC_TURN_MAX_TIMEOUT":   "timeouts.turn_max",
@@ -146,6 +150,14 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 		cfg.CommitPrefix = value
 	case "pool.enabled":
 		cfg.Pool.Enabled = parseBool(value)
+	case "hosting.account":
+		cfg.Hosting.Account = value
+	case "hosting.provider":
+		cfg.Hosting.Provider = value
+	case "hosting.base_url":
+		cfg.Hosting.BaseURL = value
+	case "hosting.token_env_var":
+		cfg.Hosting.TokenEnvVar = value
 	case "server.host":
 		cfg.Server.Host = value
 	case "server.port":

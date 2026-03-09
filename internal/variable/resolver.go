@@ -424,6 +424,15 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	for varName, content := range rctx.PhaseOutputVars {
 		vars[varName] = content
 	}
+
+	// Allow environment overrides of builtins (e.g., bench injecting TASK_ID
+	// for ContextStandalone mode). rctx.Environment is nil by default,
+	// so this is a no-op for all existing callers.
+	for k, v := range rctx.Environment {
+		if v != "" {
+			vars[k] = v
+		}
+	}
 }
 
 // formatInitiativeContext builds a complete initiative context section for templates.
@@ -484,8 +493,9 @@ func RenderTemplate(template string, vars VariableSet) string {
 	return result
 }
 
-// processConditionals handles {{#if VAR}}...{{/if}} conditional blocks.
-// If the variable exists and is non-empty, the content is kept; otherwise removed.
+// processConditionals handles {{#if VAR}}...{{/if}} and {{#if VAR}}...{{else}}...{{/if}} blocks.
+// If the variable exists and is non-empty, the if-branch is kept; otherwise the else-branch
+// (or empty string if no else-branch).
 func processConditionals(content string, vars VariableSet) string {
 	// Pattern matches {{#if VAR}}...{{/if}} with the variable name
 	pattern := regexp.MustCompile(`(?s)\{\{#if ([A-Z_][A-Z0-9_]*)\}\}(.*?)\{\{/if\}\}`)
@@ -500,13 +510,15 @@ func processConditionals(content string, vars VariableSet) string {
 		varName := submatches[1]
 		blockContent := submatches[2]
 
+		// Split on {{else}} to get if-branch and else-branch
+		ifBranch, elseBranch, _ := strings.Cut(blockContent, "{{else}}")
+
 		// Check if variable exists and is non-empty
 		if value, ok := vars[varName]; ok && value != "" {
-			return blockContent
+			return ifBranch
 		}
 
-		// Variable missing or empty - remove entire block
-		return ""
+		return elseBranch
 	})
 }
 

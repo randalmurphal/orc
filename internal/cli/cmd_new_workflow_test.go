@@ -38,26 +38,31 @@ func TestNewCmd_ErrorNoDefaultWorkflow(t *testing.T) {
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
-	// No --workflow, no --weight, no -w
+	// No --workflow, use built-in adaptive default
 	cmd.SetArgs([]string{"Test without workflow"})
 
 	err := cmd.Execute()
 
-	// Should fail with a clear error
-	if err == nil {
-		t.Fatal("expected error when no default workflow configured, got nil")
+	if err != nil {
+		t.Fatalf("expected success with built-in default workflow, got: %v", err)
 	}
 
-	errMsg := err.Error()
-	// Error should mention:
-	// 1. That no default workflow is configured
-	// 2. How to fix it (--workflow flag or config)
-	if !strings.Contains(strings.ToLower(errMsg), "default workflow") && 
-	   !strings.Contains(strings.ToLower(errMsg), "no workflow") {
-		t.Errorf("error should mention 'default workflow' or 'no workflow', got: %s", errMsg)
+	reopened := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = reopened.Close() }()
+
+	tasks, loadErr := reopened.LoadAllTasks()
+	if loadErr != nil {
+		t.Fatalf("load tasks: %v", loadErr)
 	}
-	if !strings.Contains(errMsg, "--workflow") {
-		t.Errorf("error should mention --workflow flag, got: %s", errMsg)
+	if len(tasks) == 0 {
+		t.Fatal("no tasks created")
+	}
+	if tasks[0].WorkflowId == nil || *tasks[0].WorkflowId != "crossmodel-standard" {
+		got := ""
+		if tasks[0].WorkflowId != nil {
+			got = *tasks[0].WorkflowId
+		}
+		t.Errorf("workflow_id = %q, want %q", got, "crossmodel-standard")
 	}
 }
 
@@ -211,4 +216,3 @@ func TestNewCmd_WorkflowFlagPrecedence(t *testing.T) {
 		t.Errorf("workflow_id = %q, want %q (--workflow should override config default)", wfID, "implement-large")
 	}
 }
-

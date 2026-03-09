@@ -18,29 +18,12 @@ func TestResolveToken(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name: "GITLAB_TOKEN set",
+			name: "ORC_GITLAB_TOKEN set",
 			cfg:  hosting.Config{},
 			envVars: map[string]string{
-				"GITLAB_TOKEN": "glpat-test123",
+				"ORC_GITLAB_TOKEN": "glpat-test123",
 			},
 			wantToken: "glpat-test123",
-		},
-		{
-			name: "GITLAB_PRIVATE_TOKEN fallback",
-			cfg:  hosting.Config{},
-			envVars: map[string]string{
-				"GITLAB_PRIVATE_TOKEN": "glpat-private456",
-			},
-			wantToken: "glpat-private456",
-		},
-		{
-			name: "GITLAB_TOKEN takes priority over GITLAB_PRIVATE_TOKEN",
-			cfg:  hosting.Config{},
-			envVars: map[string]string{
-				"GITLAB_TOKEN":         "primary",
-				"GITLAB_PRIVATE_TOKEN": "fallback",
-			},
-			wantToken: "primary",
 		},
 		{
 			name:    "no token set returns error",
@@ -61,19 +44,19 @@ func TestResolveToken(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "custom env var ignores GITLAB_TOKEN",
+			name: "custom env var ignores ORC_GITLAB_TOKEN",
 			cfg:  hosting.Config{TokenEnvVar: "MY_GL_TOKEN"},
 			envVars: map[string]string{
-				"GITLAB_TOKEN": "should_not_use",
-				"MY_GL_TOKEN":  "custom_wins",
+				"ORC_GITLAB_TOKEN": "should_not_use",
+				"MY_GL_TOKEN":      "custom_wins",
 			},
 			wantToken: "custom_wins",
 		},
 		{
-			name: "custom env var not set ignores GITLAB_TOKEN",
+			name: "custom env var not set ignores ORC_GITLAB_TOKEN",
 			cfg:  hosting.Config{TokenEnvVar: "MY_GL_TOKEN"},
 			envVars: map[string]string{
-				"GITLAB_TOKEN": "should_not_use",
+				"ORC_GITLAB_TOKEN": "should_not_use",
 			},
 			wantErr: true,
 		},
@@ -82,8 +65,7 @@ func TestResolveToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear all potential env vars.
-			t.Setenv("GITLAB_TOKEN", "")
-			t.Setenv("GITLAB_PRIVATE_TOKEN", "")
+			t.Setenv("ORC_GITLAB_TOKEN", "")
 			t.Setenv("MY_GL_TOKEN", "")
 
 			for k, v := range tt.envVars {
@@ -104,20 +86,16 @@ func TestResolveToken(t *testing.T) {
 func TestResolveToken_ErrorMessages(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv modifies process environment.
 
-	t.Run("default error mentions both env vars", func(t *testing.T) {
-		t.Setenv("GITLAB_TOKEN", "")
-		t.Setenv("GITLAB_PRIVATE_TOKEN", "")
+	t.Run("default error mentions ORC_GITLAB_TOKEN", func(t *testing.T) {
+		t.Setenv("ORC_GITLAB_TOKEN", "")
 
 		_, err := resolveToken(hosting.Config{})
 		if err == nil {
 			t.Fatal("expected error")
 		}
 		errMsg := err.Error()
-		if !strings.Contains(errMsg, "GITLAB_TOKEN") {
-			t.Errorf("error should mention GITLAB_TOKEN, got: %s", errMsg)
-		}
-		if !strings.Contains(errMsg, "GITLAB_PRIVATE_TOKEN") {
-			t.Errorf("error should mention GITLAB_PRIVATE_TOKEN, got: %s", errMsg)
+		if !strings.Contains(errMsg, "ORC_GITLAB_TOKEN") {
+			t.Errorf("error should mention ORC_GITLAB_TOKEN, got: %s", errMsg)
 		}
 	})
 

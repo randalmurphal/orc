@@ -186,6 +186,11 @@ Use --force to resume a task even if it appears to still be running.`,
 				return fmt.Errorf("seed workflows: %w", err)
 			}
 
+			// Seed built-in workflows into project DB (FK constraints)
+			if _, err := workflow.SeedBuiltinsToProject(pdb); err != nil {
+				return fmt.Errorf("seed project workflows: %w", err)
+			}
+
 			// Seed built-in agents and phase-agent associations
 			if _, err := workflow.SeedAgents(gdb); err != nil {
 				return fmt.Errorf("seed agents: %w", err)

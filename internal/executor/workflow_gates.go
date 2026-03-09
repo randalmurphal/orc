@@ -32,8 +32,12 @@ type GateEvaluationResult struct {
 }
 
 // evaluatePhaseGate evaluates the gate for a completed phase.
-func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.PhaseTemplate, phase *db.WorkflowPhase, output string, t *orcv1.Task) (*GateEvaluationResult, error) {
+func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.PhaseTemplate, phase *db.WorkflowPhase, output string, t *orcv1.Task, rctxs ...*variable.ResolutionContext) (*GateEvaluationResult, error) {
 	result := &GateEvaluationResult{}
+	var rctx *variable.ResolutionContext
+	if len(rctxs) > 0 {
+		rctx = rctxs[0]
+	}
 
 	// Skip all gate evaluations when --skip-gates flag is set
 	if we.skipGates {
@@ -44,7 +48,7 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 	}
 
 	// Use gate resolver if available, fall back to legacy resolution
-	gateType := we.resolveGateType(tmpl, phase, t)
+	gateType := we.resolveGateType(tmpl, phase, t, rctx)
 
 	// No gate type configured: auto-approve without evaluation
 	if gateType == "" {
@@ -176,7 +180,7 @@ func (we *WorkflowExecutor) runGateScript(ctx context.Context, scriptPath string
 // resolveGateType determines the effective gate type for a phase.
 // Uses the GateResolver if available (when we have a task with potential overrides),
 // otherwise falls back to legacy resolution (template + phase override).
-func (we *WorkflowExecutor) resolveGateType(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase, t *orcv1.Task) gate.GateType {
+func (we *WorkflowExecutor) resolveGateType(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase, t *orcv1.Task, rctx *variable.ResolutionContext) gate.GateType {
 	if t != nil && we.projectDB != nil {
 		taskOverrides, err := we.projectDB.GetTaskGateOverridesMap(t.Id)
 		if err != nil {
@@ -205,7 +209,7 @@ func (we *WorkflowExecutor) resolveGateType(tmpl *db.PhaseTemplate, phase *db.Wo
 		// This ensures templates with GateType="ai" are respected, and
 		// templates with no gate type don't get an unwanted auto gate.
 		if resolved.Source == "default" {
-			return gate.GateType(tmpl.GateType)
+			return we.applyQualityPolicyGateEscalation(tmpl.ID, gate.GateType(tmpl.GateType), rctx)
 		}
 
 		we.logger.Debug("gate type resolved",
@@ -215,7 +219,7 @@ func (we *WorkflowExecutor) resolveGateType(tmpl *db.PhaseTemplate, phase *db.Wo
 			"task", t.Id,
 		)
 
-		return resolved.GateType
+		return we.applyQualityPolicyGateEscalation(tmpl.ID, resolved.GateType, rctx)
 	}
 
 	// Legacy resolution: template gate type with optional phase override
@@ -224,7 +228,7 @@ func (we *WorkflowExecutor) resolveGateType(tmpl *db.PhaseTemplate, phase *db.Wo
 		gateType = phase.GateTypeOverride
 	}
 
-	return gate.GateType(gateType)
+	return we.applyQualityPolicyGateEscalation(tmpl.ID, gate.GateType(gateType), rctx)
 }
 
 // applyGateOutputToVars stores gate output data as a workflow variable.

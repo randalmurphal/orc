@@ -102,7 +102,7 @@ func TestTaskCreation_WorkflowDefaultsIntegration(t *testing.T) {
 			Feature:  "feature-advanced",
 			Bug:      "hotfix-urgent",
 			Refactor: "refactor-safe",
-			Default:  "implement-standard",
+			Default:  "crossmodel-standard",
 		},
 		Weights: config.WeightsConfig{
 			Small: "implement-small",
@@ -135,7 +135,7 @@ func TestTaskCreation_WorkflowDefaultsIntegration(t *testing.T) {
 			taskCategory:       "chore",
 			taskWeight:         "",
 			explicitWorkflowID: "",
-			expectedWorkflowID: "implement-standard",
+			expectedWorkflowID: "crossmodel-standard",
 		},
 		{
 			name:               "explicit workflow overrides defaults",
@@ -179,7 +179,7 @@ func TestWorkflowDefaults_MigrationFromWeights(t *testing.T) {
 		},
 		WorkflowDefaults: config.WorkflowDefaults{
 			Feature: "feature-complete",
-			Default: "implement-standard",
+			Default: "crossmodel-standard",
 		},
 	}
 
@@ -197,8 +197,8 @@ func TestWorkflowDefaults_MigrationFromWeights(t *testing.T) {
 
 	// No weight, no recognized category should use default
 	workflowID = ResolveTaskWorkflow("", "", "docs", config)
-	if workflowID != "implement-standard" {
-		t.Errorf("Default resolution failed: got %q, want %q", workflowID, "implement-standard")
+	if workflowID != "crossmodel-standard" {
+		t.Errorf("Default resolution failed: got %q, want %q", workflowID, "crossmodel-standard")
 	}
 }
 

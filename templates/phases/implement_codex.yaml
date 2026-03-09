@@ -1,0 +1,19 @@
+id: implement_codex
+name: "Implement (Codex)"
+description: "Implementation via Codex CLI / GPT 5.4 — lean prompt, surgical execution"
+prompt_source: embedded
+prompt_path: prompts/implement_codex.md
+input_variables:
+  - TASK_DESCRIPTION
+  - TASK_CATEGORY
+  - SPEC_CONTENT
+  - BREAKDOWN_CONTENT
+  - TDD_TESTS_CONTENT
+  - TDD_INTEGRATION_CONTENT
+  - INITIATIVE_CONTEXT
+output_type: none
+produces_artifact: false
+thinking: false
+gate_type: auto
+checkpoint: true
+provider: codex
