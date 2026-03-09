@@ -354,6 +354,7 @@ func (s *transcriptServer) GetSession(
 	transcripts, err := backend.GetTranscripts(req.Msg.TaskId)
 	if err == nil {
 		assistantCount := int32(0)
+		promptCount := int32(0)
 		var lastActivity time.Time
 		for _, transcript := range transcripts {
 			if currentPhase != "" && transcript.Phase != currentPhase {
@@ -362,12 +363,15 @@ func (s *transcriptServer) GetSession(
 			if transcript.Type == "assistant" {
 				assistantCount++
 			}
+			if transcript.Type == "user" || transcript.Type == "prompt" {
+				promptCount++
+			}
 			ts := timestampToTime(transcript.Timestamp)
 			if ts.After(lastActivity) {
 				lastActivity = ts
 			}
 		}
-		session.TurnCount = assistantCount
+		session.TurnCount = max(assistantCount, promptCount)
 		if !lastActivity.IsZero() {
 			session.LastActivity = timestamppb.New(lastActivity)
 		}

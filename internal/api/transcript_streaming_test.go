@@ -161,6 +161,34 @@ func TestTranscriptServer_GetSession_UsesPhaseScopedSession(t *testing.T) {
 	require.NotNil(t, resp.Msg.Session.CreatedAt)
 }
 
+func TestTranscriptServer_GetSession_CountsPromptAsActiveTurn(t *testing.T) {
+	sessionStart := time.Now().Add(-30 * time.Second)
+	mockBackend := &MockStreamingBackend{
+		task: func() *orcv1.Task {
+			t := task.NewProtoTask("TASK-002", "Prompt-only session")
+			task.SetCurrentPhaseProto(t, "implement_codex")
+			task.SetPhaseSessionIDProto(t.Execution, "implement_codex", "codex-thread-live")
+			t.Metadata["phase:implement_codex:model"] = "gpt-5.4"
+			t.Execution.Phases["implement_codex"].StartedAt = timestamppb.New(sessionStart)
+			return t
+		}(),
+		transcripts: []storage.Transcript{
+			{ID: 1, TaskID: "TASK-002", Phase: "implement_codex", Type: "user", Content: "do work", Timestamp: sessionStart.UnixMilli()},
+		},
+	}
+
+	server := &transcriptServer{backend: mockBackend}
+	resp, err := server.GetSession(context.Background(), &connect.Request[orcv1.GetSessionRequest]{
+		Msg: &orcv1.GetSessionRequest{TaskId: "TASK-002"},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp.Msg.Session)
+	assert.Equal(t, "codex-thread-live", resp.Msg.Session.Id)
+	assert.Equal(t, "gpt-5.4", resp.Msg.Session.Model)
+	assert.Equal(t, int32(1), resp.Msg.Session.TurnCount)
+	require.NotNil(t, resp.Msg.Session.CreatedAt)
+}
+
 func TestTranscriptServer_EventIntegration(t *testing.T) {
 	t.Run("SC-9: Should handle event publisher integration", func(t *testing.T) {
 		// Arrange: Server with event publisher

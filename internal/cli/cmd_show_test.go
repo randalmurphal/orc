@@ -307,6 +307,55 @@ func TestPrintSessionInfoProto_FallsBackToTranscriptSessionAndPrintsSingleLastAc
 	}
 }
 
+func TestPrintSessionInfoProto_CountsPromptAsActiveTurn(t *testing.T) {
+	tmpDir := withShowTestDir(t)
+	backend := createShowTestBackend(t, tmpDir)
+
+	tk := task.NewProtoTask("TASK-SESSION-002", "Prompt turn count")
+	task.SetCurrentPhaseProto(tk, "implement_codex")
+	task.StartPhaseProto(tk.Execution, "implement_codex")
+	tk.Metadata["phase:implement_codex:provider"] = "codex"
+	tk.Metadata["phase:implement_codex:model"] = "gpt-5.4"
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	if err := backend.AddTranscript(&storage.Transcript{
+		TaskID:    "TASK-SESSION-002",
+		Phase:     "implement_codex",
+		SessionID: "codex-thread-live",
+		Type:      "user",
+		Role:      "user",
+		Content:   "Implement the change",
+		Timestamp: time.Now().UnixMilli(),
+	}); err != nil {
+		t.Fatalf("add transcript: %v", err)
+	}
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	printSessionInfoProto(backend, tk, tk.Id)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	output := buf.String()
+
+	if !strings.Contains(output, "Provider:      codex") {
+		t.Fatalf("expected provider in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "Model:         gpt-5.4") {
+		t.Fatalf("expected model in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "Turn Count:    1") {
+		t.Fatalf("expected live prompt to count as one active turn, got:\n%s", output)
+	}
+}
+
 func TestLoadFullSpec(t *testing.T) {
 	tmpDir := t.TempDir()
 

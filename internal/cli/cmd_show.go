@@ -319,6 +319,7 @@ func printSessionInfoProto(backend storage.Backend, t *orcv1.Task, id string) {
 	provider := task.GetPhaseProviderProto(t, currentPhase)
 
 	turnCount := 0
+	promptCount := 0
 	var transcriptLastActivity time.Time
 	if backend != nil {
 		transcripts, err := backend.GetTranscripts(id)
@@ -336,12 +337,18 @@ func printSessionInfoProto(backend storage.Backend, t *orcv1.Task, id string) {
 				if transcript.Type == "assistant" {
 					turnCount++
 				}
+				if transcript.Type == "user" || transcript.Type == "prompt" {
+					promptCount++
+				}
 				ts := time.UnixMilli(transcript.Timestamp)
 				if ts.After(transcriptLastActivity) {
 					transcriptLastActivity = ts
 				}
 			}
 		}
+	}
+	if promptCount > turnCount {
+		turnCount = promptCount
 	}
 
 	if sessionID == "" && model == "" && provider == "" && turnCount == 0 {

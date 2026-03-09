@@ -1008,8 +1008,11 @@ func (we *WorkflowExecutor) executePhaseWithTimeout(
 	// Update task.CurrentPhase BEFORE phase execution begins (SC-1, SC-3).
 	// This ensures `orc status` can read the current phase directly from the task record.
 	if t != nil {
+		provider := we.resolvePhaseProvider(tmpl, phase)
+		model := we.resolvePhaseModel(tmpl, phase)
 		task.SetCurrentPhaseProto(t, tmpl.ID)
 		task.StartPhaseProto(t.Execution, tmpl.ID)
+		setTaskSessionMetadata(t, tmpl.ID, provider, model)
 		if err := we.backend.SaveTask(t); err != nil {
 			// Non-fatal: workflow run still tracks the phase. Log and continue.
 			we.logger.Warn("failed to save task phase start", "task", t.Id, "phase", tmpl.ID, "error", err)
