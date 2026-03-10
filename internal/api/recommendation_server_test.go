@@ -28,8 +28,10 @@ func TestRecommendationServiceCRUDViaHTTP(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 	storageFixturesForRecommendation(t, backend)
 	publisher := &recommendationTestPublisher{}
+	projectCache := testProjectCacheForBackend("proj-001", backend)
 
 	recommendationSvc := NewRecommendationServer(backend, slog.Default(), publisher)
+	recommendationSvc.(*recommendationServer).SetProjectCache(projectCache)
 
 	mux := http.NewServeMux()
 	path, handler := orcv1connect.NewRecommendationServiceHandler(recommendationSvc)
@@ -41,6 +43,7 @@ func TestRecommendationServiceCRUDViaHTTP(t *testing.T) {
 	client := orcv1connect.NewRecommendationServiceClient(http.DefaultClient, ts.URL)
 
 	createResp, err := client.CreateRecommendation(context.Background(), connect.NewRequest(&orcv1.CreateRecommendationRequest{
+		ProjectId:      "proj-001",
 		Recommendation: recommendationProtoForAPI("cleanup:task-001:duplicate-polling"),
 	}))
 	require.NoError(t, err)
@@ -63,6 +66,7 @@ func TestRecommendationServiceCRUDViaHTTP(t *testing.T) {
 	require.Len(t, listResp.Msg.Recommendations, 1)
 
 	acceptResp, err := client.AcceptRecommendation(context.Background(), connect.NewRequest(&orcv1.AcceptRecommendationRequest{
+		ProjectId:        "proj-001",
 		RecommendationId: createResp.Msg.Recommendation.Id,
 		DecidedBy:        "randy",
 		DecisionReason:   "do it",
@@ -73,7 +77,9 @@ func TestRecommendationServiceCRUDViaHTTP(t *testing.T) {
 
 	require.Len(t, publisher.events, 2)
 	require.Equal(t, events.EventRecommendationCreated, publisher.events[0].Type)
+	require.Equal(t, "proj-001", publisher.events[0].ProjectID)
 	require.Equal(t, events.EventRecommendationDecided, publisher.events[1].Type)
+	require.Equal(t, "proj-001", publisher.events[1].ProjectID)
 }
 
 func TestRegisterConnectHandlersIncludesRecommendationService(t *testing.T) {
@@ -95,7 +101,7 @@ func TestRegisterConnectHandlersIncludesRecommendationService(t *testing.T) {
 		runningTasks:     make(map[string]context.CancelFunc),
 		diffCache:        diff.NewCache(10),
 		pendingDecisions: gate.NewPendingDecisionStore(),
-		projectCache:     NewProjectCache(1),
+		projectCache:     testProjectCacheForBackend("proj-001", backend),
 	}
 
 	s.registerConnectHandlers()
@@ -105,6 +111,7 @@ func TestRegisterConnectHandlersIncludesRecommendationService(t *testing.T) {
 
 	client := orcv1connect.NewRecommendationServiceClient(http.DefaultClient, ts.URL)
 	resp, err := client.CreateRecommendation(context.Background(), connect.NewRequest(&orcv1.CreateRecommendationRequest{
+		ProjectId:      "proj-001",
 		Recommendation: recommendationProtoForAPI("cleanup:task-001:register-connect"),
 	}))
 	require.NoError(t, err)
@@ -157,6 +164,17 @@ func storageFixturesForRecommendation(t *testing.T, backend *storage.DatabaseBac
 		TaskID: taskID,
 	}
 	require.NoError(t, backend.DB().CreateThread(thread))
+}
+
+func testProjectCacheForBackend(projectID string, backend *storage.DatabaseBackend) *ProjectCache {
+	cache := NewProjectCache(1)
+	cache.entries[projectID] = &cacheEntry{
+		db:      backend.DB(),
+		backend: backend,
+		path:    "",
+	}
+	cache.order = append(cache.order, projectID)
+	return cache
 }
 
 type recommendationTestPublisher struct {

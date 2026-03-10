@@ -14,18 +14,21 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { handleEvent } from './handlers';
+import { onRecommendationSignal } from './recommendationSignals';
 import { useTaskStore } from '@/stores/taskStore';
 import { useInitiativeStore } from '@/stores/initiativeStore';
 import { create } from '@bufbuild/protobuf';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 import {
 	EventSchema,
+	RecommendationCreatedEventSchema,
 	TaskCreatedEventSchema,
 	TaskUpdatedEventSchema,
 	InitiativeCreatedEventSchema,
 	type Event,
 } from '@/gen/orc/v1/events_pb';
 import { TaskStatus } from '@/gen/orc/v1/task_pb';
+import { RecommendationKind, RecommendationStatus } from '@/gen/orc/v1/recommendation_pb';
 import { createMockTask } from '@/test/factories';
 
 // Helper to create a timestamp
@@ -290,5 +293,47 @@ describe('handleEvent - initiativeCreated', () => {
 		expect(initiatives.size).toBe(1);
 		expect(initiatives.get('INIT-001')).toBeDefined();
 		expect(initiatives.get('INIT-001')?.title).toBe('New Initiative');
+	});
+});
+
+describe('handleEvent - recommendation events', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('emits a recommendation signal for recommendationCreated events', () => {
+		const received: Array<{ projectId: string; recommendationId: string; type: string }> = [];
+		const unsubscribe = onRecommendationSignal((signal) => {
+			received.push(signal);
+		});
+		const event = create(EventSchema, {
+			id: 'evt-rec-created',
+			timestamp: createTimestamp(),
+			projectId: 'proj-001',
+			payload: {
+				case: 'recommendationCreated',
+				value: create(RecommendationCreatedEventSchema, {
+					recommendationId: 'REC-001',
+					kind: RecommendationKind.CLEANUP,
+					status: RecommendationStatus.PENDING,
+					title: 'Cleanup duplicate polling',
+					summary: 'Two loops are doing the same work.',
+					sourceTaskId: 'TASK-001',
+					sourceRunId: 'RUN-001',
+					sourceThreadId: 'THR-001',
+				}),
+			},
+		});
+
+		handleEvent(event);
+		unsubscribe();
+
+		expect(received).toEqual([
+			{
+				projectId: 'proj-001',
+				recommendationId: 'REC-001',
+				type: 'created',
+			},
+		]);
 	});
 });

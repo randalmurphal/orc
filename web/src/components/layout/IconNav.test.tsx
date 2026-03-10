@@ -27,6 +27,7 @@ describe('IconNav', () => {
 
 			// Check all nav item labels are rendered
 			expect(screen.getByText('Board')).toBeInTheDocument();
+			expect(screen.getByText('Inbox')).toBeInTheDocument();
 			expect(screen.getByText('Initiatives')).toBeInTheDocument();
 			expect(screen.getByText('Stats')).toBeInTheDocument();
 			expect(screen.getByText('Workflows')).toBeInTheDocument();
@@ -100,6 +101,7 @@ describe('IconNav', () => {
 
 			// Check aria-labels for all nav items
 			expect(screen.getByRole('link', { name: 'Task board view' })).toBeInTheDocument();
+			expect(screen.getByRole('link', { name: 'Recommendation inbox' })).toBeInTheDocument();
 			expect(screen.getByRole('link', { name: 'View and manage initiatives' })).toBeInTheDocument();
 			expect(screen.getByRole('link', { name: 'Statistics and metrics' })).toBeInTheDocument();
 			expect(screen.getByRole('link', { name: 'Workflow configuration' })).toBeInTheDocument();
@@ -118,7 +120,7 @@ describe('IconNav', () => {
 			renderWithProviders(<IconNav />);
 
 			const links = screen.getAllByRole('link');
-			expect(links.length).toBe(8); // 8 nav items (My Work, Board, Initiatives, Timeline, Stats, Workflows, Settings, Help)
+			expect(links.length).toBe(9); // 9 nav items (My Work, Board, Inbox, Initiatives, Timeline, Stats, Workflows, Settings, Help)
 
 			// All links should be focusable (tabindex not -1)
 			links.forEach((link) => {
@@ -163,7 +165,7 @@ describe('IconNav', () => {
 
 			const links = screen.getAllByRole('link');
 			// All nav items should have data-state from Tooltip wrapper
-			expect(links.length).toBe(8);
+			expect(links.length).toBe(9);
 			links.forEach((link) => {
 				expect(link).toHaveAttribute('data-state');
 			});

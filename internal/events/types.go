@@ -82,10 +82,11 @@ const (
 
 // Event represents a published event.
 type Event struct {
-	Type   EventType `json:"type"`
-	TaskID string    `json:"task_id"`
-	Data   any       `json:"data"`
-	Time   time.Time `json:"time"`
+	Type      EventType `json:"type"`
+	ProjectID string    `json:"project_id,omitempty"`
+	TaskID    string    `json:"task_id"`
+	Data      any       `json:"data"`
+	Time      time.Time `json:"time"`
 }
 
 // NewEvent creates a new event with the current timestamp.
@@ -95,6 +96,17 @@ func NewEvent(eventType EventType, taskID string, data any) Event {
 		TaskID: taskID,
 		Data:   data,
 		Time:   time.Now(),
+	}
+}
+
+// NewProjectEvent creates a new project-scoped event with the current timestamp.
+func NewProjectEvent(eventType EventType, projectID string, taskID string, data any) Event {
+	return Event{
+		Type:      eventType,
+		ProjectID: projectID,
+		TaskID:    taskID,
+		Data:      data,
+		Time:      time.Now(),
 	}
 }
 

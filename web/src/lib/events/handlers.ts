@@ -17,6 +17,7 @@ import type { PhaseStatus as UIPhaseStatus } from '@/components/workflow-editor/
 import { estimatePhaseCompletion } from '@/lib/utils/progressEstimation';
 import type { SessionMetrics, PhaseProgress } from '@/components/common/RealTimeMetrics';
 import type { Task, ExecutionState } from '@/gen/orc/v1/task_pb';
+import { emitRecommendationSignal } from './recommendationSignals';
 
 /**
  * Interface for the subset of TaskStore methods used by event handlers
@@ -384,13 +385,23 @@ export function handleEvent(event: Event): void {
 		}
 
 		case 'recommendationCreated': {
-			const { title } = event.payload.value;
+			const { recommendationId, title } = event.payload.value;
+			emitRecommendationSignal({
+				projectId: event.projectId ?? '',
+				recommendationId,
+				type: 'created',
+			});
 			toast.info(`Recommendation created: ${title || 'Untitled recommendation'}`);
 			break;
 		}
 
 		case 'recommendationDecided': {
 			const { recommendationId, status } = event.payload.value;
+			emitRecommendationSignal({
+				projectId: event.projectId ?? '',
+				recommendationId,
+				type: 'decided',
+			});
 			toast.info(`Recommendation ${recommendationId} updated to ${status}`);
 			break;
 		}

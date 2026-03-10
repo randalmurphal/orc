@@ -139,6 +139,10 @@ func (s *eventServer) Subscribe(
 				continue
 			}
 
+			if filterEventByProjectIDs(event, req.Msg.ProjectIds) {
+				continue
+			}
+
 			// Filter by initiative if specified
 			initFilter := ""
 			if req.Msg.InitiativeId != nil {
@@ -329,6 +333,9 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 	result := &orcv1.Event{
 		Id:        uuid.New().String(),
 		Timestamp: timestamppb.New(e.Time),
+	}
+	if e.ProjectID != "" {
+		result.ProjectId = &e.ProjectID
 	}
 	if e.TaskID != "" {
 		result.TaskId = &e.TaskID
@@ -997,6 +1004,20 @@ func filterEventByInitiative(event events.Event, initiativeID string, backend st
 
 	// Task belongs to the filtered initiative - pass through
 	return false
+}
+
+func filterEventByProjectIDs(event events.Event, projectIDs []string) bool {
+	if len(projectIDs) == 0 || event.ProjectID == "" {
+		return false
+	}
+
+	for _, projectID := range projectIDs {
+		if projectID == event.ProjectID {
+			return false
+		}
+	}
+
+	return true
 }
 
 // stringToProtoActivityState converts a string activity state to proto ActivityState enum.

@@ -59,10 +59,19 @@ func newRecommendationListCmd() *cobra.Command {
 				return err
 			}
 
+			statusProto, err := parseRecommendationStatusFlag(status)
+			if err != nil {
+				return err
+			}
+			kindProto, err := parseRecommendationKindFlag(kind)
+			if err != nil {
+				return err
+			}
+
 			req := &orcv1.ListRecommendationsRequest{
 				ProjectId:    projectID,
-				Status:       recommendationStatusFlagToProto(status),
-				Kind:         recommendationKindFlagToProto(kind),
+				Status:       statusProto,
+				Kind:         kindProto,
 				SourceTaskId: sourceTaskID,
 			}
 			resp, err := client.ListRecommendations(cmd.Context(), req)
@@ -303,6 +312,17 @@ func recommendationStatusFlagToProto(value string) orcv1.RecommendationStatus {
 	}
 }
 
+func parseRecommendationStatusFlag(value string) (orcv1.RecommendationStatus, error) {
+	status := recommendationStatusFlagToProto(value)
+	if strings.TrimSpace(value) == "" || status != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_UNSPECIFIED {
+		return status, nil
+	}
+	return orcv1.RecommendationStatus_RECOMMENDATION_STATUS_UNSPECIFIED, fmt.Errorf(
+		"invalid recommendation status %q (expected one of: pending, accepted, rejected, discussed)",
+		value,
+	)
+}
+
 func recommendationKindFlagToProto(value string) orcv1.RecommendationKind {
 	switch strings.ToLower(value) {
 	case "cleanup":
@@ -316,6 +336,17 @@ func recommendationKindFlagToProto(value string) orcv1.RecommendationKind {
 	default:
 		return orcv1.RecommendationKind_RECOMMENDATION_KIND_UNSPECIFIED
 	}
+}
+
+func parseRecommendationKindFlag(value string) (orcv1.RecommendationKind, error) {
+	kind := recommendationKindFlagToProto(value)
+	if strings.TrimSpace(value) == "" || kind != orcv1.RecommendationKind_RECOMMENDATION_KIND_UNSPECIFIED {
+		return kind, nil
+	}
+	return orcv1.RecommendationKind_RECOMMENDATION_KIND_UNSPECIFIED, fmt.Errorf(
+		"invalid recommendation kind %q (expected one of: cleanup, risk, follow-up, decision-request)",
+		value,
+	)
 }
 
 func recommendationStatusLabel(status orcv1.RecommendationStatus) string {

@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/recommendation';
 import type { Recommendation } from '@/gen/orc/v1/recommendation_pb';
 import { RecommendationKind, RecommendationStatus } from '@/gen/orc/v1/recommendation_pb';
+import { onRecommendationSignal } from '@/lib/events/recommendationSignals';
 import './RecommendationInbox.css';
 
 export function RecommendationInbox() {
@@ -35,6 +36,15 @@ export function RecommendationInbox() {
 	useEffect(() => {
 		loadRecommendations();
 	}, [loadRecommendations]);
+
+	useEffect(() => {
+		return onRecommendationSignal((signal) => {
+			if (signal.projectId !== projectId) {
+				return;
+			}
+			void loadRecommendations();
+		});
+	}, [loadRecommendations, projectId]);
 
 	const pendingRecommendations = useMemo(
 		() => recommendations.filter((recommendation) => recommendation.status === RecommendationStatus.PENDING),

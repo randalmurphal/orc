@@ -78,6 +78,42 @@ func TestRecommendationCommand_HelpIncludesSubcommands(t *testing.T) {
 	require.Contains(t, stdout.String(), "discuss")
 }
 
+func TestRecommendationCommand_ListRejectsInvalidStatusFilter(t *testing.T) {
+	originalFactory := recommendationCLIClientFactory
+	recommendationCLIClientFactory = func() (recommendationCLIClient, string, error) {
+		return &stubRecommendationClient{}, "", nil
+	}
+	t.Cleanup(func() { recommendationCLIClientFactory = originalFactory })
+
+	cmd := newRecommendationCmd()
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stdout)
+	cmd.SetArgs([]string{"list", "--status", "pendng"})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid recommendation status")
+}
+
+func TestRecommendationCommand_ListRejectsInvalidKindFilter(t *testing.T) {
+	originalFactory := recommendationCLIClientFactory
+	recommendationCLIClientFactory = func() (recommendationCLIClient, string, error) {
+		return &stubRecommendationClient{}, "", nil
+	}
+	t.Cleanup(func() { recommendationCLIClientFactory = originalFactory })
+
+	cmd := newRecommendationCmd()
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stdout)
+	cmd.SetArgs([]string{"list", "--kind", "cleanup-ish"})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid recommendation kind")
+}
+
 type stubRecommendationClient struct {
 	listResponse    *orcv1.ListRecommendationsResponse
 	acceptResponse  *orcv1.AcceptRecommendationResponse

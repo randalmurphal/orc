@@ -350,6 +350,40 @@ func TestInternalEventToProto_EventTranscript(t *testing.T) {
 	}
 }
 
+func TestInternalEventToProto_RecommendationEventsIncludeProjectID(t *testing.T) {
+	t.Parallel()
+
+	event := events.NewProjectEvent(
+		events.EventRecommendationCreated,
+		"proj-123",
+		"TASK-001",
+		events.RecommendationCreatedData{
+			RecommendationID: "REC-001",
+			Kind:             db.RecommendationKindCleanup,
+			Status:           db.RecommendationStatusPending,
+			Title:            "Clean it up",
+			Summary:          "There is duplicated work",
+			SourceTaskID:     "TASK-001",
+		},
+	)
+
+	result := internalEventToProto(event)
+	if result == nil {
+		t.Fatal("expected proto event, got nil")
+	}
+	if result.ProjectId == nil || *result.ProjectId != "proj-123" {
+		t.Fatalf("project_id = %v, want proj-123", result.ProjectId)
+	}
+
+	payload := result.GetRecommendationCreated()
+	if payload == nil {
+		t.Fatal("expected recommendation_created payload")
+	}
+	if payload.RecommendationId != "REC-001" {
+		t.Fatalf("recommendation_id = %q, want REC-001", payload.RecommendationId)
+	}
+}
+
 // TestInternalEventToProto_EventWarning tests conversion of EventWarning events.
 func TestInternalEventToProto_EventWarning(t *testing.T) {
 	t.Parallel()
@@ -593,6 +627,55 @@ func TestInternalEventToProto_UnknownEventType(t *testing.T) {
 
 	if result != nil {
 		t.Errorf("expected nil result for unknown event type, got non-nil")
+	}
+}
+
+func TestFilterEventByProjectIDs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		event      events.Event
+		projectIDs []string
+		wantFilter bool
+	}{
+		{
+			name:       "no project filter passes through",
+			event:      events.NewProjectEvent(events.EventRecommendationCreated, "proj-001", "TASK-001", nil),
+			projectIDs: nil,
+			wantFilter: false,
+		},
+		{
+			name:       "matching project passes through",
+			event:      events.NewProjectEvent(events.EventRecommendationCreated, "proj-001", "TASK-001", nil),
+			projectIDs: []string{"proj-001"},
+			wantFilter: false,
+		},
+		{
+			name:       "different project is filtered",
+			event:      events.NewProjectEvent(events.EventRecommendationCreated, "proj-002", "TASK-001", nil),
+			projectIDs: []string{"proj-001"},
+			wantFilter: true,
+		},
+		{
+			name: "legacy event without project id still passes",
+			event: events.NewEvent(events.EventPhase, "TASK-001", events.PhaseUpdate{
+				Phase:  "review",
+				Status: "completed",
+			}),
+			projectIDs: []string{"proj-001"},
+			wantFilter: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := filterEventByProjectIDs(tt.event, tt.projectIDs)
+			if got != tt.wantFilter {
+				t.Fatalf("filterEventByProjectIDs() = %v, want %v", got, tt.wantFilter)
+			}
+		})
 	}
 }
 

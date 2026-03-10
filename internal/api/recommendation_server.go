@@ -82,7 +82,7 @@ func (s *recommendationServer) CreateRecommendation(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	s.publishRecommendationCreated(rec)
+	s.publishRecommendationCreated(req.Msg.GetProjectId(), rec)
 	return connect.NewResponse(&orcv1.CreateRecommendationResponse{Recommendation: rec}), nil
 }
 
@@ -154,7 +154,7 @@ func (s *recommendationServer) AcceptRecommendation(
 	if err != nil {
 		return nil, err
 	}
-	s.publishRecommendationDecided(rec, previousStatus)
+	s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
 	return connect.NewResponse(&orcv1.AcceptRecommendationResponse{Recommendation: rec}), nil
 }
 
@@ -172,7 +172,7 @@ func (s *recommendationServer) RejectRecommendation(
 	if err != nil {
 		return nil, err
 	}
-	s.publishRecommendationDecided(rec, previousStatus)
+	s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
 	return connect.NewResponse(&orcv1.RejectRecommendationResponse{Recommendation: rec}), nil
 }
 
@@ -190,7 +190,7 @@ func (s *recommendationServer) DiscussRecommendation(
 	if err != nil {
 		return nil, err
 	}
-	s.publishRecommendationDecided(rec, previousStatus)
+	s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
 	return connect.NewResponse(&orcv1.DiscussRecommendationResponse{
 		Recommendation: rec,
 		ContextPack:    buildRecommendationContextPack(rec),
@@ -238,11 +238,11 @@ func (s *recommendationServer) updateRecommendationDecision(
 	return updated, current.Status, nil
 }
 
-func (s *recommendationServer) publishRecommendationCreated(rec *orcv1.Recommendation) {
+func (s *recommendationServer) publishRecommendationCreated(projectID string, rec *orcv1.Recommendation) {
 	if s.publisher == nil || rec == nil {
 		return
 	}
-	s.publisher.Publish(events.NewEvent(events.EventRecommendationCreated, rec.SourceTaskId, events.RecommendationCreatedData{
+	s.publisher.Publish(events.NewProjectEvent(events.EventRecommendationCreated, projectID, rec.SourceTaskId, events.RecommendationCreatedData{
 		RecommendationID: rec.Id,
 		Kind:             recommendationKindProtoToString(rec.Kind),
 		Status:           recommendationStatusProtoToString(rec.Status),
@@ -258,11 +258,11 @@ func (s *recommendationServer) publishRecommendationCreated(rec *orcv1.Recommend
 	}))
 }
 
-func (s *recommendationServer) publishRecommendationDecided(rec *orcv1.Recommendation, previousStatus orcv1.RecommendationStatus) {
+func (s *recommendationServer) publishRecommendationDecided(projectID string, rec *orcv1.Recommendation, previousStatus orcv1.RecommendationStatus) {
 	if s.publisher == nil || rec == nil {
 		return
 	}
-	s.publisher.Publish(events.NewEvent(events.EventRecommendationDecided, rec.SourceTaskId, events.RecommendationDecidedData{
+	s.publisher.Publish(events.NewProjectEvent(events.EventRecommendationDecided, projectID, rec.SourceTaskId, events.RecommendationDecidedData{
 		RecommendationID: rec.Id,
 		PreviousStatus:   recommendationStatusProtoToString(previousStatus),
 		Status:           recommendationStatusProtoToString(rec.Status),
