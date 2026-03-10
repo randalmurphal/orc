@@ -29,6 +29,12 @@ decisions:
   - text: "Existing thread, layout, brief, and acceptance-criteria work from INIT-003 is reused as foundation rather than rebuilt"
     rationale: "The old initiative produced useful substrate even though the overall Development OS direction was too broad."
 
+  - text: "Control-plane context is exposed through the workflow variable system and prompt variable resolver"
+    rationale: "Recommendations, attention summaries, and handoff packs should be intentional prompt inputs, not a second ad hoc prompt assembly path."
+
+  - text: "Recommendations and related links stay in ProjectDB; the multi-project layer aggregates summaries only"
+    rationale: "This preserves project ownership, export/import behavior, and the existing multi-project architecture."
+
 tasks:
   - id: 1
     title: "Recommendation inbox and data model"
@@ -41,24 +47,72 @@ tasks:
       polluting the real backlog.
 
       Success criteria:
-      - Recommendations are stored separately from tasks
-      - Recommendations support states like open, accepted, rejected, and discussing
-      - Recommendations retain source task/thread/run context
+      - Recommendations are stored in ProjectDB separately from tasks
+      - A canonical Recommendation contract exists with fields for id, kind, status, title, summary, proposed_action, evidence, source context, dedupe key, and decision metadata
+      - Recommendations support explicit state transitions with audit history
+      - Invalid transitions and duplicate dedupe keys are rejected
+      - Recommendations retain source task/thread/run context and promotion provenance
       - CLI, API, and UI expose accept/reject/discuss actions
       - Project-scoped recommendations roll up into cross-project attention counts
 
       Testing:
       - Persistence and status-transition tests
+      - State-machine and invalid-transition tests
+      - Duplicate-dedupe-key tests
+      - Concurrent decision attempt tests
       - API contract tests
       - Event emission tests
       - Basic inbox rendering tests
 
   - id: 2
+    title: "Control-plane variable and schema contracts"
+    workflow: crossmodel-standard
+    category: refactor
+    priority: critical
+    depends_on: [1]
+    description: |
+      Intent: define the shared prompt and variable contracts used by recommendations,
+      attention signals, thread promotion, and CLI handoff generation.
+
+      Success criteria:
+      - Shared structured schemas exist for recommendation candidates, attention signals, promoted drafts, and handoff packs
+      - The relevant context is exposed through the existing workflow variable system and prompt resolver
+      - Variable names, size limits, and omission behavior are documented and tested
+      - Claude and Codex paths use the same underlying contract where they should
+
+      Testing:
+      - Schema fixture tests
+      - Variable resolution tests
+      - Prompt/schema parity tests
+      - Cross-model regression tests for core control-plane artifacts
+
+  - id: 3
+    title: "Structured operator attention signals"
+    workflow: crossmodel-standard
+    category: feature
+    priority: high
+    depends_on: [1, 2]
+    description: |
+      Intent: model the operator-facing signals that drive triage without scraping prose from transcripts.
+
+      Success criteria:
+      - Blocker signals, decision requests, discussion-needed signals, and verification summaries have explicit contracts
+      - Signals are project-scoped and can be aggregated into cross-project attention summaries
+      - Signals can reference tasks, recommendations, runs, and initiatives without overloading the task model
+      - The root command center and project home can render these signals without parsing prose blobs
+
+      Testing:
+      - Persistence and query tests
+      - Aggregation tests
+      - Event-update tests
+      - Rendering/availability tests for root and project-level attention surfaces
+
+  - id: 4
     title: "Human acceptance flow for recommendations and draft plans"
     workflow: crossmodel-standard
     category: feature
-    priority: critical
-    depends_on: [1]
+    priority: high
+    depends_on: [1, 2]
     description: |
       Intent: make recommendation and draft-plan promotion explicit instead of automatic.
 
@@ -66,71 +120,114 @@ tasks:
       - A human can accept, reject, or request revision/discussion
       - The decision is durable and visible in task/initiative history
       - Accepted items promote into tasks or initiative decisions without manual re-entry
-      - This stays scoped to recommendation/plan acceptance, not a generic human-phase framework
+      - This is the only path that turns drafts or recommendations into real backlog artifacts
 
       Testing:
       - CLI and API action tests
       - UI state-transition tests
-      - Event-update tests
+      - Idempotency tests for repeated decisions
+      - Provenance and audit-history tests
 
-  - id: 3
-    title: "Discussion workspace: thread history, linkage, and promotion"
+  - id: 5
+    title: "Discussion workspace: thread history, typed linkage, and draft promotion"
     workflow: crossmodel-standard
     category: feature
     priority: high
-    depends_on: [1]
+    depends_on: [1, 2]
     description: |
       Intent: turn threads into useful project artifacts instead of thin chat panes.
 
       Success criteria:
-      - Threads can link to initiatives, tasks, recommendations, and relevant files/diffs
+      - Threads can link to initiatives, tasks, recommendations, and relevant files/diffs through typed linkage
       - Reopening a thread restores history and current context cleanly
-      - A thread can promote content into a draft task or initiative decision
+      - Threads can produce draft recommendations or draft initiative decisions, but do not bypass acceptance flow
       - Discussion state is clearly separated from execution state
 
       Testing:
       - Linkage persistence tests
       - Reopen behavior tests
-      - Promotion-flow tests
+      - Draft-promotion tests
       - Event-update tests
 
-  - id: 4
+  - id: 6
     title: "Post-completion recommendation trigger"
     workflow: crossmodel-standard
     category: feature
     priority: high
-    depends_on: [1]
+    depends_on: [1, 2]
     description: |
       Intent: surface likely follow-up work, cleanup, coverage gaps, and
       decision requests as recommendations when tasks complete.
 
       Success criteria:
-      - Task completion can generate project-scoped recommendations from findings and verification results
-      - Recommendations include source evidence and a proposed action
+      - Task completion can generate project-scoped recommendation candidates from findings, verification results, completion metadata, and changed files
+      - Recommendation candidates follow the shared structured schema and expose evidence, proposed action, confidence, and dedupe key
+      - Duplicate or low-signal recommendations are suppressed deterministically
       - No automatic backlog creation
-      - Duplicate or low-signal recommendations are suppressed
 
       Testing:
       - Trigger execution tests
       - Recommendation generation contract tests
       - Duplicate-suppression tests
-      - Inbox visibility tests
+      - Golden fixture tests for empty, accepted, duplicate, and low-signal cases
 
-  - id: 5
-    title: "Multi-project command center and project home"
+  - id: 7
+    title: "Recommendation and decision artifact indexing"
+    workflow: crossmodel-standard
+    category: feature
+    priority: normal
+    depends_on: [2, 4, 5, 6]
+    description: |
+      Intent: retain enough project memory to improve briefs, recommendation
+      deduping, and handoffs without reviving the giant Development OS graph plan.
+
+      Success criteria:
+      - Accepted recommendations, initiative decisions, promoted thread artifacts, and high-signal task outcomes enrich the existing brief/context layer
+      - Retrieval improves recommendation deduping and context-pack generation
+      - Indexed artifacts stay project-scoped
+      - No heavyweight knowledge product surface is introduced
+
+      Testing:
+      - Indexing trigger tests
+      - Retrieval-input tests
+      - Brief/context enrichment tests
+      - Downstream proof tests for dedupe and handoff generation
+
+  - id: 8
+    title: "CLI handoff actions and context packs"
+    workflow: crossmodel-standard
+    category: feature
+    priority: normal
+    depends_on: [2, 5, 7]
+    description: |
+      Intent: make the UI feed real Codex/Claude CLI sessions instead of pretending to replace them.
+
+      Success criteria:
+      - Users can copy exact CLI commands, bootstrap prompts, and compact context packs
+      - Context packs work from tasks, threads, recommendations, and attention items through variable-backed contracts
+      - Output sections, size limits, and omission rules are explicit and tested
+      - Outputs stay compact, high-signal, and pasteable into Codex or Claude Code
+
+      Testing:
+      - Generation contract tests
+      - Clipboard-action tests
+      - Context-pack rendering tests for each source type
+      - Snapshot/parity tests for Claude and Codex handoff outputs
+
+  - id: 9
+    title: "Multi-project command center"
     workflow: crossmodel-standard
     category: feature
     priority: critical
-    depends_on: [1, 3, 4]
+    depends_on: [3, 4, 6]
     description: |
-      Intent: make orc useful as a daily control plane across many repos while
-      preserving project-level depth.
+      Intent: make `/` a real multi-project attention hub instead of a project card grid.
 
       Success criteria:
       - Root command center shows running work, human-attention items, discussions, and recommendations across projects
-      - Project home shows active work, blocked items, recent completions, recommendations, and discussion state for that project
-      - Existing My Work and task-detail surfaces are reused where possible
-      - Operators have clear next actions instead of dashboard noise
+      - Cross-project summaries are derived from project-scoped data, not a new global artifact store
+      - Sort order, empty states, stale-data states, and operator actions are explicit
+      - Existing My Work surfaces are reused where possible instead of replaced wholesale
 
       Testing:
       - Cross-project aggregation tests
@@ -138,31 +235,34 @@ tasks:
       - Attention-state rendering tests
       - Primary operator-action tests
 
-  - id: 6
-    title: "CLI handoff actions and context packs"
+  - id: 10
+    title: "Project home: execution, discussion, and handoff"
     workflow: crossmodel-standard
     category: feature
-    priority: high
-    depends_on: [1, 3]
+    priority: critical
+    depends_on: [3, 4, 5, 6, 8]
     description: |
-      Intent: make the UI feed real Codex/Claude CLI sessions instead of pretending to replace them.
+      Intent: make the project-level landing surface the place where execution,
+      discussion, and handoff actually connect.
 
       Success criteria:
-      - Users can copy exact CLI commands, bootstrap prompts, and compact context packs
-      - Context packs work from tasks, threads, and recommendations
-      - Outputs stay compact, high-signal, and pasteable into Codex or Claude Code
+      - Project home shows active work, blocked items, recent completions, attention signals, recommendations, and discussion state for that project
+      - The most relevant next action is visible for each major item
+      - Handoff actions and context packs are accessible from the project home without pretending to replace the CLI
+      - Existing task-detail and discussion surfaces are reused where possible
 
       Testing:
-      - Generation contract tests
-      - Clipboard-action tests
-      - Context-pack rendering tests for task, thread, and recommendation sources
+      - Project-scoped rendering tests
+      - Operator-action availability tests
+      - Handoff integration tests
+      - Mixed-state regression tests
 
-  - id: 7
+  - id: 11
     title: "Operator command palette and exact actions"
     workflow: crossmodel-standard
     category: feature
     priority: normal
-    depends_on: [6]
+    depends_on: [8, 9, 10]
     description: |
       Intent: replace dead top-bar search with an action surface that helps operators move work.
 
@@ -170,50 +270,10 @@ tasks:
       - The top-level command surface exposes actions like show, log, resume, approve, finalize, open thread, and copy exact CLI command
       - Actions respect project scope and current selection
       - Keyboard interaction is faster than drilling through navigation chrome
+      - Command availability is explicit by selection type
 
       Testing:
       - Command registration tests
       - Filtering and keyboard interaction tests
       - Action-routing tests
-
-  - id: 8
-    title: "Recommendation and decision artifact indexing"
-    workflow: crossmodel-standard
-    category: feature
-    priority: normal
-    depends_on: [1, 4]
-    description: |
-      Intent: retain enough project memory to improve briefs, recommendation
-      deduping, and handoffs without reviving the giant Development OS graph plan.
-
-      Success criteria:
-      - Accepted recommendations, initiative decisions, high-signal findings, and task outcomes enrich the existing brief/context layer
-      - Retrieval helps recommendation deduping and context-pack generation
-      - No heavyweight knowledge product surface is introduced
-
-      Testing:
-      - Indexing trigger tests
-      - Retrieval-input tests
-      - Brief/context enrichment tests
-
-  - id: 9
-    title: "Prompt and context discipline for control-plane flows"
-    workflow: crossmodel-standard
-    category: refactor
-    priority: normal
-    depends_on: [6, 8]
-    description: |
-      Intent: tighten the prompts and structured outputs used by recommendations,
-      thread promotion, and handoff generation so the system produces compact,
-      pasteable, reviewable artifacts.
-
-      Success criteria:
-      - Relevant prompts and schemas prefer compact structured outputs over prose dumps
-      - Outputs survive context compaction
-      - Copied prompts and context packs stay consistent across Claude and Codex paths
-      - Discussion state and execution state are clearly separated in prompt contracts
-
-      Testing:
-      - Prompt/schema parity tests
-      - Compact-output regression tests
-      - Promotion and recommendation generation regression tests
+      - Disabled/unavailable-state tests

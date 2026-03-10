@@ -54,6 +54,14 @@ Threads, recommendations, and execution remain project-scoped. The multi-project
 - Every recommendation should support `accept`, `reject`, and `discuss`.
 - `Discuss` should prepare a structured context pack or bootstrap prompt that can be copied into a real agent CLI session.
 - Agents should emit structured blockers, decision requests, and recommendations instead of burying them in prose.
+- New control-plane context must flow through the existing workflow variable system and prompt variable resolver. Do not build a second ad hoc prompt-assembly path for recommendations, attention signals, or handoff packs.
+
+## Architecture Rules
+
+- Recommendations, thread links, and operator attention artifacts live in ProjectDB, not GlobalDB.
+- The multi-project command center reads per-project summaries through existing project routing and cache layers.
+- Cross-object references should use typed links or typed provenance fields, not JSON blobs or a pile of nullable columns.
+- Prompt-facing control-plane context should be exposed as variables such as recommendation summaries, attention summaries, and handoff packs so workflows can include them intentionally.
 
 ## Non-Goals
 
@@ -74,11 +82,14 @@ The smallest useful loop is:
 5. Accepted items become tasks or initiative decisions
 
 The first wave of implementation should focus on:
+- recommendation model and state machine
+- structured operator attention signals
 - multi-project command center and project home
 - recommendation inbox and human acceptance flow
 - discussion-to-task / discussion-to-decision flow
 - copyable CLI bootstrap prompts and exact commands
 - post-completion recommendation generation
+- variable-backed prompt/context contracts for all of the above
 
 ## Migration Rule
 
