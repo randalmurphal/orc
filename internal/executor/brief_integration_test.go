@@ -411,6 +411,13 @@ func TestEnrichControlPlaneContext(t *testing.T) {
 	}
 
 	we.enrichContextForPhase(rctx, "implement", targetTask)
+	if err := we.populateControlPlaneContext(rctx, "implement", targetTask, controlPlaneVariableUsage{
+		PendingRecommendations: true,
+		AttentionSummary:       true,
+		HandoffContext:         true,
+	}); err != nil {
+		t.Fatalf("populateControlPlaneContext() error = %v", err)
+	}
 
 	if got := strings.Count(rctx.PendingRecommendations, "\n- ["); got != 3 {
 		t.Fatalf("pending recommendation count = %d, want 3\n%s", got, rctx.PendingRecommendations)
@@ -456,7 +463,14 @@ func TestEnrichControlPlaneContextClearsStaleValuesOnLoadFailure(t *testing.T) {
 		HandoffContext:         "stale handoff summary",
 	}
 
-	we.enrichContextForPhase(rctx, "implement", targetTask)
+	err := we.populateControlPlaneContext(rctx, "implement", targetTask, controlPlaneVariableUsage{
+		PendingRecommendations: true,
+		AttentionSummary:       true,
+		HandoffContext:         true,
+	})
+	if err == nil {
+		t.Fatal("populateControlPlaneContext() error = nil, want load failure")
+	}
 
 	if rctx.PendingRecommendations != "" {
 		t.Fatalf("PendingRecommendations = %q, want empty string after load failure", rctx.PendingRecommendations)
@@ -466,6 +480,63 @@ func TestEnrichControlPlaneContextClearsStaleValuesOnLoadFailure(t *testing.T) {
 	}
 	if rctx.HandoffContext != "" {
 		t.Fatalf("HandoffContext = %q, want empty string after load failure", rctx.HandoffContext)
+	}
+}
+
+func TestPopulateControlPlaneContextSkipsBackendWhenVarsUnused(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	failingBackend := &failingControlPlaneBackend{Backend: backend}
+	we := NewWorkflowExecutor(failingBackend, backend.DB(), testGlobalDBFrom(backend), config.Default(), t.TempDir())
+
+	rctx := &variable.ResolutionContext{
+		PendingRecommendations: "stale pending summary",
+		AttentionSummary:       "stale attention summary",
+		HandoffContext:         "stale handoff summary",
+	}
+
+	if err := we.populateControlPlaneContext(rctx, "implement", nil, controlPlaneVariableUsage{}); err != nil {
+		t.Fatalf("populateControlPlaneContext() error = %v, want nil when vars unused", err)
+	}
+
+	if rctx.PendingRecommendations != "" {
+		t.Fatalf("PendingRecommendations = %q, want empty string", rctx.PendingRecommendations)
+	}
+	if rctx.AttentionSummary != "" {
+		t.Fatalf("AttentionSummary = %q, want empty string", rctx.AttentionSummary)
+	}
+	if rctx.HandoffContext != "" {
+		t.Fatalf("HandoffContext = %q, want empty string", rctx.HandoffContext)
+	}
+}
+
+func TestPhaseControlPlaneVariableUsage(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	we := NewWorkflowExecutor(backend, backend.DB(), testGlobalDBFrom(backend), config.Default(), t.TempDir())
+
+	tmpl := &db.PhaseTemplate{
+		ID:            "review",
+		PromptSource:  "db",
+		PromptContent: "Review:\n{{ATTENTION_SUMMARY}}\n{{HANDOFF_CONTEXT}}",
+		ClaudeConfig:  `{"system_prompt":"Use {{PENDING_RECOMMENDATIONS}} if available."}`,
+	}
+
+	usage, err := we.phaseControlPlaneVariableUsage(tmpl, &db.WorkflowPhase{PhaseTemplateID: "review"})
+	if err != nil {
+		t.Fatalf("phaseControlPlaneVariableUsage() error = %v", err)
+	}
+
+	if !usage.PendingRecommendations {
+		t.Fatal("PendingRecommendations = false, want true")
+	}
+	if !usage.AttentionSummary {
+		t.Fatal("AttentionSummary = false, want true")
+	}
+	if !usage.HandoffContext {
+		t.Fatal("HandoffContext = false, want true")
 	}
 }
 

@@ -316,9 +316,6 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 	// Load scratchpad entries from prior phases for PREV_SCRATCHPAD
 	we.populateScratchpadContext(rctx, t.Id, phaseID)
 
-	// Load control-plane summaries from backend state.
-	we.populateControlPlaneContext(rctx, phaseID, t)
-
 	// Load automation context for automation tasks
 	if t.IsAutomation {
 		we.loadAutomationContextProto(rctx, t)
@@ -329,26 +326,36 @@ func (we *WorkflowExecutor) populateControlPlaneContext(
 	rctx *variable.ResolutionContext,
 	phaseID string,
 	currentTask *orcv1.Task,
-) {
+	usage controlPlaneVariableUsage,
+) error {
 	rctx.PendingRecommendations = ""
 	rctx.HandoffContext = ""
 	rctx.AttentionSummary = ""
 
-	recommendations, err := we.backend.LoadAllRecommendations()
-	if err != nil {
-		we.logger.Warn("failed to load recommendations for control-plane context", "error", err)
-	} else {
-		rctx.PendingRecommendations = formatPendingRecommendations(recommendations)
-		rctx.HandoffContext = formatHandoffContext(currentTask, phaseID, recommendations)
+	if usage.needsRecommendations() {
+		recommendations, err := we.backend.LoadAllRecommendations()
+		if err != nil {
+			return fmt.Errorf("load recommendations for control-plane context: %w", err)
+		}
+
+		if usage.PendingRecommendations {
+			rctx.PendingRecommendations = formatPendingRecommendations(recommendations)
+		}
+		if usage.HandoffContext {
+			rctx.HandoffContext = formatHandoffContext(currentTask, phaseID, recommendations)
+		}
+	}
+
+	if !usage.AttentionSummary {
+		return nil
 	}
 
 	tasks, err := we.backend.LoadAllTasks()
 	if err != nil {
-		we.logger.Warn("failed to load tasks for control-plane context", "error", err)
-		return
+		return fmt.Errorf("load tasks for control-plane context: %w", err)
 	}
-
 	rctx.AttentionSummary = formatAttentionSignals(tasks)
+	return nil
 }
 
 func formatPendingRecommendations(recommendations []*orcv1.Recommendation) string {

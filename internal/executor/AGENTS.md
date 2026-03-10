@@ -350,7 +350,7 @@ All template variables resolved via `internal/variable/Resolver`. Resolution con
 
 See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, API, phase_output).
 
-`enrichContextForPhase()` also hydrates the control-plane variables from project state before resolution: pending recommendations are summarized for prompt injection, blocked and failed tasks are compacted into `ATTENTION_SUMMARY`, and the current task gets a bounded `HANDOFF_CONTEXT`. Each value is cleared to an empty string when the source data is unavailable.
+When the active phase prompt or system prompt references them, the executor hydrates the control-plane variables from project state before resolution: pending recommendations are summarized for prompt injection, blocked and failed tasks are compacted into `ATTENTION_SUMMARY`, and the current task gets a bounded `HANDOFF_CONTEXT`. Unused variables stay empty without touching the backend; referenced variables fail the phase if their source data cannot be loaded.
 
 ## Phase Content Storage
 
