@@ -621,30 +621,49 @@ func (we *WorkflowExecutor) executeWithProvider(ctx context.Context, cfg PhaseEx
 		result.Iterations++
 		we.updatePhaseIterations(cfg, result.Iterations)
 
-		turnResult, err := turnExec.ExecuteTurn(ctx, pctx.Prompt)
+		var (
+			turnResult  *TurnResult
+			turnResults []*TurnResult
+		)
+
+		if we.turnExecutor == nil && shouldUseClaudeStructuredFinalize(cfg, adapter) {
+			turnResult, turnResults, err = executeClaudeStructuredFinalize(ctx, turnExec, cfg, pctx.Prompt)
+		} else {
+			turnResult, err = turnExec.ExecuteTurn(ctx, pctx.Prompt)
+			if turnResult != nil {
+				turnResults = []*TurnResult{turnResult}
+			}
+		}
+
+		for _, currentTurn := range turnResults {
+			if currentTurn == nil {
+				continue
+			}
+
+			// Session ID update (shared — both providers)
+			if currentTurn.SessionID != "" {
+				turnExec.UpdateSessionID(currentTurn.SessionID)
+				result.SessionID = currentTurn.SessionID
+			}
+
+			// Provider-specific post-turn (Codex: persist thread_id)
+			if postErr := adapter.PostTurn(currentTurn, pctx, &cfg, we); postErr != nil {
+				we.logger.Warn("post-turn failed", "provider", adapter.Name(), "error", postErr)
+			}
+
+			// Token accumulation — uniform, all fields, all providers
+			if currentTurn.Usage != nil {
+				result.InputTokens += int(currentTurn.Usage.InputTokens)
+				result.OutputTokens += int(currentTurn.Usage.OutputTokens)
+				result.CacheCreationTokens += int(currentTurn.Usage.CacheCreationInputTokens)
+				result.CacheReadTokens += int(currentTurn.Usage.CacheReadInputTokens)
+			}
+			result.CostUSD += currentTurn.CostUSD
+		}
+
 		if err != nil {
 			return result, fmt.Errorf("%s turn %d: %w", adapter.Name(), i+1, err)
 		}
-
-		// Session ID update (shared — both providers)
-		if turnResult.SessionID != "" {
-			turnExec.UpdateSessionID(turnResult.SessionID)
-			result.SessionID = turnResult.SessionID
-		}
-
-		// Provider-specific post-turn (Codex: persist thread_id)
-		if postErr := adapter.PostTurn(turnResult, pctx, &cfg, we); postErr != nil {
-			we.logger.Warn("post-turn failed", "provider", adapter.Name(), "error", postErr)
-		}
-
-		// Token accumulation — uniform, all fields, all providers
-		if turnResult.Usage != nil {
-			result.InputTokens += int(turnResult.Usage.InputTokens)
-			result.OutputTokens += int(turnResult.Usage.OutputTokens)
-			result.CacheCreationTokens += int(turnResult.Usage.CacheCreationInputTokens)
-			result.CacheReadTokens += int(turnResult.Usage.CacheReadInputTokens)
-		}
-		result.CostUSD += turnResult.CostUSD
 
 		// Parse status at orchestration level (authoritative for all providers + mocks).
 		// Both real executors also parse in ExecuteTurn() for internal retry logic,
