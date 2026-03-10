@@ -244,6 +244,31 @@ func TestReviewTemplate_ThreeOutcomesPreserved(t *testing.T) {
 	}
 }
 
+func TestReviewTemplates_BlockEventDrivenAndProjectScopedGaps(t *testing.T) {
+	t.Parallel()
+
+	files := []string{"review.md", "review_cross.md"}
+	for _, file := range files {
+		file := file
+		t.Run(file, func(t *testing.T) {
+			t.Parallel()
+
+			content := readReviewTemplate(t, file)
+			for _, required := range []string{
+				"external mutation",
+				"project",
+				"isolation",
+				"toast",
+				"live state",
+			} {
+				if !strings.Contains(strings.ToLower(content), strings.ToLower(required)) {
+					t.Errorf("%s missing event-driven/project-scoped review guidance %q", file, required)
+				}
+			}
+		})
+	}
+}
+
 // --- Preservation: Template variable placeholders ---
 
 func TestReviewRound1_TemplatePlaceholdersPreserved(t *testing.T) {

@@ -67,6 +67,10 @@ If ANY new file has no production importer, wiring status is "FAIL".
   "browser_surface_change": true,
   "required": true,
   "performed": true,
+  "live_update_surface": true,
+  "external_mutation_validated": true,
+  "project_scoped_surface": true,
+  "project_isolation_validated": true,
   "reason": "This diff changes browser-visible behavior.",
   "evidence": "Used browser tools to exercise the changed flow and verified the expected UI behavior.",
   "artifacts": []
@@ -74,6 +78,8 @@ If ANY new file has no production importer, wiring status is "FAIL".
 ```
 If `browser_surface_change` is `true`, then `required` MUST also be `true`.
 If `required` is `true`, then `performed` MUST be `true` and `evidence` cannot be empty.
+If `live_update_surface` is `true`, then `external_mutation_validated` MUST also be `true`.
+If `project_scoped_surface` is `true`, then `project_isolation_validated` MUST also be `true`.
 
 **CRITICAL:** The `verification` field is MANDATORY. Completion without verification evidence will be REJECTED.
 
@@ -155,6 +161,8 @@ You must make the final browser-validation decision from the implemented diff:
 - If the change affects anything a user sees or does in a browser surface, browser validation is required.
 - This includes backend, API, proto, or configuration changes that alter what the UI displays or how it behaves.
 - If browser validation is required and you cannot execute it, return `blocked` instead of claiming completion.
+- If the browser surface should react to external events, polling, or another actor's changes while it is open, set `live_update_surface=true` and validate at least one mutation initiated outside the page you are observing.
+- If the browser-visible behavior must stay isolated to the selected project or tenant, set `project_scoped_surface=true` and validate that isolation explicitly.
 </browser_validation_mandate>
 
 <context>
@@ -366,6 +374,8 @@ Execute all checks and include evidence for each in your completion output:
 4. {{#if LINT_COMMAND}}Run `{{LINT_COMMAND}}` on the files you changed (not the whole project){{else}}Run the project linter on files you changed{{/if}} — fix lint errors ONLY in your changes. Pre-existing lint failures in other files are not your problem. Use `git diff --name-only` to identify your files.
 5. **Wiring check** — For each new file created, grep the codebase to confirm a production file imports it. Dead code = FAIL.
 6. **Browser validation check** — If the implemented diff changes browser-visible behavior, run browser validation now and capture evidence in `verification.browser_validation`.
+7. **External mutation check** — If the page should react to outside changes while open, validate at least one external mutation scenario and record it.
+8. **Project isolation check** — If the browser behavior is project- or tenant-scoped, validate that isolation and record it.
 7. **Behavioral parity check** — If you added a parallel/async path, verify ALL original behaviors are present.
 
 **Only output completion JSON after all checks pass.** See Output Format for the exact schema.
@@ -418,7 +428,7 @@ AMEND-001: [Original] → [Actual] — [Reason]
     "build": {"status": "PASS", "evidence": "go build ./... exits 0"},
     "linting": {"status": "PASS", "evidence": "golangci-lint run exits 0"},
     "wiring": {"status": "PASS", "evidence": "internal/middleware/rate_limit.go is imported by internal/api/router.go:45", "new_files": [{"file": "internal/middleware/rate_limit.go", "imported_by": "internal/api/router.go:45"}]},
-    "browser_validation": {"browser_surface_change": false, "required": false, "performed": false, "reason": "No browser-visible behavior changed in this task.", "evidence": "Not applicable.", "artifacts": []}
+    "browser_validation": {"browser_surface_change": false, "required": false, "performed": false, "live_update_surface": false, "external_mutation_validated": false, "project_scoped_surface": false, "project_isolation_validated": false, "reason": "No browser-visible behavior changed in this task.", "evidence": "Not applicable.", "artifacts": []}
   },
   "pre_existing_issues": []
 }

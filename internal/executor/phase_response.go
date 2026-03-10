@@ -186,6 +186,22 @@ const ImplementCompletionSchema = `{
 							"type": "boolean",
 							"description": "True when browser validation was actually performed."
 						},
+						"live_update_surface": {
+							"type": "boolean",
+							"description": "True when the browser surface is expected to update from external events, polling, or another actor's changes while the page is open."
+						},
+						"external_mutation_validated": {
+							"type": "boolean",
+							"description": "True when browser validation proved the page reacted correctly to a change initiated outside the page being observed."
+						},
+						"project_scoped_surface": {
+							"type": "boolean",
+							"description": "True when the browser-visible behavior must stay isolated to the selected project or tenant."
+						},
+						"project_isolation_validated": {
+							"type": "boolean",
+							"description": "True when validation proved the browser-visible behavior stays scoped to the correct project or tenant."
+						},
 						"reason": {
 							"type": "string",
 							"description": "Why browser validation was or was not required."
@@ -200,7 +216,7 @@ const ImplementCompletionSchema = `{
 							"items": {"type": "string"}
 						}
 					},
-					"required": ["browser_surface_change", "required", "performed", "reason", "evidence", "artifacts"]
+					"required": ["browser_surface_change", "required", "performed", "live_update_surface", "external_mutation_validated", "project_scoped_surface", "project_isolation_validated", "reason", "evidence", "artifacts"]
 				}
 			}
 		},
@@ -408,12 +424,12 @@ type PhaseResponse struct {
 
 // ImplementVerification represents the verification evidence for implement phase completion.
 type ImplementVerification struct {
-	Tests           *VerificationStatus      `json:"tests,omitempty"`
-	SuccessCriteria []SuccessCriterionResult `json:"success_criteria,omitempty"`
-	Build           *VerificationStatus      `json:"build,omitempty"`
-	Linting         *VerificationStatus      `json:"linting,omitempty"`
-	Wiring          *WiringVerification      `json:"wiring,omitempty"`
-	BrowserValidation *BrowserValidation     `json:"browser_validation,omitempty"`
+	Tests             *VerificationStatus      `json:"tests,omitempty"`
+	SuccessCriteria   []SuccessCriterionResult `json:"success_criteria,omitempty"`
+	Build             *VerificationStatus      `json:"build,omitempty"`
+	Linting           *VerificationStatus      `json:"linting,omitempty"`
+	Wiring            *WiringVerification      `json:"wiring,omitempty"`
+	BrowserValidation *BrowserValidation       `json:"browser_validation,omitempty"`
 }
 
 // VerificationStatus represents a single verification check result.
@@ -445,12 +461,16 @@ type WiringNewFile struct {
 
 // BrowserValidation records whether browser validation was required and what evidence was gathered.
 type BrowserValidation struct {
-	BrowserSurfaceChange bool     `json:"browser_surface_change"`
-	Required             bool     `json:"required"`
-	Performed            bool     `json:"performed"`
-	Reason               string   `json:"reason"`
-	Evidence             string   `json:"evidence"`
-	Artifacts            []string `json:"artifacts,omitempty"`
+	BrowserSurfaceChange      bool     `json:"browser_surface_change"`
+	Required                  bool     `json:"required"`
+	Performed                 bool     `json:"performed"`
+	LiveUpdateSurface         bool     `json:"live_update_surface"`
+	ExternalMutationValidated bool     `json:"external_mutation_validated"`
+	ProjectScopedSurface      bool     `json:"project_scoped_surface"`
+	ProjectIsolationValidated bool     `json:"project_isolation_validated"`
+	Reason                    string   `json:"reason"`
+	Evidence                  string   `json:"evidence"`
+	Artifacts                 []string `json:"artifacts,omitempty"`
 }
 
 // ImplementResponse extends PhaseResponse with verification evidence.
@@ -559,6 +579,12 @@ func ValidateImplementCompletion(content string) error {
 		}
 		if browserValidation.Performed && strings.TrimSpace(browserValidation.Evidence) == "" {
 			failures = append(failures, "browser validation evidence missing")
+		}
+		if browserValidation.LiveUpdateSurface && !browserValidation.ExternalMutationValidated {
+			failures = append(failures, "live-update browser surface requires external mutation validation")
+		}
+		if browserValidation.ProjectScopedSurface && !browserValidation.ProjectIsolationValidated {
+			failures = append(failures, "project-scoped browser surface requires project isolation validation")
 		}
 	}
 

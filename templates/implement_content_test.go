@@ -109,6 +109,12 @@ func TestImplementPrompts_RequireBrowserValidationContract(t *testing.T) {
 				"browser-visible behavior",
 				"backend, API",
 				"advisory only",
+				"live_update_surface",
+				"external_mutation_validated",
+				"project_scoped_surface",
+				"project_isolation_validated",
+				"external mutation",
+				"project or tenant",
 			} {
 				if !strings.Contains(text, required) {
 					t.Errorf("%s missing browser-validation guidance %q", file, required)

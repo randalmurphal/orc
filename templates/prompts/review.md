@@ -286,9 +286,13 @@ Inspect the implementation completion JSON when available (`{{OUTPUT_IMPLEMENT_C
   - `browser_surface_change=true`
   - `required=true`
   - `performed=true`
+  - `live_update_surface` / `external_mutation_validated` when the page should react to outside changes while open
+  - `project_scoped_surface` / `project_isolation_validated` when the behavior must stay scoped to the selected project or tenant
   - concrete `evidence`
 - If browser validation should have happened and that evidence is missing, weak, or contradicted by the diff, this is a HIGH-SEVERITY finding and you MUST block.
 - Do not accept “planner said no browser QA” as an excuse. Review the implemented behavior, not the plan's guess.
+- Do not accept “event pipeline is wired” or “toasts fire” as proof that live browser state is correct. If the surface is supposed to update, verify state updates, not notifications.
+- Require an external mutation check when the browser surface is supposed to react to another actor, background event, or other event-driven change while open.
 
 ## Check 6: Integration Completeness (CRITICAL - Find ALL Call Sites)
 
@@ -336,6 +340,17 @@ grep -rn "targetBranch\|target_branch" internal/executor/ --include="*.go"
 List EVERY file:line that needs to be changed in your blocking reason. The implement retry will fail if it doesn't know all the locations.
 
 Dead code, unwired integration, or incomplete bug fixes are **high-severity** findings.
+
+## Check 6b: Event-Driven and Multi-Project Integrity (CRITICAL)
+
+If the diff adds or changes events, subscriptions, dashboards, inboxes, live views, or project-scoped UI:
+
+- Verify project or tenant scoping end to end. New events must preserve the correct project context through publication, transport, and client handling.
+- Verify the client consumes the event into real state when the UI is supposed to update live. Toasts or logs alone are not sufficient.
+- Verify the browser evidence includes at least one mutation initiated outside the page being observed when the surface is meant to react while open.
+- Verify multi-project or tenant-scoped behavior includes an isolation check, not just a happy-path check in one project.
+
+Missing project scoping, stale live state, or notification-only wiring on an operator surface are HIGH-SEVERITY findings. Block them.
 
 ## Check 7: Behavioral Parity (CRITICAL for parallel/concurrent code)
 

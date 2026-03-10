@@ -760,6 +760,62 @@ func TestValidateImplementCompletion(t *testing.T) {
 			wantErr: true,
 			errMsg:  "browser validation evidence missing",
 		},
+		{
+			name: "live-update surface without external mutation validation - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS"},
+					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
+					"build": {"status": "PASS"},
+					"linting": {"status": "PASS"},
+					"wiring": {"status": "PASS"},
+					"browser_validation": {
+						"browser_surface_change": true,
+						"required": true,
+						"performed": true,
+						"live_update_surface": true,
+						"external_mutation_validated": false,
+						"project_scoped_surface": false,
+						"project_isolation_validated": false,
+						"reason": "This page should react to external recommendation updates.",
+						"evidence": "Validated only local clicks.",
+						"artifacts": []
+					}
+				}
+			}`,
+			wantErr: true,
+			errMsg:  "live-update browser surface requires external mutation validation",
+		},
+		{
+			name: "project-scoped surface without isolation validation - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS"},
+					"success_criteria": [{"id": "SC-1", "status": "PASS"}],
+					"build": {"status": "PASS"},
+					"linting": {"status": "PASS"},
+					"wiring": {"status": "PASS"},
+					"browser_validation": {
+						"browser_surface_change": true,
+						"required": true,
+						"performed": true,
+						"live_update_surface": false,
+						"external_mutation_validated": false,
+						"project_scoped_surface": true,
+						"project_isolation_validated": false,
+						"reason": "This surface must stay scoped to the selected project.",
+						"evidence": "Validated only a single-project happy path.",
+						"artifacts": []
+					}
+				}
+			}`,
+			wantErr: true,
+			errMsg:  "project-scoped browser surface requires project isolation validation",
+		},
 	}
 
 	for _, tt := range tests {
@@ -797,5 +853,20 @@ func TestGetSchemaForPhaseWithRound_ImplementCodex(t *testing.T) {
 	schema := GetSchemaForPhaseWithRound("implement_codex", 0, false)
 	if schema != ImplementCompletionSchema {
 		t.Error("GetSchemaForPhaseWithRound(implement_codex) should return ImplementCompletionSchema")
+	}
+}
+
+func TestImplementCompletionSchema_RequiresEventDrivenBrowserFields(t *testing.T) {
+	t.Parallel()
+
+	for _, required := range []string{
+		`"live_update_surface"`,
+		`"external_mutation_validated"`,
+		`"project_scoped_surface"`,
+		`"project_isolation_validated"`,
+	} {
+		if !strings.Contains(ImplementCompletionSchema, required) {
+			t.Errorf("ImplementCompletionSchema missing %s", required)
+		}
 	}
 }

@@ -64,6 +64,10 @@ When complete, output JSON:
       "browser_surface_change": true,
       "required": true,
       "performed": true,
+      "live_update_surface": true,
+      "external_mutation_validated": true,
+      "project_scoped_surface": true,
+      "project_isolation_validated": true,
       "reason": "This task changes browser-visible behavior, including rendered UI state and interactions.",
       "evidence": "Used Playwright/browser tools to exercise the changed flow and verify the expected UI behavior.",
       "artifacts": []
@@ -95,6 +99,8 @@ If blocked, still return the same top-level keys. Use `null` or `[]` for fields 
 6. Treat the plan phase's `risk_assessment.requires_browser_qa` and `verification_plan.e2e` as advisory only, not final authority. Decide from the implemented diff whether browser-visible behavior changed.
 7. If the implemented change affects browser-visible behavior in any way, including backend or API changes that alter what the UI renders or how it behaves, `verification.browser_validation.required` must be `true` and you must perform browser validation yourself before claiming completion.
 8. If browser validation is required but the browser app cannot be run or validated, return `blocked` instead of claiming completion.
+9. If the browser surface is expected to react to external events, polling, or another actor's changes while it is open, set `live_update_surface=true` and validate it with a mutation initiated outside the page you are observing.
+10. If the browser-visible behavior must stay isolated to the selected project or tenant, set `project_scoped_surface=true` and validate that the behavior stays scoped correctly.
 
 ## Verification Status Rules
 
@@ -115,14 +121,21 @@ Populate `verification.browser_validation` on every completion:
 - `browser_surface_change`: `true` when the implemented behavior changes anything a user sees or does in a browser surface, even if the code change is mostly backend, API, or proto wiring.
 - `required`: `true` when browser validation was needed for the implemented diff.
 - `performed`: `true` only if you actually executed browser validation.
+- `live_update_surface`: `true` when the page should react to an update initiated outside the page itself.
+- `external_mutation_validated`: `true` only if you proved the page reacted correctly to a change initiated elsewhere (another tab, another request, seeded data, background event, etc.).
+- `project_scoped_surface`: `true` when the browser-visible behavior must stay isolated to the selected project or tenant.
+- `project_isolation_validated`: `true` only if you proved the browser-visible behavior stayed scoped to the correct project or tenant.
 - `reason`: explain why browser validation was or was not required.
 - `evidence`: describe the exact browser flow you validated and what you observed.
 - `artifacts`: include screenshot, trace, or log paths when you produced them; otherwise use `[]`.
 
 If `browser_surface_change=true`, then `required` must also be `true`.
 If `required=true`, then `performed` must be `true` and `evidence` must be concrete.
+If `live_update_surface=true`, then `external_mutation_validated` must also be `true`.
+If `project_scoped_surface=true`, then `project_isolation_validated` must also be `true`.
 
 When browser validation is required, use the browser tools available in this environment to exercise the changed flow. Validate the real user-visible behavior, not just unit tests.
+Do not stop at same-page happy paths when the surface depends on external updates or project scoping.
 
 ## Process
 
@@ -134,9 +147,11 @@ When browser validation is required, use the browser tools available in this env
 6. {{#if LINT_COMMAND}}Run `{{LINT_COMMAND}}` on changed files.{{else}}Lint changed files.{{/if}} Fix your lint errors only.
 7. For each new file, verify a production file imports it.
 8. Decide whether the implemented diff changed browser-visible behavior. If it did, run browser validation now and capture evidence in `verification.browser_validation`.
-9. Verify each success criterion from the spec with concrete evidence.
-10. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
-11. Output completion JSON.
+9. For event-driven or live-updating browser surfaces, include at least one external mutation scenario in your validation.
+10. For multi-project or tenant-scoped browser surfaces, include an isolation scenario in your validation.
+11. Verify each success criterion from the spec with concrete evidence.
+12. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
+13. Output completion JSON.
 
 {{#if TDD_TESTS_CONTENT}}
 If tests fail: fix your implementation, not the tests. If a test contradicts the spec, document as `AMEND-NNN`.

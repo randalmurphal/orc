@@ -176,6 +176,7 @@ If blocked due to unclear requirements:
 7. **Classify operational risk explicitly** — every plan must state risk level, risk tags, rollback expectations, observability expectations, and whether browser QA or a human gate is required.
 
 8. **Capture invariants, not aspirations** — invariants are things that must stay true under retries, failures, concurrent access, malformed input, and partial outages.
+9. **Event-driven and multi-project surfaces need explicit checks** — if a task touches live browser state or cross-project behavior, success criteria must cover external updates and project isolation, not just local clicks and counts.
 </critical_constraints>
 
 <context>
@@ -230,6 +231,12 @@ Write 3-7 verifiable success criteria. Each must have:
 - Error path coverage (what happens when things go wrong)
 - Enough specificity that a reviewer can decide PASS or FAIL without guessing
 
+If the task touches events, dashboards, inboxes, live views, or multi-project surfaces:
+- Include at least one success criterion for external-update behavior when the page should react while open.
+- Include at least one success criterion for project or tenant isolation when the behavior must stay scoped.
+- Put those checks into `verification_plan.e2e` or the test list explicitly.
+- Treat this as event-driven behavior, not generic UI polish.
+
 **Anti-patterns to avoid:**
 - "File exists" — test behavior, not existence
 - "Component renders" — test that clicking/interacting does the right thing
@@ -258,6 +265,8 @@ Fill in these top-level JSON fields with concrete values:
 
 Risk tags must be specific. Use tags such as:
 - `payments`
+- `event_driven_ui`
+- `multi_project`
 - `auth`
 - `persistence`
 - `migrations`

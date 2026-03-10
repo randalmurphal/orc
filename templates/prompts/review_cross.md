@@ -68,6 +68,8 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - Are edge cases and failure modes covered where the change is risky?
 - If the implementation claims a fix, is there evidence the bug would have been caught before and is prevented now?
 - Inspect the implementation completion JSON when available (`{{OUTPUT_IMPLEMENT_CODEX}}` or `{{OUTPUT_IMPLEMENT}}`) and verify `verification.browser_validation` is present and credible when the implemented diff changes browser-visible behavior.
+- For event-driven browser surfaces, require evidence of an external mutation while the page is open. Same-page clicks are not enough.
+- For multi-project or tenant-scoped browser surfaces, require evidence that the behavior stayed isolated to the correct project or tenant.
 
 **5. Edge Cases & Boundaries**
 - What happens with empty input, nil values, zero-length collections?
@@ -86,6 +88,11 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - Every new function must be called from at least one production path
 - Code that compiles and passes tests but is never reached = dead code
 - Tests that construct perfect input that production never creates = false confidence
+
+**7b. Event-Driven & Multi-Project Integrity**
+- If the diff adds or changes events, subscriptions, dashboards, inboxes, or live views, verify project scoping survives publication, transport, and client handling.
+- A toast, log line, or event conversion function is not proof of live state correctness. The client must update the real state when the product expects it.
+- Treat stale operator state or cross-project event leakage as blocking correctness issues, not polish.
 
 **8. Pattern Compliance**
 - Does the code follow existing codebase conventions?
@@ -107,6 +114,8 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - Over-engineered changes that materially increase complexity without need
 - Missing or misleading tests for critical behavior
 - Missing browser-validation evidence when the implemented diff changes browser-visible behavior, including backend or API changes that affect what the UI renders
+- Missing external-mutation validation for an event-driven browser surface
+- Missing project-isolation validation for a project-scoped browser surface
 </critical_constraints>
 
 <context>
@@ -146,9 +155,10 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 5. **Hunt for edge cases** — what inputs, states, or timing would break this code?
 6. **Check error paths** — trace every error from origin to handler. Any gaps?
 7. **Check browser validation** — if the implemented diff changes browser-visible behavior, verify the implementation output includes real browser-validation evidence rather than a planner guess
-8. **Verify integration** — new code is reachable from production paths
-9. If you found small issues, fix and commit them
-10. Output your structured response
+8. **Check event-driven and project-scoped behavior** — if the diff adds live browser state or project-scoped behavior, verify external-mutation and isolation evidence
+9. **Verify integration** — new code is reachable from production paths
+10. If you found small issues, fix and commit them
+11. Output your structured response
 
 ## Success Criteria Verification (MANDATORY)
 
