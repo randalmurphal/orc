@@ -328,14 +328,14 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 func (we *WorkflowExecutor) populateControlPlaneContext(rctx *variable.ResolutionContext) {
 	recommendations, err := we.backend.LoadAllRecommendations()
 	if err != nil {
-		we.logger.Debug("failed to load recommendations for control-plane context", "error", err)
+		we.logger.Warn("failed to load recommendations for control-plane context", "error", err)
 	} else {
 		rctx.PendingRecommendations = formatPendingRecommendations(recommendations)
 	}
 
 	tasks, err := we.backend.LoadAllTasks()
 	if err != nil {
-		we.logger.Debug("failed to load tasks for control-plane context", "error", err)
+		we.logger.Warn("failed to load tasks for control-plane context", "error", err)
 		return
 	}
 
