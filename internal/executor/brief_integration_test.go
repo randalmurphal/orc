@@ -301,6 +301,7 @@ func TestEnrichControlPlaneContext(t *testing.T) {
 
 	targetTask := task.NewProtoTask("TASK-813", "Control-plane contracts")
 	targetTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	targetTask.Description = stringPtr("Wire shared control-plane contracts into the resolver.")
 	if err := backend.SaveTask(targetTask); err != nil {
 		t.Fatalf("save target task: %v", err)
 	}
@@ -420,6 +421,21 @@ func TestEnrichControlPlaneContext(t *testing.T) {
 	for _, taskID := range []string{"TASK-101", "TASK-102"} {
 		if !strings.Contains(rctx.AttentionSummary, taskID) {
 			t.Fatalf("attention summary missing %s: %s", taskID, rctx.AttentionSummary)
+		}
+	}
+	if !strings.Contains(rctx.HandoffContext, "## Handoff Pack") {
+		t.Fatalf("handoff context missing header: %s", rctx.HandoffContext)
+	}
+	for _, want := range []string{
+		"Task: TASK-813 Control-plane contracts",
+		"Current phase: implement",
+		"Summary: Wire shared control-plane contracts into the resolver.",
+		"Next step: Add variables in a later task.",
+		"Next step: Use the shared helper.",
+		"Risk: Prompt budget regression: Control-plane summaries could grow too large.",
+	} {
+		if !strings.Contains(rctx.HandoffContext, want) {
+			t.Fatalf("handoff context missing %q: %s", want, rctx.HandoffContext)
 		}
 	}
 }

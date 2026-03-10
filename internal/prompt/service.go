@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/templates"
 )
 
@@ -274,6 +275,20 @@ func GetVariableReference() map[string]string {
 		"{{TEST_COMMAND}}":  "Project test command",
 		"{{LINT_COMMAND}}":  "Project lint command",
 		"{{BUILD_COMMAND}}": "Project build command",
+
+		// Control-plane context
+		"{{PENDING_RECOMMENDATIONS}}": fmt.Sprintf(
+			"Pending recommendation summary for prompt context. Truncated to %d KiB and empty when there are no pending recommendations.",
+			controlplane.MaxRecommendationSummaryBytes/1024,
+		),
+		"{{ATTENTION_SUMMARY}}": fmt.Sprintf(
+			"Blocked and failed task summary for prompt context. Truncated to %d KiB and empty when there are no attention items.",
+			controlplane.MaxAttentionSummaryBytes/1024,
+		),
+		"{{HANDOFF_CONTEXT}}": fmt.Sprintf(
+			"Compact handoff pack for the current task. Truncated to %d KiB and empty when no handoff context is available.",
+			controlplane.MaxHandoffPackBytes/1024,
+		),
 
 		// Phase outputs (dynamic — derived from phase template output_var_name)
 		"{{OUTPUT_<PHASE_ID>}}": "Generic phase output (e.g., {{OUTPUT_SPEC}}, {{OUTPUT_IMPLEMENT}})",

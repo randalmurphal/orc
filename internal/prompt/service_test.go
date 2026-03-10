@@ -349,6 +349,29 @@ func TestGetVariableReference_StructuredRetryVars(t *testing.T) {
 	}
 }
 
+func TestGetVariableReference_ControlPlaneVars(t *testing.T) {
+	vars := GetVariableReference()
+
+	cases := map[string]string{
+		"{{PENDING_RECOMMENDATIONS}}": "8 KiB",
+		"{{ATTENTION_SUMMARY}}":       "4 KiB",
+		"{{HANDOFF_CONTEXT}}":         "16 KiB",
+	}
+
+	for name, limit := range cases {
+		description, ok := vars[name]
+		if !ok {
+			t.Fatalf("GetVariableReference() must include %s", name)
+		}
+		if !strings.Contains(description, limit) {
+			t.Fatalf("%s description must mention %s, got %q", name, limit, description)
+		}
+		if !strings.Contains(description, "empty when") {
+			t.Fatalf("%s description must document omission behavior, got %q", name, description)
+		}
+	}
+}
+
 func TestFinalizePromptExists(t *testing.T) {
 	tmpDir := t.TempDir()
 	svc := NewService(filepath.Join(tmpDir, ".orc"))

@@ -317,7 +317,7 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 	we.populateScratchpadContext(rctx, t.Id, phaseID)
 
 	// Load control-plane summaries from backend state.
-	we.populateControlPlaneContext(rctx)
+	we.populateControlPlaneContext(rctx, phaseID, t)
 
 	// Load automation context for automation tasks
 	if t.IsAutomation {
@@ -325,12 +325,17 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 	}
 }
 
-func (we *WorkflowExecutor) populateControlPlaneContext(rctx *variable.ResolutionContext) {
+func (we *WorkflowExecutor) populateControlPlaneContext(
+	rctx *variable.ResolutionContext,
+	phaseID string,
+	currentTask *orcv1.Task,
+) {
 	recommendations, err := we.backend.LoadAllRecommendations()
 	if err != nil {
 		we.logger.Warn("failed to load recommendations for control-plane context", "error", err)
 	} else {
 		rctx.PendingRecommendations = formatPendingRecommendations(recommendations)
+		rctx.HandoffContext = formatHandoffContext(currentTask, phaseID, recommendations)
 	}
 
 	tasks, err := we.backend.LoadAllTasks()
@@ -367,6 +372,27 @@ func formatPendingRecommendations(recommendations []*orcv1.Recommendation) strin
 	})
 
 	return controlplane.FormatRecommendationSummary(candidates)
+}
+
+func formatHandoffContext(
+	currentTask *orcv1.Task,
+	phaseID string,
+	recommendations []*orcv1.Recommendation,
+) string {
+	if currentTask == nil {
+		return ""
+	}
+
+	pack := controlplane.HandoffPack{
+		TaskID:       currentTask.GetId(),
+		TaskTitle:    currentTask.GetTitle(),
+		CurrentPhase: phaseID,
+		Summary:      task.GetDescriptionProto(currentTask),
+		NextSteps:    handoffNextSteps(currentTask.GetId(), recommendations),
+		Risks:        handoffRisks(currentTask.GetId(), recommendations),
+	}
+
+	return controlplane.FormatHandoffPack(pack)
 }
 
 func formatAttentionSignals(tasks []*orcv1.Task) string {
@@ -421,6 +447,80 @@ func attentionSummaryForTask(taskItem *orcv1.Task) string {
 		}
 	}
 	return task.GetDescriptionProto(taskItem)
+}
+
+func handoffNextSteps(taskID string, recommendations []*orcv1.Recommendation) []string {
+	steps := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	for _, recommendation := range recommendations {
+		if recommendation.GetSourceTaskId() != taskID {
+			continue
+		}
+		if recommendation.GetStatus() != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING {
+			continue
+		}
+		if recommendation.GetKind() == orcv1.RecommendationKind_RECOMMENDATION_KIND_RISK {
+			continue
+		}
+
+		step := strings.TrimSpace(recommendation.GetProposedAction())
+		if step == "" {
+			step = strings.TrimSpace(recommendation.GetSummary())
+		}
+		if step == "" {
+			step = strings.TrimSpace(recommendation.GetTitle())
+		}
+		if step == "" {
+			continue
+		}
+		if _, exists := seen[step]; exists {
+			continue
+		}
+
+		seen[step] = struct{}{}
+		steps = append(steps, step)
+	}
+
+	sort.Strings(steps)
+	return steps
+}
+
+func handoffRisks(taskID string, recommendations []*orcv1.Recommendation) []string {
+	risks := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	for _, recommendation := range recommendations {
+		if recommendation.GetSourceTaskId() != taskID {
+			continue
+		}
+		if recommendation.GetStatus() != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING {
+			continue
+		}
+		if recommendation.GetKind() != orcv1.RecommendationKind_RECOMMENDATION_KIND_RISK {
+			continue
+		}
+
+		risk := strings.TrimSpace(recommendation.GetTitle())
+		summary := strings.TrimSpace(recommendation.GetSummary())
+		if risk == "" {
+			risk = summary
+		} else if summary != "" {
+			risk = risk + ": " + summary
+		}
+		if risk == "" {
+			continue
+		}
+		if _, exists := seen[risk]; exists {
+			continue
+		}
+
+		seen[risk] = struct{}{}
+		risks = append(risks, risk)
+	}
+
+	sort.Strings(risks)
+	return risks
 }
 
 // populateProjectBrief generates a project brief and populates rctx.ProjectBrief.
