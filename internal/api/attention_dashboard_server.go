@@ -98,10 +98,16 @@ func (s *attentionDashboardServer) GetAttentionDashboardData(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build queue summary: %w", err))
 	}
 
+	pendingRecommendations, err := backend.CountRecommendationsByStatus(orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to count pending recommendations: %w", err))
+	}
+
 	response := &orcv1.GetAttentionDashboardDataResponse{
-		RunningSummary: runningSummary,
-		AttentionItems: attentionItems,
-		QueueSummary:   queueSummary,
+		RunningSummary:         runningSummary,
+		AttentionItems:         attentionItems,
+		QueueSummary:           queueSummary,
+		PendingRecommendations: int32(pendingRecommendations),
 	}
 
 	return connect.NewResponse(response), nil
@@ -289,7 +295,7 @@ func (s *attentionDashboardServer) loadPendingDecisionItems() []*orcv1.Attention
 			Title:       decision.TaskTitle,
 			Description: decision.Question,
 			Priority:    orcv1.TaskPriority_TASK_PRIORITY_NORMAL, // Default priority for decisions
-			CreatedAt:   &timestamppb.Timestamp{
+			CreatedAt: &timestamppb.Timestamp{
 				Seconds: decision.RequestedAt.Unix(),
 				Nanos:   int32(decision.RequestedAt.Nanosecond()),
 			},

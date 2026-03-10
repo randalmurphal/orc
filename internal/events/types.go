@@ -66,6 +66,10 @@ const (
 	// EventDecisionResolved indicates a gate decision was approved or rejected.
 	EventDecisionResolved EventType = "decision_resolved"
 
+	// Recommendation inbox events.
+	EventRecommendationCreated EventType = "recommendation_created"
+	EventRecommendationDecided EventType = "recommendation_decided"
+
 	// Thread events (for Development OS chat interface)
 
 	// EventThreadMessage indicates a new message was added to a thread.
@@ -78,10 +82,11 @@ const (
 
 // Event represents a published event.
 type Event struct {
-	Type   EventType `json:"type"`
-	TaskID string    `json:"task_id"`
-	Data   any       `json:"data"`
-	Time   time.Time `json:"time"`
+	Type      EventType `json:"type"`
+	ProjectID string    `json:"project_id,omitempty"`
+	TaskID    string    `json:"task_id"`
+	Data      any       `json:"data"`
+	Time      time.Time `json:"time"`
 }
 
 // NewEvent creates a new event with the current timestamp.
@@ -94,14 +99,25 @@ func NewEvent(eventType EventType, taskID string, data any) Event {
 	}
 }
 
+// NewProjectEvent creates a new project-scoped event with the current timestamp.
+func NewProjectEvent(eventType EventType, projectID string, taskID string, data any) Event {
+	return Event{
+		Type:      eventType,
+		ProjectID: projectID,
+		TaskID:    taskID,
+		Data:      data,
+		Time:      time.Now(),
+	}
+}
+
 // TranscriptLine represents a single transcript entry.
 type TranscriptLine struct {
-	Phase     string    `json:"phase"`
-	Iteration int       `json:"iteration"`
-	Type      string    `json:"type"` // prompt, response, tool, error
-	Content   string    `json:"content"`
-	Timestamp time.Time `json:"timestamp"`
-	Model     string    `json:"model,omitempty"`
+	Phase     string       `json:"phase"`
+	Iteration int          `json:"iteration"`
+	Type      string       `json:"type"` // prompt, response, tool, error
+	Content   string       `json:"content"`
+	Timestamp time.Time    `json:"timestamp"`
+	Model     string       `json:"model,omitempty"`
 	Tokens    *TokenUpdate `json:"tokens,omitempty"`
 }
 
@@ -238,6 +254,35 @@ type ThreadMessageData struct {
 type ThreadTypingData struct {
 	ThreadID string `json:"thread_id"`
 	IsTyping bool   `json:"is_typing"`
+}
+
+type RecommendationCreatedData struct {
+	RecommendationID string `json:"recommendation_id"`
+	Kind             string `json:"kind"`
+	Status           string `json:"status"`
+	Title            string `json:"title"`
+	Summary          string `json:"summary"`
+	SourceTaskID     string `json:"source_task_id"`
+	SourceRunID      string `json:"source_run_id"`
+	SourceThreadID   string `json:"source_thread_id"`
+	PromotedToType   string `json:"promoted_to_type"`
+	PromotedToID     string `json:"promoted_to_id"`
+	PromotedBy       string `json:"promoted_by"`
+	PromotedAt       string `json:"promoted_at"`
+}
+
+type RecommendationDecidedData struct {
+	RecommendationID string `json:"recommendation_id"`
+	PreviousStatus   string `json:"previous_status"`
+	Status           string `json:"status"`
+	DecidedBy        string `json:"decided_by"`
+	DecisionReason   string `json:"decision_reason"`
+	SourceTaskID     string `json:"source_task_id"`
+	SourceThreadID   string `json:"source_thread_id"`
+	PromotedToType   string `json:"promoted_to_type"`
+	PromotedToID     string `json:"promoted_to_id"`
+	PromotedBy       string `json:"promoted_by"`
+	PromotedAt       string `json:"promoted_at"`
 }
 
 // ThreadStatusData represents a thread status change.

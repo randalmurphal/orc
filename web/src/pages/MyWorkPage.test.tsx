@@ -15,8 +15,8 @@
  * - All tasks filtered out by status filter
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { MyWorkPage } from './MyWorkPage';
 import { projectClient } from '@/lib/client';
@@ -27,6 +27,7 @@ import {
 } from '@/test/factories';
 import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import { TooltipProvider } from '@/components/ui';
+import { emitRecommendationSignal } from '@/lib/events/recommendationSignals';
 
 // Mock the API client
 vi.mock('@/lib/client', () => ({
@@ -76,6 +77,10 @@ function renderMyWorkPage() {
 describe('MyWorkPage', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
 	});
 
 	describe('SC-1: fetches and renders cross-project data', () => {
@@ -138,6 +143,66 @@ describe('MyWorkPage', () => {
 				screen.queryByText(/loading/i) ||
 				document.querySelector('.page-loader');
 			expect(loader).toBeInTheDocument();
+		});
+
+		it('refreshes when a recommendation event is emitted', async () => {
+			vi.mocked(projectClient.getAllProjectsStatus)
+				.mockResolvedValueOnce(
+					createMockGetAllProjectsStatusResponse([
+						createMockProjectStatus({
+							projectId: 'proj-1',
+							projectName: 'Project Alpha',
+							pendingRecommendations: 1,
+						}),
+					])
+				)
+				.mockResolvedValueOnce(
+					createMockGetAllProjectsStatusResponse([
+						createMockProjectStatus({
+							projectId: 'proj-1',
+							projectName: 'Project Alpha',
+							pendingRecommendations: 2,
+						}),
+					])
+				);
+
+			renderMyWorkPage();
+
+			await screen.findByText('1 pending recommendations');
+
+			await act(async () => {
+				emitRecommendationSignal({
+					projectId: 'proj-1',
+					recommendationId: 'REC-001',
+					type: 'created',
+				});
+			});
+
+			await screen.findByText('2 pending recommendations');
+			expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(2);
+		});
+
+		it('refreshes on the background interval', async () => {
+			vi.mocked(projectClient.getAllProjectsStatus)
+				.mockResolvedValueOnce(createMockGetAllProjectsStatusResponse([]))
+				.mockResolvedValue(createMockGetAllProjectsStatusResponse([]));
+			const setIntervalSpy = vi.spyOn(window, 'setInterval');
+
+			renderMyWorkPage();
+
+			await waitFor(() => {
+				expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(1);
+			});
+
+			expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 15_000);
+			const intervalCallback = setIntervalSpy.mock.calls[0]?.[0];
+			expect(intervalCallback).toBeTypeOf('function');
+
+			await act(async () => {
+				await intervalCallback?.();
+			});
+
+			expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(2);
 		});
 	});
 

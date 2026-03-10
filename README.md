@@ -277,6 +277,8 @@ orc diff TASK-ID             # View git diff
 orc deps TASK-ID             # Show dependencies (--tree, --graph)
 orc costs                    # Cost report (--by user/project/model, --since)
 orc scratchpad TASK-ID       # View phase observations and decisions
+orc recommendation list      # Review pending recommendations for current project
+orc recommendation accept REC-001 --reason "Handled in INIT-042"
 orc search "query"           # Search tasks
 orc list                     # List tasks (alias: ls)
 ```
@@ -367,6 +369,7 @@ orc serve  # localhost:8080
 ```
 
 - **Dashboard**: Running tasks, recent activity, quick stats
+- **Recommendations**: Inbox for pending follow-up, risk, and decision requests
 - **Task detail**: Timeline, live transcript, controls
 - **Task board**: Drag-and-drop Kanban with initiative filtering
 - **Config**: Edit settings, prompts, hooks

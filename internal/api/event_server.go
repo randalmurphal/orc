@@ -139,6 +139,10 @@ func (s *eventServer) Subscribe(
 				continue
 			}
 
+			if filterEventByProjectIDs(event, req.Msg.ProjectIds) {
+				continue
+			}
+
 			// Filter by initiative if specified
 			initFilter := ""
 			if req.Msg.InitiativeId != nil {
@@ -329,6 +333,9 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 	result := &orcv1.Event{
 		Id:        uuid.New().String(),
 		Timestamp: timestamppb.New(e.Time),
+	}
+	if e.ProjectID != "" {
+		result.ProjectId = &e.ProjectID
 	}
 	if e.TaskID != "" {
 		result.TaskId = &e.TaskID
@@ -583,6 +590,65 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 			return nil
 		}
 
+	case events.EventRecommendationCreated:
+		data, ok := recommendationCreatedEventData(e.Data)
+		if !ok {
+			return nil
+		}
+		kind, err := recommendationKindStringToProto(data.Kind)
+		if err != nil {
+			return nil
+		}
+		status, err := recommendationStatusStringToProto(data.Status)
+		if err != nil {
+			return nil
+		}
+		result.Payload = &orcv1.Event_RecommendationCreated{
+			RecommendationCreated: &orcv1.RecommendationCreatedEvent{
+				RecommendationId: data.RecommendationID,
+				Kind:             kind,
+				Status:           status,
+				Title:            data.Title,
+				Summary:          data.Summary,
+				SourceTaskId:     data.SourceTaskID,
+				SourceRunId:      data.SourceRunID,
+				SourceThreadId:   data.SourceThreadID,
+				PromotedToType:   data.PromotedToType,
+				PromotedToId:     data.PromotedToID,
+				PromotedBy:       data.PromotedBy,
+				PromotedAt:       recommendationEventTimestamp(data.PromotedAt),
+			},
+		}
+
+	case events.EventRecommendationDecided:
+		data, ok := recommendationDecidedEventData(e.Data)
+		if !ok {
+			return nil
+		}
+		previousStatus, err := recommendationStatusStringToProto(data.PreviousStatus)
+		if err != nil {
+			return nil
+		}
+		status, err := recommendationStatusStringToProto(data.Status)
+		if err != nil {
+			return nil
+		}
+		result.Payload = &orcv1.Event_RecommendationDecided{
+			RecommendationDecided: &orcv1.RecommendationDecidedEvent{
+				RecommendationId: data.RecommendationID,
+				PreviousStatus:   previousStatus,
+				Status:           status,
+				DecidedBy:        data.DecidedBy,
+				DecisionReason:   data.DecisionReason,
+				SourceTaskId:     data.SourceTaskID,
+				SourceThreadId:   data.SourceThreadID,
+				PromotedToType:   data.PromotedToType,
+				PromotedToId:     data.PromotedToID,
+				PromotedBy:       data.PromotedBy,
+				PromotedAt:       recommendationEventTimestamp(data.PromotedAt),
+			},
+		}
+
 	default:
 		// Unknown event type, skip
 		return nil
@@ -633,6 +699,65 @@ func dbEventToProto(e *db.EventLog) *orcv1.Event {
 		result.Payload = &orcv1.Event_Error{
 			Error: &orcv1.ErrorEvent{
 				TaskId: e.TaskID,
+			},
+		}
+
+	case string(events.EventRecommendationCreated):
+		data, ok := recommendationCreatedEventData(e.Data)
+		if !ok {
+			return nil
+		}
+		kind, err := recommendationKindStringToProto(data.Kind)
+		if err != nil {
+			return nil
+		}
+		status, err := recommendationStatusStringToProto(data.Status)
+		if err != nil {
+			return nil
+		}
+		result.Payload = &orcv1.Event_RecommendationCreated{
+			RecommendationCreated: &orcv1.RecommendationCreatedEvent{
+				RecommendationId: data.RecommendationID,
+				Kind:             kind,
+				Status:           status,
+				Title:            data.Title,
+				Summary:          data.Summary,
+				SourceTaskId:     data.SourceTaskID,
+				SourceRunId:      data.SourceRunID,
+				SourceThreadId:   data.SourceThreadID,
+				PromotedToType:   data.PromotedToType,
+				PromotedToId:     data.PromotedToID,
+				PromotedBy:       data.PromotedBy,
+				PromotedAt:       recommendationEventTimestamp(data.PromotedAt),
+			},
+		}
+
+	case string(events.EventRecommendationDecided):
+		data, ok := recommendationDecidedEventData(e.Data)
+		if !ok {
+			return nil
+		}
+		previousStatus, err := recommendationStatusStringToProto(data.PreviousStatus)
+		if err != nil {
+			return nil
+		}
+		status, err := recommendationStatusStringToProto(data.Status)
+		if err != nil {
+			return nil
+		}
+		result.Payload = &orcv1.Event_RecommendationDecided{
+			RecommendationDecided: &orcv1.RecommendationDecidedEvent{
+				RecommendationId: data.RecommendationID,
+				PreviousStatus:   previousStatus,
+				Status:           status,
+				DecidedBy:        data.DecidedBy,
+				DecisionReason:   data.DecisionReason,
+				SourceTaskId:     data.SourceTaskID,
+				SourceThreadId:   data.SourceThreadID,
+				PromotedToType:   data.PromotedToType,
+				PromotedToId:     data.PromotedToID,
+				PromotedBy:       data.PromotedBy,
+				PromotedAt:       recommendationEventTimestamp(data.PromotedAt),
 			},
 		}
 
@@ -761,6 +886,91 @@ func transcriptEventType(t string) string {
 	return t
 }
 
+func recommendationCreatedEventData(data any) (events.RecommendationCreatedData, bool) {
+	switch payload := data.(type) {
+	case events.RecommendationCreatedData:
+		return payload, true
+	case *events.RecommendationCreatedData:
+		return *payload, true
+	default:
+		var decoded events.RecommendationCreatedData
+		if err := decodeEventPayload(data, &decoded); err != nil {
+			return events.RecommendationCreatedData{}, false
+		}
+		return decoded, true
+	}
+}
+
+func recommendationDecidedEventData(data any) (events.RecommendationDecidedData, bool) {
+	switch payload := data.(type) {
+	case events.RecommendationDecidedData:
+		return payload, true
+	case *events.RecommendationDecidedData:
+		return *payload, true
+	default:
+		var decoded events.RecommendationDecidedData
+		if err := decodeEventPayload(data, &decoded); err != nil {
+			return events.RecommendationDecidedData{}, false
+		}
+		return decoded, true
+	}
+}
+
+func decodeEventPayload(data any, dest any) error {
+	if data == nil {
+		return errors.New("event data is nil")
+	}
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("marshal event payload: %w", err)
+	}
+	if err := json.Unmarshal(bytes, dest); err != nil {
+		return fmt.Errorf("unmarshal event payload: %w", err)
+	}
+	return nil
+}
+
+func recommendationKindStringToProto(kind string) (orcv1.RecommendationKind, error) {
+	switch kind {
+	case db.RecommendationKindCleanup:
+		return orcv1.RecommendationKind_RECOMMENDATION_KIND_CLEANUP, nil
+	case db.RecommendationKindRisk:
+		return orcv1.RecommendationKind_RECOMMENDATION_KIND_RISK, nil
+	case db.RecommendationKindFollowUp:
+		return orcv1.RecommendationKind_RECOMMENDATION_KIND_FOLLOW_UP, nil
+	case db.RecommendationKindDecisionRequest:
+		return orcv1.RecommendationKind_RECOMMENDATION_KIND_DECISION_REQUEST, nil
+	default:
+		return orcv1.RecommendationKind_RECOMMENDATION_KIND_UNSPECIFIED, fmt.Errorf("invalid recommendation kind %q", kind)
+	}
+}
+
+func recommendationStatusStringToProto(status string) (orcv1.RecommendationStatus, error) {
+	switch status {
+	case db.RecommendationStatusPending:
+		return orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING, nil
+	case db.RecommendationStatusAccepted:
+		return orcv1.RecommendationStatus_RECOMMENDATION_STATUS_ACCEPTED, nil
+	case db.RecommendationStatusRejected:
+		return orcv1.RecommendationStatus_RECOMMENDATION_STATUS_REJECTED, nil
+	case db.RecommendationStatusDiscussed:
+		return orcv1.RecommendationStatus_RECOMMENDATION_STATUS_DISCUSSED, nil
+	default:
+		return orcv1.RecommendationStatus_RECOMMENDATION_STATUS_UNSPECIFIED, fmt.Errorf("invalid recommendation status %q", status)
+	}
+}
+
+func recommendationEventTimestamp(value string) *timestamppb.Timestamp {
+	if value == "" {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return nil
+	}
+	return timestamppb.New(parsed)
+}
+
 // filterEventByInitiative returns true if the event should be filtered out based on initiative.
 // When initiativeID is empty, no filtering occurs (backward compatible).
 // When set, only events from tasks belonging to that initiative pass through.
@@ -794,6 +1004,20 @@ func filterEventByInitiative(event events.Event, initiativeID string, backend st
 
 	// Task belongs to the filtered initiative - pass through
 	return false
+}
+
+func filterEventByProjectIDs(event events.Event, projectIDs []string) bool {
+	if len(projectIDs) == 0 || event.ProjectID == "" {
+		return false
+	}
+
+	for _, projectID := range projectIDs {
+		if projectID == event.ProjectID {
+			return false
+		}
+	}
+
+	return true
 }
 
 // stringToProtoActivityState converts a string activity state to proto ActivityState enum.

@@ -26,6 +26,9 @@ export const ProjectCard = memo(function ProjectCard({
 						<span className="project-card__stat">
 							{project.completedToday} done today
 						</span>
+						<span className="project-card__stat">
+							{project.pendingRecommendations} pending recommendations
+						</span>
 					</div>
 				</div>
 				<button

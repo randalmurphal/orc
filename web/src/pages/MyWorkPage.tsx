@@ -4,9 +4,12 @@ import { projectClient } from '@/lib/client';
 import { useProjectStore } from '@/stores/projectStore';
 import { ProjectCard } from '@/components/dashboard/ProjectCard';
 import { useDocumentTitle } from '@/hooks';
+import { onRecommendationSignal } from '@/lib/events/recommendationSignals';
 import type { ProjectStatus } from '@/gen/orc/v1/project_pb';
 import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import './MyWorkPage.css';
+
+const refreshIntervalMs = 15_000;
 
 type StatusFilter = 'all' | 'running' | 'blocked' | 'created' | 'paused';
 
@@ -48,6 +51,34 @@ export function MyWorkPage() {
 
 	useEffect(() => {
 		fetchData();
+	}, [fetchData]);
+
+	useEffect(() => {
+		const interval = window.setInterval(() => {
+			void fetchData();
+		}, refreshIntervalMs)
+
+		const handleFocus = () => {
+			void fetchData();
+		};
+		const handleVisibilityChange = () => {
+			if (!document.hidden) {
+				void fetchData();
+			}
+		};
+		const unsubscribeRecommendationSignals = onRecommendationSignal(() => {
+			void fetchData();
+		});
+
+		window.addEventListener('focus', handleFocus);
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			window.clearInterval(interval);
+			window.removeEventListener('focus', handleFocus);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			unsubscribeRecommendationSignals();
+		};
 	}, [fetchData]);
 
 	const handleTaskClick = useCallback(

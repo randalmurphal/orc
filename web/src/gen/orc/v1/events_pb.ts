@@ -8,6 +8,8 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { PageRequest, PageResponse, SessionInfo, TokenUsage } from "./common_pb";
 import { file_orc_v1_common } from "./common_pb";
+import type { RecommendationKind, RecommendationStatus } from "./recommendation_pb";
+import { file_orc_v1_recommendation } from "./recommendation_pb";
 import type { PhaseStatus, Task } from "./task_pb";
 import { file_orc_v1_task } from "./task_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -16,7 +18,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file orc/v1/events.proto.
  */
 export const file_orc_v1_events: GenFile = /*@__PURE__*/
-  fileDesc("ChNvcmMvdjEvZXZlbnRzLnByb3RvEgZvcmMudjEiYAoQVGFza0NyZWF0ZWRFdmVudBIPCgd0YXNrX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEhoKDWluaXRpYXRpdmVfaWQYBCABKAlIAIgBAUIQCg5faW5pdGlhdGl2ZV9pZCJXChBUYXNrVXBkYXRlZEV2ZW50Eg8KB3Rhc2tfaWQYASABKAkSGgoEdGFzaxgCIAEoCzIMLm9yYy52MS5UYXNrEhYKDmNoYW5nZWRfZmllbGRzGAMgAygJIiMKEFRhc2tEZWxldGVkRXZlbnQSDwoHdGFza19pZBgBIAEoCSLIAQoRUGhhc2VDaGFuZ2VkRXZlbnQSDwoHdGFza19pZBgBIAEoCRIQCghwaGFzZV9pZBgCIAEoCRISCgpwaGFzZV9uYW1lGAMgASgJEiMKBnN0YXR1cxgEIAEoDjITLm9yYy52MS5QaGFzZVN0YXR1cxIRCglpdGVyYXRpb24YBSABKAUSFwoKY29tbWl0X3NoYRgGIAEoCUgAiAEBEhIKBWVycm9yGAcgASgJSAGIAQFCDQoLX2NvbW1pdF9zaGFCCAoGX2Vycm9yIm0KElRva2Vuc1VwZGF0ZWRFdmVudBIPCgd0YXNrX2lkGAEgASgJEiIKBnRva2VucxgCIAEoCzISLm9yYy52MS5Ub2tlblVzYWdlEhUKCHBoYXNlX2lkGAMgASgJSACIAQFCCwoJX3BoYXNlX2lkIn0KDUFjdGl2aXR5RXZlbnQSDwoHdGFza19pZBgBIAEoCRIQCghwaGFzZV9pZBgCIAEoCRInCghhY3Rpdml0eRgDIAEoDjIVLm9yYy52MS5BY3Rpdml0eVN0YXRlEhQKB2RldGFpbHMYBCABKAlIAIgBAUIKCghfZGV0YWlscyI+ChZJbml0aWF0aXZlQ3JlYXRlZEV2ZW50EhUKDWluaXRpYXRpdmVfaWQYASABKAkSDQoFdGl0bGUYAiABKAkiRwoWSW5pdGlhdGl2ZVVwZGF0ZWRFdmVudBIVCg1pbml0aWF0aXZlX2lkGAEgASgJEhYKDmNoYW5nZWRfZmllbGRzGAIgAygJIi8KFkluaXRpYXRpdmVEZWxldGVkRXZlbnQSFQoNaW5pdGlhdGl2ZV9pZBgBIAEoCSLIAQoVRGVjaXNpb25SZXF1aXJlZEV2ZW50EhMKC2RlY2lzaW9uX2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSEgoKdGFza190aXRsZRgDIAEoCRINCgVwaGFzZRgEIAEoCRIRCglnYXRlX3R5cGUYBSABKAkSEAoIcXVlc3Rpb24YBiABKAkSDwoHY29udGV4dBgHIAEoCRIwCgxyZXF1ZXN0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIsQBChVEZWNpc2lvblJlc29sdmVkRXZlbnQSEwoLZGVjaXNpb25faWQYASABKAkSDwoHdGFza19pZBgCIAEoCRINCgVwaGFzZRgDIAEoCRIQCghhcHByb3ZlZBgEIAEoCBITCgtyZXNvbHZlZF9ieRgFIAEoCRITCgZyZWFzb24YBiABKAlIAIgBARIvCgtyZXNvbHZlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCCQoHX3JlYXNvbiJVCg9GaWxlQ2hhbmdlZEluZm8SDAoEcGF0aBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSEQoJYWRkaXRpb25zGAMgASgFEhEKCWRlbGV0aW9ucxgEIAEoBSJ+ChFGaWxlc0NoYW5nZWRFdmVudBIPCgd0YXNrX2lkGAEgASgJEiYKBWZpbGVzGAIgAygLMhcub3JjLnYxLkZpbGVDaGFuZ2VkSW5mbxIXCg90b3RhbF9hZGRpdGlvbnMYAyABKAUSFwoPdG90YWxfZGVsZXRpb25zGAQgASgFIksKElNlc3Npb25VcGRhdGVFdmVudBIPCgd0YXNrX2lkGAEgASgJEiQKB3Nlc3Npb24YAiABKAsyEy5vcmMudjEuU2Vzc2lvbkluZm8iuAEKE1Nlc3Npb25NZXRyaWNzRXZlbnQSGAoQZHVyYXRpb25fc2Vjb25kcxgBIAEoAxIUCgx0b3RhbF90b2tlbnMYAiABKAUSGgoSZXN0aW1hdGVkX2Nvc3RfdXNkGAMgASgBEhQKDGlucHV0X3Rva2VucxgEIAEoBRIVCg1vdXRwdXRfdG9rZW5zGAUgASgFEhUKDXRhc2tzX3J1bm5pbmcYBiABKAUSEQoJaXNfcGF1c2VkGAcgASgIInQKCkVycm9yRXZlbnQSDwoHdGFza19pZBgBIAEoCRINCgVlcnJvchgCIAEoCRISCgVwaGFzZRgDIAEoCUgAiAEBEhgKC3N0YWNrX3RyYWNlGAQgASgJSAGIAQFCCAoGX3BoYXNlQg4KDF9zdGFja190cmFjZSJOCgxXYXJuaW5nRXZlbnQSDwoHdGFza19pZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEhIKBXBoYXNlGAMgASgJSACIAQFCCAoGX3BoYXNlIj8KDkhlYXJ0YmVhdEV2ZW50Ei0KCXRpbWVzdGFtcBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAikQgKBUV2ZW50EgoKAmlkGAEgASgJEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFwoKcHJvamVjdF9pZBgDIAEoCUgBiAEBEhQKB3Rhc2tfaWQYBCABKAlIAogBARIwCgx0YXNrX2NyZWF0ZWQYCiABKAsyGC5vcmMudjEuVGFza0NyZWF0ZWRFdmVudEgAEjAKDHRhc2tfdXBkYXRlZBgLIAEoCzIYLm9yYy52MS5UYXNrVXBkYXRlZEV2ZW50SAASMAoMdGFza19kZWxldGVkGAwgASgLMhgub3JjLnYxLlRhc2tEZWxldGVkRXZlbnRIABIyCg1waGFzZV9jaGFuZ2VkGA0gASgLMhkub3JjLnYxLlBoYXNlQ2hhbmdlZEV2ZW50SAASNAoOdG9rZW5zX3VwZGF0ZWQYDiABKAsyGi5vcmMudjEuVG9rZW5zVXBkYXRlZEV2ZW50SAASKQoIYWN0aXZpdHkYDyABKAsyFS5vcmMudjEuQWN0aXZpdHlFdmVudEgAEjwKEmluaXRpYXRpdmVfY3JlYXRlZBgQIAEoCzIeLm9yYy52MS5Jbml0aWF0aXZlQ3JlYXRlZEV2ZW50SAASPAoSaW5pdGlhdGl2ZV91cGRhdGVkGBEgASgLMh4ub3JjLnYxLkluaXRpYXRpdmVVcGRhdGVkRXZlbnRIABI8ChJpbml0aWF0aXZlX2RlbGV0ZWQYEiABKAsyHi5vcmMudjEuSW5pdGlhdGl2ZURlbGV0ZWRFdmVudEgAEjoKEWRlY2lzaW9uX3JlcXVpcmVkGBMgASgLMh0ub3JjLnYxLkRlY2lzaW9uUmVxdWlyZWRFdmVudEgAEjoKEWRlY2lzaW9uX3Jlc29sdmVkGBQgASgLMh0ub3JjLnYxLkRlY2lzaW9uUmVzb2x2ZWRFdmVudEgAEjIKDWZpbGVzX2NoYW5nZWQYFSABKAsyGS5vcmMudjEuRmlsZXNDaGFuZ2VkRXZlbnRIABI0Cg5zZXNzaW9uX3VwZGF0ZRgWIAEoCzIaLm9yYy52MS5TZXNzaW9uVXBkYXRlRXZlbnRIABIjCgVlcnJvchgXIAEoCzISLm9yYy52MS5FcnJvckV2ZW50SAASJwoHd2FybmluZxgYIAEoCzIULm9yYy52MS5XYXJuaW5nRXZlbnRIABIrCgloZWFydGJlYXQYGSABKAsyFi5vcmMudjEuSGVhcnRiZWF0RXZlbnRIABI2Cg9zZXNzaW9uX21ldHJpY3MYGiABKAsyGy5vcmMudjEuU2Vzc2lvbk1ldHJpY3NFdmVudEgAQgkKB3BheWxvYWRCDQoLX3Byb2plY3RfaWRCCgoIX3Rhc2tfaWQijwIKDVRpbWVsaW5lRXZlbnQSCgoCaWQYASABKAkSDwoHdGFza19pZBgCIAEoCRISCgp0YXNrX3RpdGxlGAMgASgJEi0KCmV2ZW50X3R5cGUYBCABKA4yGS5vcmMudjEuVGltZWxpbmVFdmVudFR5cGUSDgoGc291cmNlGAUgASgJEhIKBXBoYXNlGAYgASgJSACIAQESFgoJaXRlcmF0aW9uGAcgASgFSAGIAQESEQoEZGF0YRgIIAEoCUgCiAEBEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQggKBl9waGFzZUIMCgpfaXRlcmF0aW9uQgcKBV9kYXRhIqcBChBTdWJzY3JpYmVSZXF1ZXN0EhMKC3Byb2plY3RfaWRzGAEgAygJEhQKB3Rhc2tfaWQYAiABKAlIAIgBARIaCg1pbml0aWF0aXZlX2lkGAMgASgJSAGIAQESEwoLZXZlbnRfdHlwZXMYBCADKAkSGQoRaW5jbHVkZV9oZWFydGJlYXQYBSABKAhCCgoIX3Rhc2tfaWRCEAoOX2luaXRpYXRpdmVfaWQiMQoRU3Vic2NyaWJlUmVzcG9uc2USHAoFZXZlbnQYASABKAsyDS5vcmMudjEuRXZlbnQinAIKEEdldEV2ZW50c1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIhCgRwYWdlGAIgASgLMhMub3JjLnYxLlBhZ2VSZXF1ZXN0EhQKB3Rhc2tfaWQYAyABKAlIAIgBARIaCg1pbml0aWF0aXZlX2lkGAQgASgJSAGIAQESLgoFc2luY2UYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESLgoFdW50aWwYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAOIAQESDQoFdHlwZXMYByADKAlCCgoIX3Rhc2tfaWRCEAoOX2luaXRpYXRpdmVfaWRCCAoGX3NpbmNlQggKBl91bnRpbCJWChFHZXRFdmVudHNSZXNwb25zZRIdCgZldmVudHMYASADKAsyDS5vcmMudjEuRXZlbnQSIgoEcGFnZRgCIAEoCzIULm9yYy52MS5QYWdlUmVzcG9uc2UihgEKEkdldFRpbWVsaW5lUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSIQoEcGFnZRgDIAEoCzITLm9yYy52MS5QYWdlUmVxdWVzdBIoCgV0eXBlcxgEIAMoDjIZLm9yYy52MS5UaW1lbGluZUV2ZW50VHlwZSJgChNHZXRUaW1lbGluZVJlc3BvbnNlEiUKBmV2ZW50cxgBIAMoCzIVLm9yYy52MS5UaW1lbGluZUV2ZW50EiIKBHBhZ2UYAiABKAsyFC5vcmMudjEuUGFnZVJlc3BvbnNlKooCCg1BY3Rpdml0eVN0YXRlEh4KGkFDVElWSVRZX1NUQVRFX1VOU1BFQ0lGSUVEEAASFwoTQUNUSVZJVFlfU1RBVEVfSURMRRABEh4KGkFDVElWSVRZX1NUQVRFX1dBSVRJTkdfQVBJEAISHAoYQUNUSVZJVFlfU1RBVEVfU1RSRUFNSU5HEAMSHwobQUNUSVZJVFlfU1RBVEVfUlVOTklOR19UT09MEAQSHQoZQUNUSVZJVFlfU1RBVEVfUFJPQ0VTU0lORxAFEiEKHUFDVElWSVRZX1NUQVRFX1NQRUNfQU5BTFlaSU5HEAYSHwobQUNUSVZJVFlfU1RBVEVfU1BFQ19XUklUSU5HEAcqnQQKEVRpbWVsaW5lRXZlbnRUeXBlEiMKH1RJTUVMSU5FX0VWRU5UX1RZUEVfVU5TUEVDSUZJRUQQABIlCiFUSU1FTElORV9FVkVOVF9UWVBFX1BIQVNFX1NUQVJURUQQARInCiNUSU1FTElORV9FVkVOVF9UWVBFX1BIQVNFX0NPTVBMRVRFRBACEiQKIFRJTUVMSU5FX0VWRU5UX1RZUEVfUEhBU0VfRkFJTEVEEAMSJAogVElNRUxJTkVfRVZFTlRfVFlQRV9UQVNLX0NSRUFURUQQBBIkCiBUSU1FTElORV9FVkVOVF9UWVBFX1RBU0tfU1RBUlRFRBAFEiYKIlRJTUVMSU5FX0VWRU5UX1RZUEVfVEFTS19DT01QTEVURUQQBhIjCh9USU1FTElORV9FVkVOVF9UWVBFX1RBU0tfRkFJTEVEEAcSIAocVElNRUxJTkVfRVZFTlRfVFlQRV9BQ1RJVklUWRAIEh0KGVRJTUVMSU5FX0VWRU5UX1RZUEVfRVJST1IQCRIfChtUSU1FTElORV9FVkVOVF9UWVBFX01FVFJJQ1MQChIkCiBUSU1FTElORV9FVkVOVF9UWVBFX0dBVEVfUEVORElORxALEiUKIVRJTUVMSU5FX0VWRU5UX1RZUEVfR0FURV9BUFBST1ZFRBAMEiUKIVRJTUVMSU5FX0VWRU5UX1RZUEVfR0FURV9SRUpFQ1RFRBANMtwBCgxFdmVudFNlcnZpY2USQgoJU3Vic2NyaWJlEhgub3JjLnYxLlN1YnNjcmliZVJlcXVlc3QaGS5vcmMudjEuU3Vic2NyaWJlUmVzcG9uc2UwARJACglHZXRFdmVudHMSGC5vcmMudjEuR2V0RXZlbnRzUmVxdWVzdBoZLm9yYy52MS5HZXRFdmVudHNSZXNwb25zZRJGCgtHZXRUaW1lbGluZRIaLm9yYy52MS5HZXRUaW1lbGluZVJlcXVlc3QaGy5vcmMudjEuR2V0VGltZWxpbmVSZXNwb25zZUKHAQoKY29tLm9yYy52MUILRXZlbnRzUHJvdG9QAVozZ2l0aHViLmNvbS9yYW5kYWxtdXJwaGFsL29yYy9nZW4vcHJvdG8vb3JjL3YxO29yY3YxogIDT1hYqgIGT3JjLlYxygIGT3JjXFYx4gIST3JjXFYxXEdQQk1ldGFkYXRh6gIHT3JjOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_orc_v1_common, file_orc_v1_task]);
+  fileDesc("ChNvcmMvdjEvZXZlbnRzLnByb3RvEgZvcmMudjEiYAoQVGFza0NyZWF0ZWRFdmVudBIPCgd0YXNrX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEhoKDWluaXRpYXRpdmVfaWQYBCABKAlIAIgBAUIQCg5faW5pdGlhdGl2ZV9pZCJXChBUYXNrVXBkYXRlZEV2ZW50Eg8KB3Rhc2tfaWQYASABKAkSGgoEdGFzaxgCIAEoCzIMLm9yYy52MS5UYXNrEhYKDmNoYW5nZWRfZmllbGRzGAMgAygJIiMKEFRhc2tEZWxldGVkRXZlbnQSDwoHdGFza19pZBgBIAEoCSLIAQoRUGhhc2VDaGFuZ2VkRXZlbnQSDwoHdGFza19pZBgBIAEoCRIQCghwaGFzZV9pZBgCIAEoCRISCgpwaGFzZV9uYW1lGAMgASgJEiMKBnN0YXR1cxgEIAEoDjITLm9yYy52MS5QaGFzZVN0YXR1cxIRCglpdGVyYXRpb24YBSABKAUSFwoKY29tbWl0X3NoYRgGIAEoCUgAiAEBEhIKBWVycm9yGAcgASgJSAGIAQFCDQoLX2NvbW1pdF9zaGFCCAoGX2Vycm9yIm0KElRva2Vuc1VwZGF0ZWRFdmVudBIPCgd0YXNrX2lkGAEgASgJEiIKBnRva2VucxgCIAEoCzISLm9yYy52MS5Ub2tlblVzYWdlEhUKCHBoYXNlX2lkGAMgASgJSACIAQFCCwoJX3BoYXNlX2lkIn0KDUFjdGl2aXR5RXZlbnQSDwoHdGFza19pZBgBIAEoCRIQCghwaGFzZV9pZBgCIAEoCRInCghhY3Rpdml0eRgDIAEoDjIVLm9yYy52MS5BY3Rpdml0eVN0YXRlEhQKB2RldGFpbHMYBCABKAlIAIgBAUIKCghfZGV0YWlscyI+ChZJbml0aWF0aXZlQ3JlYXRlZEV2ZW50EhUKDWluaXRpYXRpdmVfaWQYASABKAkSDQoFdGl0bGUYAiABKAkiRwoWSW5pdGlhdGl2ZVVwZGF0ZWRFdmVudBIVCg1pbml0aWF0aXZlX2lkGAEgASgJEhYKDmNoYW5nZWRfZmllbGRzGAIgAygJIi8KFkluaXRpYXRpdmVEZWxldGVkRXZlbnQSFQoNaW5pdGlhdGl2ZV9pZBgBIAEoCSLIAQoVRGVjaXNpb25SZXF1aXJlZEV2ZW50EhMKC2RlY2lzaW9uX2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSEgoKdGFza190aXRsZRgDIAEoCRINCgVwaGFzZRgEIAEoCRIRCglnYXRlX3R5cGUYBSABKAkSEAoIcXVlc3Rpb24YBiABKAkSDwoHY29udGV4dBgHIAEoCRIwCgxyZXF1ZXN0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIsQBChVEZWNpc2lvblJlc29sdmVkRXZlbnQSEwoLZGVjaXNpb25faWQYASABKAkSDwoHdGFza19pZBgCIAEoCRINCgVwaGFzZRgDIAEoCRIQCghhcHByb3ZlZBgEIAEoCBITCgtyZXNvbHZlZF9ieRgFIAEoCRITCgZyZWFzb24YBiABKAlIAIgBARIvCgtyZXNvbHZlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCCQoHX3JlYXNvbiJVCg9GaWxlQ2hhbmdlZEluZm8SDAoEcGF0aBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSEQoJYWRkaXRpb25zGAMgASgFEhEKCWRlbGV0aW9ucxgEIAEoBSJ+ChFGaWxlc0NoYW5nZWRFdmVudBIPCgd0YXNrX2lkGAEgASgJEiYKBWZpbGVzGAIgAygLMhcub3JjLnYxLkZpbGVDaGFuZ2VkSW5mbxIXCg90b3RhbF9hZGRpdGlvbnMYAyABKAUSFwoPdG90YWxfZGVsZXRpb25zGAQgASgFIksKElNlc3Npb25VcGRhdGVFdmVudBIPCgd0YXNrX2lkGAEgASgJEiQKB3Nlc3Npb24YAiABKAsyEy5vcmMudjEuU2Vzc2lvbkluZm8iuAEKE1Nlc3Npb25NZXRyaWNzRXZlbnQSGAoQZHVyYXRpb25fc2Vjb25kcxgBIAEoAxIUCgx0b3RhbF90b2tlbnMYAiABKAUSGgoSZXN0aW1hdGVkX2Nvc3RfdXNkGAMgASgBEhQKDGlucHV0X3Rva2VucxgEIAEoBRIVCg1vdXRwdXRfdG9rZW5zGAUgASgFEhUKDXRhc2tzX3J1bm5pbmcYBiABKAUSEQoJaXNfcGF1c2VkGAcgASgIInQKCkVycm9yRXZlbnQSDwoHdGFza19pZBgBIAEoCRINCgVlcnJvchgCIAEoCRISCgVwaGFzZRgDIAEoCUgAiAEBEhgKC3N0YWNrX3RyYWNlGAQgASgJSAGIAQFCCAoGX3BoYXNlQg4KDF9zdGFja190cmFjZSJOCgxXYXJuaW5nRXZlbnQSDwoHdGFza19pZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEhIKBXBoYXNlGAMgASgJSACIAQFCCAoGX3BoYXNlIj8KDkhlYXJ0YmVhdEV2ZW50Ei0KCXRpbWVzdGFtcBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAi8AIKGlJlY29tbWVuZGF0aW9uQ3JlYXRlZEV2ZW50EhkKEXJlY29tbWVuZGF0aW9uX2lkGAEgASgJEigKBGtpbmQYAiABKA4yGi5vcmMudjEuUmVjb21tZW5kYXRpb25LaW5kEiwKBnN0YXR1cxgDIAEoDjIcLm9yYy52MS5SZWNvbW1lbmRhdGlvblN0YXR1cxINCgV0aXRsZRgEIAEoCRIPCgdzdW1tYXJ5GAUgASgJEhYKDnNvdXJjZV90YXNrX2lkGAYgASgJEhUKDXNvdXJjZV9ydW5faWQYByABKAkSGAoQc291cmNlX3RocmVhZF9pZBgIIAEoCRIYChBwcm9tb3RlZF90b190eXBlGAkgASgJEhYKDnByb21vdGVkX3RvX2lkGAogASgJEhMKC3Byb21vdGVkX2J5GAsgASgJEi8KC3Byb21vdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLzAgoaUmVjb21tZW5kYXRpb25EZWNpZGVkRXZlbnQSGQoRcmVjb21tZW5kYXRpb25faWQYASABKAkSNQoPcHJldmlvdXNfc3RhdHVzGAIgASgOMhwub3JjLnYxLlJlY29tbWVuZGF0aW9uU3RhdHVzEiwKBnN0YXR1cxgDIAEoDjIcLm9yYy52MS5SZWNvbW1lbmRhdGlvblN0YXR1cxISCgpkZWNpZGVkX2J5GAQgASgJEhcKD2RlY2lzaW9uX3JlYXNvbhgFIAEoCRIWCg5zb3VyY2VfdGFza19pZBgGIAEoCRIYChBzb3VyY2VfdGhyZWFkX2lkGAcgASgJEhgKEHByb21vdGVkX3RvX3R5cGUYCCABKAkSFgoOcHJvbW90ZWRfdG9faWQYCSABKAkSEwoLcHJvbW90ZWRfYnkYCiABKAkSLwoLcHJvbW90ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIp0JCgVFdmVudBIKCgJpZBgBIAEoCRItCgl0aW1lc3RhbXAYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKCnByb2plY3RfaWQYAyABKAlIAYgBARIUCgd0YXNrX2lkGAQgASgJSAKIAQESMAoMdGFza19jcmVhdGVkGAogASgLMhgub3JjLnYxLlRhc2tDcmVhdGVkRXZlbnRIABIwCgx0YXNrX3VwZGF0ZWQYCyABKAsyGC5vcmMudjEuVGFza1VwZGF0ZWRFdmVudEgAEjAKDHRhc2tfZGVsZXRlZBgMIAEoCzIYLm9yYy52MS5UYXNrRGVsZXRlZEV2ZW50SAASMgoNcGhhc2VfY2hhbmdlZBgNIAEoCzIZLm9yYy52MS5QaGFzZUNoYW5nZWRFdmVudEgAEjQKDnRva2Vuc191cGRhdGVkGA4gASgLMhoub3JjLnYxLlRva2Vuc1VwZGF0ZWRFdmVudEgAEikKCGFjdGl2aXR5GA8gASgLMhUub3JjLnYxLkFjdGl2aXR5RXZlbnRIABI8ChJpbml0aWF0aXZlX2NyZWF0ZWQYECABKAsyHi5vcmMudjEuSW5pdGlhdGl2ZUNyZWF0ZWRFdmVudEgAEjwKEmluaXRpYXRpdmVfdXBkYXRlZBgRIAEoCzIeLm9yYy52MS5Jbml0aWF0aXZlVXBkYXRlZEV2ZW50SAASPAoSaW5pdGlhdGl2ZV9kZWxldGVkGBIgASgLMh4ub3JjLnYxLkluaXRpYXRpdmVEZWxldGVkRXZlbnRIABI6ChFkZWNpc2lvbl9yZXF1aXJlZBgTIAEoCzIdLm9yYy52MS5EZWNpc2lvblJlcXVpcmVkRXZlbnRIABI6ChFkZWNpc2lvbl9yZXNvbHZlZBgUIAEoCzIdLm9yYy52MS5EZWNpc2lvblJlc29sdmVkRXZlbnRIABIyCg1maWxlc19jaGFuZ2VkGBUgASgLMhkub3JjLnYxLkZpbGVzQ2hhbmdlZEV2ZW50SAASNAoOc2Vzc2lvbl91cGRhdGUYFiABKAsyGi5vcmMudjEuU2Vzc2lvblVwZGF0ZUV2ZW50SAASIwoFZXJyb3IYFyABKAsyEi5vcmMudjEuRXJyb3JFdmVudEgAEicKB3dhcm5pbmcYGCABKAsyFC5vcmMudjEuV2FybmluZ0V2ZW50SAASKwoJaGVhcnRiZWF0GBkgASgLMhYub3JjLnYxLkhlYXJ0YmVhdEV2ZW50SAASNgoPc2Vzc2lvbl9tZXRyaWNzGBogASgLMhsub3JjLnYxLlNlc3Npb25NZXRyaWNzRXZlbnRIABJEChZyZWNvbW1lbmRhdGlvbl9jcmVhdGVkGBsgASgLMiIub3JjLnYxLlJlY29tbWVuZGF0aW9uQ3JlYXRlZEV2ZW50SAASRAoWcmVjb21tZW5kYXRpb25fZGVjaWRlZBgcIAEoCzIiLm9yYy52MS5SZWNvbW1lbmRhdGlvbkRlY2lkZWRFdmVudEgAQgkKB3BheWxvYWRCDQoLX3Byb2plY3RfaWRCCgoIX3Rhc2tfaWQijwIKDVRpbWVsaW5lRXZlbnQSCgoCaWQYASABKAkSDwoHdGFza19pZBgCIAEoCRISCgp0YXNrX3RpdGxlGAMgASgJEi0KCmV2ZW50X3R5cGUYBCABKA4yGS5vcmMudjEuVGltZWxpbmVFdmVudFR5cGUSDgoGc291cmNlGAUgASgJEhIKBXBoYXNlGAYgASgJSACIAQESFgoJaXRlcmF0aW9uGAcgASgFSAGIAQESEQoEZGF0YRgIIAEoCUgCiAEBEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQggKBl9waGFzZUIMCgpfaXRlcmF0aW9uQgcKBV9kYXRhIqcBChBTdWJzY3JpYmVSZXF1ZXN0EhMKC3Byb2plY3RfaWRzGAEgAygJEhQKB3Rhc2tfaWQYAiABKAlIAIgBARIaCg1pbml0aWF0aXZlX2lkGAMgASgJSAGIAQESEwoLZXZlbnRfdHlwZXMYBCADKAkSGQoRaW5jbHVkZV9oZWFydGJlYXQYBSABKAhCCgoIX3Rhc2tfaWRCEAoOX2luaXRpYXRpdmVfaWQiMQoRU3Vic2NyaWJlUmVzcG9uc2USHAoFZXZlbnQYASABKAsyDS5vcmMudjEuRXZlbnQinAIKEEdldEV2ZW50c1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIhCgRwYWdlGAIgASgLMhMub3JjLnYxLlBhZ2VSZXF1ZXN0EhQKB3Rhc2tfaWQYAyABKAlIAIgBARIaCg1pbml0aWF0aXZlX2lkGAQgASgJSAGIAQESLgoFc2luY2UYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESLgoFdW50aWwYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAOIAQESDQoFdHlwZXMYByADKAlCCgoIX3Rhc2tfaWRCEAoOX2luaXRpYXRpdmVfaWRCCAoGX3NpbmNlQggKBl91bnRpbCJWChFHZXRFdmVudHNSZXNwb25zZRIdCgZldmVudHMYASADKAsyDS5vcmMudjEuRXZlbnQSIgoEcGFnZRgCIAEoCzIULm9yYy52MS5QYWdlUmVzcG9uc2UihgEKEkdldFRpbWVsaW5lUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSIQoEcGFnZRgDIAEoCzITLm9yYy52MS5QYWdlUmVxdWVzdBIoCgV0eXBlcxgEIAMoDjIZLm9yYy52MS5UaW1lbGluZUV2ZW50VHlwZSJgChNHZXRUaW1lbGluZVJlc3BvbnNlEiUKBmV2ZW50cxgBIAMoCzIVLm9yYy52MS5UaW1lbGluZUV2ZW50EiIKBHBhZ2UYAiABKAsyFC5vcmMudjEuUGFnZVJlc3BvbnNlKooCCg1BY3Rpdml0eVN0YXRlEh4KGkFDVElWSVRZX1NUQVRFX1VOU1BFQ0lGSUVEEAASFwoTQUNUSVZJVFlfU1RBVEVfSURMRRABEh4KGkFDVElWSVRZX1NUQVRFX1dBSVRJTkdfQVBJEAISHAoYQUNUSVZJVFlfU1RBVEVfU1RSRUFNSU5HEAMSHwobQUNUSVZJVFlfU1RBVEVfUlVOTklOR19UT09MEAQSHQoZQUNUSVZJVFlfU1RBVEVfUFJPQ0VTU0lORxAFEiEKHUFDVElWSVRZX1NUQVRFX1NQRUNfQU5BTFlaSU5HEAYSHwobQUNUSVZJVFlfU1RBVEVfU1BFQ19XUklUSU5HEAcqnQQKEVRpbWVsaW5lRXZlbnRUeXBlEiMKH1RJTUVMSU5FX0VWRU5UX1RZUEVfVU5TUEVDSUZJRUQQABIlCiFUSU1FTElORV9FVkVOVF9UWVBFX1BIQVNFX1NUQVJURUQQARInCiNUSU1FTElORV9FVkVOVF9UWVBFX1BIQVNFX0NPTVBMRVRFRBACEiQKIFRJTUVMSU5FX0VWRU5UX1RZUEVfUEhBU0VfRkFJTEVEEAMSJAogVElNRUxJTkVfRVZFTlRfVFlQRV9UQVNLX0NSRUFURUQQBBIkCiBUSU1FTElORV9FVkVOVF9UWVBFX1RBU0tfU1RBUlRFRBAFEiYKIlRJTUVMSU5FX0VWRU5UX1RZUEVfVEFTS19DT01QTEVURUQQBhIjCh9USU1FTElORV9FVkVOVF9UWVBFX1RBU0tfRkFJTEVEEAcSIAocVElNRUxJTkVfRVZFTlRfVFlQRV9BQ1RJVklUWRAIEh0KGVRJTUVMSU5FX0VWRU5UX1RZUEVfRVJST1IQCRIfChtUSU1FTElORV9FVkVOVF9UWVBFX01FVFJJQ1MQChIkCiBUSU1FTElORV9FVkVOVF9UWVBFX0dBVEVfUEVORElORxALEiUKIVRJTUVMSU5FX0VWRU5UX1RZUEVfR0FURV9BUFBST1ZFRBAMEiUKIVRJTUVMSU5FX0VWRU5UX1RZUEVfR0FURV9SRUpFQ1RFRBANMtwBCgxFdmVudFNlcnZpY2USQgoJU3Vic2NyaWJlEhgub3JjLnYxLlN1YnNjcmliZVJlcXVlc3QaGS5vcmMudjEuU3Vic2NyaWJlUmVzcG9uc2UwARJACglHZXRFdmVudHMSGC5vcmMudjEuR2V0RXZlbnRzUmVxdWVzdBoZLm9yYy52MS5HZXRFdmVudHNSZXNwb25zZRJGCgtHZXRUaW1lbGluZRIaLm9yYy52MS5HZXRUaW1lbGluZVJlcXVlc3QaGy5vcmMudjEuR2V0VGltZWxpbmVSZXNwb25zZUKHAQoKY29tLm9yYy52MUILRXZlbnRzUHJvdG9QAVozZ2l0aHViLmNvbS9yYW5kYWxtdXJwaGFsL29yYy9nZW4vcHJvdG8vb3JjL3YxO29yY3YxogIDT1hYqgIGT3JjLlYxygIGT3JjXFYx4gIST3JjXFYxXEdQQk1ldGFkYXRh6gIHT3JjOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_orc_v1_common, file_orc_v1_recommendation, file_orc_v1_task]);
 
 /**
  * Task was created
@@ -617,6 +619,145 @@ export const HeartbeatEventSchema: GenMessage<HeartbeatEvent> = /*@__PURE__*/
   messageDesc(file_orc_v1_events, 17);
 
 /**
+ * @generated from message orc.v1.RecommendationCreatedEvent
+ */
+export type RecommendationCreatedEvent = Message<"orc.v1.RecommendationCreatedEvent"> & {
+  /**
+   * @generated from field: string recommendation_id = 1;
+   */
+  recommendationId: string;
+
+  /**
+   * @generated from field: orc.v1.RecommendationKind kind = 2;
+   */
+  kind: RecommendationKind;
+
+  /**
+   * @generated from field: orc.v1.RecommendationStatus status = 3;
+   */
+  status: RecommendationStatus;
+
+  /**
+   * @generated from field: string title = 4;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string summary = 5;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: string source_task_id = 6;
+   */
+  sourceTaskId: string;
+
+  /**
+   * @generated from field: string source_run_id = 7;
+   */
+  sourceRunId: string;
+
+  /**
+   * @generated from field: string source_thread_id = 8;
+   */
+  sourceThreadId: string;
+
+  /**
+   * @generated from field: string promoted_to_type = 9;
+   */
+  promotedToType: string;
+
+  /**
+   * @generated from field: string promoted_to_id = 10;
+   */
+  promotedToId: string;
+
+  /**
+   * @generated from field: string promoted_by = 11;
+   */
+  promotedBy: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp promoted_at = 12;
+   */
+  promotedAt?: Timestamp;
+};
+
+/**
+ * Describes the message orc.v1.RecommendationCreatedEvent.
+ * Use `create(RecommendationCreatedEventSchema)` to create a new message.
+ */
+export const RecommendationCreatedEventSchema: GenMessage<RecommendationCreatedEvent> = /*@__PURE__*/
+  messageDesc(file_orc_v1_events, 18);
+
+/**
+ * @generated from message orc.v1.RecommendationDecidedEvent
+ */
+export type RecommendationDecidedEvent = Message<"orc.v1.RecommendationDecidedEvent"> & {
+  /**
+   * @generated from field: string recommendation_id = 1;
+   */
+  recommendationId: string;
+
+  /**
+   * @generated from field: orc.v1.RecommendationStatus previous_status = 2;
+   */
+  previousStatus: RecommendationStatus;
+
+  /**
+   * @generated from field: orc.v1.RecommendationStatus status = 3;
+   */
+  status: RecommendationStatus;
+
+  /**
+   * @generated from field: string decided_by = 4;
+   */
+  decidedBy: string;
+
+  /**
+   * @generated from field: string decision_reason = 5;
+   */
+  decisionReason: string;
+
+  /**
+   * @generated from field: string source_task_id = 6;
+   */
+  sourceTaskId: string;
+
+  /**
+   * @generated from field: string source_thread_id = 7;
+   */
+  sourceThreadId: string;
+
+  /**
+   * @generated from field: string promoted_to_type = 8;
+   */
+  promotedToType: string;
+
+  /**
+   * @generated from field: string promoted_to_id = 9;
+   */
+  promotedToId: string;
+
+  /**
+   * @generated from field: string promoted_by = 10;
+   */
+  promotedBy: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp promoted_at = 11;
+   */
+  promotedAt?: Timestamp;
+};
+
+/**
+ * Describes the message orc.v1.RecommendationDecidedEvent.
+ * Use `create(RecommendationDecidedEventSchema)` to create a new message.
+ */
+export const RecommendationDecidedEventSchema: GenMessage<RecommendationDecidedEvent> = /*@__PURE__*/
+  messageDesc(file_orc_v1_events, 19);
+
+/**
  * Event with typed payload (replaces WebSocket's untyped data)
  *
  * @generated from message orc.v1.Event
@@ -757,6 +898,18 @@ export type Event = Message<"orc.v1.Event"> & {
      */
     value: SessionMetricsEvent;
     case: "sessionMetrics";
+  } | {
+    /**
+     * @generated from field: orc.v1.RecommendationCreatedEvent recommendation_created = 27;
+     */
+    value: RecommendationCreatedEvent;
+    case: "recommendationCreated";
+  } | {
+    /**
+     * @generated from field: orc.v1.RecommendationDecidedEvent recommendation_decided = 28;
+     */
+    value: RecommendationDecidedEvent;
+    case: "recommendationDecided";
   } | { case: undefined; value?: undefined };
 };
 
@@ -765,7 +918,7 @@ export type Event = Message<"orc.v1.Event"> & {
  * Use `create(EventSchema)` to create a new message.
  */
 export const EventSchema: GenMessage<Event> = /*@__PURE__*/
-  messageDesc(file_orc_v1_events, 18);
+  messageDesc(file_orc_v1_events, 20);
 
 /**
  * Timeline event for historical event log
@@ -828,7 +981,7 @@ export type TimelineEvent = Message<"orc.v1.TimelineEvent"> & {
  * Use `create(TimelineEventSchema)` to create a new message.
  */
 export const TimelineEventSchema: GenMessage<TimelineEvent> = /*@__PURE__*/
-  messageDesc(file_orc_v1_events, 19);
+  messageDesc(file_orc_v1_events, 21);
 
 /**
  * @generated from message orc.v1.SubscribeRequest
@@ -875,7 +1028,7 @@ export type SubscribeRequest = Message<"orc.v1.SubscribeRequest"> & {
  * Use `create(SubscribeRequestSchema)` to create a new message.
  */
 export const SubscribeRequestSchema: GenMessage<SubscribeRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_events, 20);
+  messageDesc(file_orc_v1_events, 22);
 
 /**
  * @generated from message orc.v1.SubscribeResponse
@@ -892,7 +1045,7 @@ export type SubscribeResponse = Message<"orc.v1.SubscribeResponse"> & {
  * Use `create(SubscribeResponseSchema)` to create a new message.
  */
 export const SubscribeResponseSchema: GenMessage<SubscribeResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_events, 21);
+  messageDesc(file_orc_v1_events, 23);
 
 /**
  * @generated from message orc.v1.GetEventsRequest
@@ -951,7 +1104,7 @@ export type GetEventsRequest = Message<"orc.v1.GetEventsRequest"> & {
  * Use `create(GetEventsRequestSchema)` to create a new message.
  */
 export const GetEventsRequestSchema: GenMessage<GetEventsRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_events, 22);
+  messageDesc(file_orc_v1_events, 24);
 
 /**
  * @generated from message orc.v1.GetEventsResponse
@@ -973,7 +1126,7 @@ export type GetEventsResponse = Message<"orc.v1.GetEventsResponse"> & {
  * Use `create(GetEventsResponseSchema)` to create a new message.
  */
 export const GetEventsResponseSchema: GenMessage<GetEventsResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_events, 23);
+  messageDesc(file_orc_v1_events, 25);
 
 /**
  * @generated from message orc.v1.GetTimelineRequest
@@ -1007,7 +1160,7 @@ export type GetTimelineRequest = Message<"orc.v1.GetTimelineRequest"> & {
  * Use `create(GetTimelineRequestSchema)` to create a new message.
  */
 export const GetTimelineRequestSchema: GenMessage<GetTimelineRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_events, 24);
+  messageDesc(file_orc_v1_events, 26);
 
 /**
  * @generated from message orc.v1.GetTimelineResponse
@@ -1029,7 +1182,7 @@ export type GetTimelineResponse = Message<"orc.v1.GetTimelineResponse"> & {
  * Use `create(GetTimelineResponseSchema)` to create a new message.
  */
 export const GetTimelineResponseSchema: GenMessage<GetTimelineResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_events, 25);
+  messageDesc(file_orc_v1_events, 27);
 
 /**
  * Activity state during task execution

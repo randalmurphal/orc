@@ -4,6 +4,7 @@ package orc.v1;
 
 import "google/protobuf/timestamp.proto";
 import "orc/v1/common.proto";
+import "orc/v1/recommendation.proto";
 import "orc/v1/task.proto";
 
 option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
@@ -184,6 +185,35 @@ message HeartbeatEvent {
   google.protobuf.Timestamp timestamp = 1;
 }
 
+message RecommendationCreatedEvent {
+  string recommendation_id = 1;
+  RecommendationKind kind = 2;
+  RecommendationStatus status = 3;
+  string title = 4;
+  string summary = 5;
+  string source_task_id = 6;
+  string source_run_id = 7;
+  string source_thread_id = 8;
+  string promoted_to_type = 9;
+  string promoted_to_id = 10;
+  string promoted_by = 11;
+  google.protobuf.Timestamp promoted_at = 12;
+}
+
+message RecommendationDecidedEvent {
+  string recommendation_id = 1;
+  RecommendationStatus previous_status = 2;
+  RecommendationStatus status = 3;
+  string decided_by = 4;
+  string decision_reason = 5;
+  string source_task_id = 6;
+  string source_thread_id = 7;
+  string promoted_to_type = 8;
+  string promoted_to_id = 9;
+  string promoted_by = 10;
+  google.protobuf.Timestamp promoted_at = 11;
+}
+
 // =============================================================================
 // MAIN EVENT MESSAGE
 // =============================================================================
@@ -218,6 +248,8 @@ message Event {
     WarningEvent warning = 24;
     HeartbeatEvent heartbeat = 25;
     SessionMetricsEvent session_metrics = 26;
+    RecommendationCreatedEvent recommendation_created = 27;
+    RecommendationDecidedEvent recommendation_decided = 28;
   }
 }
 

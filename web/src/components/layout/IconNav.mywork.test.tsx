@@ -73,10 +73,10 @@ describe('IconNav - My Work integration', () => {
 		expect(myWorkLink).not.toHaveClass('icon-nav__item--active');
 	});
 
-	it('should have correct total nav items count (8: My Work + original 7)', () => {
+	it('should have correct total nav items count (9: My Work + inbox + original 7)', () => {
 		renderWithProviders(<IconNav />);
 
 		const links = screen.getAllByRole('link');
-		expect(links.length).toBe(8);
+		expect(links.length).toBe(9);
 	});
 });

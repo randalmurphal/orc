@@ -214,35 +214,57 @@ func (b *emptyBackend) LoadAllTasks() ([]*orcv1.Task, error) { return nil, nil }
 func (b *emptyBackend) SaveTask(*orcv1.Task) error           { return nil }
 func (b *emptyBackend) LoadTask(string) (*orcv1.Task, error) { return nil, nil }
 func (b *emptyBackend) DeleteTask(string) error              { return nil }
-func (b *emptyBackend) TaskExists(string) (bool, error)     { return false, nil }
-func (b *emptyBackend) GetNextTaskID() (string, error)      { return "", nil }
+func (b *emptyBackend) TaskExists(string) (bool, error)      { return false, nil }
+func (b *emptyBackend) GetNextTaskID() (string, error)       { return "", nil }
 func (b *emptyBackend) GetTaskActivityByDate(string, string) ([]storage.ActivityCount, error) {
 	return nil, nil
 }
-func (b *emptyBackend) UpdateTaskHeartbeat(string) error          { return nil }
-func (b *emptyBackend) SetTaskExecutor(string, int, string) error { return nil }
-func (b *emptyBackend) ClearTaskExecutor(string) error            { return nil }
+func (b *emptyBackend) UpdateTaskHeartbeat(string) error               { return nil }
+func (b *emptyBackend) SetTaskExecutor(string, int, string) error      { return nil }
+func (b *emptyBackend) ClearTaskExecutor(string) error                 { return nil }
+func (b *emptyBackend) SaveRecommendation(*orcv1.Recommendation) error { return nil }
+func (b *emptyBackend) LoadRecommendation(string) (*orcv1.Recommendation, error) {
+	return nil, nil
+}
+func (b *emptyBackend) LoadAllRecommendations() ([]*orcv1.Recommendation, error) { return nil, nil }
+func (b *emptyBackend) UpdateRecommendationStatus(string, orcv1.RecommendationStatus, string, string) (*orcv1.Recommendation, error) {
+	return nil, nil
+}
+func (b *emptyBackend) CountRecommendationsByStatus(orcv1.RecommendationStatus) (int, error) {
+	return 0, nil
+}
+func (b *emptyBackend) GetNextRecommendationID() (string, error) { return "", nil }
+
 // Phase output methods
-func (b *emptyBackend) SavePhaseOutput(*storage.PhaseOutputInfo) error                     { return nil }
-func (b *emptyBackend) GetPhaseOutput(string, string) (*storage.PhaseOutputInfo, error)   { return nil, nil }
-func (b *emptyBackend) GetPhaseOutputByVarName(string, string) (*storage.PhaseOutputInfo, error) { return nil, nil }
-func (b *emptyBackend) GetAllPhaseOutputs(string) ([]*storage.PhaseOutputInfo, error)     { return nil, nil }
-func (b *emptyBackend) LoadPhaseOutputsAsMap(string) (map[string]string, error)           { return nil, nil }
-func (b *emptyBackend) GetPhaseOutputsForTask(string) ([]*storage.PhaseOutputInfo, error) { return nil, nil }
-func (b *emptyBackend) DeletePhaseOutput(string, string) error                             { return nil }
-func (b *emptyBackend) PhaseOutputExists(string, string) (bool, error)                     { return false, nil }
+func (b *emptyBackend) SavePhaseOutput(*storage.PhaseOutputInfo) error { return nil }
+func (b *emptyBackend) GetPhaseOutput(string, string) (*storage.PhaseOutputInfo, error) {
+	return nil, nil
+}
+func (b *emptyBackend) GetPhaseOutputByVarName(string, string) (*storage.PhaseOutputInfo, error) {
+	return nil, nil
+}
+func (b *emptyBackend) GetAllPhaseOutputs(string) ([]*storage.PhaseOutputInfo, error) {
+	return nil, nil
+}
+func (b *emptyBackend) LoadPhaseOutputsAsMap(string) (map[string]string, error) { return nil, nil }
+func (b *emptyBackend) GetPhaseOutputsForTask(string) ([]*storage.PhaseOutputInfo, error) {
+	return nil, nil
+}
+func (b *emptyBackend) DeletePhaseOutput(string, string) error         { return nil }
+func (b *emptyBackend) PhaseOutputExists(string, string) (bool, error) { return false, nil }
+
 // Spec methods (now backed by phase_outputs)
-func (b *emptyBackend) GetSpecForTask(string) (string, error)                              { return "", nil }
-func (b *emptyBackend) GetFullSpecForTask(string) (*storage.PhaseOutputInfo, error)       { return nil, nil }
-func (b *emptyBackend) SpecExistsForTask(string) (bool, error)                             { return false, nil }
-func (b *emptyBackend) SaveSpecForTask(string, string, string) error                       { return nil }
-func (b *emptyBackend) SaveInitiative(*initiative.Initiative) error           { return nil }
-func (b *emptyBackend) LoadInitiative(string) (*initiative.Initiative, error) { return nil, nil }
-func (b *emptyBackend) LoadAllInitiatives() ([]*initiative.Initiative, error) { return nil, nil }
-func (b *emptyBackend) DeleteInitiative(string) error                         { return nil }
-func (b *emptyBackend) InitiativeExists(string) (bool, error)                 { return false, nil }
-func (b *emptyBackend) GetNextInitiativeID() (string, error)                  { return "", nil }
-func (b *emptyBackend) AddTranscript(*storage.Transcript) error               { return nil }
+func (b *emptyBackend) GetSpecForTask(string) (string, error)                       { return "", nil }
+func (b *emptyBackend) GetFullSpecForTask(string) (*storage.PhaseOutputInfo, error) { return nil, nil }
+func (b *emptyBackend) SpecExistsForTask(string) (bool, error)                      { return false, nil }
+func (b *emptyBackend) SaveSpecForTask(string, string, string) error                { return nil }
+func (b *emptyBackend) SaveInitiative(*initiative.Initiative) error                 { return nil }
+func (b *emptyBackend) LoadInitiative(string) (*initiative.Initiative, error)       { return nil, nil }
+func (b *emptyBackend) LoadAllInitiatives() ([]*initiative.Initiative, error)       { return nil, nil }
+func (b *emptyBackend) DeleteInitiative(string) error                               { return nil }
+func (b *emptyBackend) InitiativeExists(string) (bool, error)                       { return false, nil }
+func (b *emptyBackend) GetNextInitiativeID() (string, error)                        { return "", nil }
+func (b *emptyBackend) AddTranscript(*storage.Transcript) error                     { return nil }
 func (b *emptyBackend) AddTranscriptBatch(context.Context, []storage.Transcript) error {
 	return nil
 }
@@ -287,9 +309,9 @@ func (b *emptyBackend) SaveReviewComment(*storage.ReviewComment) error          
 func (b *emptyBackend) SaveEvent(*db.EventLog) error                               { return nil }
 func (b *emptyBackend) SaveEvents([]*db.EventLog) error                            { return nil }
 func (b *emptyBackend) QueryEvents(db.QueryEventsOptions) ([]db.EventLog, error)   { return nil, nil }
-func (b *emptyBackend) ListGateDecisions(string) ([]db.GateDecision, error) { return nil, nil }
-func (b *emptyBackend) SaveGateDecision(*db.GateDecision) error             { return nil }
-func (b *emptyBackend) SaveReviewFindings(*orcv1.ReviewRoundFindings) error { return nil }
+func (b *emptyBackend) ListGateDecisions(string) ([]db.GateDecision, error)        { return nil, nil }
+func (b *emptyBackend) SaveGateDecision(*db.GateDecision) error                    { return nil }
+func (b *emptyBackend) SaveReviewFindings(*orcv1.ReviewRoundFindings) error        { return nil }
 func (b *emptyBackend) LoadReviewFindings(string, int) (*orcv1.ReviewRoundFindings, error) {
 	return nil, nil
 }
@@ -300,47 +322,47 @@ func (b *emptyBackend) SaveQAResult(*storage.QAResult) error           { return 
 func (b *emptyBackend) LoadQAResult(string) (*storage.QAResult, error) { return nil, nil }
 
 // Feedback operations (stub implementations)
-func (b *emptyBackend) SaveFeedback(*storage.Feedback) error                      { return nil }
-func (b *emptyBackend) GetFeedback(string, string) (*storage.Feedback, error)     { return nil, nil }
-func (b *emptyBackend) ListFeedback(string, bool) ([]*storage.Feedback, error)    { return nil, nil }
-func (b *emptyBackend) UpdateFeedback(*storage.Feedback) error                    { return nil }
-func (b *emptyBackend) DeleteFeedback(string, string) error                       { return nil }
-func (b *emptyBackend) MarkFeedbackReceived(string) (int, error)                  { return 0, nil }
+func (b *emptyBackend) SaveFeedback(*storage.Feedback) error                   { return nil }
+func (b *emptyBackend) GetFeedback(string, string) (*storage.Feedback, error)  { return nil, nil }
+func (b *emptyBackend) ListFeedback(string, bool) ([]*storage.Feedback, error) { return nil, nil }
+func (b *emptyBackend) UpdateFeedback(*storage.Feedback) error                 { return nil }
+func (b *emptyBackend) DeleteFeedback(string, string) error                    { return nil }
+func (b *emptyBackend) MarkFeedbackReceived(string) (int, error)               { return 0, nil }
 
-func (b *emptyBackend) SaveConstitution(string) error            { return nil }
+func (b *emptyBackend) SaveConstitution(string) error             { return nil }
 func (b *emptyBackend) LoadConstitution() (string, string, error) { return "", "", nil }
-func (b *emptyBackend) ConstitutionExists() (bool, error)              { return false, nil }
-func (b *emptyBackend) DeleteConstitution() error                      { return nil }
+func (b *emptyBackend) ConstitutionExists() (bool, error)         { return false, nil }
+func (b *emptyBackend) DeleteConstitution() error                 { return nil }
 
 // Workflow operations (stub implementations)
-func (b *emptyBackend) SavePhaseTemplate(*db.PhaseTemplate) error              { return nil }
-func (b *emptyBackend) GetPhaseTemplate(string) (*db.PhaseTemplate, error)     { return nil, nil }
-func (b *emptyBackend) ListPhaseTemplates() ([]*db.PhaseTemplate, error)       { return nil, nil }
-func (b *emptyBackend) DeletePhaseTemplate(string) error                       { return nil }
-func (b *emptyBackend) SaveWorkflow(*db.Workflow) error                        { return nil }
-func (b *emptyBackend) GetWorkflow(string) (*db.Workflow, error)               { return nil, nil }
-func (b *emptyBackend) ListWorkflows() ([]*db.Workflow, error)                 { return nil, nil }
-func (b *emptyBackend) DeleteWorkflow(string) error                            { return nil }
-func (b *emptyBackend) GetWorkflowPhases(string) ([]*db.WorkflowPhase, error)  { return nil, nil }
-func (b *emptyBackend) SaveWorkflowPhase(*db.WorkflowPhase) error              { return nil }
-func (b *emptyBackend) DeleteWorkflowPhase(string, string) error               { return nil }
+func (b *emptyBackend) SavePhaseTemplate(*db.PhaseTemplate) error                        { return nil }
+func (b *emptyBackend) GetPhaseTemplate(string) (*db.PhaseTemplate, error)               { return nil, nil }
+func (b *emptyBackend) ListPhaseTemplates() ([]*db.PhaseTemplate, error)                 { return nil, nil }
+func (b *emptyBackend) DeletePhaseTemplate(string) error                                 { return nil }
+func (b *emptyBackend) SaveWorkflow(*db.Workflow) error                                  { return nil }
+func (b *emptyBackend) GetWorkflow(string) (*db.Workflow, error)                         { return nil, nil }
+func (b *emptyBackend) ListWorkflows() ([]*db.Workflow, error)                           { return nil, nil }
+func (b *emptyBackend) DeleteWorkflow(string) error                                      { return nil }
+func (b *emptyBackend) GetWorkflowPhases(string) ([]*db.WorkflowPhase, error)            { return nil, nil }
+func (b *emptyBackend) SaveWorkflowPhase(*db.WorkflowPhase) error                        { return nil }
+func (b *emptyBackend) DeleteWorkflowPhase(string, string) error                         { return nil }
 func (b *emptyBackend) UpdateWorkflowPhasePositions(string, map[string][2]float64) error { return nil }
 func (b *emptyBackend) GetWorkflowVariables(string) ([]*db.WorkflowVariable, error) {
 	return nil, nil
 }
-func (b *emptyBackend) SaveWorkflowVariable(*db.WorkflowVariable) error  { return nil }
-func (b *emptyBackend) DeleteWorkflowVariable(string, string) error      { return nil }
-func (b *emptyBackend) SaveWorkflowRun(*db.WorkflowRun) error            { return nil }
-func (b *emptyBackend) GetWorkflowRun(string) (*db.WorkflowRun, error)   { return nil, nil }
+func (b *emptyBackend) SaveWorkflowVariable(*db.WorkflowVariable) error { return nil }
+func (b *emptyBackend) DeleteWorkflowVariable(string, string) error     { return nil }
+func (b *emptyBackend) SaveWorkflowRun(*db.WorkflowRun) error           { return nil }
+func (b *emptyBackend) GetWorkflowRun(string) (*db.WorkflowRun, error)  { return nil, nil }
 func (b *emptyBackend) ListWorkflowRuns(db.WorkflowRunListOpts) ([]*db.WorkflowRun, error) {
 	return nil, nil
 }
-func (b *emptyBackend) DeleteWorkflowRun(string) error                          { return nil }
-func (b *emptyBackend) GetNextWorkflowRunID() (string, error)                   { return "", nil }
+func (b *emptyBackend) DeleteWorkflowRun(string) error        { return nil }
+func (b *emptyBackend) GetNextWorkflowRunID() (string, error) { return "", nil }
 func (b *emptyBackend) GetWorkflowRunPhases(string) ([]*db.WorkflowRunPhase, error) {
 	return nil, nil
 }
-func (b *emptyBackend) SaveWorkflowRunPhase(*db.WorkflowRunPhase) error  { return nil }
+func (b *emptyBackend) SaveWorkflowRunPhase(*db.WorkflowRunPhase) error { return nil }
 func (b *emptyBackend) UpdatePhaseIterations(string, string, int) error { return nil }
 func (b *emptyBackend) GetRunningWorkflowsByTask() (map[string]*db.WorkflowRun, error) {
 	return nil, nil
@@ -356,9 +378,9 @@ func (b *emptyBackend) ListProjectCommands() ([]*db.ProjectCommand, error) { ret
 func (b *emptyBackend) GetProjectCommandsMap() (map[string]*db.ProjectCommand, error) {
 	return nil, nil
 }
-func (b *emptyBackend) DeleteProjectCommand(string) error            { return nil }
-func (b *emptyBackend) SetProjectCommandEnabled(string, bool) error  { return nil }
-func (b *emptyBackend) DB() *db.ProjectDB { return nil }
+func (b *emptyBackend) DeleteProjectCommand(string) error           { return nil }
+func (b *emptyBackend) SetProjectCommandEnabled(string, bool) error { return nil }
+func (b *emptyBackend) DB() *db.ProjectDB                           { return nil }
 
 // Proto initiative methods
 func (b *emptyBackend) SaveInitiativeProto(*orcv1.Initiative) error { return nil }
@@ -370,24 +392,34 @@ func (b *emptyBackend) LoadAllInitiativesProto() ([]*orcv1.Initiative, error) {
 }
 
 // Initiative note methods
-func (b *emptyBackend) SaveInitiativeNote(*db.InitiativeNote) error                 { return nil }
-func (b *emptyBackend) GetInitiativeNote(string) (*db.InitiativeNote, error)        { return nil, nil }
-func (b *emptyBackend) GetInitiativeNotes(string) ([]db.InitiativeNote, error)      { return nil, nil }
-func (b *emptyBackend) GetInitiativeNotesByType(string, string) ([]db.InitiativeNote, error) { return nil, nil }
-func (b *emptyBackend) GetInitiativeNotesBySourceTask(string) ([]db.InitiativeNote, error) { return nil, nil }
-func (b *emptyBackend) DeleteInitiativeNote(string) error                           { return nil }
-func (b *emptyBackend) GetNextNoteID() (string, error)                              { return "", nil }
+func (b *emptyBackend) SaveInitiativeNote(*db.InitiativeNote) error            { return nil }
+func (b *emptyBackend) GetInitiativeNote(string) (*db.InitiativeNote, error)   { return nil, nil }
+func (b *emptyBackend) GetInitiativeNotes(string) ([]db.InitiativeNote, error) { return nil, nil }
+func (b *emptyBackend) GetInitiativeNotesByType(string, string) ([]db.InitiativeNote, error) {
+	return nil, nil
+}
+func (b *emptyBackend) GetInitiativeNotesBySourceTask(string) ([]db.InitiativeNote, error) {
+	return nil, nil
+}
+func (b *emptyBackend) DeleteInitiativeNote(string) error { return nil }
+func (b *emptyBackend) GetNextNoteID() (string, error)    { return "", nil }
 
 // User claim methods
-func (b *emptyBackend) ClaimTaskByUser(string, string) (bool, error)      { return false, nil }
+func (b *emptyBackend) ClaimTaskByUser(string, string) (bool, error)        { return false, nil }
 func (b *emptyBackend) ForceClaimTaskByUser(string, string) (string, error) { return "", nil }
-func (b *emptyBackend) ReleaseUserClaim(string, string) (bool, error)     { return false, nil }
+func (b *emptyBackend) ReleaseUserClaim(string, string) (bool, error)       { return false, nil }
 
 // Scratchpad methods
 func (b *emptyBackend) SaveScratchpadEntry(*storage.ScratchpadEntry) error { return nil }
-func (b *emptyBackend) GetScratchpadEntries(string) ([]storage.ScratchpadEntry, error) { return nil, nil }
-func (b *emptyBackend) GetScratchpadEntriesByPhase(string, string) ([]storage.ScratchpadEntry, error) { return nil, nil }
-func (b *emptyBackend) GetScratchpadEntriesByAttempt(string, string, int) ([]storage.ScratchpadEntry, error) { return nil, nil }
+func (b *emptyBackend) GetScratchpadEntries(string) ([]storage.ScratchpadEntry, error) {
+	return nil, nil
+}
+func (b *emptyBackend) GetScratchpadEntriesByPhase(string, string) ([]storage.ScratchpadEntry, error) {
+	return nil, nil
+}
+func (b *emptyBackend) GetScratchpadEntriesByAttempt(string, string, int) ([]storage.ScratchpadEntry, error) {
+	return nil, nil
+}
 
 func TestPRPoller_StopTwice(t *testing.T) {
 	t.Parallel()

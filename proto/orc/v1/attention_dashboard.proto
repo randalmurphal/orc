@@ -24,6 +24,7 @@ message GetAttentionDashboardDataResponse {
   RunningSummary running_summary = 1;
   repeated AttentionItem attention_items = 2;
   QueueSummary queue_summary = 3;
+  int32 pending_recommendations = 4;
 }
 
 // Summary of currently running tasks

@@ -275,6 +275,7 @@ Task data stored in per-project database (`~/.orc/projects/<id>/orc.db` for SQLi
 | `orc gates list` | Show gate config for all workflow phases |
 | `orc gates show <phase>` | Detailed gate config for a phase |
 | `orc scratchpad TASK-ID` | View scratchpad entries (observations, decisions, blockers) (`--phase`) |
+| `orc recommendation list` | Review project recommendations awaiting a human decision |
 | `orc costs` | View cost report across projects (`--by user/project/model`, `--user`, `--since`, `--project`) |
 
 ### Initiatives
@@ -377,7 +378,7 @@ When adding llmkit features that orc depends on:
 
 Start: `make build && orc serve` (production) or `make dev-full` (hot reload).
 
-Features: Project picker, My Work dashboard, live task board, WebSocket updates, initiative filtering, keyboard shortcuts (`Shift+Alt` modifier), settings editor, visual workflow editor (React Flow). All API calls include `projectId`.
+Features: Project picker, My Work dashboard, recommendation inbox, live task board, WebSocket updates, initiative filtering, keyboard shortcuts (`Shift+Alt` modifier), settings editor, visual workflow editor (React Flow). All API calls include `projectId`.
 
 See `web/CLAUDE.md` for component library and architecture.
 
