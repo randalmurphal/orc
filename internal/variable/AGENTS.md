@@ -72,6 +72,7 @@ These are automatically populated from `ResolutionContext`:
 | Git | `WORKTREE_PATH`, `PROJECT_ROOT`, `TASK_BRANCH`, `TARGET_BRANCH` |
 | Constitution | `CONSTITUTION_CONTENT` |
 | Project Brief | `PROJECT_BRIEF` (auto-generated from task history, see `brief/`) |
+| Control Plane | `PENDING_RECOMMENDATIONS` (pending recommendation summary, truncated to 8 KiB), `ATTENTION_SUMMARY` (blocked and failed task summary, truncated to 4 KiB), `HANDOFF_CONTEXT` (current task handoff pack, truncated to 16 KiB) |
 | Initiative | `INITIATIVE_ID`, `INITIATIVE_TITLE`, `INITIATIVE_VISION`, `INITIATIVE_DECISIONS`, `INITIATIVE_NOTES`, `INITIATIVE_CONTEXT`, `INITIATIVE_TASKS` |
 | Review | `REVIEW_ROUND`, `REVIEW_FINDINGS` |
 | Project Detection | `LANGUAGE`, `HAS_FRONTEND`, `HAS_TESTS`, `TEST_COMMAND`, `LINT_COMMAND`, `BUILD_COMMAND`, `FRAMEWORKS`, `ERROR_PATTERNS` |
