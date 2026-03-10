@@ -18,6 +18,7 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Session](#session) | `/api/session` | Current session metrics |
 | [Dashboard](#dashboard) | `/api/dashboard/*`, `/api/stats/*` | Statistics, activity, and file analytics |
 | [Notifications](#notifications) | Connect RPC | User notification management |
+| [Recommendations](#recommendationservice) | Connect RPC | Project-scoped recommendation inbox |
 | [Events](#events) | `/api/events` | Timeline event queries |
 | [Workflows](#workflows) | `/api/workflows/*`, `/api/phase-templates/*` | Workflow and phase template configuration |
 | [Workflow Runs](#workflow-runs) | `/api/workflow-runs/*` | Workflow execution instances |
@@ -39,7 +40,7 @@ All Connect RPC services accept a `project_id` field in their request messages. 
 - The server maintains an LRU cache of project databases
 - When `project_id` is provided, the request is routed to that project's SQLite database
 - When `project_id` is empty, the server uses the CWD-based legacy backend (single project)
-- All project-scoped services follow this pattern: TaskService, InitiativeService, WorkflowService, TranscriptService, EventService, ConfigService, HostingService, DashboardService, DecisionService, NotificationService, BranchService, FeedbackService
+- All project-scoped services follow this pattern: TaskService, InitiativeService, WorkflowService, TranscriptService, EventService, ConfigService, HostingService, DashboardService, DecisionService, NotificationService, RecommendationService, BranchService, FeedbackService
 
 **Services with project_id support:**
 
@@ -57,6 +58,7 @@ All Connect RPC services accept a `project_id` field in their request messages. 
 | TranscriptService | `transcript.proto` | All request messages |
 | EventService | `events.proto` | All request messages |
 | ProjectService | `project.proto` | N/A (manages projects themselves, not project-scoped) |
+| RecommendationService | `recommendation.proto` | CreateRecommendation, GetRecommendation, ListRecommendations, AcceptRecommendation, RejectRecommendation, DiscussRecommendation |
 | FeedbackService | `feedback.proto` | AddFeedback, ListFeedback, SendFeedback, DeleteFeedback |
 
 **REST API mapping:** For REST endpoints, `project_id` is passed as a query parameter (`?project_id=abc123`) or derived from the URL path (`/api/projects/:id/tasks`). File serving endpoints (`/files/tasks/{id}/attachments/*`, `/files/tasks/{id}/test-results/*`) and export/import endpoints (`/api/export`, `/api/import`) also accept `?project_id=...` for project routing.
@@ -631,6 +633,7 @@ Cross-project aggregation endpoint for dashboard use. Returns active tasks, coun
 | `active_tasks` | TaskSummary[] | Tasks with status CREATED, PLANNED, RUNNING, or BLOCKED |
 | `total_tasks` | int32 | Count of all tasks (any status) |
 | `completed_today` | int32 | Tasks completed since UTC midnight |
+| `pending_recommendations` | int32 | Pending inbox items that still need a human decision |
 
 **TaskSummary:**
 
@@ -2122,6 +2125,52 @@ Connect RPC service for user notifications. All requests accept `project_id`. Se
 | `source_id` | string (optional) | Source entity ID |
 | `created_at` | timestamp | When notification was created |
 | `expires_at` | timestamp (optional) | When notification expires |
+
+## RecommendationService
+
+Project-scoped recommendation inbox API. Recommendations remain pending until a human accepts, rejects, or marks them discussed.
+
+**Connect RPC Service:** `orc.v1.RecommendationService`
+
+| Method | Description |
+|--------|-------------|
+| `CreateRecommendation` | Create a recommendation record for a project |
+| `GetRecommendation` | Load a single recommendation by ID |
+| `ListRecommendations` | List recommendations with optional status, kind, and source task filters |
+| `AcceptRecommendation` | Mark a recommendation accepted |
+| `RejectRecommendation` | Mark a recommendation rejected |
+| `DiscussRecommendation` | Mark a recommendation discussed and return a context pack |
+
+All request messages accept `project_id`. `ListRecommendations` also supports `status`, `kind`, and `source_task_id` filters.
+
+### Recommendation Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Recommendation ID |
+| `kind` | enum | `CLEANUP`, `RISK`, `FOLLOW_UP`, or `DECISION_REQUEST` |
+| `status` | enum | `PENDING`, `ACCEPTED`, `REJECTED`, or `DISCUSSED` |
+| `title` | string | Short operator-facing title |
+| `summary` | string | Why this recommendation exists |
+| `proposed_action` | string | Suggested next action |
+| `evidence` | string | Supporting evidence from execution or review |
+| `source_task_id` | string | Task that produced the recommendation |
+| `source_run_id` | string | Workflow run that produced the recommendation |
+| `source_thread_id` | string | Thread tied to the recommendation |
+| `dedupe_key` | string | Project-scoped dedupe key |
+| `decided_by` | string (optional) | Actor who made the decision |
+| `decided_at` | timestamp | When the decision was recorded |
+| `decision_reason` | string (optional) | Human rationale for the decision |
+| `created_at` | timestamp | When the recommendation was created |
+| `updated_at` | timestamp | Last update timestamp |
+| `promoted_to_type` | string | Target entity type if promoted later |
+| `promoted_to_id` | string | Target entity ID if promoted later |
+| `promoted_by` | string | Actor who promoted it |
+| `promoted_at` | timestamp | When promotion happened |
+
+### DiscussRecommendation
+
+Returns the updated recommendation plus a `context_pack` string for handoff or follow-up discussion.
 
 ---
 
