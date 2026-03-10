@@ -42,6 +42,7 @@ interface SessionStatProps {
 const NAV_TABS = [
 	{ label: 'Home', path: '/', end: true },
 	{ label: 'Board', path: '/board', end: false },
+	{ label: 'Inbox', path: '/recommendations', end: false },
 	{ label: 'Knowledge', path: '/knowledge', end: false },
 	{ label: 'Workflows', path: '/workflows', end: false },
 	{ label: 'Settings', path: '/settings', end: false },

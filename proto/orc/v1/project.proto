@@ -244,6 +244,7 @@ message ProjectStatus {
   repeated TaskSummary active_tasks = 4;
   int32 total_tasks = 5;
   int32 completed_today = 6;
+  int32 pending_recommendations = 7;
 }
 
 // Summary of a single task within a project

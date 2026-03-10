@@ -238,6 +238,14 @@ type Backend interface {
 	// Task activity operations (for heatmap)
 	GetTaskActivityByDate(startDate, endDate string) ([]ActivityCount, error)
 
+	// Recommendation operations (project-scoped operator inbox)
+	SaveRecommendation(r *orcv1.Recommendation) error
+	LoadRecommendation(id string) (*orcv1.Recommendation, error)
+	LoadAllRecommendations() ([]*orcv1.Recommendation, error)
+	UpdateRecommendationStatus(id string, status orcv1.RecommendationStatus, decidedBy, decisionReason string) (*orcv1.Recommendation, error)
+	CountRecommendationsByStatus(status orcv1.RecommendationStatus) (int, error)
+	GetNextRecommendationID() (string, error)
+
 	// Phase output operations (unified storage for all phase artifacts)
 	SavePhaseOutput(output *PhaseOutputInfo) error
 	GetPhaseOutput(runID, phaseTemplateID string) (*PhaseOutputInfo, error)

@@ -283,13 +283,20 @@ func (s *projectServer) GetAllProjectsStatus(
 			activeTasks = append(activeTasks, ts)
 		}
 
+		pendingRecommendations, err := pdb.CountRecommendationsByStatus(db.RecommendationStatusPending)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal,
+				fmt.Errorf("count pending recommendations for project %s: %w", proj.ID, err))
+		}
+
 		statuses = append(statuses, &orcv1.ProjectStatus{
-			ProjectId:      proj.ID,
-			ProjectName:    proj.Name,
-			ProjectPath:    proj.Path,
-			ActiveTasks:    activeTasks,
-			TotalTasks:     int32(len(dbTasks)),
-			CompletedToday: completedToday,
+			ProjectId:              proj.ID,
+			ProjectName:            proj.Name,
+			ProjectPath:            proj.Path,
+			ActiveTasks:            activeTasks,
+			TotalTasks:             int32(len(dbTasks)),
+			CompletedToday:         completedToday,
+			PendingRecommendations: int32(pendingRecommendations),
 		})
 	}
 

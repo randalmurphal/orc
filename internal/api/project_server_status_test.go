@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -616,6 +617,27 @@ func TestGetAllProjectsStatus_NoRegisteredProjects(t *testing.T) {
 	}
 }
 
+func TestGetAllProjectsStatus_RecommendationCounts(t *testing.T) {
+	tmpDir := setupTestHome(t)
+
+	proj := setupTestProject(t, tmpDir, "gamma")
+	cache := NewProjectCache(10)
+	defer func() { _ = cache.Close() }()
+
+	backend, err := cache.GetBackend(proj.ID)
+	require.NoError(t, err)
+	storageFixturesForRecommendation(t, backend.(*storage.DatabaseBackend))
+	require.NoError(t, backend.SaveRecommendation(recommendationProtoForAPI("cleanup:task-001:project-status")))
+
+	server := NewProjectServer(nil, nil)
+	server.(*projectServer).SetProjectCache(cache)
+
+	resp, err := server.GetAllProjectsStatus(context.Background(), connect.NewRequest(&orcv1.GetAllProjectsStatusRequest{}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Projects, 1)
+	require.Equal(t, int32(1), resp.Msg.Projects[0].PendingRecommendations)
+}
+
 // TestGetAllProjectsStatus_InaccessibleProjectDB verifies failure mode:
 // If a project's DB cannot be opened, the endpoint returns an error
 // (not silently skipping the project), including the project ID.
@@ -685,4 +707,3 @@ func TestGetAllProjectsStatus_FailedTaskExcludedFromActive(t *testing.T) {
 		t.Errorf("total_tasks should include failed task: got %d, want 1", ps.TotalTasks)
 	}
 }
-

@@ -1492,15 +1492,16 @@ func (x *GetAllProjectsStatusResponse) GetProjects() []*ProjectStatus {
 
 // Per-project status summary
 type ProjectStatus struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId      string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	ProjectName    string                 `protobuf:"bytes,2,opt,name=project_name,json=projectName,proto3" json:"project_name,omitempty"`
-	ProjectPath    string                 `protobuf:"bytes,3,opt,name=project_path,json=projectPath,proto3" json:"project_path,omitempty"`
-	ActiveTasks    []*TaskSummary         `protobuf:"bytes,4,rep,name=active_tasks,json=activeTasks,proto3" json:"active_tasks,omitempty"`
-	TotalTasks     int32                  `protobuf:"varint,5,opt,name=total_tasks,json=totalTasks,proto3" json:"total_tasks,omitempty"`
-	CompletedToday int32                  `protobuf:"varint,6,opt,name=completed_today,json=completedToday,proto3" json:"completed_today,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId              string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectName            string                 `protobuf:"bytes,2,opt,name=project_name,json=projectName,proto3" json:"project_name,omitempty"`
+	ProjectPath            string                 `protobuf:"bytes,3,opt,name=project_path,json=projectPath,proto3" json:"project_path,omitempty"`
+	ActiveTasks            []*TaskSummary         `protobuf:"bytes,4,rep,name=active_tasks,json=activeTasks,proto3" json:"active_tasks,omitempty"`
+	TotalTasks             int32                  `protobuf:"varint,5,opt,name=total_tasks,json=totalTasks,proto3" json:"total_tasks,omitempty"`
+	CompletedToday         int32                  `protobuf:"varint,6,opt,name=completed_today,json=completedToday,proto3" json:"completed_today,omitempty"`
+	PendingRecommendations int32                  `protobuf:"varint,7,opt,name=pending_recommendations,json=pendingRecommendations,proto3" json:"pending_recommendations,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ProjectStatus) Reset() {
@@ -1571,6 +1572,13 @@ func (x *ProjectStatus) GetTotalTasks() int32 {
 func (x *ProjectStatus) GetCompletedToday() int32 {
 	if x != nil {
 		return x.CompletedToday
+	}
+	return 0
+}
+
+func (x *ProjectStatus) GetPendingRecommendations() int32 {
+	if x != nil {
+		return x.PendingRecommendations
 	}
 	return 0
 }
@@ -1758,7 +1766,7 @@ const file_orc_v1_project_proto_rawDesc = "" +
 	"\n" +
 	"\b_user_id\"Q\n" +
 	"\x1cGetAllProjectsStatusResponse\x121\n" +
-	"\bprojects\x18\x01 \x03(\v2\x15.orc.v1.ProjectStatusR\bprojects\"\xf6\x01\n" +
+	"\bprojects\x18\x01 \x03(\v2\x15.orc.v1.ProjectStatusR\bprojects\"\xaf\x02\n" +
 	"\rProjectStatus\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12!\n" +
@@ -1767,7 +1775,8 @@ const file_orc_v1_project_proto_rawDesc = "" +
 	"\factive_tasks\x18\x04 \x03(\v2\x13.orc.v1.TaskSummaryR\vactiveTasks\x12\x1f\n" +
 	"\vtotal_tasks\x18\x05 \x01(\x05R\n" +
 	"totalTasks\x12'\n" +
-	"\x0fcompleted_today\x18\x06 \x01(\x05R\x0ecompletedToday\"\xdd\x01\n" +
+	"\x0fcompleted_today\x18\x06 \x01(\x05R\x0ecompletedToday\x127\n" +
+	"\x17pending_recommendations\x18\a \x01(\x05R\x16pendingRecommendations\"\xdd\x01\n" +
 	"\vTaskSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12*\n" +

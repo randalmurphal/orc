@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+enum RecommendationKind {
+  RECOMMENDATION_KIND_UNSPECIFIED = 0;
+  RECOMMENDATION_KIND_CLEANUP = 1;
+  RECOMMENDATION_KIND_RISK = 2;
+  RECOMMENDATION_KIND_FOLLOW_UP = 3;
+  RECOMMENDATION_KIND_DECISION_REQUEST = 4;
+}
+
+enum RecommendationStatus {
+  RECOMMENDATION_STATUS_UNSPECIFIED = 0;
+  RECOMMENDATION_STATUS_PENDING = 1;
+  RECOMMENDATION_STATUS_ACCEPTED = 2;
+  RECOMMENDATION_STATUS_REJECTED = 3;
+  RECOMMENDATION_STATUS_DISCUSSED = 4;
+}
+
+message Recommendation {
+  string id = 1;
+  RecommendationKind kind = 2;
+  RecommendationStatus status = 3;
+  string title = 4;
+  string summary = 5;
+  string proposed_action = 6;
+  string evidence = 7;
+  string source_task_id = 8;
+  string source_run_id = 9;
+  string dedupe_key = 10;
+  optional string decided_by = 11;
+  google.protobuf.Timestamp decided_at = 12;
+  optional string decision_reason = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+}
+
+service RecommendationService {
+  rpc CreateRecommendation(CreateRecommendationRequest) returns (CreateRecommendationResponse);
+  rpc GetRecommendation(GetRecommendationRequest) returns (GetRecommendationResponse);
+  rpc ListRecommendations(ListRecommendationsRequest) returns (ListRecommendationsResponse);
+  rpc AcceptRecommendation(AcceptRecommendationRequest) returns (AcceptRecommendationResponse);
+  rpc RejectRecommendation(RejectRecommendationRequest) returns (RejectRecommendationResponse);
+  rpc DiscussRecommendation(DiscussRecommendationRequest) returns (DiscussRecommendationResponse);
+}
+
+message CreateRecommendationRequest {
+  string project_id = 1;
+  Recommendation recommendation = 2;
+}
+
+message CreateRecommendationResponse {
+  Recommendation recommendation = 1;
+}
+
+message GetRecommendationRequest {
+  string project_id = 1;
+  string recommendation_id = 2;
+}
+
+message GetRecommendationResponse {
+  Recommendation recommendation = 1;
+}
+
+message ListRecommendationsRequest {
+  string project_id = 1;
+  RecommendationStatus status = 2;
+  RecommendationKind kind = 3;
+  string source_task_id = 4;
+}
+
+message ListRecommendationsResponse {
+  repeated Recommendation recommendations = 1;
+}
+
+message AcceptRecommendationRequest {
+  string project_id = 1;
+  string recommendation_id = 2;
+  string decided_by = 3;
+  string decision_reason = 4;
+}
+
+message AcceptRecommendationResponse {
+  Recommendation recommendation = 1;
+}
+
+message RejectRecommendationRequest {
+  string project_id = 1;
+  string recommendation_id = 2;
+  string decided_by = 3;
+  string decision_reason = 4;
+}
+
+message RejectRecommendationResponse {
+  Recommendation recommendation = 1;
+}
+
+message DiscussRecommendationRequest {
+  string project_id = 1;
+  string recommendation_id = 2;
+  string decided_by = 3;
+  string decision_reason = 4;
+}
+
+message DiscussRecommendationResponse {
+  Recommendation recommendation = 1;
+  string context_pack = 2;
+}

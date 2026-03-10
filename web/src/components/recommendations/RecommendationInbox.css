@@ -1,0 +1,120 @@
+.recommendation-inbox {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 24px;
+}
+
+.recommendation-inbox__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.recommendation-inbox__header h1 {
+	margin: 0 0 6px;
+	font-size: 24px;
+}
+
+.recommendation-inbox__header p {
+	margin: 0;
+	color: var(--text-muted);
+}
+
+.recommendation-inbox__list {
+	display: grid;
+	gap: 16px;
+}
+
+.recommendation-inbox__state {
+	padding: 32px;
+	color: var(--text-muted);
+}
+
+.recommendation-card {
+	border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+	border-radius: 12px;
+	background: var(--bg-surface, rgba(255, 255, 255, 0.03));
+	padding: 20px;
+	display: grid;
+	gap: 14px;
+}
+
+.recommendation-card__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	font-size: 12px;
+}
+
+.recommendation-card__status,
+.recommendation-card__kind,
+.recommendation-card__source {
+	padding: 4px 8px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.recommendation-card__status--pending {
+	background: rgba(247, 181, 0, 0.16);
+	color: #f6c453;
+}
+
+.recommendation-card__status--accepted {
+	background: rgba(31, 194, 115, 0.16);
+	color: #58d58f;
+}
+
+.recommendation-card__status--rejected {
+	background: rgba(230, 72, 72, 0.16);
+	color: #ff8b8b;
+}
+
+.recommendation-card__status--discussed {
+	background: rgba(74, 144, 226, 0.16);
+	color: #82b6ff;
+}
+
+.recommendation-card__body h2 {
+	margin: 0 0 6px;
+	font-size: 18px;
+}
+
+.recommendation-card__body p,
+.recommendation-card__detail p {
+	margin: 0;
+	color: var(--text-secondary);
+}
+
+.recommendation-card__detail {
+	display: grid;
+	gap: 4px;
+}
+
+.recommendation-card__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.recommendation-card__context-pack {
+	margin: 0;
+	padding: 12px;
+	border-radius: 8px;
+	background: rgba(0, 0, 0, 0.18);
+	color: var(--text-secondary);
+	white-space: pre-wrap;
+	font-size: 12px;
+}
+
+@media (max-width: 768px) {
+	.recommendation-inbox {
+		padding: 16px;
+	}
+
+	.recommendation-inbox__header {
+		flex-direction: column;
+	}
+}

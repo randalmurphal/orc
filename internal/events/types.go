@@ -66,6 +66,10 @@ const (
 	// EventDecisionResolved indicates a gate decision was approved or rejected.
 	EventDecisionResolved EventType = "decision_resolved"
 
+	// Recommendation inbox events.
+	EventRecommendationCreated EventType = "recommendation_created"
+	EventRecommendationDecided EventType = "recommendation_decided"
+
 	// Thread events (for Development OS chat interface)
 
 	// EventThreadMessage indicates a new message was added to a thread.
@@ -96,12 +100,12 @@ func NewEvent(eventType EventType, taskID string, data any) Event {
 
 // TranscriptLine represents a single transcript entry.
 type TranscriptLine struct {
-	Phase     string    `json:"phase"`
-	Iteration int       `json:"iteration"`
-	Type      string    `json:"type"` // prompt, response, tool, error
-	Content   string    `json:"content"`
-	Timestamp time.Time `json:"timestamp"`
-	Model     string    `json:"model,omitempty"`
+	Phase     string       `json:"phase"`
+	Iteration int          `json:"iteration"`
+	Type      string       `json:"type"` // prompt, response, tool, error
+	Content   string       `json:"content"`
+	Timestamp time.Time    `json:"timestamp"`
+	Model     string       `json:"model,omitempty"`
 	Tokens    *TokenUpdate `json:"tokens,omitempty"`
 }
 
@@ -238,6 +242,25 @@ type ThreadMessageData struct {
 type ThreadTypingData struct {
 	ThreadID string `json:"thread_id"`
 	IsTyping bool   `json:"is_typing"`
+}
+
+type RecommendationCreatedData struct {
+	RecommendationID string `json:"recommendation_id"`
+	Kind             string `json:"kind"`
+	Status           string `json:"status"`
+	Title            string `json:"title"`
+	Summary          string `json:"summary"`
+	SourceTaskID     string `json:"source_task_id"`
+	SourceRunID      string `json:"source_run_id"`
+}
+
+type RecommendationDecidedData struct {
+	RecommendationID string `json:"recommendation_id"`
+	PreviousStatus   string `json:"previous_status"`
+	Status           string `json:"status"`
+	DecidedBy        string `json:"decided_by"`
+	DecisionReason   string `json:"decision_reason"`
+	SourceTaskID     string `json:"source_task_id"`
 }
 
 // ThreadStatusData represents a thread status change.

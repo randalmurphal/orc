@@ -322,12 +322,13 @@ func (x *GetAttentionDashboardDataRequest) GetProjectId() string {
 
 // Response containing all attention dashboard data
 type GetAttentionDashboardDataResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	RunningSummary *RunningSummary        `protobuf:"bytes,1,opt,name=running_summary,json=runningSummary,proto3" json:"running_summary,omitempty"`
-	AttentionItems []*AttentionItem       `protobuf:"bytes,2,rep,name=attention_items,json=attentionItems,proto3" json:"attention_items,omitempty"`
-	QueueSummary   *QueueSummary          `protobuf:"bytes,3,opt,name=queue_summary,json=queueSummary,proto3" json:"queue_summary,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	RunningSummary         *RunningSummary        `protobuf:"bytes,1,opt,name=running_summary,json=runningSummary,proto3" json:"running_summary,omitempty"`
+	AttentionItems         []*AttentionItem       `protobuf:"bytes,2,rep,name=attention_items,json=attentionItems,proto3" json:"attention_items,omitempty"`
+	QueueSummary           *QueueSummary          `protobuf:"bytes,3,opt,name=queue_summary,json=queueSummary,proto3" json:"queue_summary,omitempty"`
+	PendingRecommendations int32                  `protobuf:"varint,4,opt,name=pending_recommendations,json=pendingRecommendations,proto3" json:"pending_recommendations,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *GetAttentionDashboardDataResponse) Reset() {
@@ -379,6 +380,13 @@ func (x *GetAttentionDashboardDataResponse) GetQueueSummary() *QueueSummary {
 		return x.QueueSummary
 	}
 	return nil
+}
+
+func (x *GetAttentionDashboardDataResponse) GetPendingRecommendations() int32 {
+	if x != nil {
+		return x.PendingRecommendations
+	}
+	return 0
 }
 
 // Summary of currently running tasks
@@ -1579,11 +1587,12 @@ const file_orc_v1_attention_dashboard_proto_rawDesc = "" +
 	" orc/v1/attention_dashboard.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x11orc/v1/task.proto\x1a\x15orc/v1/decision.proto\"A\n" +
 	" GetAttentionDashboardDataRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectId\"\xdf\x01\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"\x98\x02\n" +
 	"!GetAttentionDashboardDataResponse\x12?\n" +
 	"\x0frunning_summary\x18\x01 \x01(\v2\x16.orc.v1.RunningSummaryR\x0erunningSummary\x12>\n" +
 	"\x0fattention_items\x18\x02 \x03(\v2\x15.orc.v1.AttentionItemR\x0eattentionItems\x129\n" +
-	"\rqueue_summary\x18\x03 \x01(\v2\x14.orc.v1.QueueSummaryR\fqueueSummary\"Z\n" +
+	"\rqueue_summary\x18\x03 \x01(\v2\x14.orc.v1.QueueSummaryR\fqueueSummary\x127\n" +
+	"\x17pending_recommendations\x18\x04 \x01(\x05R\x16pendingRecommendations\"Z\n" +
 	"\x0eRunningSummary\x12\x1d\n" +
 	"\n" +
 	"task_count\x18\x01 \x01(\x05R\ttaskCount\x12)\n" +

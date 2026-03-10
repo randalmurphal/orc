@@ -383,6 +383,18 @@ export function handleEvent(event: Event): void {
 			break;
 		}
 
+		case 'recommendationCreated': {
+			const { title } = event.payload.value;
+			toast.info(`Recommendation created: ${title || 'Untitled recommendation'}`);
+			break;
+		}
+
+		case 'recommendationDecided': {
+			const { recommendationId, status } = event.payload.value;
+			toast.info(`Recommendation ${recommendationId} updated to ${status}`);
+			break;
+		}
+
 		case 'heartbeat': {
 			// Connection health check - no action needed
 			break;

@@ -39,6 +39,12 @@ const mainNavItems: NavItemConfig[] = [
 		description: 'Task board view',
 	},
 	{
+		icon: 'clipboard',
+		label: 'Inbox',
+		path: '/recommendations',
+		description: 'Recommendation inbox',
+	},
+	{
 		icon: 'layers',
 		label: 'Initiatives',
 		path: '/initiatives',
@@ -95,7 +101,7 @@ export interface IconNavProps {
  */
 function checkIsActive(path: string, pathname: string): boolean {
 	// Exact match for root, board, help (no nested routes expected)
-	if (path === '/' || path === '/board' || path === '/help') {
+	if (path === '/' || path === '/board' || path === '/recommendations' || path === '/help') {
 		return pathname === path;
 	}
 	// For settings, initiatives, stats, workflows - match prefix for nested routes
