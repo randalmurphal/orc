@@ -851,8 +851,20 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		rctx.Phase = tmpl.ID
 		rctx.Provider = we.resolvePhaseProvider(tmpl, phase)
 
+		controlPlaneUsage, err := we.phaseControlPlaneVariableUsage(tmpl, phase)
+		if err != nil {
+			we.failRun(run, t, fmt.Errorf("detect control-plane variable usage for phase %s: %w", tmpl.ID, err))
+			return result, err
+		}
+
 		// Enrich context with phase-specific data (review findings, test results, etc.)
 		we.enrichContextForPhase(rctx, tmpl.ID, t)
+		if controlPlaneUsage.Any() {
+			if err := we.populateControlPlaneContext(rctx, tmpl.ID, t, controlPlaneUsage); err != nil {
+				we.failRun(run, t, fmt.Errorf("populate control-plane context for phase %s: %w", tmpl.ID, err))
+				return result, err
+			}
+		}
 
 		// Re-resolve variables with updated context
 		vars, err = we.resolver.ResolveAll(execCtx, varDefs, rctx)

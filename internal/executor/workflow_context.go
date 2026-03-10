@@ -9,12 +9,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/brief"
+	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -51,12 +53,12 @@ func (we *WorkflowExecutor) buildResolutionContext(
 	// Use effectiveWorkingDir() to get worktree path if one was created
 	workDir := we.effectiveWorkingDir()
 	rctx := &variable.ResolutionContext{
-		WorkflowID:    wf.ID,
-		WorkflowRunID: run.ID,
-		Prompt:        opts.Prompt,
-		Instructions:  opts.Instructions,
-		WorkingDir:    workDir,
-		ProjectRoot:   workDir,
+		WorkflowID:      wf.ID,
+		WorkflowRunID:   run.ID,
+		Prompt:          opts.Prompt,
+		Instructions:    opts.Instructions,
+		WorkingDir:      workDir,
+		ProjectRoot:     workDir,
 		PriorOutputs:    make(map[string]string),
 		PhaseOutputVars: make(map[string]string),
 	}
@@ -320,6 +322,218 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 	}
 }
 
+func (we *WorkflowExecutor) populateControlPlaneContext(
+	rctx *variable.ResolutionContext,
+	phaseID string,
+	currentTask *orcv1.Task,
+	usage controlPlaneVariableUsage,
+) error {
+	rctx.PendingRecommendations = ""
+	rctx.HandoffContext = ""
+	rctx.AttentionSummary = ""
+
+	if usage.needsRecommendations() {
+		recommendations, err := we.backend.LoadAllRecommendations()
+		if err != nil {
+			return fmt.Errorf("load recommendations for control-plane context: %w", err)
+		}
+
+		if usage.PendingRecommendations {
+			rctx.PendingRecommendations = formatPendingRecommendations(recommendations)
+		}
+		if usage.HandoffContext {
+			rctx.HandoffContext = formatHandoffContext(currentTask, phaseID, recommendations)
+		}
+	}
+
+	if !usage.AttentionSummary {
+		return nil
+	}
+
+	tasks, err := we.backend.LoadAllTasks()
+	if err != nil {
+		return fmt.Errorf("load tasks for control-plane context: %w", err)
+	}
+	rctx.AttentionSummary = formatAttentionSignals(tasks)
+	return nil
+}
+
+func formatPendingRecommendations(recommendations []*orcv1.Recommendation) string {
+	candidates := make([]controlplane.RecommendationCandidate, 0, len(recommendations))
+	for _, recommendation := range recommendations {
+		if recommendation.GetStatus() != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING {
+			continue
+		}
+
+		candidates = append(candidates, controlplane.RecommendationCandidate{
+			Kind:           recommendationKindName(recommendation.GetKind()),
+			Title:          recommendation.GetTitle(),
+			Summary:        recommendation.GetSummary(),
+			ProposedAction: recommendation.GetProposedAction(),
+			Evidence:       recommendation.GetEvidence(),
+			DedupeKey:      recommendation.GetDedupeKey(),
+		})
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].DedupeKey == candidates[j].DedupeKey {
+			return candidates[i].Title < candidates[j].Title
+		}
+		return candidates[i].DedupeKey < candidates[j].DedupeKey
+	})
+
+	return controlplane.FormatRecommendationSummary(candidates)
+}
+
+func formatHandoffContext(
+	currentTask *orcv1.Task,
+	phaseID string,
+	recommendations []*orcv1.Recommendation,
+) string {
+	if currentTask == nil {
+		return ""
+	}
+
+	pack := controlplane.HandoffPack{
+		TaskID:       currentTask.GetId(),
+		TaskTitle:    currentTask.GetTitle(),
+		CurrentPhase: phaseID,
+		Summary:      task.GetDescriptionProto(currentTask),
+		NextSteps:    handoffNextSteps(currentTask.GetId(), recommendations),
+		Risks:        handoffRisks(currentTask.GetId(), recommendations),
+	}
+
+	return controlplane.FormatHandoffPack(pack)
+}
+
+func formatAttentionSignals(tasks []*orcv1.Task) string {
+	signals := make([]controlplane.AttentionSignal, 0)
+	for _, taskItem := range tasks {
+		switch taskItem.GetStatus() {
+		case orcv1.TaskStatus_TASK_STATUS_BLOCKED, orcv1.TaskStatus_TASK_STATUS_FAILED:
+			signals = append(signals, controlplane.AttentionSignal{
+				Kind:    attentionKindName(taskItem.GetStatus()),
+				TaskID:  taskItem.GetId(),
+				Title:   taskItem.GetTitle(),
+				Status:  taskStatusName(taskItem.GetStatus()),
+				Phase:   task.GetCurrentPhaseProto(taskItem),
+				Summary: attentionSummaryForTask(taskItem),
+			})
+		}
+	}
+
+	sort.Slice(signals, func(i, j int) bool {
+		return signals[i].TaskID < signals[j].TaskID
+	})
+
+	return controlplane.FormatAttentionSummary(signals)
+}
+
+func recommendationKindName(kind orcv1.RecommendationKind) string {
+	return strings.TrimPrefix(strings.ToLower(kind.String()), "recommendation_kind_")
+}
+
+func attentionKindName(status orcv1.TaskStatus) string {
+	switch status {
+	case orcv1.TaskStatus_TASK_STATUS_BLOCKED:
+		return "blocked_task"
+	case orcv1.TaskStatus_TASK_STATUS_FAILED:
+		return "failed_task"
+	default:
+		return ""
+	}
+}
+
+func taskStatusName(status orcv1.TaskStatus) string {
+	return strings.TrimPrefix(strings.ToLower(status.String()), "task_status_")
+}
+
+func attentionSummaryForTask(taskItem *orcv1.Task) string {
+	if taskItem == nil {
+		return ""
+	}
+	if taskItem.Metadata != nil {
+		if blockedReason := taskItem.Metadata["blocked_reason"]; blockedReason != "" {
+			return blockedReason
+		}
+	}
+	return task.GetDescriptionProto(taskItem)
+}
+
+func handoffNextSteps(taskID string, recommendations []*orcv1.Recommendation) []string {
+	steps := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	for _, recommendation := range recommendations {
+		if recommendation.GetSourceTaskId() != taskID {
+			continue
+		}
+		if recommendation.GetStatus() != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING {
+			continue
+		}
+		if recommendation.GetKind() == orcv1.RecommendationKind_RECOMMENDATION_KIND_RISK {
+			continue
+		}
+
+		step := strings.TrimSpace(recommendation.GetProposedAction())
+		if step == "" {
+			step = strings.TrimSpace(recommendation.GetSummary())
+		}
+		if step == "" {
+			step = strings.TrimSpace(recommendation.GetTitle())
+		}
+		if step == "" {
+			continue
+		}
+		if _, exists := seen[step]; exists {
+			continue
+		}
+
+		seen[step] = struct{}{}
+		steps = append(steps, step)
+	}
+
+	sort.Strings(steps)
+	return steps
+}
+
+func handoffRisks(taskID string, recommendations []*orcv1.Recommendation) []string {
+	risks := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	for _, recommendation := range recommendations {
+		if recommendation.GetSourceTaskId() != taskID {
+			continue
+		}
+		if recommendation.GetStatus() != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING {
+			continue
+		}
+		if recommendation.GetKind() != orcv1.RecommendationKind_RECOMMENDATION_KIND_RISK {
+			continue
+		}
+
+		risk := strings.TrimSpace(recommendation.GetTitle())
+		summary := strings.TrimSpace(recommendation.GetSummary())
+		if risk == "" {
+			risk = summary
+		} else if summary != "" {
+			risk = risk + ": " + summary
+		}
+		if risk == "" {
+			continue
+		}
+		if _, exists := seen[risk]; exists {
+			continue
+		}
+
+		seen[risk] = struct{}{}
+		risks = append(risks, risk)
+	}
+
+	sort.Strings(risks)
+	return risks
+}
+
 // populateProjectBrief generates a project brief and populates rctx.ProjectBrief.
 // Requires *storage.DatabaseBackend — silently skips for other backend types.
 func (we *WorkflowExecutor) populateProjectBrief(rctx *variable.ResolutionContext) {
@@ -427,7 +641,6 @@ func (we *WorkflowExecutor) convertToDefinitions(wvs []*db.WorkflowVariable) []v
 	}
 	return defs
 }
-
 
 // loadPriorPhaseContentProto loads content from a completed prior phase using proto types.
 func (we *WorkflowExecutor) loadPriorPhaseContentProto(taskID string, e *orcv1.ExecutionState, phaseID string) string {

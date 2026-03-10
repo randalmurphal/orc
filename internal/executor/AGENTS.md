@@ -339,6 +339,7 @@ All template variables resolved via `internal/variable/Resolver`. Resolution con
 | Task | TASK_ID, TASK_TITLE, TASK_DESCRIPTION, TASK_CATEGORY, WEIGHT |
 | Phase | PHASE, ITERATION, RETRY_ATTEMPT, RETRY_FROM_PHASE, RETRY_REASON |
 | Git | WORKTREE_PATH, PROJECT_ROOT, TASK_BRANCH, TARGET_BRANCH |
+| Control Plane | PENDING_RECOMMENDATIONS, ATTENTION_SUMMARY, HANDOFF_CONTEXT |
 | Initiative | INITIATIVE_ID, INITIATIVE_TITLE, INITIATIVE_VISION, INITIATIVE_DECISIONS |
 | Review | REVIEW_ROUND, REVIEW_FINDINGS |
 | Project | LANGUAGE, HAS_FRONTEND, HAS_TESTS, TEST_COMMAND, FRAMEWORKS, ERROR_PATTERNS |
@@ -348,6 +349,8 @@ All template variables resolved via `internal/variable/Resolver`. Resolution con
 | Phase Outputs | Data-driven from phase template `output_var_name`. Built-ins: SPEC_CONTENT, RESEARCH_CONTENT, TDD_TESTS_CONTENT, BREAKDOWN_CONTENT, QA_FINDINGS. Generic: OUTPUT_{PHASE_ID} |
 
 See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, API, phase_output).
+
+When the active phase prompt or system prompt references them, the executor hydrates the control-plane variables from project state before resolution: pending recommendations are summarized for prompt injection, blocked and failed tasks are compacted into `ATTENTION_SUMMARY`, and the current task gets a bounded `HANDOFF_CONTEXT`. Unused variables stay empty without touching the backend; referenced variables fail the phase if their source data cannot be loaded.
 
 ## Phase Content Storage
 

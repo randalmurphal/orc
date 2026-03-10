@@ -59,6 +59,73 @@ type PhaseExecutionResult struct {
 	SessionID           string
 }
 
+type controlPlaneVariableUsage struct {
+	PendingRecommendations bool
+	AttentionSummary       bool
+	HandoffContext         bool
+}
+
+func (u controlPlaneVariableUsage) Any() bool {
+	return u.PendingRecommendations || u.AttentionSummary || u.HandoffContext
+}
+
+func (u controlPlaneVariableUsage) needsRecommendations() bool {
+	return u.PendingRecommendations || u.HandoffContext
+}
+
+func detectControlPlaneVariableUsage(content string) controlPlaneVariableUsage {
+	return controlPlaneVariableUsage{
+		PendingRecommendations: strings.Contains(content, "{{PENDING_RECOMMENDATIONS}}"),
+		AttentionSummary:       strings.Contains(content, "{{ATTENTION_SUMMARY}}"),
+		HandoffContext:         strings.Contains(content, "{{HANDOFF_CONTEXT}}"),
+	}
+}
+
+func mergeControlPlaneVariableUsage(parts ...controlPlaneVariableUsage) controlPlaneVariableUsage {
+	merged := controlPlaneVariableUsage{}
+	for _, part := range parts {
+		merged.PendingRecommendations = merged.PendingRecommendations || part.PendingRecommendations
+		merged.AttentionSummary = merged.AttentionSummary || part.AttentionSummary
+		merged.HandoffContext = merged.HandoffContext || part.HandoffContext
+	}
+	return merged
+}
+
+func (we *WorkflowExecutor) phaseControlPlaneVariableUsage(
+	tmpl *db.PhaseTemplate,
+	phase *db.WorkflowPhase,
+) (controlPlaneVariableUsage, error) {
+	effectiveType := tmpl.Type
+	if phase != nil && phase.TypeOverride != "" {
+		effectiveType = phase.TypeOverride
+	}
+	if effectiveType == "" {
+		effectiveType = "llm"
+	}
+
+	usage := controlPlaneVariableUsage{}
+	if effectiveType == "llm" {
+		promptContent, err := we.loadPhasePrompt(tmpl)
+		if err != nil {
+			return controlPlaneVariableUsage{}, fmt.Errorf("load phase prompt for control-plane usage: %w", err)
+		}
+		usage = detectControlPlaneVariableUsage(promptContent)
+	} else if tmpl.PromptContent != "" {
+		usage = detectControlPlaneVariableUsage(tmpl.PromptContent)
+	}
+
+	cfg := we.getEffectivePhaseClaudeConfig(tmpl, phase)
+	if cfg == nil {
+		return usage, nil
+	}
+
+	return mergeControlPlaneVariableUsage(
+		usage,
+		detectControlPlaneVariableUsage(cfg.SystemPrompt),
+		detectControlPlaneVariableUsage(cfg.AppendSystemPrompt),
+	), nil
+}
+
 // executePhase runs a single phase of the workflow.
 func (we *WorkflowExecutor) executePhase(
 	ctx context.Context,
