@@ -1310,9 +1310,6 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 								for k := retryIdx; k <= i; k++ {
 									task.ResetPhaseProto(we.task.Execution, phases[k].PhaseTemplateID)
 								}
-								// Clear retry context so gate-triggered retries
-								// don't cause review to think it's round 2.
-								task.ClearRetryState(we.task)
 								if err := we.backend.SaveTask(we.task); err != nil {
 									we.logger.Warn("failed to save retry phase reset", "error", err)
 								}

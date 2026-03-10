@@ -36,6 +36,9 @@ func executeClaudeStructuredFinalize(
 	}
 
 	turns := []*TurnResult{analysisTurn}
+	if analysisTurn != nil && analysisTurn.SessionID != "" {
+		turnExec.UpdateSessionID(analysisTurn.SessionID)
+	}
 	finalizePrompt := buildClaudeStructuredFinalizePrompt(cfg.PhaseID, cfg.ReviewRound, "")
 
 	for attempt := 1; attempt <= claudeStructuredFinalizeAttempts; attempt++ {

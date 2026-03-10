@@ -46,6 +46,9 @@ func checkResumeSession(we *WorkflowExecutor, phaseID string) (sessionID string,
 	if we.task == nil || !we.isResuming {
 		return "", false
 	}
+	if shouldStartFreshRetryPhase(we.task, phaseID) {
+		return "", false
+	}
 	if we.task.Execution == nil || we.task.Execution.Phases == nil {
 		return "", false
 	}
@@ -61,6 +64,11 @@ func checkResumeSession(we *WorkflowExecutor, phaseID string) (sessionID string,
 		return storedSessionID, true
 	}
 	return "", false
+}
+
+func shouldStartFreshRetryPhase(t *orcv1.Task, phaseID string) bool {
+	rs := task.GetRetryState(t)
+	return rs != nil && rs.ToPhase == phaseID
 }
 
 // --- claudeAdapter ---

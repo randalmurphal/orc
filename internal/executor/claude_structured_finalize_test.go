@@ -17,11 +17,14 @@ type structuredFinalizeMockTurnExecutor struct {
 
 	noSchemaPrompts []string
 	schemaPrompts   []string
+	schemaSessions  []string
+	updateCalls     []string
 	sessionID       string
 }
 
 func (m *structuredFinalizeMockTurnExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error) {
 	m.schemaPrompts = append(m.schemaPrompts, prompt)
+	m.schemaSessions = append(m.schemaSessions, m.sessionID)
 
 	var result *TurnResult
 	if len(m.schemaResults) > 0 {
@@ -63,6 +66,7 @@ func (m *structuredFinalizeMockTurnExecutor) ExecuteTurnWithoutSchema(ctx contex
 }
 
 func (m *structuredFinalizeMockTurnExecutor) UpdateSessionID(id string) {
+	m.updateCalls = append(m.updateCalls, id)
 	m.sessionID = id
 }
 
@@ -128,6 +132,18 @@ func TestExecuteClaudeStructuredFinalize_UsesAnalysisThenStructuredFinalize(t *t
 	}
 	if !strings.Contains(mock.schemaPrompts[0], "Return the final structured review result now") {
 		t.Fatalf("finalize prompt missing instruction: %q", mock.schemaPrompts[0])
+	}
+	if got := len(mock.updateCalls); got != 1 {
+		t.Fatalf("session update calls = %d, want 1", got)
+	}
+	if got := mock.updateCalls[0]; got != "review-session" {
+		t.Fatalf("session update call = %q, want %q", got, "review-session")
+	}
+	if got := len(mock.schemaSessions); got != 1 {
+		t.Fatalf("schema session count = %d, want 1", got)
+	}
+	if got := mock.schemaSessions[0]; got != "review-session" {
+		t.Fatalf("schema call session = %q, want %q", got, "review-session")
 	}
 }
 
@@ -201,6 +217,17 @@ func TestExecuteClaudeStructuredFinalize_RetriesFinalizeWithoutRepeatingAnalysis
 	}
 	if !strings.Contains(mock.schemaPrompts[1], "Previous finalize error:") {
 		t.Fatalf("retry finalize prompt missing prior error: %q", mock.schemaPrompts[1])
+	}
+	if got := len(mock.updateCalls); got != 1 {
+		t.Fatalf("session update calls = %d, want 1", got)
+	}
+	if got := len(mock.schemaSessions); got != 2 {
+		t.Fatalf("schema session count = %d, want 2", got)
+	}
+	for i, sessionID := range mock.schemaSessions {
+		if sessionID != "review-session" {
+			t.Fatalf("schema session %d = %q, want %q", i, sessionID, "review-session")
+		}
 	}
 }
 

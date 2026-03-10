@@ -1,0 +1,112 @@
+package executor
+
+import (
+	"io"
+	"log/slog"
+	"testing"
+
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
+)
+
+func TestCheckResumeSession_SkipsRetryTargetPhase(t *testing.T) {
+	t.Parallel()
+
+	tsk := task.NewProtoTask("TASK-RETRY-SESSION", "retry target should start fresh")
+	task.EnsurePhaseProto(tsk.Execution, "implement_codex")
+	tsk.Execution.Phases["implement_codex"].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
+	sessionID := "codex-session-123"
+	tsk.Execution.Phases["implement_codex"].SessionId = &sessionID
+	task.SetRetryState(tsk, "review_cross", "implement_codex", "blocking review findings", "{}", 1)
+
+	we := &WorkflowExecutor{
+		task:       tsk,
+		isResuming: true,
+	}
+
+	gotSessionID, shouldResume := checkResumeSession(we, "implement_codex")
+	if shouldResume {
+		t.Fatal("retry target phase should start fresh, not resume stale session")
+	}
+	if gotSessionID != "" {
+		t.Fatalf("sessionID = %q, want empty", gotSessionID)
+	}
+}
+
+func TestCheckResumeSession_ResumesNormalPendingPhase(t *testing.T) {
+	t.Parallel()
+
+	tsk := task.NewProtoTask("TASK-RESUME-SESSION", "normal pending phase should resume")
+	task.EnsurePhaseProto(tsk.Execution, "implement_codex")
+	tsk.Execution.Phases["implement_codex"].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
+	sessionID := "codex-session-123"
+	tsk.Execution.Phases["implement_codex"].SessionId = &sessionID
+
+	we := &WorkflowExecutor{
+		task:       tsk,
+		isResuming: true,
+	}
+
+	gotSessionID, shouldResume := checkResumeSession(we, "implement_codex")
+	if !shouldResume {
+		t.Fatal("expected normal pending phase to resume existing session")
+	}
+	if gotSessionID != sessionID {
+		t.Fatalf("sessionID = %q, want %q", gotSessionID, sessionID)
+	}
+}
+
+func TestClearRetryStateForFreshPhaseStart_ClearsMetadataOnFreshStart(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	tsk := task.NewProtoTask("TASK-CLEAR-RETRY", "clear retry state when fresh retry starts")
+	task.SetRetryState(tsk, "review_cross", "implement_codex", "blocking review findings", "{}", 2)
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	we := &WorkflowExecutor{
+		backend: backend,
+		task:    tsk,
+		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	we.clearRetryStateForFreshPhaseStart("implement_codex", false)
+
+	if rs := task.GetRetryState(tsk); rs != nil {
+		t.Fatalf("retry state should be cleared after fresh retry start, got %+v", rs)
+	}
+
+	loaded, err := backend.LoadTask(tsk.Id)
+	if err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+	if rs := task.GetRetryState(loaded); rs != nil {
+		t.Fatalf("persisted retry state should be cleared, got %+v", rs)
+	}
+}
+
+func TestClearRetryStateForFreshPhaseStart_PreservesMetadataOnResume(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	tsk := task.NewProtoTask("TASK-KEEP-RETRY", "keep retry state when resuming")
+	task.SetRetryState(tsk, "review_cross", "implement_codex", "blocking review findings", "{}", 2)
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	we := &WorkflowExecutor{
+		backend: backend,
+		task:    tsk,
+		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	we.clearRetryStateForFreshPhaseStart("implement_codex", true)
+
+	if rs := task.GetRetryState(tsk); rs == nil {
+		t.Fatal("retry state should remain while phase is resuming")
+	}
+}

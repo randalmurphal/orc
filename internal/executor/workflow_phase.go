@@ -600,6 +600,7 @@ func (we *WorkflowExecutor) executeWithProvider(ctx context.Context, cfg PhaseEx
 	if err != nil {
 		return result, fmt.Errorf("%s prepare: %w", adapter.Name(), err)
 	}
+	we.clearRetryStateForFreshPhaseStart(cfg.PhaseID, pctx.ShouldResume)
 	result.SessionID = pctx.SessionID
 
 	// 2. Create or inject TurnExecutor
@@ -738,6 +739,26 @@ func (we *WorkflowExecutor) executeWithProvider(ctx context.Context, cfg PhaseEx
 	}
 
 	return result, fmt.Errorf("max orc retries (%d) reached without completion (%s)", MaxOrcRetries, adapter.Name())
+}
+
+func (we *WorkflowExecutor) clearRetryStateForFreshPhaseStart(phaseID string, resumed bool) {
+	if resumed || we.task == nil || !shouldStartFreshRetryPhase(we.task, phaseID) {
+		return
+	}
+
+	task.ClearRetryState(we.task)
+	if err := we.backend.SaveTask(we.task); err != nil {
+		we.logger.Warn("failed to clear retry state for fresh phase start",
+			"phase", phaseID,
+			"error", err,
+		)
+		return
+	}
+
+	we.logger.Info("cleared retry state after starting fresh retry phase",
+		"task", we.task.Id,
+		"phase", phaseID,
+	)
 }
 
 // updatePhaseIterations persists the current iteration count for real-time monitoring.
