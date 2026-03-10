@@ -41,10 +41,15 @@ type Recommendation struct {
 	Evidence       string
 	SourceTaskID   string
 	SourceRunID    string
+	SourceThreadID string
 	DedupeKey      string
 	DecidedBy      string
 	DecidedAt      *time.Time
 	DecisionReason string
+	PromotedToType string
+	PromotedToID   string
+	PromotedBy     string
+	PromotedAt     *time.Time
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
@@ -117,8 +122,9 @@ func (p *ProjectDB) GetRecommendation(id string) (*Recommendation, error) {
 	rec, err := getRecommendationByQueryRow(
 		p.QueryRow(fmt.Sprintf(`
 			SELECT id, kind, status, title, summary, proposed_action, evidence,
-			       source_task_id, source_run_id, dedupe_key, decided_by, decided_at,
-			       decision_reason, created_at, updated_at
+			       source_task_id, source_run_id, source_thread_id, dedupe_key, decided_by, decided_at,
+			       decision_reason, promoted_to_type, promoted_to_id, promoted_by, promoted_at,
+			       created_at, updated_at
 			FROM recommendations
 			WHERE id = %s
 		`, placeholder), id),
@@ -400,8 +406,9 @@ func recommendationInsertQuery(dialect driver.Dialect, now string, rec *Recommen
 		return fmt.Sprintf(`
 			INSERT INTO recommendations (
 				id, kind, status, title, summary, proposed_action, evidence,
-				source_task_id, source_run_id, dedupe_key, created_at, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, %s)
+				source_task_id, source_run_id, source_thread_id, dedupe_key,
+				promoted_to_type, promoted_to_id, promoted_by, promoted_at, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, %s)
 		`, now, now), []any{
 				rec.ID,
 				rec.Kind,
@@ -412,15 +419,21 @@ func recommendationInsertQuery(dialect driver.Dialect, now string, rec *Recommen
 				rec.Evidence,
 				rec.SourceTaskID,
 				rec.SourceRunID,
+				nullableRecommendationValue(rec.SourceThreadID),
 				rec.DedupeKey,
+				nullableRecommendationValue(rec.PromotedToType),
+				nullableRecommendationValue(rec.PromotedToID),
+				nullableRecommendationValue(rec.PromotedBy),
+				nullableRecommendationTime(rec.PromotedAt),
 			}
 	}
 
 	return fmt.Sprintf(`
 		INSERT INTO recommendations (
 			id, kind, status, title, summary, proposed_action, evidence,
-			source_task_id, source_run_id, dedupe_key, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, %s, %s)
+			source_task_id, source_run_id, source_thread_id, dedupe_key,
+			promoted_to_type, promoted_to_id, promoted_by, promoted_at, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, %s, %s)
 	`, now, now), []any{
 			rec.ID,
 			rec.Kind,
@@ -431,15 +444,21 @@ func recommendationInsertQuery(dialect driver.Dialect, now string, rec *Recommen
 			rec.Evidence,
 			rec.SourceTaskID,
 			rec.SourceRunID,
+			nullableRecommendationValue(rec.SourceThreadID),
 			rec.DedupeKey,
+			nullableRecommendationValue(rec.PromotedToType),
+			nullableRecommendationValue(rec.PromotedToID),
+			nullableRecommendationValue(rec.PromotedBy),
+			nullableRecommendationTime(rec.PromotedAt),
 		}
 }
 
 func recommendationListQuery(dialect driver.Dialect, opts RecommendationListOpts) (string, []any) {
 	baseQuery := `
 		SELECT id, kind, status, title, summary, proposed_action, evidence,
-		       source_task_id, source_run_id, dedupe_key, decided_by, decided_at,
-		       decision_reason, created_at, updated_at
+		       source_task_id, source_run_id, source_thread_id, dedupe_key, decided_by, decided_at,
+		       decision_reason, promoted_to_type, promoted_to_id, promoted_by, promoted_at,
+		       created_at, updated_at
 		FROM recommendations
 	`
 
@@ -542,8 +561,9 @@ func getRecommendationTx(tx *TxOps, id string) (*Recommendation, error) {
 	placeholder := placeholderForDialect(tx.Dialect(), 1)
 	row := tx.QueryRow(fmt.Sprintf(`
 		SELECT id, kind, status, title, summary, proposed_action, evidence,
-		       source_task_id, source_run_id, dedupe_key, decided_by, decided_at,
-		       decision_reason, created_at, updated_at
+		       source_task_id, source_run_id, source_thread_id, dedupe_key, decided_by, decided_at,
+		       decision_reason, promoted_to_type, promoted_to_id, promoted_by, promoted_at,
+		       created_at, updated_at
 		FROM recommendations
 		WHERE id = %s
 	`, placeholder), id)
@@ -559,9 +579,14 @@ func getRecommendationTx(tx *TxOps, id string) (*Recommendation, error) {
 
 func scanRecommendation(scanner recommendationRowScanner) (*Recommendation, error) {
 	rec := &Recommendation{}
+	var sourceThreadID sql.NullString
 	var decidedBy sql.NullString
 	var decisionReason sql.NullString
+	var promotedToType sql.NullString
+	var promotedToID sql.NullString
+	var promotedBy sql.NullString
 	var decidedAt any
+	var promotedAt any
 	var createdAt any
 	var updatedAt any
 
@@ -575,10 +600,15 @@ func scanRecommendation(scanner recommendationRowScanner) (*Recommendation, erro
 		&rec.Evidence,
 		&rec.SourceTaskID,
 		&rec.SourceRunID,
+		&sourceThreadID,
 		&rec.DedupeKey,
 		&decidedBy,
 		&decidedAt,
 		&decisionReason,
+		&promotedToType,
+		&promotedToID,
+		&promotedBy,
+		&promotedAt,
 		&createdAt,
 		&updatedAt,
 	)
@@ -586,11 +616,18 @@ func scanRecommendation(scanner recommendationRowScanner) (*Recommendation, erro
 		return nil, err
 	}
 
+	rec.SourceThreadID = sourceThreadID.String
 	rec.DecidedBy = decidedBy.String
 	if t, ok := scannedTimestamp(decidedAt); ok {
 		rec.DecidedAt = &t
 	}
 	rec.DecisionReason = decisionReason.String
+	rec.PromotedToType = promotedToType.String
+	rec.PromotedToID = promotedToID.String
+	rec.PromotedBy = promotedBy.String
+	if t, ok := scannedTimestamp(promotedAt); ok {
+		rec.PromotedAt = &t
+	}
 	rec.CreatedAt = timestampOrZero(createdAt)
 	rec.UpdatedAt = timestampOrZero(updatedAt)
 	return rec, nil
@@ -633,6 +670,13 @@ func nullableRecommendationValue(value string) any {
 		return nil
 	}
 	return value
+}
+
+func nullableRecommendationTime(value *time.Time) any {
+	if value == nil {
+		return nil
+	}
+	return value.Format(time.RFC3339)
 }
 
 func containsRecommendationStatus(statuses []string, status string) bool {

@@ -605,6 +605,11 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 				Summary:          data.Summary,
 				SourceTaskId:     data.SourceTaskID,
 				SourceRunId:      data.SourceRunID,
+				SourceThreadId:   data.SourceThreadID,
+				PromotedToType:   data.PromotedToType,
+				PromotedToId:     data.PromotedToID,
+				PromotedBy:       data.PromotedBy,
+				PromotedAt:       recommendationEventTimestamp(data.PromotedAt),
 			},
 		}
 
@@ -629,6 +634,11 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 				DecidedBy:        data.DecidedBy,
 				DecisionReason:   data.DecisionReason,
 				SourceTaskId:     data.SourceTaskID,
+				SourceThreadId:   data.SourceThreadID,
+				PromotedToType:   data.PromotedToType,
+				PromotedToId:     data.PromotedToID,
+				PromotedBy:       data.PromotedBy,
+				PromotedAt:       recommendationEventTimestamp(data.PromotedAt),
 			},
 		}
 
@@ -707,6 +717,11 @@ func dbEventToProto(e *db.EventLog) *orcv1.Event {
 				Summary:          data.Summary,
 				SourceTaskId:     data.SourceTaskID,
 				SourceRunId:      data.SourceRunID,
+				SourceThreadId:   data.SourceThreadID,
+				PromotedToType:   data.PromotedToType,
+				PromotedToId:     data.PromotedToID,
+				PromotedBy:       data.PromotedBy,
+				PromotedAt:       recommendationEventTimestamp(data.PromotedAt),
 			},
 		}
 
@@ -731,6 +746,11 @@ func dbEventToProto(e *db.EventLog) *orcv1.Event {
 				DecidedBy:        data.DecidedBy,
 				DecisionReason:   data.DecisionReason,
 				SourceTaskId:     data.SourceTaskID,
+				SourceThreadId:   data.SourceThreadID,
+				PromotedToType:   data.PromotedToType,
+				PromotedToId:     data.PromotedToID,
+				PromotedBy:       data.PromotedBy,
+				PromotedAt:       recommendationEventTimestamp(data.PromotedAt),
 			},
 		}
 
@@ -931,6 +951,17 @@ func recommendationStatusStringToProto(status string) (orcv1.RecommendationStatu
 	default:
 		return orcv1.RecommendationStatus_RECOMMENDATION_STATUS_UNSPECIFIED, fmt.Errorf("invalid recommendation status %q", status)
 	}
+}
+
+func recommendationEventTimestamp(value string) *timestamppb.Timestamp {
+	if value == "" {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return nil
+	}
+	return timestamppb.New(parsed)
 }
 
 // filterEventByInitiative returns true if the event should be filtered out based on initiative.

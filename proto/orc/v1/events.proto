@@ -193,6 +193,11 @@ message RecommendationCreatedEvent {
   string summary = 5;
   string source_task_id = 6;
   string source_run_id = 7;
+  string source_thread_id = 8;
+  string promoted_to_type = 9;
+  string promoted_to_id = 10;
+  string promoted_by = 11;
+  google.protobuf.Timestamp promoted_at = 12;
 }
 
 message RecommendationDecidedEvent {
@@ -202,6 +207,11 @@ message RecommendationDecidedEvent {
   string decided_by = 4;
   string decision_reason = 5;
   string source_task_id = 6;
+  string source_thread_id = 7;
+  string promoted_to_type = 8;
+  string promoted_to_id = 9;
+  string promoted_by = 10;
+  google.protobuf.Timestamp promoted_at = 11;
 }
 
 // =============================================================================

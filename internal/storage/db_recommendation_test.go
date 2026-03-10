@@ -3,8 +3,10 @@ package storage
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
@@ -71,6 +73,11 @@ func TestRecommendationBackendRoundTrip(t *testing.T) {
 	loaded, err := backend.LoadRecommendation(rec.Id)
 	require.NoError(t, err)
 	require.Equal(t, rec.DedupeKey, loaded.DedupeKey)
+	require.Equal(t, rec.SourceThreadId, loaded.SourceThreadId)
+	require.Equal(t, rec.PromotedToType, loaded.PromotedToType)
+	require.Equal(t, rec.PromotedToId, loaded.PromotedToId)
+	require.Equal(t, rec.PromotedBy, loaded.PromotedBy)
+	require.NotNil(t, loaded.PromotedAt)
 
 	count, err := backend.CountRecommendationsByStatus(orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING)
 	require.NoError(t, err)
@@ -98,9 +105,15 @@ func createRecommendationFixtures(t *testing.T, backend *DatabaseBackend) {
 		TaskID:      &taskID,
 		Status:      "running",
 	}))
+	thread := &db.Thread{
+		Title:  "Recommendation discussion",
+		TaskID: taskID,
+	}
+	require.NoError(t, backend.DB().CreateThread(thread))
 }
 
 func testProtoRecommendation() *orcv1.Recommendation {
+	promotedAt := time.Date(2026, time.March, 9, 18, 0, 0, 0, time.UTC)
 	return &orcv1.Recommendation{
 		Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_CLEANUP,
 		Status:         orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING,
@@ -110,6 +123,11 @@ func testProtoRecommendation() *orcv1.Recommendation {
 		Evidence:       "Both loops hit the same endpoint every 5 seconds.",
 		SourceTaskId:   "TASK-001",
 		SourceRunId:    "RUN-001",
+		SourceThreadId: "THR-001",
 		DedupeKey:      "cleanup:task-001:duplicate-polling",
+		PromotedToType: "task",
+		PromotedToId:   "TASK-002",
+		PromotedBy:     "operator",
+		PromotedAt:     timestamppb.New(promotedAt),
 	}
 }

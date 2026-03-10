@@ -149,6 +149,11 @@ type Recommendation struct {
 	DecisionReason *string                `protobuf:"bytes,13,opt,name=decision_reason,json=decisionReason,proto3,oneof" json:"decision_reason,omitempty"`
 	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SourceThreadId string                 `protobuf:"bytes,16,opt,name=source_thread_id,json=sourceThreadId,proto3" json:"source_thread_id,omitempty"`
+	PromotedToType string                 `protobuf:"bytes,17,opt,name=promoted_to_type,json=promotedToType,proto3" json:"promoted_to_type,omitempty"`
+	PromotedToId   string                 `protobuf:"bytes,18,opt,name=promoted_to_id,json=promotedToId,proto3" json:"promoted_to_id,omitempty"`
+	PromotedBy     string                 `protobuf:"bytes,19,opt,name=promoted_by,json=promotedBy,proto3" json:"promoted_by,omitempty"`
+	PromotedAt     *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=promoted_at,json=promotedAt,proto3" json:"promoted_at,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -284,6 +289,41 @@ func (x *Recommendation) GetCreatedAt() *timestamppb.Timestamp {
 func (x *Recommendation) GetUpdatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *Recommendation) GetSourceThreadId() string {
+	if x != nil {
+		return x.SourceThreadId
+	}
+	return ""
+}
+
+func (x *Recommendation) GetPromotedToType() string {
+	if x != nil {
+		return x.PromotedToType
+	}
+	return ""
+}
+
+func (x *Recommendation) GetPromotedToId() string {
+	if x != nil {
+		return x.PromotedToId
+	}
+	return ""
+}
+
+func (x *Recommendation) GetPromotedBy() string {
+	if x != nil {
+		return x.PromotedBy
+	}
+	return ""
+}
+
+func (x *Recommendation) GetPromotedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PromotedAt
 	}
 	return nil
 }
@@ -940,7 +980,7 @@ var File_orc_v1_recommendation_proto protoreflect.FileDescriptor
 
 const file_orc_v1_recommendation_proto_rawDesc = "" +
 	"\n" +
-	"\x1borc/v1/recommendation.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8a\x05\n" +
+	"\x1borc/v1/recommendation.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x06\n" +
 	"\x0eRecommendation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12.\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1a.orc.v1.RecommendationKindR\x04kind\x124\n" +
@@ -962,7 +1002,14 @@ const file_orc_v1_recommendation_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\r\n" +
+	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12(\n" +
+	"\x10source_thread_id\x18\x10 \x01(\tR\x0esourceThreadId\x12(\n" +
+	"\x10promoted_to_type\x18\x11 \x01(\tR\x0epromotedToType\x12$\n" +
+	"\x0epromoted_to_id\x18\x12 \x01(\tR\fpromotedToId\x12\x1f\n" +
+	"\vpromoted_by\x18\x13 \x01(\tR\n" +
+	"promotedBy\x12;\n" +
+	"\vpromoted_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"promotedAtB\r\n" +
 	"\v_decided_byB\x12\n" +
 	"\x10_decision_reason\"|\n" +
 	"\x1bCreateRecommendationRequest\x12\x1d\n" +
@@ -1073,32 +1120,33 @@ var file_orc_v1_recommendation_proto_depIdxs = []int32{
 	15, // 2: orc.v1.Recommendation.decided_at:type_name -> google.protobuf.Timestamp
 	15, // 3: orc.v1.Recommendation.created_at:type_name -> google.protobuf.Timestamp
 	15, // 4: orc.v1.Recommendation.updated_at:type_name -> google.protobuf.Timestamp
-	2,  // 5: orc.v1.CreateRecommendationRequest.recommendation:type_name -> orc.v1.Recommendation
-	2,  // 6: orc.v1.CreateRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
-	2,  // 7: orc.v1.GetRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
-	1,  // 8: orc.v1.ListRecommendationsRequest.status:type_name -> orc.v1.RecommendationStatus
-	0,  // 9: orc.v1.ListRecommendationsRequest.kind:type_name -> orc.v1.RecommendationKind
-	2,  // 10: orc.v1.ListRecommendationsResponse.recommendations:type_name -> orc.v1.Recommendation
-	2,  // 11: orc.v1.AcceptRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
-	2,  // 12: orc.v1.RejectRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
-	2,  // 13: orc.v1.DiscussRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
-	3,  // 14: orc.v1.RecommendationService.CreateRecommendation:input_type -> orc.v1.CreateRecommendationRequest
-	5,  // 15: orc.v1.RecommendationService.GetRecommendation:input_type -> orc.v1.GetRecommendationRequest
-	7,  // 16: orc.v1.RecommendationService.ListRecommendations:input_type -> orc.v1.ListRecommendationsRequest
-	9,  // 17: orc.v1.RecommendationService.AcceptRecommendation:input_type -> orc.v1.AcceptRecommendationRequest
-	11, // 18: orc.v1.RecommendationService.RejectRecommendation:input_type -> orc.v1.RejectRecommendationRequest
-	13, // 19: orc.v1.RecommendationService.DiscussRecommendation:input_type -> orc.v1.DiscussRecommendationRequest
-	4,  // 20: orc.v1.RecommendationService.CreateRecommendation:output_type -> orc.v1.CreateRecommendationResponse
-	6,  // 21: orc.v1.RecommendationService.GetRecommendation:output_type -> orc.v1.GetRecommendationResponse
-	8,  // 22: orc.v1.RecommendationService.ListRecommendations:output_type -> orc.v1.ListRecommendationsResponse
-	10, // 23: orc.v1.RecommendationService.AcceptRecommendation:output_type -> orc.v1.AcceptRecommendationResponse
-	12, // 24: orc.v1.RecommendationService.RejectRecommendation:output_type -> orc.v1.RejectRecommendationResponse
-	14, // 25: orc.v1.RecommendationService.DiscussRecommendation:output_type -> orc.v1.DiscussRecommendationResponse
-	20, // [20:26] is the sub-list for method output_type
-	14, // [14:20] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	15, // 5: orc.v1.Recommendation.promoted_at:type_name -> google.protobuf.Timestamp
+	2,  // 6: orc.v1.CreateRecommendationRequest.recommendation:type_name -> orc.v1.Recommendation
+	2,  // 7: orc.v1.CreateRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
+	2,  // 8: orc.v1.GetRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
+	1,  // 9: orc.v1.ListRecommendationsRequest.status:type_name -> orc.v1.RecommendationStatus
+	0,  // 10: orc.v1.ListRecommendationsRequest.kind:type_name -> orc.v1.RecommendationKind
+	2,  // 11: orc.v1.ListRecommendationsResponse.recommendations:type_name -> orc.v1.Recommendation
+	2,  // 12: orc.v1.AcceptRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
+	2,  // 13: orc.v1.RejectRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
+	2,  // 14: orc.v1.DiscussRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
+	3,  // 15: orc.v1.RecommendationService.CreateRecommendation:input_type -> orc.v1.CreateRecommendationRequest
+	5,  // 16: orc.v1.RecommendationService.GetRecommendation:input_type -> orc.v1.GetRecommendationRequest
+	7,  // 17: orc.v1.RecommendationService.ListRecommendations:input_type -> orc.v1.ListRecommendationsRequest
+	9,  // 18: orc.v1.RecommendationService.AcceptRecommendation:input_type -> orc.v1.AcceptRecommendationRequest
+	11, // 19: orc.v1.RecommendationService.RejectRecommendation:input_type -> orc.v1.RejectRecommendationRequest
+	13, // 20: orc.v1.RecommendationService.DiscussRecommendation:input_type -> orc.v1.DiscussRecommendationRequest
+	4,  // 21: orc.v1.RecommendationService.CreateRecommendation:output_type -> orc.v1.CreateRecommendationResponse
+	6,  // 22: orc.v1.RecommendationService.GetRecommendation:output_type -> orc.v1.GetRecommendationResponse
+	8,  // 23: orc.v1.RecommendationService.ListRecommendations:output_type -> orc.v1.ListRecommendationsResponse
+	10, // 24: orc.v1.RecommendationService.AcceptRecommendation:output_type -> orc.v1.AcceptRecommendationResponse
+	12, // 25: orc.v1.RecommendationService.RejectRecommendation:output_type -> orc.v1.RejectRecommendationResponse
+	14, // 26: orc.v1.RecommendationService.DiscussRecommendation:output_type -> orc.v1.DiscussRecommendationResponse
+	21, // [21:27] is the sub-list for method output_type
+	15, // [15:21] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_recommendation_proto_init() }

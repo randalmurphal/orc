@@ -3,6 +3,7 @@ package db
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +24,11 @@ func TestRecommendationCRUD(t *testing.T) {
 	require.NotNil(t, loaded)
 	require.Equal(t, rec.DedupeKey, loaded.DedupeKey)
 	require.Equal(t, RecommendationStatusPending, loaded.Status)
+	require.Equal(t, rec.SourceThreadID, loaded.SourceThreadID)
+	require.Equal(t, rec.PromotedToType, loaded.PromotedToType)
+	require.Equal(t, rec.PromotedToID, loaded.PromotedToID)
+	require.Equal(t, rec.PromotedBy, loaded.PromotedBy)
+	require.NotNil(t, loaded.PromotedAt)
 
 	list, err := pdb.ListRecommendations(RecommendationListOpts{Status: RecommendationStatusPending})
 	require.NoError(t, err)
@@ -156,10 +162,17 @@ func newRecommendationTestDB(t *testing.T) *ProjectDB {
 	}
 	require.NoError(t, pdb.SaveWorkflowRun(run))
 
+	thread := &Thread{
+		Title:  "Recommendation discussion",
+		TaskID: task.ID,
+	}
+	require.NoError(t, pdb.CreateThread(thread))
+
 	return pdb
 }
 
 func newTestRecommendation() *Recommendation {
+	promotedAt := time.Date(2026, time.March, 9, 18, 0, 0, 0, time.UTC)
 	return &Recommendation{
 		Kind:           RecommendationKindCleanup,
 		Status:         RecommendationStatusPending,
@@ -169,6 +182,11 @@ func newTestRecommendation() *Recommendation {
 		Evidence:       "Both loops hit the same endpoint every 5 seconds.",
 		SourceTaskID:   "TASK-001",
 		SourceRunID:    "RUN-001",
+		SourceThreadID: "THR-001",
 		DedupeKey:      "cleanup:task-001:duplicate-polling",
+		PromotedToType: "task",
+		PromotedToID:   "TASK-002",
+		PromotedBy:     "operator",
+		PromotedAt:     &promotedAt,
 	}
 }

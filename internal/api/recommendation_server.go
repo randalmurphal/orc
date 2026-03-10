@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
@@ -248,6 +250,11 @@ func (s *recommendationServer) publishRecommendationCreated(rec *orcv1.Recommend
 		Summary:          rec.Summary,
 		SourceTaskID:     rec.SourceTaskId,
 		SourceRunID:      rec.SourceRunId,
+		SourceThreadID:   rec.SourceThreadId,
+		PromotedToType:   rec.PromotedToType,
+		PromotedToID:     rec.PromotedToId,
+		PromotedBy:       rec.PromotedBy,
+		PromotedAt:       recommendationTimestampString(rec.PromotedAt),
 	}))
 }
 
@@ -262,6 +269,11 @@ func (s *recommendationServer) publishRecommendationDecided(rec *orcv1.Recommend
 		DecidedBy:        rec.GetDecidedBy(),
 		DecisionReason:   rec.GetDecisionReason(),
 		SourceTaskID:     rec.SourceTaskId,
+		SourceThreadID:   rec.SourceThreadId,
+		PromotedToType:   rec.PromotedToType,
+		PromotedToID:     rec.PromotedToId,
+		PromotedBy:       rec.PromotedBy,
+		PromotedAt:       recommendationTimestampString(rec.PromotedAt),
 	}))
 }
 
@@ -269,7 +281,7 @@ func buildRecommendationContextPack(rec *orcv1.Recommendation) string {
 	if rec == nil {
 		return ""
 	}
-	return fmt.Sprintf(
+	contextPack := fmt.Sprintf(
 		"Recommendation %s\nKind: %s\nTitle: %s\nSummary: %s\nProposed action: %s\nEvidence: %s\nSource task: %s\nSource run: %s",
 		rec.Id,
 		strings.ToLower(strings.TrimPrefix(rec.Kind.String(), "RECOMMENDATION_KIND_")),
@@ -280,6 +292,13 @@ func buildRecommendationContextPack(rec *orcv1.Recommendation) string {
 		rec.SourceTaskId,
 		rec.SourceRunId,
 	)
+	if rec.SourceThreadId != "" {
+		contextPack += fmt.Sprintf("\nSource thread: %s", rec.SourceThreadId)
+	}
+	if rec.PromotedToType != "" || rec.PromotedToId != "" {
+		contextPack += fmt.Sprintf("\nPromoted to: %s %s", rec.PromotedToType, rec.PromotedToId)
+	}
+	return contextPack
 }
 
 func isRecommendationDedupeError(err error) bool {
@@ -315,4 +334,11 @@ func recommendationKindProtoToString(kind orcv1.RecommendationKind) string {
 	default:
 		return ""
 	}
+}
+
+func recommendationTimestampString(ts *timestamppb.Timestamp) string {
+	if ts == nil {
+		return ""
+	}
+	return ts.AsTime().Format(time.RFC3339)
 }

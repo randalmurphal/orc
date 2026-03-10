@@ -1373,6 +1373,11 @@ type RecommendationCreatedEvent struct {
 	Summary          string                 `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
 	SourceTaskId     string                 `protobuf:"bytes,6,opt,name=source_task_id,json=sourceTaskId,proto3" json:"source_task_id,omitempty"`
 	SourceRunId      string                 `protobuf:"bytes,7,opt,name=source_run_id,json=sourceRunId,proto3" json:"source_run_id,omitempty"`
+	SourceThreadId   string                 `protobuf:"bytes,8,opt,name=source_thread_id,json=sourceThreadId,proto3" json:"source_thread_id,omitempty"`
+	PromotedToType   string                 `protobuf:"bytes,9,opt,name=promoted_to_type,json=promotedToType,proto3" json:"promoted_to_type,omitempty"`
+	PromotedToId     string                 `protobuf:"bytes,10,opt,name=promoted_to_id,json=promotedToId,proto3" json:"promoted_to_id,omitempty"`
+	PromotedBy       string                 `protobuf:"bytes,11,opt,name=promoted_by,json=promotedBy,proto3" json:"promoted_by,omitempty"`
+	PromotedAt       *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=promoted_at,json=promotedAt,proto3" json:"promoted_at,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1456,6 +1461,41 @@ func (x *RecommendationCreatedEvent) GetSourceRunId() string {
 	return ""
 }
 
+func (x *RecommendationCreatedEvent) GetSourceThreadId() string {
+	if x != nil {
+		return x.SourceThreadId
+	}
+	return ""
+}
+
+func (x *RecommendationCreatedEvent) GetPromotedToType() string {
+	if x != nil {
+		return x.PromotedToType
+	}
+	return ""
+}
+
+func (x *RecommendationCreatedEvent) GetPromotedToId() string {
+	if x != nil {
+		return x.PromotedToId
+	}
+	return ""
+}
+
+func (x *RecommendationCreatedEvent) GetPromotedBy() string {
+	if x != nil {
+		return x.PromotedBy
+	}
+	return ""
+}
+
+func (x *RecommendationCreatedEvent) GetPromotedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PromotedAt
+	}
+	return nil
+}
+
 type RecommendationDecidedEvent struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	RecommendationId string                 `protobuf:"bytes,1,opt,name=recommendation_id,json=recommendationId,proto3" json:"recommendation_id,omitempty"`
@@ -1464,6 +1504,11 @@ type RecommendationDecidedEvent struct {
 	DecidedBy        string                 `protobuf:"bytes,4,opt,name=decided_by,json=decidedBy,proto3" json:"decided_by,omitempty"`
 	DecisionReason   string                 `protobuf:"bytes,5,opt,name=decision_reason,json=decisionReason,proto3" json:"decision_reason,omitempty"`
 	SourceTaskId     string                 `protobuf:"bytes,6,opt,name=source_task_id,json=sourceTaskId,proto3" json:"source_task_id,omitempty"`
+	SourceThreadId   string                 `protobuf:"bytes,7,opt,name=source_thread_id,json=sourceThreadId,proto3" json:"source_thread_id,omitempty"`
+	PromotedToType   string                 `protobuf:"bytes,8,opt,name=promoted_to_type,json=promotedToType,proto3" json:"promoted_to_type,omitempty"`
+	PromotedToId     string                 `protobuf:"bytes,9,opt,name=promoted_to_id,json=promotedToId,proto3" json:"promoted_to_id,omitempty"`
+	PromotedBy       string                 `protobuf:"bytes,10,opt,name=promoted_by,json=promotedBy,proto3" json:"promoted_by,omitempty"`
+	PromotedAt       *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=promoted_at,json=promotedAt,proto3" json:"promoted_at,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1538,6 +1583,41 @@ func (x *RecommendationDecidedEvent) GetSourceTaskId() string {
 		return x.SourceTaskId
 	}
 	return ""
+}
+
+func (x *RecommendationDecidedEvent) GetSourceThreadId() string {
+	if x != nil {
+		return x.SourceThreadId
+	}
+	return ""
+}
+
+func (x *RecommendationDecidedEvent) GetPromotedToType() string {
+	if x != nil {
+		return x.PromotedToType
+	}
+	return ""
+}
+
+func (x *RecommendationDecidedEvent) GetPromotedToId() string {
+	if x != nil {
+		return x.PromotedToId
+	}
+	return ""
+}
+
+func (x *RecommendationDecidedEvent) GetPromotedBy() string {
+	if x != nil {
+		return x.PromotedBy
+	}
+	return ""
+}
+
+func (x *RecommendationDecidedEvent) GetPromotedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PromotedAt
+	}
+	return nil
 }
 
 // Event with typed payload (replaces WebSocket's untyped data)
@@ -2544,7 +2624,7 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	"\x05phase\x18\x03 \x01(\tH\x00R\x05phase\x88\x01\x01B\b\n" +
 	"\x06_phase\"J\n" +
 	"\x0eHeartbeatEvent\x128\n" +
-	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xa9\x02\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\x81\x04\n" +
 	"\x1aRecommendationCreatedEvent\x12+\n" +
 	"\x11recommendation_id\x18\x01 \x01(\tR\x10recommendationId\x12.\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1a.orc.v1.RecommendationKindR\x04kind\x124\n" +
@@ -2552,7 +2632,15 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	"\x05title\x18\x04 \x01(\tR\x05title\x12\x18\n" +
 	"\asummary\x18\x05 \x01(\tR\asummary\x12$\n" +
 	"\x0esource_task_id\x18\x06 \x01(\tR\fsourceTaskId\x12\"\n" +
-	"\rsource_run_id\x18\a \x01(\tR\vsourceRunId\"\xb4\x02\n" +
+	"\rsource_run_id\x18\a \x01(\tR\vsourceRunId\x12(\n" +
+	"\x10source_thread_id\x18\b \x01(\tR\x0esourceThreadId\x12(\n" +
+	"\x10promoted_to_type\x18\t \x01(\tR\x0epromotedToType\x12$\n" +
+	"\x0epromoted_to_id\x18\n" +
+	" \x01(\tR\fpromotedToId\x12\x1f\n" +
+	"\vpromoted_by\x18\v \x01(\tR\n" +
+	"promotedBy\x12;\n" +
+	"\vpromoted_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"promotedAt\"\x8c\x04\n" +
 	"\x1aRecommendationDecidedEvent\x12+\n" +
 	"\x11recommendation_id\x18\x01 \x01(\tR\x10recommendationId\x12E\n" +
 	"\x0fprevious_status\x18\x02 \x01(\x0e2\x1c.orc.v1.RecommendationStatusR\x0epreviousStatus\x124\n" +
@@ -2560,7 +2648,15 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"decided_by\x18\x04 \x01(\tR\tdecidedBy\x12'\n" +
 	"\x0fdecision_reason\x18\x05 \x01(\tR\x0edecisionReason\x12$\n" +
-	"\x0esource_task_id\x18\x06 \x01(\tR\fsourceTaskId\"\xe0\v\n" +
+	"\x0esource_task_id\x18\x06 \x01(\tR\fsourceTaskId\x12(\n" +
+	"\x10source_thread_id\x18\a \x01(\tR\x0esourceThreadId\x12(\n" +
+	"\x10promoted_to_type\x18\b \x01(\tR\x0epromotedToType\x12$\n" +
+	"\x0epromoted_to_id\x18\t \x01(\tR\fpromotedToId\x12\x1f\n" +
+	"\vpromoted_by\x18\n" +
+	" \x01(\tR\n" +
+	"promotedBy\x12;\n" +
+	"\vpromoted_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"promotedAt\"\xe0\v\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\"\n" +
@@ -2746,51 +2842,53 @@ var file_orc_v1_events_proto_depIdxs = []int32{
 	33, // 8: orc.v1.HeartbeatEvent.timestamp:type_name -> google.protobuf.Timestamp
 	35, // 9: orc.v1.RecommendationCreatedEvent.kind:type_name -> orc.v1.RecommendationKind
 	36, // 10: orc.v1.RecommendationCreatedEvent.status:type_name -> orc.v1.RecommendationStatus
-	36, // 11: orc.v1.RecommendationDecidedEvent.previous_status:type_name -> orc.v1.RecommendationStatus
-	36, // 12: orc.v1.RecommendationDecidedEvent.status:type_name -> orc.v1.RecommendationStatus
-	33, // 13: orc.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
-	2,  // 14: orc.v1.Event.task_created:type_name -> orc.v1.TaskCreatedEvent
-	3,  // 15: orc.v1.Event.task_updated:type_name -> orc.v1.TaskUpdatedEvent
-	4,  // 16: orc.v1.Event.task_deleted:type_name -> orc.v1.TaskDeletedEvent
-	5,  // 17: orc.v1.Event.phase_changed:type_name -> orc.v1.PhaseChangedEvent
-	6,  // 18: orc.v1.Event.tokens_updated:type_name -> orc.v1.TokensUpdatedEvent
-	7,  // 19: orc.v1.Event.activity:type_name -> orc.v1.ActivityEvent
-	8,  // 20: orc.v1.Event.initiative_created:type_name -> orc.v1.InitiativeCreatedEvent
-	9,  // 21: orc.v1.Event.initiative_updated:type_name -> orc.v1.InitiativeUpdatedEvent
-	10, // 22: orc.v1.Event.initiative_deleted:type_name -> orc.v1.InitiativeDeletedEvent
-	11, // 23: orc.v1.Event.decision_required:type_name -> orc.v1.DecisionRequiredEvent
-	12, // 24: orc.v1.Event.decision_resolved:type_name -> orc.v1.DecisionResolvedEvent
-	14, // 25: orc.v1.Event.files_changed:type_name -> orc.v1.FilesChangedEvent
-	15, // 26: orc.v1.Event.session_update:type_name -> orc.v1.SessionUpdateEvent
-	17, // 27: orc.v1.Event.error:type_name -> orc.v1.ErrorEvent
-	18, // 28: orc.v1.Event.warning:type_name -> orc.v1.WarningEvent
-	19, // 29: orc.v1.Event.heartbeat:type_name -> orc.v1.HeartbeatEvent
-	16, // 30: orc.v1.Event.session_metrics:type_name -> orc.v1.SessionMetricsEvent
-	20, // 31: orc.v1.Event.recommendation_created:type_name -> orc.v1.RecommendationCreatedEvent
-	21, // 32: orc.v1.Event.recommendation_decided:type_name -> orc.v1.RecommendationDecidedEvent
-	1,  // 33: orc.v1.TimelineEvent.event_type:type_name -> orc.v1.TimelineEventType
-	33, // 34: orc.v1.TimelineEvent.created_at:type_name -> google.protobuf.Timestamp
-	22, // 35: orc.v1.SubscribeResponse.event:type_name -> orc.v1.Event
-	37, // 36: orc.v1.GetEventsRequest.page:type_name -> orc.v1.PageRequest
-	33, // 37: orc.v1.GetEventsRequest.since:type_name -> google.protobuf.Timestamp
-	33, // 38: orc.v1.GetEventsRequest.until:type_name -> google.protobuf.Timestamp
-	22, // 39: orc.v1.GetEventsResponse.events:type_name -> orc.v1.Event
-	38, // 40: orc.v1.GetEventsResponse.page:type_name -> orc.v1.PageResponse
-	37, // 41: orc.v1.GetTimelineRequest.page:type_name -> orc.v1.PageRequest
-	1,  // 42: orc.v1.GetTimelineRequest.types:type_name -> orc.v1.TimelineEventType
-	23, // 43: orc.v1.GetTimelineResponse.events:type_name -> orc.v1.TimelineEvent
-	38, // 44: orc.v1.GetTimelineResponse.page:type_name -> orc.v1.PageResponse
-	24, // 45: orc.v1.EventService.Subscribe:input_type -> orc.v1.SubscribeRequest
-	26, // 46: orc.v1.EventService.GetEvents:input_type -> orc.v1.GetEventsRequest
-	28, // 47: orc.v1.EventService.GetTimeline:input_type -> orc.v1.GetTimelineRequest
-	25, // 48: orc.v1.EventService.Subscribe:output_type -> orc.v1.SubscribeResponse
-	27, // 49: orc.v1.EventService.GetEvents:output_type -> orc.v1.GetEventsResponse
-	29, // 50: orc.v1.EventService.GetTimeline:output_type -> orc.v1.GetTimelineResponse
-	48, // [48:51] is the sub-list for method output_type
-	45, // [45:48] is the sub-list for method input_type
-	45, // [45:45] is the sub-list for extension type_name
-	45, // [45:45] is the sub-list for extension extendee
-	0,  // [0:45] is the sub-list for field type_name
+	33, // 11: orc.v1.RecommendationCreatedEvent.promoted_at:type_name -> google.protobuf.Timestamp
+	36, // 12: orc.v1.RecommendationDecidedEvent.previous_status:type_name -> orc.v1.RecommendationStatus
+	36, // 13: orc.v1.RecommendationDecidedEvent.status:type_name -> orc.v1.RecommendationStatus
+	33, // 14: orc.v1.RecommendationDecidedEvent.promoted_at:type_name -> google.protobuf.Timestamp
+	33, // 15: orc.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
+	2,  // 16: orc.v1.Event.task_created:type_name -> orc.v1.TaskCreatedEvent
+	3,  // 17: orc.v1.Event.task_updated:type_name -> orc.v1.TaskUpdatedEvent
+	4,  // 18: orc.v1.Event.task_deleted:type_name -> orc.v1.TaskDeletedEvent
+	5,  // 19: orc.v1.Event.phase_changed:type_name -> orc.v1.PhaseChangedEvent
+	6,  // 20: orc.v1.Event.tokens_updated:type_name -> orc.v1.TokensUpdatedEvent
+	7,  // 21: orc.v1.Event.activity:type_name -> orc.v1.ActivityEvent
+	8,  // 22: orc.v1.Event.initiative_created:type_name -> orc.v1.InitiativeCreatedEvent
+	9,  // 23: orc.v1.Event.initiative_updated:type_name -> orc.v1.InitiativeUpdatedEvent
+	10, // 24: orc.v1.Event.initiative_deleted:type_name -> orc.v1.InitiativeDeletedEvent
+	11, // 25: orc.v1.Event.decision_required:type_name -> orc.v1.DecisionRequiredEvent
+	12, // 26: orc.v1.Event.decision_resolved:type_name -> orc.v1.DecisionResolvedEvent
+	14, // 27: orc.v1.Event.files_changed:type_name -> orc.v1.FilesChangedEvent
+	15, // 28: orc.v1.Event.session_update:type_name -> orc.v1.SessionUpdateEvent
+	17, // 29: orc.v1.Event.error:type_name -> orc.v1.ErrorEvent
+	18, // 30: orc.v1.Event.warning:type_name -> orc.v1.WarningEvent
+	19, // 31: orc.v1.Event.heartbeat:type_name -> orc.v1.HeartbeatEvent
+	16, // 32: orc.v1.Event.session_metrics:type_name -> orc.v1.SessionMetricsEvent
+	20, // 33: orc.v1.Event.recommendation_created:type_name -> orc.v1.RecommendationCreatedEvent
+	21, // 34: orc.v1.Event.recommendation_decided:type_name -> orc.v1.RecommendationDecidedEvent
+	1,  // 35: orc.v1.TimelineEvent.event_type:type_name -> orc.v1.TimelineEventType
+	33, // 36: orc.v1.TimelineEvent.created_at:type_name -> google.protobuf.Timestamp
+	22, // 37: orc.v1.SubscribeResponse.event:type_name -> orc.v1.Event
+	37, // 38: orc.v1.GetEventsRequest.page:type_name -> orc.v1.PageRequest
+	33, // 39: orc.v1.GetEventsRequest.since:type_name -> google.protobuf.Timestamp
+	33, // 40: orc.v1.GetEventsRequest.until:type_name -> google.protobuf.Timestamp
+	22, // 41: orc.v1.GetEventsResponse.events:type_name -> orc.v1.Event
+	38, // 42: orc.v1.GetEventsResponse.page:type_name -> orc.v1.PageResponse
+	37, // 43: orc.v1.GetTimelineRequest.page:type_name -> orc.v1.PageRequest
+	1,  // 44: orc.v1.GetTimelineRequest.types:type_name -> orc.v1.TimelineEventType
+	23, // 45: orc.v1.GetTimelineResponse.events:type_name -> orc.v1.TimelineEvent
+	38, // 46: orc.v1.GetTimelineResponse.page:type_name -> orc.v1.PageResponse
+	24, // 47: orc.v1.EventService.Subscribe:input_type -> orc.v1.SubscribeRequest
+	26, // 48: orc.v1.EventService.GetEvents:input_type -> orc.v1.GetEventsRequest
+	28, // 49: orc.v1.EventService.GetTimeline:input_type -> orc.v1.GetTimelineRequest
+	25, // 50: orc.v1.EventService.Subscribe:output_type -> orc.v1.SubscribeResponse
+	27, // 51: orc.v1.EventService.GetEvents:output_type -> orc.v1.GetEventsResponse
+	29, // 52: orc.v1.EventService.GetTimeline:output_type -> orc.v1.GetTimelineResponse
+	50, // [50:53] is the sub-list for method output_type
+	47, // [47:50] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_events_proto_init() }

@@ -131,7 +131,11 @@ func dbRecommendationToProto(rec *db.Recommendation) (*orcv1.Recommendation, err
 		Evidence:       rec.Evidence,
 		SourceTaskId:   rec.SourceTaskID,
 		SourceRunId:    rec.SourceRunID,
+		SourceThreadId: rec.SourceThreadID,
 		DedupeKey:      rec.DedupeKey,
+		PromotedToType: rec.PromotedToType,
+		PromotedToId:   rec.PromotedToID,
+		PromotedBy:     rec.PromotedBy,
 		CreatedAt:      timestamppb.New(rec.CreatedAt),
 		UpdatedAt:      timestamppb.New(rec.UpdatedAt),
 	}
@@ -143,6 +147,9 @@ func dbRecommendationToProto(rec *db.Recommendation) (*orcv1.Recommendation, err
 	}
 	if rec.DecisionReason != "" {
 		protoRec.DecisionReason = &rec.DecisionReason
+	}
+	if rec.PromotedAt != nil {
+		protoRec.PromotedAt = timestamppb.New(*rec.PromotedAt)
 	}
 	return protoRec, nil
 }
@@ -157,10 +164,15 @@ func copyRecommendation(dst *orcv1.Recommendation, src *orcv1.Recommendation) {
 	dst.Evidence = src.Evidence
 	dst.SourceTaskId = src.SourceTaskId
 	dst.SourceRunId = src.SourceRunId
+	dst.SourceThreadId = src.SourceThreadId
 	dst.DedupeKey = src.DedupeKey
 	dst.DecidedBy = src.DecidedBy
 	dst.DecidedAt = src.DecidedAt
 	dst.DecisionReason = src.DecisionReason
+	dst.PromotedToType = src.PromotedToType
+	dst.PromotedToId = src.PromotedToId
+	dst.PromotedBy = src.PromotedBy
+	dst.PromotedAt = src.PromotedAt
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
 }
@@ -189,13 +201,21 @@ func protoRecommendationToDB(rec *orcv1.Recommendation) (*db.Recommendation, err
 		Evidence:       rec.Evidence,
 		SourceTaskID:   rec.SourceTaskId,
 		SourceRunID:    rec.SourceRunId,
+		SourceThreadID: rec.SourceThreadId,
 		DedupeKey:      rec.DedupeKey,
 		DecidedBy:      rec.GetDecidedBy(),
 		DecisionReason: rec.GetDecisionReason(),
+		PromotedToType: rec.PromotedToType,
+		PromotedToID:   rec.PromotedToId,
+		PromotedBy:     rec.PromotedBy,
 	}
 	if rec.DecidedAt != nil {
 		t := rec.DecidedAt.AsTime()
 		dbRec.DecidedAt = &t
+	}
+	if rec.PromotedAt != nil {
+		t := rec.PromotedAt.AsTime()
+		dbRec.PromotedAt = &t
 	}
 	return dbRec, nil
 }

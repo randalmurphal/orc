@@ -128,7 +128,7 @@ export function RecommendationInbox() {
 							<Button
 								variant="primary"
 								size="sm"
-								disabled={busyId === recommendation.id || recommendation.status !== RecommendationStatus.PENDING}
+								disabled={busyId === recommendation.id || !canAcceptRecommendation(recommendation.status)}
 								onClick={() => handleDecision(recommendation, 'accept')}
 							>
 								Accept
@@ -136,7 +136,7 @@ export function RecommendationInbox() {
 							<Button
 								variant="ghost"
 								size="sm"
-								disabled={busyId === recommendation.id || recommendation.status !== RecommendationStatus.PENDING}
+								disabled={busyId === recommendation.id || !canRejectRecommendation(recommendation.status)}
 								onClick={() => handleDecision(recommendation, 'reject')}
 							>
 								Reject
@@ -144,7 +144,7 @@ export function RecommendationInbox() {
 							<Button
 								variant="secondary"
 								size="sm"
-								disabled={busyId === recommendation.id || recommendation.status !== RecommendationStatus.PENDING}
+								disabled={busyId === recommendation.id || !canDiscussRecommendation(recommendation.status)}
 								onClick={() => handleDecision(recommendation, 'discuss')}
 							>
 								Discuss
@@ -198,4 +198,16 @@ function recommendationKindLabel(kind: RecommendationKind): string {
 		default:
 			return 'Cleanup';
 	}
+}
+
+function canAcceptRecommendation(status: RecommendationStatus): boolean {
+	return status === RecommendationStatus.PENDING || status === RecommendationStatus.DISCUSSED;
+}
+
+function canRejectRecommendation(status: RecommendationStatus): boolean {
+	return status === RecommendationStatus.PENDING || status === RecommendationStatus.DISCUSSED;
+}
+
+function canDiscussRecommendation(status: RecommendationStatus): boolean {
+	return status === RecommendationStatus.PENDING;
 }

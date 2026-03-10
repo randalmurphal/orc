@@ -38,6 +38,11 @@ message Recommendation {
   optional string decision_reason = 13;
   google.protobuf.Timestamp created_at = 14;
   google.protobuf.Timestamp updated_at = 15;
+  string source_thread_id = 16;
+  string promoted_to_type = 17;
+  string promoted_to_id = 18;
+  string promoted_by = 19;
+  google.protobuf.Timestamp promoted_at = 20;
 }
 
 service RecommendationService {

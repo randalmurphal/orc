@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
@@ -50,6 +52,9 @@ func TestRecommendationServiceCRUDViaHTTP(t *testing.T) {
 	}))
 	require.NoError(t, err)
 	require.Equal(t, createResp.Msg.Recommendation.Id, getResp.Msg.Recommendation.Id)
+	require.Equal(t, "THR-001", getResp.Msg.Recommendation.SourceThreadId)
+	require.Equal(t, "task", getResp.Msg.Recommendation.PromotedToType)
+	require.Equal(t, "TASK-002", getResp.Msg.Recommendation.PromotedToId)
 
 	listResp, err := client.ListRecommendations(context.Background(), connect.NewRequest(&orcv1.ListRecommendationsRequest{
 		Status: orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING,
@@ -107,6 +112,7 @@ func TestRegisterConnectHandlersIncludesRecommendationService(t *testing.T) {
 }
 
 func recommendationProtoForAPI(dedupeKey string) *orcv1.Recommendation {
+	promotedAt := time.Date(2026, time.March, 9, 18, 0, 0, 0, time.UTC)
 	return &orcv1.Recommendation{
 		Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_CLEANUP,
 		Status:         orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING,
@@ -116,7 +122,12 @@ func recommendationProtoForAPI(dedupeKey string) *orcv1.Recommendation {
 		Evidence:       "Both loops hit the same endpoint every 5 seconds.",
 		SourceTaskId:   "TASK-001",
 		SourceRunId:    "RUN-001",
+		SourceThreadId: "THR-001",
 		DedupeKey:      dedupeKey,
+		PromotedToType: "task",
+		PromotedToId:   "TASK-002",
+		PromotedBy:     "operator",
+		PromotedAt:     timestamppb.New(promotedAt),
 	}
 }
 
@@ -141,6 +152,11 @@ func storageFixturesForRecommendation(t *testing.T, backend *storage.DatabaseBac
 		TaskID:      &taskID,
 		Status:      "running",
 	}))
+	thread := &db.Thread{
+		Title:  "Recommendation discussion",
+		TaskID: taskID,
+	}
+	require.NoError(t, backend.DB().CreateThread(thread))
 }
 
 type recommendationTestPublisher struct {

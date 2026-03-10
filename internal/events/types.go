@@ -252,6 +252,11 @@ type RecommendationCreatedData struct {
 	Summary          string `json:"summary"`
 	SourceTaskID     string `json:"source_task_id"`
 	SourceRunID      string `json:"source_run_id"`
+	SourceThreadID   string `json:"source_thread_id"`
+	PromotedToType   string `json:"promoted_to_type"`
+	PromotedToID     string `json:"promoted_to_id"`
+	PromotedBy       string `json:"promoted_by"`
+	PromotedAt       string `json:"promoted_at"`
 }
 
 type RecommendationDecidedData struct {
@@ -261,6 +266,11 @@ type RecommendationDecidedData struct {
 	DecidedBy        string `json:"decided_by"`
 	DecisionReason   string `json:"decision_reason"`
 	SourceTaskID     string `json:"source_task_id"`
+	SourceThreadID   string `json:"source_thread_id"`
+	PromotedToType   string `json:"promoted_to_type"`
+	PromotedToID     string `json:"promoted_to_id"`
+	PromotedBy       string `json:"promoted_by"`
+	PromotedAt       string `json:"promoted_at"`
 }
 
 // ThreadStatusData represents a thread status change.
