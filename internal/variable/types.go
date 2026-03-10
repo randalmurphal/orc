@@ -276,12 +276,17 @@ type ResolutionContext struct {
 	// Project brief (auto-generated context from task history)
 	ProjectBrief string
 
+	// Control-plane context injected through builtin variables.
+	PendingRecommendations string
+	AttentionSummary       string
+	HandoffContext         string
+
 	// Provider context (which LLM provider is executing this phase)
 	Provider string // "claude", "codex", "ollama", etc.
 
 	// QA E2E testing context
 	QAIteration      int    // Current QA iteration (1, 2, 3, ...)
-	QAMaxLoops  int    // Maximum QA iterations before stopping
+	QAMaxLoops       int    // Maximum QA iterations before stopping
 	QAFindings       string // Formatted QA findings from qa_e2e_test phase (survives ResolveAll)
 	BeforeImages     string // Newline-separated paths to baseline images for visual comparison
 	PreviousFindings string // Formatted findings from previous QA iteration (for verification)

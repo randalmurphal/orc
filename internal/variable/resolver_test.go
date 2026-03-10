@@ -191,13 +191,13 @@ func TestResolveAllWithBuiltins(t *testing.T) {
 
 	// Check built-in variables
 	tests := map[string]string{
-		"TASK_ID":      "TASK-001",
-		"TASK_TITLE":   "Test Task",
-		"PHASE":        "implement",
-		"ITERATION":    "3",
+		"TASK_ID":       "TASK-001",
+		"TASK_TITLE":    "Test Task",
+		"PHASE":         "implement",
+		"ITERATION":     "3",
 		"WORKTREE_PATH": "/path/to/worktree",
-		"SPEC_CONTENT": "Spec content here",
-		"OUTPUT_SPEC":  "Spec content here",
+		"SPEC_CONTENT":  "Spec content here",
+		"OUTPUT_SPEC":   "Spec content here",
 	}
 
 	for name, expected := range tests {
@@ -236,6 +236,61 @@ func TestResolveAllQAOutputDir(t *testing.T) {
 	}
 	if vars2["QA_OUTPUT_DIR"] != "" {
 		t.Errorf("QA_OUTPUT_DIR with empty TaskID: expected empty, got %q", vars2["QA_OUTPUT_DIR"])
+	}
+}
+
+func TestControlPlaneVariables(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+	providers := []string{"claude", "codex", "ollama"}
+
+	for _, provider := range providers {
+		provider := provider
+		t.Run(provider, func(t *testing.T) {
+			t.Parallel()
+
+			rctx := &ResolutionContext{
+				Provider:               provider,
+				PendingRecommendations: "pending summary",
+				AttentionSummary:       "attention summary",
+				HandoffContext:         "handoff summary",
+			}
+
+			vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+			if err != nil {
+				t.Fatalf("ResolveAll() error = %v", err)
+			}
+
+			expected := map[string]string{
+				"PENDING_RECOMMENDATIONS": "pending summary",
+				"ATTENTION_SUMMARY":       "attention summary",
+				"HANDOFF_CONTEXT":         "handoff summary",
+			}
+			for key, want := range expected {
+				got, ok := vars[key]
+				if !ok {
+					t.Fatalf("missing control-plane variable %s", key)
+				}
+				if got != want {
+					t.Fatalf("%s = %q, want %q", key, got, want)
+				}
+			}
+		})
+	}
+
+	emptyVars, err := resolver.ResolveAll(context.Background(), nil, &ResolutionContext{})
+	if err != nil {
+		t.Fatalf("ResolveAll() with empty context error = %v", err)
+	}
+	for _, key := range []string{"PENDING_RECOMMENDATIONS", "ATTENTION_SUMMARY", "HANDOFF_CONTEXT"} {
+		value, ok := emptyVars[key]
+		if !ok {
+			t.Fatalf("missing empty control-plane variable %s", key)
+		}
+		if value != "" {
+			t.Fatalf("%s = %q, want empty string", key, value)
+		}
 	}
 }
 
@@ -292,8 +347,8 @@ func TestRenderTemplate(t *testing.T) {
 	t.Parallel()
 
 	vars := VariableSet{
-		"TASK_ID":    "TASK-001",
-		"PHASE":      "implement",
+		"TASK_ID":      "TASK-001",
+		"PHASE":        "implement",
 		"SPEC_CONTENT": "The specification",
 	}
 
@@ -376,8 +431,8 @@ Rule 2: Test everything
 End`,
 		},
 		{
-			name:     "conditional with content empty",
-			vars:     VariableSet{},
+			name: "conditional with content empty",
+			vars: VariableSet{},
 			template: `Start
 {{#if CONSTITUTION_CONTENT}}
 Constitution:
@@ -428,8 +483,8 @@ Rules: Important rules
 			expected: "Run `make build`",
 		},
 		{
-			name: "else branch - condition false",
-			vars: VariableSet{},
+			name:     "else branch - condition false",
+			vars:     VariableSet{},
 			template: `{{#if BUILD_COMMAND}}Run ` + "`{{BUILD_COMMAND}}`" + `{{else}}Run the project build command{{/if}}`,
 			expected: "Run the project build command",
 		},
@@ -938,11 +993,11 @@ func TestResolveAllInitiativeNotesInContext(t *testing.T) {
 	resolver := NewResolver(t.TempDir())
 
 	rctx := &ResolutionContext{
-		TaskID:          "TASK-001",
-		InitiativeID:    "INIT-001",
-		InitiativeTitle: "Test Initiative",
+		TaskID:           "TASK-001",
+		InitiativeID:     "INIT-001",
+		InitiativeTitle:  "Test Initiative",
 		InitiativeVision: "Build something great",
-		InitiativeNotes: "**📋 Patterns:**\n- Use dependency injection *(from TASK-001)*",
+		InitiativeNotes:  "**📋 Patterns:**\n- Use dependency injection *(from TASK-001)*",
 	}
 
 	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
@@ -971,9 +1026,9 @@ func TestResolveAllInitiativeContextWithoutNotes(t *testing.T) {
 	resolver := NewResolver(t.TempDir())
 
 	rctx := &ResolutionContext{
-		TaskID:          "TASK-001",
-		InitiativeID:    "INIT-001",
-		InitiativeTitle: "Test Initiative",
+		TaskID:           "TASK-001",
+		InitiativeID:     "INIT-001",
+		InitiativeTitle:  "Test Initiative",
 		InitiativeVision: "Build something great",
 		// No notes
 	}

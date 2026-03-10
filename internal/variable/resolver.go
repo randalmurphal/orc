@@ -385,6 +385,11 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	// Project brief (auto-generated context from task history)
 	vars["PROJECT_BRIEF"] = rctx.ProjectBrief
 
+	// Control-plane context
+	vars["PENDING_RECOMMENDATIONS"] = rctx.PendingRecommendations
+	vars["ATTENTION_SUMMARY"] = rctx.AttentionSummary
+	vars["HANDOFF_CONTEXT"] = rctx.HandoffContext
+
 	// Automation context
 	vars["RECENT_COMPLETED_TASKS"] = rctx.RecentCompletedTasks
 	vars["RECENT_CHANGED_FILES"] = rctx.RecentChangedFiles

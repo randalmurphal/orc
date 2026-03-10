@@ -17,6 +17,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -290,6 +291,141 @@ func TestEnrichContext_BDD1_FullProjectContext(t *testing.T) {
 	if !strings.Contains(rctx.ProjectBrief, "### Recent Findings") {
 		t.Error("BDD-1: ProjectBrief should contain '### Recent Findings' section")
 	}
+}
+
+func TestEnrichControlPlaneContext(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	we := NewWorkflowExecutor(backend, backend.DB(), testGlobalDBFrom(backend), config.Default(), t.TempDir())
+
+	targetTask := task.NewProtoTask("TASK-813", "Control-plane contracts")
+	targetTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := backend.SaveTask(targetTask); err != nil {
+		t.Fatalf("save target task: %v", err)
+	}
+
+	if err := backend.SaveWorkflow(&db.Workflow{
+		ID:          "wf-controlplane",
+		Name:        "Control Plane",
+		Description: "test workflow",
+	}); err != nil {
+		t.Fatalf("save workflow: %v", err)
+	}
+	runTaskID := targetTask.Id
+	if err := backend.SaveWorkflowRun(&db.WorkflowRun{
+		ID:          "RUN-001",
+		WorkflowID:  "wf-controlplane",
+		ContextType: "task",
+		TaskID:      &runTaskID,
+		Prompt:      "prompt",
+		Status:      "running",
+	}); err != nil {
+		t.Fatalf("save workflow run: %v", err)
+	}
+
+	blockedOne := task.NewProtoTask("TASK-101", "Blocked schema review")
+	blockedOne.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	blockedOne.CurrentPhase = stringPtr("review")
+	blockedOne.Description = stringPtr("Waiting on schema review")
+	blockedOne.Metadata = map[string]string{"blocked_reason": "schema approval pending"}
+	if err := backend.SaveTask(blockedOne); err != nil {
+		t.Fatalf("save blocked task 1: %v", err)
+	}
+
+	blockedTwo := task.NewProtoTask("TASK-102", "Blocked resolver update")
+	blockedTwo.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	blockedTwo.CurrentPhase = stringPtr("implement")
+	blockedTwo.Description = stringPtr("Resolver wiring still missing")
+	if err := backend.SaveTask(blockedTwo); err != nil {
+		t.Fatalf("save blocked task 2: %v", err)
+	}
+
+	for _, recommendation := range []*orcv1.Recommendation{
+		{
+			Id:             "REC-001",
+			Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_CLEANUP,
+			Status:         orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING,
+			Title:          "Unify schema builder",
+			Summary:        "There are duplicate schema builders.",
+			ProposedAction: "Use the shared helper.",
+			Evidence:       "Review found two call paths.",
+			SourceTaskId:   targetTask.Id,
+			SourceRunId:    "RUN-001",
+			DedupeKey:      "cleanup:schema-builder",
+		},
+		{
+			Id:             "REC-002",
+			Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_FOLLOW_UP,
+			Status:         orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING,
+			Title:          "Template follow-up",
+			Summary:        "Templates still need to adopt the new vars.",
+			ProposedAction: "Add variables in a later task.",
+			Evidence:       "This task is contract-only.",
+			SourceTaskId:   targetTask.Id,
+			SourceRunId:    "RUN-001",
+			DedupeKey:      "follow_up:template-vars",
+		},
+		{
+			Id:             "REC-003",
+			Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_RISK,
+			Status:         orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING,
+			Title:          "Prompt budget regression",
+			Summary:        "Control-plane summaries could grow too large.",
+			ProposedAction: "Keep formatter limits in place.",
+			Evidence:       "Prompt contexts already run hot.",
+			SourceTaskId:   targetTask.Id,
+			SourceRunId:    "RUN-001",
+			DedupeKey:      "risk:prompt-budget",
+		},
+		{
+			Id:             "REC-004",
+			Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_CLEANUP,
+			Status:         orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING,
+			Title:          "Already accepted",
+			Summary:        "Should not appear in pending summary.",
+			ProposedAction: "Ignore it here.",
+			Evidence:       "Not pending anymore.",
+			SourceTaskId:   targetTask.Id,
+			SourceRunId:    "RUN-001",
+			DedupeKey:      "cleanup:accepted",
+		},
+	} {
+		if err := backend.SaveRecommendation(recommendation); err != nil {
+			t.Fatalf("save recommendation %s: %v", recommendation.Id, err)
+		}
+	}
+	if _, err := backend.UpdateRecommendationStatus(
+		"REC-004",
+		orcv1.RecommendationStatus_RECOMMENDATION_STATUS_ACCEPTED,
+		"tester",
+		"accepted for filtering coverage",
+	); err != nil {
+		t.Fatalf("accept recommendation: %v", err)
+	}
+
+	rctx := &variable.ResolutionContext{
+		TaskID:    targetTask.Id,
+		TaskTitle: targetTask.Title,
+	}
+
+	we.enrichContextForPhase(rctx, "implement", targetTask)
+
+	if got := strings.Count(rctx.PendingRecommendations, "\n- ["); got != 3 {
+		t.Fatalf("pending recommendation count = %d, want 3\n%s", got, rctx.PendingRecommendations)
+	}
+	if strings.Contains(rctx.PendingRecommendations, "Already accepted") {
+		t.Fatalf("accepted recommendation leaked into pending summary: %s", rctx.PendingRecommendations)
+	}
+	for _, taskID := range []string{"TASK-101", "TASK-102"} {
+		if !strings.Contains(rctx.AttentionSummary, taskID) {
+			t.Fatalf("attention summary missing %s: %s", taskID, rctx.AttentionSummary)
+		}
+	}
+}
+
+func stringPtr(value string) *string {
+	return &value
 }
 
 // =============================================================================
