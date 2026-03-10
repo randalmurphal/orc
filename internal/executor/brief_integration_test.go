@@ -440,6 +440,35 @@ func TestEnrichControlPlaneContext(t *testing.T) {
 	}
 }
 
+func TestEnrichControlPlaneContextClearsStaleValuesOnLoadFailure(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	failingBackend := &failingControlPlaneBackend{Backend: backend}
+	we := NewWorkflowExecutor(failingBackend, backend.DB(), testGlobalDBFrom(backend), config.Default(), t.TempDir())
+
+	targetTask := task.NewProtoTask("TASK-813", "Control-plane contracts")
+	targetTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+
+	rctx := &variable.ResolutionContext{
+		PendingRecommendations: "stale pending summary",
+		AttentionSummary:       "stale attention summary",
+		HandoffContext:         "stale handoff summary",
+	}
+
+	we.enrichContextForPhase(rctx, "implement", targetTask)
+
+	if rctx.PendingRecommendations != "" {
+		t.Fatalf("PendingRecommendations = %q, want empty string after load failure", rctx.PendingRecommendations)
+	}
+	if rctx.AttentionSummary != "" {
+		t.Fatalf("AttentionSummary = %q, want empty string after load failure", rctx.AttentionSummary)
+	}
+	if rctx.HandoffContext != "" {
+		t.Fatalf("HandoffContext = %q, want empty string after load failure", rctx.HandoffContext)
+	}
+}
+
 func stringPtr(value string) *string {
 	return &value
 }
@@ -458,6 +487,18 @@ func taskIDForBriefTest(i int) string {
 // like `backend.(*storage.DatabaseBackend)` return false.
 type nonDatabaseBackendWrapper struct {
 	storage.Backend // embeds the interface — delegates all methods
+}
+
+type failingControlPlaneBackend struct {
+	storage.Backend
+}
+
+func (f *failingControlPlaneBackend) LoadAllRecommendations() ([]*orcv1.Recommendation, error) {
+	return nil, fmt.Errorf("recommendations unavailable")
+}
+
+func (f *failingControlPlaneBackend) LoadAllTasks() ([]*orcv1.Task, error) {
+	return nil, fmt.Errorf("tasks unavailable")
 }
 
 // newNonDatabaseBackend creates a wrapper that satisfies storage.Backend

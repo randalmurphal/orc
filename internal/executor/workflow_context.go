@@ -330,6 +330,10 @@ func (we *WorkflowExecutor) populateControlPlaneContext(
 	phaseID string,
 	currentTask *orcv1.Task,
 ) {
+	rctx.PendingRecommendations = ""
+	rctx.HandoffContext = ""
+	rctx.AttentionSummary = ""
+
 	recommendations, err := we.backend.LoadAllRecommendations()
 	if err != nil {
 		we.logger.Warn("failed to load recommendations for control-plane context", "error", err)
