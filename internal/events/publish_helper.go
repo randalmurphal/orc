@@ -24,6 +24,14 @@ func NewPublishHelper(p Publisher) *PublishHelper {
 	return &PublishHelper{publisher: p}
 }
 
+// Publisher returns the wrapped publisher, if any.
+func (ep *PublishHelper) Publisher() Publisher {
+	if ep == nil {
+		return nil
+	}
+	return ep.publisher
+}
+
 // Publish sends an event to the underlying publisher.
 // Safe to call with nil publisher (no-op).
 func (ep *PublishHelper) Publish(ev Event) {

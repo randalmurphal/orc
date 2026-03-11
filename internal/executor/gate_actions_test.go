@@ -44,6 +44,7 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -305,6 +306,67 @@ func TestEvaluatePhaseGate_InvalidScriptPath_ReturnsError(t *testing.T) {
 	_, err := we.evaluatePhaseGate(context.Background(), tmpl, phase, "output", tsk)
 	if err == nil {
 		t.Fatal("evaluatePhaseGate should fail on invalid gate script path")
+	}
+}
+
+func TestEvaluatePhaseGate_HumanGateUsesPendingDecisionStore(t *testing.T) {
+	t.Parallel()
+	projectDir := t.TempDir()
+	backend, err := storage.NewDatabaseBackend(projectDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = backend.Close()
+	})
+
+	tsk := task.NewProtoTask("TASK-HUMAN-GATE-001", "Test human gate headless execution")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	mockPub := newLoopTestPublisher()
+	we := NewWorkflowExecutor(
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowPublisher(mockPub),
+	)
+
+	tmpl := &db.PhaseTemplate{
+		ID:       "plan",
+		GateType: "human",
+	}
+	phase := &db.WorkflowPhase{WorkflowID: "wf-001", PhaseTemplateID: "plan"}
+
+	result, err := we.evaluatePhaseGate(context.Background(), tmpl, phase, `{"status":"complete"}`, tsk)
+	if err != nil {
+		t.Fatalf("evaluatePhaseGate error: %v", err)
+	}
+	if !result.Pending {
+		t.Fatalf("gate result should be pending, got %+v", result)
+	}
+	if result.Approved {
+		t.Fatalf("pending human gate should not be approved: %+v", result)
+	}
+
+	pending := we.pendingDecisions.List(we.projectIDForEvents())
+	if len(pending) != 1 {
+		t.Fatalf("pending decisions = %d, want 1", len(pending))
+	}
+	if pending[0].TaskID != tsk.Id {
+		t.Fatalf("pending decision task_id = %q, want %q", pending[0].TaskID, tsk.Id)
+	}
+
+	foundDecisionEvent := false
+	for _, ev := range mockPub.events {
+		if ev.Type == events.EventDecisionRequired && ev.TaskID == tsk.Id {
+			foundDecisionEvent = true
+			break
+		}
+	}
+	if !foundDecisionEvent {
+		t.Fatal("expected decision_required event for headless human gate")
 	}
 }
 

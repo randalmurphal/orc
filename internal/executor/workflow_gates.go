@@ -97,11 +97,14 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 	}
 
 	opts := &gate.EvaluateOptions{
-		ProjectID:    we.projectIDForEvents(),
-		Phase:        tmpl.ID,
-		AgentID:      tmpl.GateAgentID,
-		InputConfig:  inputCfg,
-		OutputConfig: outputCfg,
+		ProjectID:     we.projectIDForEvents(),
+		Phase:         tmpl.ID,
+		AgentID:       tmpl.GateAgentID,
+		InputConfig:   inputCfg,
+		OutputConfig:  outputCfg,
+		Headless:      true,
+		Publisher:     we.publisher.Publisher(),
+		DecisionStore: we.pendingDecisions,
 	}
 	if t != nil {
 		opts.TaskID = t.Id

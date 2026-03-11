@@ -398,12 +398,15 @@ func (we *WorkflowExecutor) publishAttentionSignalResolved(taskID string, signal
 
 func (we *WorkflowExecutor) projectIDForEvents() string {
 	if we.projectDB == nil || we.projectDB.ProjectDir() == "" {
+		if we.workingDir != "" {
+			return we.workingDir
+		}
 		return ""
 	}
 
 	projectID, err := project.ResolveProjectID(we.projectDB.ProjectDir())
 	if err != nil {
-		return ""
+		return we.projectDB.ProjectDir()
 	}
 	return projectID
 }
