@@ -152,19 +152,16 @@ describe('Timeline Route', () => {
 		it('renders TimelinePage at /timeline route', async () => {
 			renderWithRouter('/timeline');
 
-			// Should render the timeline page
-			await waitFor(() => {
-				const timelinePage = document.querySelector('.timeline-page');
-				expect(timelinePage).toBeInTheDocument();
-			});
+			await screen.findByRole('heading', { name: /timeline/i }, { timeout: 5000 });
+			expect(document.querySelector('.timeline-page')).toBeInTheDocument();
 		});
 
 		it('shows Timeline heading', async () => {
 			renderWithRouter('/timeline');
 
-			await waitFor(() => {
-				expect(screen.getByRole('heading', { name: /timeline/i })).toBeInTheDocument();
-			});
+			expect(
+				await screen.findByRole('heading', { name: /timeline/i }, { timeout: 5000 }),
+			).toBeInTheDocument();
 		});
 
 		it('does not show 404 for /timeline route', async () => {

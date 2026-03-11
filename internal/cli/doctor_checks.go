@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/hosting"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 type doctorCheck struct {
@@ -28,9 +30,14 @@ func runWorkflowDoctorChecks(cfg *config.Config, gdb *db.GlobalDB, workflowID st
 		return nil, fmt.Errorf("workflow ID is required")
 	}
 
+	resolvedWorkflow, resolver, err := loadWorkflowForDoctor(workflowID)
+	if err != nil {
+		return nil, err
+	}
+
 	var checks []doctorCheck
 
-	requiredProviders, err := requiredWorkflowProviders(cfg, gdb, workflowID)
+	requiredProviders, err := requiredWorkflowProviders(cfg, resolvedWorkflow, resolver)
 	if err != nil {
 		return nil, err
 	}
@@ -56,11 +63,11 @@ func runWorkflowDoctorChecks(cfg *config.Config, gdb *db.GlobalDB, workflowID st
 		checks = append(checks, commandPresenceCheck(item.name, item.cmd))
 	}
 
-	if workflowUsesPhase(gdb, workflowID, "qa_e2e_test") {
+	if workflowUsesPhase(resolvedWorkflow, "qa_e2e_test") {
 		checks = append(checks, commandPresenceCheck("playwright runtime", "npx"))
 	}
 
-	completionChecks, err := completionHostingChecks(cfg, gdb, workflowID)
+	completionChecks, err := completionHostingChecks(cfg, workflowID)
 	if err != nil {
 		return nil, err
 	}
@@ -69,19 +76,39 @@ func runWorkflowDoctorChecks(cfg *config.Config, gdb *db.GlobalDB, workflowID st
 	return checks, nil
 }
 
-func requiredWorkflowProviders(cfg *config.Config, gdb *db.GlobalDB, workflowID string) (map[string]string, error) {
-	phases, err := gdb.GetWorkflowPhases(workflowID)
+func loadWorkflowForDoctor(workflowID string) (*workflow.Workflow, *workflow.Resolver, error) {
+	projectRoot, err := ResolveProjectPath()
 	if err != nil {
-		return nil, fmt.Errorf("load workflow phases for %s: %w", workflowID, err)
+		return nil, nil, fmt.Errorf("resolve project path: %w", err)
+	}
+
+	resolver := workflow.NewResolverFromOrcDir(filepath.Join(projectRoot, ".orc"))
+	resolved, err := resolver.ResolveWorkflow(workflowID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolve workflow %s: %w", workflowID, err)
+	}
+	return resolved.Workflow, resolver, nil
+}
+
+func requiredWorkflowProviders(
+	cfg *config.Config,
+	wf *workflow.Workflow,
+	resolver *workflow.Resolver,
+) (map[string]string, error) {
+	if wf == nil {
+		return nil, fmt.Errorf("workflow is required")
+	}
+	if resolver == nil {
+		return nil, fmt.Errorf("workflow resolver is required")
 	}
 
 	required := make(map[string]string)
-	for _, phase := range phases {
-		tmpl, err := gdb.GetPhaseTemplate(phase.PhaseTemplateID)
+	for _, phase := range wf.Phases {
+		tmpl, err := resolver.ResolvePhase(phase.PhaseTemplateID)
 		if err != nil {
-			return nil, fmt.Errorf("load phase template %s: %w", phase.PhaseTemplateID, err)
+			return nil, fmt.Errorf("resolve phase template %s: %w", phase.PhaseTemplateID, err)
 		}
-		provider := resolvePhaseProviderName(cfg, phase.ProviderOverride, tmpl.Provider)
+		provider := resolvePhaseProviderName(cfg, phase.ProviderOverride, tmpl.Phase.Provider)
 		switch provider {
 		case "claude":
 			required["claude"] = resolveClaudeBinary(cfg)
@@ -93,12 +120,11 @@ func requiredWorkflowProviders(cfg *config.Config, gdb *db.GlobalDB, workflowID 
 	return required, nil
 }
 
-func workflowUsesPhase(gdb *db.GlobalDB, workflowID string, phaseID string) bool {
-	phases, err := gdb.GetWorkflowPhases(workflowID)
-	if err != nil {
+func workflowUsesPhase(wf *workflow.Workflow, phaseID string) bool {
+	if wf == nil {
 		return false
 	}
-	for _, phase := range phases {
+	for _, phase := range wf.Phases {
 		if phase.PhaseTemplateID == phaseID {
 			return true
 		}
@@ -183,8 +209,8 @@ func failWorkflowDoctorChecks(checks []doctorCheck, failClosed bool) error {
 	return nil
 }
 
-func completionHostingChecks(cfg *config.Config, gdb *db.GlobalDB, workflowID string) ([]doctorCheck, error) {
-	action, err := resolveWorkflowCompletionAction(cfg, gdb, workflowID)
+func completionHostingChecks(cfg *config.Config, workflowID string) ([]doctorCheck, error) {
+	action, err := resolveWorkflowCompletionAction(cfg, workflowID)
 	if err != nil {
 		return nil, err
 	}
@@ -236,15 +262,15 @@ func completionHostingChecks(cfg *config.Config, gdb *db.GlobalDB, workflowID st
 	return checks, nil
 }
 
-func resolveWorkflowCompletionAction(cfg *config.Config, gdb *db.GlobalDB, workflowID string) (string, error) {
+func resolveWorkflowCompletionAction(cfg *config.Config, workflowID string) (string, error) {
 	if cfg == nil {
 		return "", fmt.Errorf("config is required")
 	}
 
 	action := cfg.ResolveCompletionAction(workflowID)
-	workflowDef, err := gdb.GetWorkflow(workflowID)
+	workflowDef, _, err := loadWorkflowForDoctor(workflowID)
 	if err != nil {
-		return "", fmt.Errorf("load workflow %s: %w", workflowID, err)
+		return "", err
 	}
 	if strings.TrimSpace(workflowDef.CompletionAction) != "" {
 		action = workflowDef.CompletionAction

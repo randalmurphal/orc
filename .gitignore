@@ -44,6 +44,7 @@ internal/api/static/*
 .claude/settings.json
 .worktrees/
 .orc/brief-cache.json
+.orc/local/
 
 # SQLite WAL files (should never be committed)
 *.db-shm

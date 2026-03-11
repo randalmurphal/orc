@@ -1,0 +1,8 @@
+id: plan-eval-opus
+name: Plan Eval (Opus)
+description: 'Project-scoped planner evaluation workflow using Claude Opus. No commit or PR side effects.'
+completion_action: none
+phases:
+    - template: plan
+      sequence: 0
+      model_override: opus
