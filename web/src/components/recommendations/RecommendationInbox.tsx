@@ -4,10 +4,11 @@ import { useCurrentProjectId } from '@/stores/projectStore';
 import {
 	acceptRecommendation,
 	discussRecommendation,
+	listRecommendationHistory,
 	listRecommendations,
 	rejectRecommendation,
 } from '@/lib/api/recommendation';
-import type { Recommendation } from '@/gen/orc/v1/recommendation_pb';
+import type { Recommendation, RecommendationHistoryEntry } from '@/gen/orc/v1/recommendation_pb';
 import { RecommendationKind, RecommendationStatus } from '@/gen/orc/v1/recommendation_pb';
 import { onRecommendationSignal } from '@/lib/events/recommendationSignals';
 import { timestampToDate } from '@/lib/time';
@@ -21,6 +22,9 @@ export function RecommendationInbox() {
 	const [busyId, setBusyId] = useState<string | null>(null);
 	const [contextPacks, setContextPacks] = useState<Record<string, string>>({});
 	const [decisionNotes, setDecisionNotes] = useState<Record<string, string>>({});
+	const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+	const [historyById, setHistoryById] = useState<Record<string, RecommendationHistoryEntry[]>>({});
+	const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
 
 	const loadRecommendations = useCallback(async () => {
 		setLoading(true);
@@ -84,6 +88,42 @@ export function RecommendationInbox() {
 			setBusyId(null);
 		}
 	}, [decisionNotes, loadRecommendations, projectId]);
+
+	const toggleHistory = useCallback(async (recommendationId: string) => {
+		if (expandedHistory[recommendationId]) {
+			setExpandedHistory((current) => ({
+				...current,
+				[recommendationId]: false,
+			}));
+			return;
+		}
+
+		if (historyById[recommendationId]) {
+			setExpandedHistory((current) => ({
+				...current,
+				[recommendationId]: true,
+			}));
+			return;
+		}
+
+		setHistoryLoadingId(recommendationId);
+		setError(null);
+		try {
+			const response = await listRecommendationHistory(projectId, recommendationId);
+			setHistoryById((current) => ({
+				...current,
+				[recommendationId]: response.history,
+			}));
+			setExpandedHistory((current) => ({
+				...current,
+				[recommendationId]: true,
+			}));
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to load recommendation history');
+		} finally {
+			setHistoryLoadingId(null);
+		}
+	}, [expandedHistory, historyById, projectId]);
 
 	if (loading) {
 		return <div className="recommendation-inbox__state">Loading recommendations...</div>;
@@ -206,6 +246,36 @@ export function RecommendationInbox() {
 							</div>
 						)}
 
+						<div className="recommendation-card__history-toggle">
+							<Button
+								variant="ghost"
+								size="sm"
+								disabled={historyLoadingId === recommendation.id}
+								onClick={() => void toggleHistory(recommendation.id)}
+							>
+								{expandedHistory[recommendation.id] ? 'Hide history' : 'Show history'}
+							</Button>
+						</div>
+
+						{historyLoadingId === recommendation.id && (
+							<div className="recommendation-card__detail">
+								<p>Loading history...</p>
+							</div>
+						)}
+
+						{expandedHistory[recommendation.id] && historyById[recommendation.id] && (
+							<div className="recommendation-card__detail">
+								<strong>Decision history</strong>
+								<ol className="recommendation-card__history">
+									{historyById[recommendation.id].map((entry) => (
+										<li key={entry.id}>
+											{formatRecommendationHistoryEntry(entry)}
+										</li>
+									))}
+								</ol>
+							</div>
+						)}
+
 						{contextPacks[recommendation.id] && (
 							<pre className="recommendation-card__context-pack">{contextPacks[recommendation.id]}</pre>
 						)}
@@ -287,4 +357,22 @@ function formatPromotedArtifact(recommendation: Recommendation): string {
 		return `Initiative decision ${recommendation.promotedToId}`;
 	}
 	return `Task ${recommendation.promotedToId}`;
+}
+
+function formatRecommendationHistoryEntry(entry: RecommendationHistoryEntry): string {
+	const parts = [recommendationStatusLabel(entry.toStatus)];
+	if (entry.fromStatus !== RecommendationStatus.UNSPECIFIED) {
+		parts.push(`from ${recommendationStatusLabel(entry.fromStatus).toLowerCase()}`);
+	}
+	if (entry.decidedBy) {
+		parts.push(`by ${entry.decidedBy}`);
+	}
+	const createdAt = timestampToDate(entry.createdAt);
+	if (createdAt) {
+		parts.push(`on ${createdAt.toLocaleString()}`);
+	}
+	if (entry.decisionReason) {
+		parts.push(`(${entry.decisionReason})`);
+	}
+	return parts.join(' ');
 }

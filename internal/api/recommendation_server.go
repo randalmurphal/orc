@@ -143,6 +143,25 @@ func (s *recommendationServer) ListRecommendations(
 	return connect.NewResponse(&orcv1.ListRecommendationsResponse{Recommendations: filtered}), nil
 }
 
+func (s *recommendationServer) ListRecommendationHistory(
+	ctx context.Context,
+	req *connect.Request[orcv1.ListRecommendationHistoryRequest],
+) (*connect.Response[orcv1.ListRecommendationHistoryResponse], error) {
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+	if req.Msg.RecommendationId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("recommendation_id is required"))
+	}
+
+	history, err := backend.LoadRecommendationHistory(req.Msg.RecommendationId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&orcv1.ListRecommendationHistoryResponse{History: history}), nil
+}
+
 func (s *recommendationServer) AcceptRecommendation(
 	ctx context.Context,
 	req *connect.Request[orcv1.AcceptRecommendationRequest],
@@ -156,8 +175,10 @@ func (s *recommendationServer) AcceptRecommendation(
 	if err != nil {
 		return nil, err
 	}
-	s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
-	s.publishPromotedArtifact(req.Msg.GetProjectId(), rec)
+	if previousStatus != rec.Status {
+		s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
+		s.publishPromotedArtifact(req.Msg.GetProjectId(), rec)
+	}
 	return connect.NewResponse(&orcv1.AcceptRecommendationResponse{Recommendation: rec}), nil
 }
 
@@ -175,7 +196,9 @@ func (s *recommendationServer) RejectRecommendation(
 	if err != nil {
 		return nil, err
 	}
-	s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
+	if previousStatus != rec.Status {
+		s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
+	}
 	return connect.NewResponse(&orcv1.RejectRecommendationResponse{Recommendation: rec}), nil
 }
 
@@ -193,7 +216,9 @@ func (s *recommendationServer) DiscussRecommendation(
 	if err != nil {
 		return nil, err
 	}
-	s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
+	if previousStatus != rec.Status {
+		s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
+	}
 	return connect.NewResponse(&orcv1.DiscussRecommendationResponse{
 		Recommendation: rec,
 		ContextPack:    buildRecommendationContextPack(rec),

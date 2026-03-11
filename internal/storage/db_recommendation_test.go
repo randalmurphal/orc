@@ -40,18 +40,12 @@ func TestRecommendationConcurrentDecision(t *testing.T) {
 	close(errs)
 
 	var successCount int
-	var conflictCount int
 	for err := range errs {
-		if err == nil {
-			successCount++
-			continue
-		}
-		require.ErrorIs(t, err, db.ErrRecommendationConflict)
-		conflictCount++
+		require.NoError(t, err)
+		successCount++
 	}
 
-	require.Equal(t, 1, successCount)
-	require.Equal(t, 1, conflictCount)
+	require.Equal(t, 2, successCount)
 
 	loaded, err := backend.LoadRecommendation(rec.Id)
 	require.NoError(t, err)
@@ -80,6 +74,33 @@ func TestRecommendationBackendRoundTrip(t *testing.T) {
 	count, err := backend.CountRecommendationsByStatus(orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING)
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
+}
+
+func TestRecommendationBackendHistoryRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	backend := NewTestBackend(t)
+	createRecommendationFixtures(t, backend)
+
+	rec := testProtoRecommendation()
+	require.NoError(t, backend.SaveRecommendation(rec))
+
+	_, err := backend.UpdateRecommendationStatus(
+		rec.Id,
+		orcv1.RecommendationStatus_RECOMMENDATION_STATUS_DISCUSSED,
+		"randy",
+		"needs a narrower scope",
+	)
+	require.NoError(t, err)
+
+	history, err := backend.LoadRecommendationHistory(rec.Id)
+	require.NoError(t, err)
+	require.Len(t, history, 2)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_DISCUSSED, history[0].ToStatus)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING, history[0].FromStatus)
+	require.Equal(t, "randy", history[0].DecidedBy)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING, history[1].ToStatus)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_UNSPECIFIED, history[1].FromStatus)
 }
 
 func createRecommendationFixtures(t *testing.T, backend *DatabaseBackend) {

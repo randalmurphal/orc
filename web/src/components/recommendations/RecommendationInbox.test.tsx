@@ -5,11 +5,14 @@ import { RecommendationInbox } from './RecommendationInbox';
 import {
 	AcceptRecommendationResponseSchema,
 	DiscussRecommendationResponseSchema,
+	ListRecommendationHistoryResponseSchema,
 	RecommendationKind,
+	RecommendationHistoryEntrySchema,
 	RecommendationSchema,
 	RecommendationStatus,
 	RejectRecommendationResponseSchema,
 	ListRecommendationsResponseSchema,
+	type RecommendationHistoryEntry,
 	type Recommendation,
 } from '@/gen/orc/v1/recommendation_pb';
 
@@ -19,6 +22,7 @@ vi.mock('@/stores/projectStore', () => ({
 
 vi.mock('@/lib/api/recommendation', () => ({
 	listRecommendations: vi.fn(),
+	listRecommendationHistory: vi.fn(),
 	acceptRecommendation: vi.fn(),
 	rejectRecommendation: vi.fn(),
 	discussRecommendation: vi.fn(),
@@ -27,6 +31,7 @@ vi.mock('@/lib/api/recommendation', () => ({
 import {
 	acceptRecommendation,
 	discussRecommendation,
+	listRecommendationHistory,
 	listRecommendations,
 	rejectRecommendation,
 } from '@/lib/api/recommendation';
@@ -204,6 +209,46 @@ describe('RecommendationInbox', () => {
 		expect(listRecommendations).toHaveBeenCalledTimes(3);
 	});
 
+	it('loads recommendation history only when requested and renders the audit trail', async () => {
+		vi.mocked(listRecommendations).mockResolvedValue(makeListResponse([
+			makeRecommendation({
+				status: RecommendationStatus.ACCEPTED,
+				decisionReason: 'Looks worth shipping.',
+				decidedBy: 'operator',
+				promotedToType: 'task',
+				promotedToId: 'TASK-099',
+			}),
+		]));
+		vi.mocked(listRecommendationHistory).mockResolvedValue(makeHistoryResponse([
+			makeHistoryEntry({
+				id: 2n,
+				fromStatus: RecommendationStatus.PENDING,
+				toStatus: RecommendationStatus.ACCEPTED,
+				decidedBy: 'operator',
+				decisionReason: 'Looks worth shipping.',
+			}),
+			makeHistoryEntry({
+				id: 1n,
+				fromStatus: RecommendationStatus.UNSPECIFIED,
+				toStatus: RecommendationStatus.PENDING,
+			}),
+		]));
+
+		render(<RecommendationInbox />);
+
+		await screen.findByText('Clean up duplicate polling');
+		expect(listRecommendationHistory).not.toHaveBeenCalled();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Show history' }));
+
+		await screen.findByText(/Accepted from pending by operator/);
+		expect(screen.getByText('Pending')).toBeInTheDocument();
+		expect(listRecommendationHistory).toHaveBeenCalledWith('proj-001', 'REC-001');
+
+		fireEvent.click(screen.getByRole('button', { name: 'Hide history' }));
+		expect(screen.queryByText(/Accepted from pending by operator/)).not.toBeInTheDocument();
+	});
+
 	it('refreshes when an external recommendation event arrives for the current project', async () => {
 		vi.mocked(listRecommendations)
 			.mockResolvedValueOnce(makeListResponse([makeRecommendation()]))
@@ -236,6 +281,10 @@ function makeListResponse(recommendations: Recommendation[]) {
 	return create(ListRecommendationsResponseSchema, { recommendations });
 }
 
+function makeHistoryResponse(history: RecommendationHistoryEntry[]) {
+	return create(ListRecommendationHistoryResponseSchema, { history });
+}
+
 function makeRecommendation(overrides: Record<string, unknown> = {}): Recommendation {
 	return create(RecommendationSchema, {
 		id: 'REC-001',
@@ -249,6 +298,18 @@ function makeRecommendation(overrides: Record<string, unknown> = {}): Recommenda
 		sourceRunId: 'RUN-001',
 		sourceThreadId: 'THR-001',
 		dedupeKey: 'cleanup:task-001:duplicate-polling',
+		...overrides,
+	});
+}
+
+function makeHistoryEntry(overrides: Record<string, unknown> = {}): RecommendationHistoryEntry {
+	return create(RecommendationHistoryEntrySchema, {
+		id: 1n,
+		recommendationId: 'REC-001',
+		fromStatus: RecommendationStatus.UNSPECIFIED,
+		toStatus: RecommendationStatus.PENDING,
+		decisionReason: '',
+		decidedBy: '',
 		...overrides,
 	});
 }

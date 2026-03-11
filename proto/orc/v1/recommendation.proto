@@ -45,10 +45,21 @@ message Recommendation {
   google.protobuf.Timestamp promoted_at = 20;
 }
 
+message RecommendationHistoryEntry {
+  int64 id = 1;
+  string recommendation_id = 2;
+  RecommendationStatus from_status = 3;
+  RecommendationStatus to_status = 4;
+  string decided_by = 5;
+  string decision_reason = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
 service RecommendationService {
   rpc CreateRecommendation(CreateRecommendationRequest) returns (CreateRecommendationResponse);
   rpc GetRecommendation(GetRecommendationRequest) returns (GetRecommendationResponse);
   rpc ListRecommendations(ListRecommendationsRequest) returns (ListRecommendationsResponse);
+  rpc ListRecommendationHistory(ListRecommendationHistoryRequest) returns (ListRecommendationHistoryResponse);
   rpc AcceptRecommendation(AcceptRecommendationRequest) returns (AcceptRecommendationResponse);
   rpc RejectRecommendation(RejectRecommendationRequest) returns (RejectRecommendationResponse);
   rpc DiscussRecommendation(DiscussRecommendationRequest) returns (DiscussRecommendationResponse);
@@ -81,6 +92,15 @@ message ListRecommendationsRequest {
 
 message ListRecommendationsResponse {
   repeated Recommendation recommendations = 1;
+}
+
+message ListRecommendationHistoryRequest {
+  string project_id = 1;
+  string recommendation_id = 2;
+}
+
+message ListRecommendationHistoryResponse {
+  repeated RecommendationHistoryEntry history = 1;
 }
 
 message AcceptRecommendationRequest {

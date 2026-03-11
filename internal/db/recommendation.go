@@ -325,10 +325,11 @@ func (p *ProjectDB) decideRecommendation(
 		if err != nil {
 			return err
 		}
+		if current.Status == targetStatus {
+			*returnRec = *current
+			return nil
+		}
 		if !containsRecommendationStatus(allowedFrom, current.Status) {
-			if current.Status == targetStatus {
-				return fmt.Errorf("%w: recommendation %s already %s", ErrRecommendationConflict, id, targetStatus)
-			}
 			return fmt.Errorf(
 				"%w: %s -> %s",
 				ErrInvalidRecommendationTransition,
@@ -425,13 +426,17 @@ func (p *ProjectDB) acceptRecommendationWithPromotion(
 		if err != nil {
 			return err
 		}
+		if current.Status == RecommendationStatusAccepted {
+			if current.PromotedToType == "" || current.PromotedToID == "" {
+				return fmt.Errorf("%w: recommendation %s already accepted without promotion metadata", ErrRecommendationConflict, id)
+			}
+			*returnRec = *current
+			return nil
+		}
 		if !containsRecommendationStatus([]string{
 			RecommendationStatusPending,
 			RecommendationStatusDiscussed,
 		}, current.Status) {
-			if current.Status == RecommendationStatusAccepted {
-				return fmt.Errorf("%w: recommendation %s already accepted", ErrRecommendationConflict, id)
-			}
 			return fmt.Errorf(
 				"%w: %s -> %s",
 				ErrInvalidRecommendationTransition,

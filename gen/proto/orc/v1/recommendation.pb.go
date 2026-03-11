@@ -328,6 +328,98 @@ func (x *Recommendation) GetPromotedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type RecommendationHistoryEntry struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	RecommendationId string                 `protobuf:"bytes,2,opt,name=recommendation_id,json=recommendationId,proto3" json:"recommendation_id,omitempty"`
+	FromStatus       RecommendationStatus   `protobuf:"varint,3,opt,name=from_status,json=fromStatus,proto3,enum=orc.v1.RecommendationStatus" json:"from_status,omitempty"`
+	ToStatus         RecommendationStatus   `protobuf:"varint,4,opt,name=to_status,json=toStatus,proto3,enum=orc.v1.RecommendationStatus" json:"to_status,omitempty"`
+	DecidedBy        string                 `protobuf:"bytes,5,opt,name=decided_by,json=decidedBy,proto3" json:"decided_by,omitempty"`
+	DecisionReason   string                 `protobuf:"bytes,6,opt,name=decision_reason,json=decisionReason,proto3" json:"decision_reason,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RecommendationHistoryEntry) Reset() {
+	*x = RecommendationHistoryEntry{}
+	mi := &file_orc_v1_recommendation_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecommendationHistoryEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecommendationHistoryEntry) ProtoMessage() {}
+
+func (x *RecommendationHistoryEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_recommendation_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecommendationHistoryEntry.ProtoReflect.Descriptor instead.
+func (*RecommendationHistoryEntry) Descriptor() ([]byte, []int) {
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RecommendationHistoryEntry) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *RecommendationHistoryEntry) GetRecommendationId() string {
+	if x != nil {
+		return x.RecommendationId
+	}
+	return ""
+}
+
+func (x *RecommendationHistoryEntry) GetFromStatus() RecommendationStatus {
+	if x != nil {
+		return x.FromStatus
+	}
+	return RecommendationStatus_RECOMMENDATION_STATUS_UNSPECIFIED
+}
+
+func (x *RecommendationHistoryEntry) GetToStatus() RecommendationStatus {
+	if x != nil {
+		return x.ToStatus
+	}
+	return RecommendationStatus_RECOMMENDATION_STATUS_UNSPECIFIED
+}
+
+func (x *RecommendationHistoryEntry) GetDecidedBy() string {
+	if x != nil {
+		return x.DecidedBy
+	}
+	return ""
+}
+
+func (x *RecommendationHistoryEntry) GetDecisionReason() string {
+	if x != nil {
+		return x.DecisionReason
+	}
+	return ""
+}
+
+func (x *RecommendationHistoryEntry) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
 type CreateRecommendationRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId      string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
@@ -338,7 +430,7 @@ type CreateRecommendationRequest struct {
 
 func (x *CreateRecommendationRequest) Reset() {
 	*x = CreateRecommendationRequest{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[1]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -350,7 +442,7 @@ func (x *CreateRecommendationRequest) String() string {
 func (*CreateRecommendationRequest) ProtoMessage() {}
 
 func (x *CreateRecommendationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[1]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -363,7 +455,7 @@ func (x *CreateRecommendationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRecommendationRequest.ProtoReflect.Descriptor instead.
 func (*CreateRecommendationRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{1}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreateRecommendationRequest) GetProjectId() string {
@@ -389,7 +481,7 @@ type CreateRecommendationResponse struct {
 
 func (x *CreateRecommendationResponse) Reset() {
 	*x = CreateRecommendationResponse{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[2]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -401,7 +493,7 @@ func (x *CreateRecommendationResponse) String() string {
 func (*CreateRecommendationResponse) ProtoMessage() {}
 
 func (x *CreateRecommendationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[2]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -414,7 +506,7 @@ func (x *CreateRecommendationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRecommendationResponse.ProtoReflect.Descriptor instead.
 func (*CreateRecommendationResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{2}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CreateRecommendationResponse) GetRecommendation() *Recommendation {
@@ -434,7 +526,7 @@ type GetRecommendationRequest struct {
 
 func (x *GetRecommendationRequest) Reset() {
 	*x = GetRecommendationRequest{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[3]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -446,7 +538,7 @@ func (x *GetRecommendationRequest) String() string {
 func (*GetRecommendationRequest) ProtoMessage() {}
 
 func (x *GetRecommendationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[3]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -459,7 +551,7 @@ func (x *GetRecommendationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRecommendationRequest.ProtoReflect.Descriptor instead.
 func (*GetRecommendationRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{3}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetRecommendationRequest) GetProjectId() string {
@@ -485,7 +577,7 @@ type GetRecommendationResponse struct {
 
 func (x *GetRecommendationResponse) Reset() {
 	*x = GetRecommendationResponse{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[4]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -497,7 +589,7 @@ func (x *GetRecommendationResponse) String() string {
 func (*GetRecommendationResponse) ProtoMessage() {}
 
 func (x *GetRecommendationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[4]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -510,7 +602,7 @@ func (x *GetRecommendationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRecommendationResponse.ProtoReflect.Descriptor instead.
 func (*GetRecommendationResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{4}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetRecommendationResponse) GetRecommendation() *Recommendation {
@@ -532,7 +624,7 @@ type ListRecommendationsRequest struct {
 
 func (x *ListRecommendationsRequest) Reset() {
 	*x = ListRecommendationsRequest{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[5]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -544,7 +636,7 @@ func (x *ListRecommendationsRequest) String() string {
 func (*ListRecommendationsRequest) ProtoMessage() {}
 
 func (x *ListRecommendationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[5]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,7 +649,7 @@ func (x *ListRecommendationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRecommendationsRequest.ProtoReflect.Descriptor instead.
 func (*ListRecommendationsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{5}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListRecommendationsRequest) GetProjectId() string {
@@ -597,7 +689,7 @@ type ListRecommendationsResponse struct {
 
 func (x *ListRecommendationsResponse) Reset() {
 	*x = ListRecommendationsResponse{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[6]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -609,7 +701,7 @@ func (x *ListRecommendationsResponse) String() string {
 func (*ListRecommendationsResponse) ProtoMessage() {}
 
 func (x *ListRecommendationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[6]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -622,12 +714,108 @@ func (x *ListRecommendationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRecommendationsResponse.ProtoReflect.Descriptor instead.
 func (*ListRecommendationsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{6}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListRecommendationsResponse) GetRecommendations() []*Recommendation {
 	if x != nil {
 		return x.Recommendations
+	}
+	return nil
+}
+
+type ListRecommendationHistoryRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId        string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	RecommendationId string                 `protobuf:"bytes,2,opt,name=recommendation_id,json=recommendationId,proto3" json:"recommendation_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ListRecommendationHistoryRequest) Reset() {
+	*x = ListRecommendationHistoryRequest{}
+	mi := &file_orc_v1_recommendation_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRecommendationHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRecommendationHistoryRequest) ProtoMessage() {}
+
+func (x *ListRecommendationHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_recommendation_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRecommendationHistoryRequest.ProtoReflect.Descriptor instead.
+func (*ListRecommendationHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListRecommendationHistoryRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ListRecommendationHistoryRequest) GetRecommendationId() string {
+	if x != nil {
+		return x.RecommendationId
+	}
+	return ""
+}
+
+type ListRecommendationHistoryResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	History       []*RecommendationHistoryEntry `protobuf:"bytes,1,rep,name=history,proto3" json:"history,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRecommendationHistoryResponse) Reset() {
+	*x = ListRecommendationHistoryResponse{}
+	mi := &file_orc_v1_recommendation_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRecommendationHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRecommendationHistoryResponse) ProtoMessage() {}
+
+func (x *ListRecommendationHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_recommendation_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRecommendationHistoryResponse.ProtoReflect.Descriptor instead.
+func (*ListRecommendationHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ListRecommendationHistoryResponse) GetHistory() []*RecommendationHistoryEntry {
+	if x != nil {
+		return x.History
 	}
 	return nil
 }
@@ -644,7 +832,7 @@ type AcceptRecommendationRequest struct {
 
 func (x *AcceptRecommendationRequest) Reset() {
 	*x = AcceptRecommendationRequest{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[7]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -656,7 +844,7 @@ func (x *AcceptRecommendationRequest) String() string {
 func (*AcceptRecommendationRequest) ProtoMessage() {}
 
 func (x *AcceptRecommendationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[7]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -669,7 +857,7 @@ func (x *AcceptRecommendationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptRecommendationRequest.ProtoReflect.Descriptor instead.
 func (*AcceptRecommendationRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{7}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AcceptRecommendationRequest) GetProjectId() string {
@@ -709,7 +897,7 @@ type AcceptRecommendationResponse struct {
 
 func (x *AcceptRecommendationResponse) Reset() {
 	*x = AcceptRecommendationResponse{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[8]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -721,7 +909,7 @@ func (x *AcceptRecommendationResponse) String() string {
 func (*AcceptRecommendationResponse) ProtoMessage() {}
 
 func (x *AcceptRecommendationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[8]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -734,7 +922,7 @@ func (x *AcceptRecommendationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptRecommendationResponse.ProtoReflect.Descriptor instead.
 func (*AcceptRecommendationResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{8}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AcceptRecommendationResponse) GetRecommendation() *Recommendation {
@@ -756,7 +944,7 @@ type RejectRecommendationRequest struct {
 
 func (x *RejectRecommendationRequest) Reset() {
 	*x = RejectRecommendationRequest{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[9]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -768,7 +956,7 @@ func (x *RejectRecommendationRequest) String() string {
 func (*RejectRecommendationRequest) ProtoMessage() {}
 
 func (x *RejectRecommendationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[9]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -781,7 +969,7 @@ func (x *RejectRecommendationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RejectRecommendationRequest.ProtoReflect.Descriptor instead.
 func (*RejectRecommendationRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{9}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RejectRecommendationRequest) GetProjectId() string {
@@ -821,7 +1009,7 @@ type RejectRecommendationResponse struct {
 
 func (x *RejectRecommendationResponse) Reset() {
 	*x = RejectRecommendationResponse{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[10]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -833,7 +1021,7 @@ func (x *RejectRecommendationResponse) String() string {
 func (*RejectRecommendationResponse) ProtoMessage() {}
 
 func (x *RejectRecommendationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[10]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -846,7 +1034,7 @@ func (x *RejectRecommendationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RejectRecommendationResponse.ProtoReflect.Descriptor instead.
 func (*RejectRecommendationResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{10}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RejectRecommendationResponse) GetRecommendation() *Recommendation {
@@ -868,7 +1056,7 @@ type DiscussRecommendationRequest struct {
 
 func (x *DiscussRecommendationRequest) Reset() {
 	*x = DiscussRecommendationRequest{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[11]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -880,7 +1068,7 @@ func (x *DiscussRecommendationRequest) String() string {
 func (*DiscussRecommendationRequest) ProtoMessage() {}
 
 func (x *DiscussRecommendationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[11]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -893,7 +1081,7 @@ func (x *DiscussRecommendationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscussRecommendationRequest.ProtoReflect.Descriptor instead.
 func (*DiscussRecommendationRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{11}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DiscussRecommendationRequest) GetProjectId() string {
@@ -934,7 +1122,7 @@ type DiscussRecommendationResponse struct {
 
 func (x *DiscussRecommendationResponse) Reset() {
 	*x = DiscussRecommendationResponse{}
-	mi := &file_orc_v1_recommendation_proto_msgTypes[12]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -946,7 +1134,7 @@ func (x *DiscussRecommendationResponse) String() string {
 func (*DiscussRecommendationResponse) ProtoMessage() {}
 
 func (x *DiscussRecommendationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_recommendation_proto_msgTypes[12]
+	mi := &file_orc_v1_recommendation_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -959,7 +1147,7 @@ func (x *DiscussRecommendationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscussRecommendationResponse.ProtoReflect.Descriptor instead.
 func (*DiscussRecommendationResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{12}
+	return file_orc_v1_recommendation_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DiscussRecommendationResponse) GetRecommendation() *Recommendation {
@@ -1011,7 +1199,18 @@ const file_orc_v1_recommendation_proto_rawDesc = "" +
 	"\vpromoted_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"promotedAtB\r\n" +
 	"\v_decided_byB\x12\n" +
-	"\x10_decision_reason\"|\n" +
+	"\x10_decision_reason\"\xd6\x02\n" +
+	"\x1aRecommendationHistoryEntry\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12+\n" +
+	"\x11recommendation_id\x18\x02 \x01(\tR\x10recommendationId\x12=\n" +
+	"\vfrom_status\x18\x03 \x01(\x0e2\x1c.orc.v1.RecommendationStatusR\n" +
+	"fromStatus\x129\n" +
+	"\tto_status\x18\x04 \x01(\x0e2\x1c.orc.v1.RecommendationStatusR\btoStatus\x12\x1d\n" +
+	"\n" +
+	"decided_by\x18\x05 \x01(\tR\tdecidedBy\x12'\n" +
+	"\x0fdecision_reason\x18\x06 \x01(\tR\x0edecisionReason\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"|\n" +
 	"\x1bCreateRecommendationRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12>\n" +
@@ -1031,7 +1230,13 @@ const file_orc_v1_recommendation_proto_rawDesc = "" +
 	"\x04kind\x18\x03 \x01(\x0e2\x1a.orc.v1.RecommendationKindR\x04kind\x12$\n" +
 	"\x0esource_task_id\x18\x04 \x01(\tR\fsourceTaskId\"_\n" +
 	"\x1bListRecommendationsResponse\x12@\n" +
-	"\x0frecommendations\x18\x01 \x03(\v2\x16.orc.v1.RecommendationR\x0frecommendations\"\xb1\x01\n" +
+	"\x0frecommendations\x18\x01 \x03(\v2\x16.orc.v1.RecommendationR\x0frecommendations\"n\n" +
+	" ListRecommendationHistoryRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12+\n" +
+	"\x11recommendation_id\x18\x02 \x01(\tR\x10recommendationId\"a\n" +
+	"!ListRecommendationHistoryResponse\x12<\n" +
+	"\ahistory\x18\x01 \x03(\v2\".orc.v1.RecommendationHistoryEntryR\ahistory\"\xb1\x01\n" +
 	"\x1bAcceptRecommendationRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12+\n" +
@@ -1071,11 +1276,12 @@ const file_orc_v1_recommendation_proto_rawDesc = "" +
 	"\x1dRECOMMENDATION_STATUS_PENDING\x10\x01\x12\"\n" +
 	"\x1eRECOMMENDATION_STATUS_ACCEPTED\x10\x02\x12\"\n" +
 	"\x1eRECOMMENDATION_STATUS_REJECTED\x10\x03\x12#\n" +
-	"\x1fRECOMMENDATION_STATUS_DISCUSSED\x10\x042\xe0\x04\n" +
+	"\x1fRECOMMENDATION_STATUS_DISCUSSED\x10\x042\xd2\x05\n" +
 	"\x15RecommendationService\x12a\n" +
 	"\x14CreateRecommendation\x12#.orc.v1.CreateRecommendationRequest\x1a$.orc.v1.CreateRecommendationResponse\x12X\n" +
 	"\x11GetRecommendation\x12 .orc.v1.GetRecommendationRequest\x1a!.orc.v1.GetRecommendationResponse\x12^\n" +
-	"\x13ListRecommendations\x12\".orc.v1.ListRecommendationsRequest\x1a#.orc.v1.ListRecommendationsResponse\x12a\n" +
+	"\x13ListRecommendations\x12\".orc.v1.ListRecommendationsRequest\x1a#.orc.v1.ListRecommendationsResponse\x12p\n" +
+	"\x19ListRecommendationHistory\x12(.orc.v1.ListRecommendationHistoryRequest\x1a).orc.v1.ListRecommendationHistoryResponse\x12a\n" +
 	"\x14AcceptRecommendation\x12#.orc.v1.AcceptRecommendationRequest\x1a$.orc.v1.AcceptRecommendationResponse\x12a\n" +
 	"\x14RejectRecommendation\x12#.orc.v1.RejectRecommendationRequest\x1a$.orc.v1.RejectRecommendationResponse\x12d\n" +
 	"\x15DiscussRecommendation\x12$.orc.v1.DiscussRecommendationRequest\x1a%.orc.v1.DiscussRecommendationResponseB\x8f\x01\n" +
@@ -1095,58 +1301,67 @@ func file_orc_v1_recommendation_proto_rawDescGZIP() []byte {
 }
 
 var file_orc_v1_recommendation_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_orc_v1_recommendation_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_orc_v1_recommendation_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_orc_v1_recommendation_proto_goTypes = []any{
-	(RecommendationKind)(0),               // 0: orc.v1.RecommendationKind
-	(RecommendationStatus)(0),             // 1: orc.v1.RecommendationStatus
-	(*Recommendation)(nil),                // 2: orc.v1.Recommendation
-	(*CreateRecommendationRequest)(nil),   // 3: orc.v1.CreateRecommendationRequest
-	(*CreateRecommendationResponse)(nil),  // 4: orc.v1.CreateRecommendationResponse
-	(*GetRecommendationRequest)(nil),      // 5: orc.v1.GetRecommendationRequest
-	(*GetRecommendationResponse)(nil),     // 6: orc.v1.GetRecommendationResponse
-	(*ListRecommendationsRequest)(nil),    // 7: orc.v1.ListRecommendationsRequest
-	(*ListRecommendationsResponse)(nil),   // 8: orc.v1.ListRecommendationsResponse
-	(*AcceptRecommendationRequest)(nil),   // 9: orc.v1.AcceptRecommendationRequest
-	(*AcceptRecommendationResponse)(nil),  // 10: orc.v1.AcceptRecommendationResponse
-	(*RejectRecommendationRequest)(nil),   // 11: orc.v1.RejectRecommendationRequest
-	(*RejectRecommendationResponse)(nil),  // 12: orc.v1.RejectRecommendationResponse
-	(*DiscussRecommendationRequest)(nil),  // 13: orc.v1.DiscussRecommendationRequest
-	(*DiscussRecommendationResponse)(nil), // 14: orc.v1.DiscussRecommendationResponse
-	(*timestamppb.Timestamp)(nil),         // 15: google.protobuf.Timestamp
+	(RecommendationKind)(0),                   // 0: orc.v1.RecommendationKind
+	(RecommendationStatus)(0),                 // 1: orc.v1.RecommendationStatus
+	(*Recommendation)(nil),                    // 2: orc.v1.Recommendation
+	(*RecommendationHistoryEntry)(nil),        // 3: orc.v1.RecommendationHistoryEntry
+	(*CreateRecommendationRequest)(nil),       // 4: orc.v1.CreateRecommendationRequest
+	(*CreateRecommendationResponse)(nil),      // 5: orc.v1.CreateRecommendationResponse
+	(*GetRecommendationRequest)(nil),          // 6: orc.v1.GetRecommendationRequest
+	(*GetRecommendationResponse)(nil),         // 7: orc.v1.GetRecommendationResponse
+	(*ListRecommendationsRequest)(nil),        // 8: orc.v1.ListRecommendationsRequest
+	(*ListRecommendationsResponse)(nil),       // 9: orc.v1.ListRecommendationsResponse
+	(*ListRecommendationHistoryRequest)(nil),  // 10: orc.v1.ListRecommendationHistoryRequest
+	(*ListRecommendationHistoryResponse)(nil), // 11: orc.v1.ListRecommendationHistoryResponse
+	(*AcceptRecommendationRequest)(nil),       // 12: orc.v1.AcceptRecommendationRequest
+	(*AcceptRecommendationResponse)(nil),      // 13: orc.v1.AcceptRecommendationResponse
+	(*RejectRecommendationRequest)(nil),       // 14: orc.v1.RejectRecommendationRequest
+	(*RejectRecommendationResponse)(nil),      // 15: orc.v1.RejectRecommendationResponse
+	(*DiscussRecommendationRequest)(nil),      // 16: orc.v1.DiscussRecommendationRequest
+	(*DiscussRecommendationResponse)(nil),     // 17: orc.v1.DiscussRecommendationResponse
+	(*timestamppb.Timestamp)(nil),             // 18: google.protobuf.Timestamp
 }
 var file_orc_v1_recommendation_proto_depIdxs = []int32{
 	0,  // 0: orc.v1.Recommendation.kind:type_name -> orc.v1.RecommendationKind
 	1,  // 1: orc.v1.Recommendation.status:type_name -> orc.v1.RecommendationStatus
-	15, // 2: orc.v1.Recommendation.decided_at:type_name -> google.protobuf.Timestamp
-	15, // 3: orc.v1.Recommendation.created_at:type_name -> google.protobuf.Timestamp
-	15, // 4: orc.v1.Recommendation.updated_at:type_name -> google.protobuf.Timestamp
-	15, // 5: orc.v1.Recommendation.promoted_at:type_name -> google.protobuf.Timestamp
-	2,  // 6: orc.v1.CreateRecommendationRequest.recommendation:type_name -> orc.v1.Recommendation
-	2,  // 7: orc.v1.CreateRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
-	2,  // 8: orc.v1.GetRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
-	1,  // 9: orc.v1.ListRecommendationsRequest.status:type_name -> orc.v1.RecommendationStatus
-	0,  // 10: orc.v1.ListRecommendationsRequest.kind:type_name -> orc.v1.RecommendationKind
-	2,  // 11: orc.v1.ListRecommendationsResponse.recommendations:type_name -> orc.v1.Recommendation
-	2,  // 12: orc.v1.AcceptRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
-	2,  // 13: orc.v1.RejectRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
-	2,  // 14: orc.v1.DiscussRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
-	3,  // 15: orc.v1.RecommendationService.CreateRecommendation:input_type -> orc.v1.CreateRecommendationRequest
-	5,  // 16: orc.v1.RecommendationService.GetRecommendation:input_type -> orc.v1.GetRecommendationRequest
-	7,  // 17: orc.v1.RecommendationService.ListRecommendations:input_type -> orc.v1.ListRecommendationsRequest
-	9,  // 18: orc.v1.RecommendationService.AcceptRecommendation:input_type -> orc.v1.AcceptRecommendationRequest
-	11, // 19: orc.v1.RecommendationService.RejectRecommendation:input_type -> orc.v1.RejectRecommendationRequest
-	13, // 20: orc.v1.RecommendationService.DiscussRecommendation:input_type -> orc.v1.DiscussRecommendationRequest
-	4,  // 21: orc.v1.RecommendationService.CreateRecommendation:output_type -> orc.v1.CreateRecommendationResponse
-	6,  // 22: orc.v1.RecommendationService.GetRecommendation:output_type -> orc.v1.GetRecommendationResponse
-	8,  // 23: orc.v1.RecommendationService.ListRecommendations:output_type -> orc.v1.ListRecommendationsResponse
-	10, // 24: orc.v1.RecommendationService.AcceptRecommendation:output_type -> orc.v1.AcceptRecommendationResponse
-	12, // 25: orc.v1.RecommendationService.RejectRecommendation:output_type -> orc.v1.RejectRecommendationResponse
-	14, // 26: orc.v1.RecommendationService.DiscussRecommendation:output_type -> orc.v1.DiscussRecommendationResponse
-	21, // [21:27] is the sub-list for method output_type
-	15, // [15:21] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	18, // 2: orc.v1.Recommendation.decided_at:type_name -> google.protobuf.Timestamp
+	18, // 3: orc.v1.Recommendation.created_at:type_name -> google.protobuf.Timestamp
+	18, // 4: orc.v1.Recommendation.updated_at:type_name -> google.protobuf.Timestamp
+	18, // 5: orc.v1.Recommendation.promoted_at:type_name -> google.protobuf.Timestamp
+	1,  // 6: orc.v1.RecommendationHistoryEntry.from_status:type_name -> orc.v1.RecommendationStatus
+	1,  // 7: orc.v1.RecommendationHistoryEntry.to_status:type_name -> orc.v1.RecommendationStatus
+	18, // 8: orc.v1.RecommendationHistoryEntry.created_at:type_name -> google.protobuf.Timestamp
+	2,  // 9: orc.v1.CreateRecommendationRequest.recommendation:type_name -> orc.v1.Recommendation
+	2,  // 10: orc.v1.CreateRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
+	2,  // 11: orc.v1.GetRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
+	1,  // 12: orc.v1.ListRecommendationsRequest.status:type_name -> orc.v1.RecommendationStatus
+	0,  // 13: orc.v1.ListRecommendationsRequest.kind:type_name -> orc.v1.RecommendationKind
+	2,  // 14: orc.v1.ListRecommendationsResponse.recommendations:type_name -> orc.v1.Recommendation
+	3,  // 15: orc.v1.ListRecommendationHistoryResponse.history:type_name -> orc.v1.RecommendationHistoryEntry
+	2,  // 16: orc.v1.AcceptRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
+	2,  // 17: orc.v1.RejectRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
+	2,  // 18: orc.v1.DiscussRecommendationResponse.recommendation:type_name -> orc.v1.Recommendation
+	4,  // 19: orc.v1.RecommendationService.CreateRecommendation:input_type -> orc.v1.CreateRecommendationRequest
+	6,  // 20: orc.v1.RecommendationService.GetRecommendation:input_type -> orc.v1.GetRecommendationRequest
+	8,  // 21: orc.v1.RecommendationService.ListRecommendations:input_type -> orc.v1.ListRecommendationsRequest
+	10, // 22: orc.v1.RecommendationService.ListRecommendationHistory:input_type -> orc.v1.ListRecommendationHistoryRequest
+	12, // 23: orc.v1.RecommendationService.AcceptRecommendation:input_type -> orc.v1.AcceptRecommendationRequest
+	14, // 24: orc.v1.RecommendationService.RejectRecommendation:input_type -> orc.v1.RejectRecommendationRequest
+	16, // 25: orc.v1.RecommendationService.DiscussRecommendation:input_type -> orc.v1.DiscussRecommendationRequest
+	5,  // 26: orc.v1.RecommendationService.CreateRecommendation:output_type -> orc.v1.CreateRecommendationResponse
+	7,  // 27: orc.v1.RecommendationService.GetRecommendation:output_type -> orc.v1.GetRecommendationResponse
+	9,  // 28: orc.v1.RecommendationService.ListRecommendations:output_type -> orc.v1.ListRecommendationsResponse
+	11, // 29: orc.v1.RecommendationService.ListRecommendationHistory:output_type -> orc.v1.ListRecommendationHistoryResponse
+	13, // 30: orc.v1.RecommendationService.AcceptRecommendation:output_type -> orc.v1.AcceptRecommendationResponse
+	15, // 31: orc.v1.RecommendationService.RejectRecommendation:output_type -> orc.v1.RejectRecommendationResponse
+	17, // 32: orc.v1.RecommendationService.DiscussRecommendation:output_type -> orc.v1.DiscussRecommendationResponse
+	26, // [26:33] is the sub-list for method output_type
+	19, // [19:26] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_recommendation_proto_init() }
@@ -1161,7 +1376,7 @@ func file_orc_v1_recommendation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_recommendation_proto_rawDesc), len(file_orc_v1_recommendation_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   13,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -91,6 +91,25 @@ func TestRecommendationServiceCRUDViaHTTP(t *testing.T) {
 	require.Equal(t, events.EventRecommendationDecided, publisher.events[1].Type)
 	require.Equal(t, "proj-001", publisher.events[1].ProjectID)
 	require.Equal(t, events.EventTaskCreated, publisher.events[2].Type)
+
+	historyResp, err := client.ListRecommendationHistory(context.Background(), connect.NewRequest(&orcv1.ListRecommendationHistoryRequest{
+		ProjectId:        "proj-001",
+		RecommendationId: createResp.Msg.Recommendation.Id,
+	}))
+	require.NoError(t, err)
+	require.Len(t, historyResp.Msg.History, 2)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_ACCEPTED, historyResp.Msg.History[0].ToStatus)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING, historyResp.Msg.History[1].ToStatus)
+
+	idempotentAcceptResp, err := client.AcceptRecommendation(context.Background(), connect.NewRequest(&orcv1.AcceptRecommendationRequest{
+		ProjectId:        "proj-001",
+		RecommendationId: createResp.Msg.Recommendation.Id,
+		DecidedBy:        "randy",
+		DecisionReason:   "do it again",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, acceptResp.Msg.Recommendation.PromotedToId, idempotentAcceptResp.Msg.Recommendation.PromotedToId)
+	require.Len(t, publisher.events, 3)
 }
 
 func TestRecommendationServiceAcceptDecisionRequestPromotesToInitiativeDecision(t *testing.T) {
@@ -179,6 +198,82 @@ func TestRecommendationServiceRejectsPrePromotedCreate(t *testing.T) {
 	connectErr := new(connect.Error)
 	require.ErrorAs(t, err, &connectErr)
 	require.Equal(t, connect.CodeInvalidArgument, connectErr.Code())
+}
+
+func TestRecommendationServiceRejectAndDiscussAreIdempotent(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	storageFixturesForRecommendation(t, backend)
+	publisher := &recommendationTestPublisher{}
+	projectCache := testProjectCacheForBackend("proj-001", backend)
+
+	recommendationSvc := NewRecommendationServer(backend, slog.Default(), publisher)
+	recommendationSvc.(*recommendationServer).SetProjectCache(projectCache)
+
+	mux := http.NewServeMux()
+	path, handler := orcv1connect.NewRecommendationServiceHandler(recommendationSvc)
+	mux.Handle(path, corsHandler(handler))
+
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	client := orcv1connect.NewRecommendationServiceClient(http.DefaultClient, ts.URL)
+
+	createResp, err := client.CreateRecommendation(context.Background(), connect.NewRequest(&orcv1.CreateRecommendationRequest{
+		ProjectId:      "proj-001",
+		Recommendation: recommendationProtoForAPI("cleanup:task-001:discuss-idempotent"),
+	}))
+	require.NoError(t, err)
+
+	discussResp, err := client.DiscussRecommendation(context.Background(), connect.NewRequest(&orcv1.DiscussRecommendationRequest{
+		ProjectId:        "proj-001",
+		RecommendationId: createResp.Msg.Recommendation.Id,
+		DecidedBy:        "randy",
+		DecisionReason:   "talk it through",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_DISCUSSED, discussResp.Msg.Recommendation.Status)
+
+	discussResp, err = client.DiscussRecommendation(context.Background(), connect.NewRequest(&orcv1.DiscussRecommendationRequest{
+		ProjectId:        "proj-001",
+		RecommendationId: createResp.Msg.Recommendation.Id,
+		DecidedBy:        "randy",
+		DecisionReason:   "same request",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "talk it through", discussResp.Msg.Recommendation.GetDecisionReason())
+
+	historyResp, err := client.ListRecommendationHistory(context.Background(), connect.NewRequest(&orcv1.ListRecommendationHistoryRequest{
+		ProjectId:        "proj-001",
+		RecommendationId: createResp.Msg.Recommendation.Id,
+	}))
+	require.NoError(t, err)
+	require.Len(t, historyResp.Msg.History, 2)
+
+	rejectCreateResp, err := client.CreateRecommendation(context.Background(), connect.NewRequest(&orcv1.CreateRecommendationRequest{
+		ProjectId:      "proj-001",
+		Recommendation: recommendationProtoForAPI("cleanup:task-001:reject-idempotent"),
+	}))
+	require.NoError(t, err)
+
+	rejectResp, err := client.RejectRecommendation(context.Background(), connect.NewRequest(&orcv1.RejectRecommendationRequest{
+		ProjectId:        "proj-001",
+		RecommendationId: rejectCreateResp.Msg.Recommendation.Id,
+		DecidedBy:        "randy",
+		DecisionReason:   "not worth it",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_REJECTED, rejectResp.Msg.Recommendation.Status)
+
+	rejectResp, err = client.RejectRecommendation(context.Background(), connect.NewRequest(&orcv1.RejectRecommendationRequest{
+		ProjectId:        "proj-001",
+		RecommendationId: rejectCreateResp.Msg.Recommendation.Id,
+		DecidedBy:        "randy",
+		DecisionReason:   "same request",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "not worth it", rejectResp.Msg.Recommendation.GetDecisionReason())
 }
 
 func TestRegisterConnectHandlersIncludesRecommendationService(t *testing.T) {

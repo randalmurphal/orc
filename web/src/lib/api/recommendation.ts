@@ -3,6 +3,7 @@ import type {
 	AcceptRecommendationResponse,
 	DiscussRecommendationResponse,
 	ListRecommendationsResponse,
+	ListRecommendationHistoryResponse,
 	RejectRecommendationResponse,
 	RecommendationStatus,
 } from '@/gen/orc/v1/recommendation_pb';
@@ -25,6 +26,16 @@ export async function acceptRecommendation(
 		recommendationId,
 		decidedBy,
 		decisionReason,
+	});
+}
+
+export async function listRecommendationHistory(
+	projectId: string,
+	recommendationId: string,
+): Promise<ListRecommendationHistoryResponse> {
+	return recommendationClient.listRecommendationHistory({
+		projectId,
+		recommendationId,
 	});
 }
 

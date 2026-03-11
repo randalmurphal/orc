@@ -243,6 +243,7 @@ type Backend interface {
 	SaveRecommendation(r *orcv1.Recommendation) error
 	LoadRecommendation(id string) (*orcv1.Recommendation, error)
 	LoadAllRecommendations() ([]*orcv1.Recommendation, error)
+	LoadRecommendationHistory(id string) ([]*orcv1.RecommendationHistoryEntry, error)
 	UpdateRecommendationStatus(id string, status orcv1.RecommendationStatus, decidedBy, decisionReason string) (*orcv1.Recommendation, error)
 	CountRecommendationsByStatus(status orcv1.RecommendationStatus) (int, error)
 	GetNextRecommendationID() (string, error)

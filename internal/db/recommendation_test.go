@@ -69,9 +69,9 @@ func TestRecommendationTransition(t *testing.T) {
 	require.Equal(t, RecommendationStatusAccepted, history[0].ToStatus)
 	require.Equal(t, RecommendationStatusDiscussed, history[0].FromStatus)
 
-	invalid, err := pdb.AcceptRecommendation(rec.ID, "randy", "again")
-	require.ErrorIs(t, err, ErrRecommendationConflict)
-	require.Nil(t, invalid)
+	idempotentAccepted, err := pdb.AcceptRecommendation(rec.ID, "randy", "again")
+	require.NoError(t, err)
+	require.Equal(t, RecommendationStatusAccepted, idempotentAccepted.Status)
 
 	rejectedRec := newTestRecommendation()
 	rejectedRec.DedupeKey = "cleanup:task-001:rejected"
@@ -79,7 +79,7 @@ func TestRecommendationTransition(t *testing.T) {
 	_, err = pdb.RejectRecommendation(rejectedRec.ID, "randy", "not worth it")
 	require.NoError(t, err)
 
-	invalid, err = pdb.AcceptRecommendation(rejectedRec.ID, "randy", "too late")
+	invalid, err := pdb.AcceptRecommendation(rejectedRec.ID, "randy", "too late")
 	require.ErrorIs(t, err, ErrInvalidRecommendationTransition)
 	require.Nil(t, invalid)
 }
@@ -115,6 +115,11 @@ func TestRecommendationAcceptPromotionToTask(t *testing.T) {
 	require.Equal(t, RecommendationPromotionTypeTask, accepted.PromotedToType)
 	require.Equal(t, "TASK-002", accepted.PromotedToID)
 
+	idempotentAccepted, err := pdb.AcceptRecommendationWithTask(rec.ID, "randy", "worth doing", taskItem)
+	require.NoError(t, err)
+	require.Equal(t, accepted.ID, idempotentAccepted.ID)
+	require.Equal(t, accepted.PromotedToID, idempotentAccepted.PromotedToID)
+
 	savedTask, err := pdb.GetTask("TASK-002")
 	require.NoError(t, err)
 	require.NotNil(t, savedTask)
@@ -125,6 +130,7 @@ func TestRecommendationAcceptPromotionToTask(t *testing.T) {
 	require.Len(t, history, 2)
 	require.Equal(t, RecommendationStatusAccepted, history[0].ToStatus)
 	require.Equal(t, "worth doing", history[0].DecisionReason)
+	require.Equal(t, RecommendationStatusPending, history[1].ToStatus)
 }
 
 func TestRecommendationAcceptPromotionRollsBackOnDecisionFailure(t *testing.T) {
