@@ -25,10 +25,10 @@ func TestRecommendationCRUD(t *testing.T) {
 	require.Equal(t, rec.DedupeKey, loaded.DedupeKey)
 	require.Equal(t, RecommendationStatusPending, loaded.Status)
 	require.Equal(t, rec.SourceThreadID, loaded.SourceThreadID)
-	require.Equal(t, rec.PromotedToType, loaded.PromotedToType)
-	require.Equal(t, rec.PromotedToID, loaded.PromotedToID)
-	require.Equal(t, rec.PromotedBy, loaded.PromotedBy)
-	require.NotNil(t, loaded.PromotedAt)
+	require.Empty(t, loaded.PromotedToType)
+	require.Empty(t, loaded.PromotedToID)
+	require.Empty(t, loaded.PromotedBy)
+	require.Nil(t, loaded.PromotedAt)
 
 	list, err := pdb.ListRecommendations(RecommendationListOpts{Status: RecommendationStatusPending})
 	require.NoError(t, err)
@@ -69,9 +69,9 @@ func TestRecommendationTransition(t *testing.T) {
 	require.Equal(t, RecommendationStatusAccepted, history[0].ToStatus)
 	require.Equal(t, RecommendationStatusDiscussed, history[0].FromStatus)
 
-	invalid, err := pdb.AcceptRecommendation(rec.ID, "randy", "again")
-	require.ErrorIs(t, err, ErrRecommendationConflict)
-	require.Nil(t, invalid)
+	idempotentAccepted, err := pdb.AcceptRecommendation(rec.ID, "randy", "again")
+	require.NoError(t, err)
+	require.Equal(t, RecommendationStatusAccepted, idempotentAccepted.Status)
 
 	rejectedRec := newTestRecommendation()
 	rejectedRec.DedupeKey = "cleanup:task-001:rejected"
@@ -79,9 +79,82 @@ func TestRecommendationTransition(t *testing.T) {
 	_, err = pdb.RejectRecommendation(rejectedRec.ID, "randy", "not worth it")
 	require.NoError(t, err)
 
-	invalid, err = pdb.AcceptRecommendation(rejectedRec.ID, "randy", "too late")
+	invalid, err := pdb.AcceptRecommendation(rejectedRec.ID, "randy", "too late")
 	require.ErrorIs(t, err, ErrInvalidRecommendationTransition)
 	require.Nil(t, invalid)
+}
+
+func TestRecommendationAcceptPromotionToTask(t *testing.T) {
+	t.Parallel()
+
+	pdb := newRecommendationTestDB(t)
+
+	rec := newTestRecommendation()
+	require.NoError(t, pdb.CreateRecommendation(rec))
+
+	now := time.Date(2026, time.March, 10, 9, 0, 0, 0, time.UTC)
+	taskItem := &Task{
+		ID:           "TASK-002",
+		Title:        rec.Title,
+		Description:  "Accepted from recommendation REC-001.",
+		WorkflowID:   "wf-recommendation",
+		Status:       "created",
+		StateStatus:  "pending",
+		Branch:       "orc/TASK-002",
+		Queue:        "backlog",
+		Priority:     "normal",
+		Category:     "feature",
+		InitiativeID: "INIT-001",
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	accepted, err := pdb.AcceptRecommendationWithTask(rec.ID, "randy", "worth doing", taskItem)
+	require.NoError(t, err)
+	require.Equal(t, RecommendationStatusAccepted, accepted.Status)
+	require.Equal(t, RecommendationPromotionTypeTask, accepted.PromotedToType)
+	require.Equal(t, "TASK-002", accepted.PromotedToID)
+
+	idempotentAccepted, err := pdb.AcceptRecommendationWithTask(rec.ID, "randy", "worth doing", taskItem)
+	require.NoError(t, err)
+	require.Equal(t, accepted.ID, idempotentAccepted.ID)
+	require.Equal(t, accepted.PromotedToID, idempotentAccepted.PromotedToID)
+
+	savedTask, err := pdb.GetTask("TASK-002")
+	require.NoError(t, err)
+	require.NotNil(t, savedTask)
+	require.Equal(t, "backlog", savedTask.Queue)
+
+	history, err := pdb.ListRecommendationHistory(rec.ID)
+	require.NoError(t, err)
+	require.Len(t, history, 2)
+	require.Equal(t, RecommendationStatusAccepted, history[0].ToStatus)
+	require.Equal(t, "worth doing", history[0].DecisionReason)
+	require.Equal(t, RecommendationStatusPending, history[1].ToStatus)
+}
+
+func TestRecommendationAcceptPromotionRollsBackOnDecisionFailure(t *testing.T) {
+	t.Parallel()
+
+	pdb := newRecommendationTestDB(t)
+
+	rec := newTestRecommendation()
+	require.NoError(t, pdb.CreateRecommendation(rec))
+
+	_, err := pdb.AcceptRecommendationWithDecision(rec.ID, "randy", "missing initiative", &InitiativeDecision{
+		ID:           "DEC-ROLLBACK",
+		InitiativeID: "INIT-404",
+		Decision:     "Do not create this decision",
+		DecidedBy:    "randy",
+		DecidedAt:    time.Now(),
+	})
+	require.Error(t, err)
+
+	reloaded, err := pdb.GetRecommendation(rec.ID)
+	require.NoError(t, err)
+	require.Equal(t, RecommendationStatusPending, reloaded.Status)
+	require.Empty(t, reloaded.PromotedToType)
+	require.Empty(t, reloaded.PromotedToID)
 }
 
 func TestRecommendationDedupeKey(t *testing.T) {
@@ -132,6 +205,23 @@ func TestRecommendationListFilters(t *testing.T) {
 	require.Len(t, byTask, 2)
 }
 
+func TestRecommendationCreateRejectsPrePromotedData(t *testing.T) {
+	t.Parallel()
+
+	pdb := newRecommendationTestDB(t)
+
+	rec := newTestRecommendation()
+	rec.PromotedToType = RecommendationPromotionTypeTask
+	rec.PromotedToID = "TASK-002"
+	rec.PromotedBy = "operator"
+	now := time.Now()
+	rec.PromotedAt = &now
+
+	err := pdb.CreateRecommendation(rec)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "promotion fields must be empty")
+}
+
 func newRecommendationTestDB(t *testing.T) *ProjectDB {
 	t.Helper()
 
@@ -145,12 +235,21 @@ func newRecommendationTestDB(t *testing.T) *ProjectDB {
 	require.NoError(t, pdb.SaveWorkflow(workflow))
 
 	task := &Task{
-		ID:         "TASK-001",
-		Title:      "Recommendation Source Task",
-		WorkflowID: workflow.ID,
-		Status:     "running",
+		ID:           "TASK-001",
+		Title:        "Recommendation Source Task",
+		WorkflowID:   workflow.ID,
+		Status:       "running",
+		InitiativeID: "INIT-001",
 	}
 	require.NoError(t, pdb.SaveTask(task))
+
+	require.NoError(t, pdb.SaveInitiative(&Initiative{
+		ID:        "INIT-001",
+		Title:     "Recommendation Initiative",
+		Status:    "active",
+		CreatedAt: time.Date(2026, time.March, 9, 17, 0, 0, 0, time.UTC),
+		UpdatedAt: time.Date(2026, time.March, 9, 17, 0, 0, 0, time.UTC),
+	}))
 
 	taskID := task.ID
 	run := &WorkflowRun{
@@ -172,7 +271,6 @@ func newRecommendationTestDB(t *testing.T) *ProjectDB {
 }
 
 func newTestRecommendation() *Recommendation {
-	promotedAt := time.Date(2026, time.March, 9, 18, 0, 0, 0, time.UTC)
 	return &Recommendation{
 		Kind:           RecommendationKindCleanup,
 		Status:         RecommendationStatusPending,
@@ -184,9 +282,5 @@ func newTestRecommendation() *Recommendation {
 		SourceRunID:    "RUN-001",
 		SourceThreadID: "THR-001",
 		DedupeKey:      "cleanup:task-001:duplicate-polling",
-		PromotedToType: "task",
-		PromotedToID:   "TASK-002",
-		PromotedBy:     "operator",
-		PromotedAt:     &promotedAt,
 	}
 }
