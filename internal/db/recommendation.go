@@ -25,6 +25,11 @@ const (
 	RecommendationStatusDiscussed = "discussed"
 )
 
+const (
+	RecommendationPromotionTypeTask               = "task"
+	RecommendationPromotionTypeInitiativeDecision = "initiative_decision"
+)
+
 var (
 	ErrRecommendationNotFound          = errors.New("recommendation not found")
 	ErrInvalidRecommendationTransition = errors.New("invalid recommendation transition")
@@ -239,6 +244,54 @@ func (p *ProjectDB) AcceptRecommendation(id, decidedBy, decisionReason string) (
 	}, decidedBy, decisionReason)
 }
 
+func (p *ProjectDB) AcceptRecommendationWithTask(
+	id string,
+	decidedBy string,
+	decisionReason string,
+	promotedTask *Task,
+) (*Recommendation, error) {
+	if promotedTask == nil {
+		return nil, fmt.Errorf("promoted task is required")
+	}
+	return p.acceptRecommendationWithPromotion(
+		id,
+		decidedBy,
+		decisionReason,
+		RecommendationPromotionTypeTask,
+		promotedTask.ID,
+		func(tx *TxOps) error {
+			if err := SaveTaskTx(tx, promotedTask); err != nil {
+				return fmt.Errorf("save promoted task %s: %w", promotedTask.ID, err)
+			}
+			return nil
+		},
+	)
+}
+
+func (p *ProjectDB) AcceptRecommendationWithDecision(
+	id string,
+	decidedBy string,
+	decisionReason string,
+	decision *InitiativeDecision,
+) (*Recommendation, error) {
+	if decision == nil {
+		return nil, fmt.Errorf("initiative decision is required")
+	}
+	return p.acceptRecommendationWithPromotion(
+		id,
+		decidedBy,
+		decisionReason,
+		RecommendationPromotionTypeInitiativeDecision,
+		decision.ID,
+		func(tx *TxOps) error {
+			if err := AddInitiativeDecisionTx(tx, decision); err != nil {
+				return fmt.Errorf("save promoted initiative decision %s: %w", decision.ID, err)
+			}
+			return nil
+		},
+	)
+}
+
 func (p *ProjectDB) RejectRecommendation(id, decidedBy, decisionReason string) (*Recommendation, error) {
 	return p.decideRecommendation(id, RecommendationStatusRejected, []string{
 		RecommendationStatusPending,
@@ -342,6 +395,123 @@ func (p *ProjectDB) decideRecommendation(
 	return returnRec, nil
 }
 
+func (p *ProjectDB) acceptRecommendationWithPromotion(
+	id string,
+	decidedBy string,
+	decisionReason string,
+	promotedToType string,
+	promotedToID string,
+	promote func(tx *TxOps) error,
+) (*Recommendation, error) {
+	if id == "" {
+		return nil, fmt.Errorf("recommendation id is required")
+	}
+	if decidedBy == "" {
+		return nil, fmt.Errorf("decided_by is required")
+	}
+	if promotedToType == "" {
+		return nil, fmt.Errorf("promoted_to_type is required")
+	}
+	if promotedToID == "" {
+		return nil, fmt.Errorf("promoted_to_id is required")
+	}
+	if promote == nil {
+		return nil, fmt.Errorf("promotion callback is required")
+	}
+
+	returnRec := &Recommendation{}
+	err := p.RunInTx(context.Background(), func(tx *TxOps) error {
+		current, err := getRecommendationTx(tx, id)
+		if err != nil {
+			return err
+		}
+		if !containsRecommendationStatus([]string{
+			RecommendationStatusPending,
+			RecommendationStatusDiscussed,
+		}, current.Status) {
+			if current.Status == RecommendationStatusAccepted {
+				return fmt.Errorf("%w: recommendation %s already accepted", ErrRecommendationConflict, id)
+			}
+			return fmt.Errorf(
+				"%w: %s -> %s",
+				ErrInvalidRecommendationTransition,
+				current.Status,
+				RecommendationStatusAccepted,
+			)
+		}
+		if current.PromotedToType != "" || current.PromotedToID != "" {
+			return fmt.Errorf(
+				"%w: recommendation %s already promoted to %s %s",
+				ErrRecommendationConflict,
+				id,
+				current.PromotedToType,
+				current.PromotedToID,
+			)
+		}
+
+		if err := promote(tx); err != nil {
+			return err
+		}
+
+		query, args := recommendationAcceptPromotionUpdateQuery(
+			tx.Dialect(),
+			p.Driver().Now(),
+			id,
+			current.Status,
+			decidedBy,
+			decisionReason,
+			promotedToType,
+			promotedToID,
+		)
+		result, err := tx.Exec(query, args...)
+		if err != nil {
+			return fmt.Errorf("update recommendation %s after promotion: %w", id, err)
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("check promoted update result for recommendation %s: %w", id, err)
+		}
+		if rowsAffected == 0 {
+			latest, getErr := getRecommendationTx(tx, id)
+			if getErr != nil {
+				return getErr
+			}
+			if latest.Status == RecommendationStatusAccepted {
+				return fmt.Errorf("%w: recommendation %s already accepted", ErrRecommendationConflict, id)
+			}
+			return fmt.Errorf(
+				"%w: %s -> %s",
+				ErrInvalidRecommendationTransition,
+				latest.Status,
+				RecommendationStatusAccepted,
+			)
+		}
+
+		updated, err := getRecommendationTx(tx, id)
+		if err != nil {
+			return err
+		}
+
+		if err := insertRecommendationHistoryTx(tx, p.Driver(), &RecommendationHistory{
+			RecommendationID: id,
+			FromStatus:       current.Status,
+			ToStatus:         updated.Status,
+			DecidedBy:        updated.DecidedBy,
+			DecisionReason:   updated.DecisionReason,
+		}); err != nil {
+			return err
+		}
+
+		*returnRec = *updated
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return returnRec, nil
+}
+
 func validateRecommendationForCreate(rec *Recommendation) error {
 	if rec.Kind == "" {
 		return fmt.Errorf("recommendation kind is required")
@@ -354,6 +524,12 @@ func validateRecommendationForCreate(rec *Recommendation) error {
 	}
 	if rec.Status != RecommendationStatusPending {
 		return fmt.Errorf("recommendation status must start as pending")
+	}
+	if rec.DecidedBy != "" || rec.DecidedAt != nil || rec.DecisionReason != "" {
+		return fmt.Errorf("recommendation decision fields must be empty on create")
+	}
+	if rec.PromotedToType != "" || rec.PromotedToID != "" || rec.PromotedBy != "" || rec.PromotedAt != nil {
+		return fmt.Errorf("recommendation promotion fields must be empty on create")
 	}
 	if rec.Title == "" {
 		return fmt.Errorf("recommendation title is required")
@@ -519,6 +695,44 @@ func recommendationDecisionUpdateQuery(
 		SET status = $1, decided_by = $2, decided_at = %s, decision_reason = $3, updated_at = %s
 		WHERE id = $4 AND status = $5
 	`, now, now), args
+}
+
+func recommendationAcceptPromotionUpdateQuery(
+	dialect driver.Dialect,
+	now string,
+	id string,
+	currentStatus string,
+	decidedBy string,
+	decisionReason string,
+	promotedToType string,
+	promotedToID string,
+) (string, []any) {
+	args := []any{
+		RecommendationStatusAccepted,
+		decidedBy,
+		decisionReason,
+		promotedToType,
+		promotedToID,
+		decidedBy,
+		id,
+		currentStatus,
+	}
+
+	if dialect == driver.DialectSQLite {
+		return fmt.Sprintf(`
+			UPDATE recommendations
+			SET status = ?, decided_by = ?, decided_at = %s, decision_reason = ?,
+			    promoted_to_type = ?, promoted_to_id = ?, promoted_by = ?, promoted_at = %s, updated_at = %s
+			WHERE id = ? AND status = ?
+		`, now, now, now), args
+	}
+
+	return fmt.Sprintf(`
+		UPDATE recommendations
+		SET status = $1, decided_by = $2, decided_at = %s, decision_reason = $3,
+		    promoted_to_type = $4, promoted_to_id = $5, promoted_by = $6, promoted_at = %s, updated_at = %s
+		WHERE id = $7 AND status = $8
+	`, now, now, now), args
 }
 
 func insertRecommendationHistoryTx(tx *TxOps, drv driver.Driver, entry *RecommendationHistory) error {

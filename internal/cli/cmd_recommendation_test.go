@@ -46,8 +46,10 @@ func TestRecommendationCommand_Accept(t *testing.T) {
 		return &stubRecommendationClient{
 			acceptResponse: &orcv1.AcceptRecommendationResponse{
 				Recommendation: &orcv1.Recommendation{
-					Id:    "REC-002",
-					Title: "Investigate flaky tests",
+					Id:             "REC-002",
+					Title:          "Investigate flaky tests",
+					PromotedToType: "task",
+					PromotedToId:   "TASK-123",
 				},
 			},
 		}, "", nil
@@ -62,6 +64,7 @@ func TestRecommendationCommand_Accept(t *testing.T) {
 
 	require.NoError(t, cmd.Execute())
 	require.Contains(t, stdout.String(), "Accepted REC-002")
+	require.Contains(t, stdout.String(), "task TASK-123")
 }
 
 func TestRecommendationCommand_HelpIncludesSubcommands(t *testing.T) {

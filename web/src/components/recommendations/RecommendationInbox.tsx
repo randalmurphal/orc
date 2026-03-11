@@ -10,6 +10,7 @@ import {
 import type { Recommendation } from '@/gen/orc/v1/recommendation_pb';
 import { RecommendationKind, RecommendationStatus } from '@/gen/orc/v1/recommendation_pb';
 import { onRecommendationSignal } from '@/lib/events/recommendationSignals';
+import { timestampToDate } from '@/lib/time';
 import './RecommendationInbox.css';
 
 export function RecommendationInbox() {
@@ -19,6 +20,7 @@ export function RecommendationInbox() {
 	const [error, setError] = useState<string | null>(null);
 	const [busyId, setBusyId] = useState<string | null>(null);
 	const [contextPacks, setContextPacks] = useState<Record<string, string>>({});
+	const [decisionNotes, setDecisionNotes] = useState<Record<string, string>>({});
 
 	const loadRecommendations = useCallback(async () => {
 		setLoading(true);
@@ -56,27 +58,32 @@ export function RecommendationInbox() {
 		action: 'accept' | 'reject' | 'discuss',
 	) => {
 		const decidedBy = 'operator';
+		const decisionReason = (decisionNotes[recommendation.id] ?? '').trim();
 		setBusyId(recommendation.id);
 		setError(null);
 		try {
 			if (action === 'accept') {
-				await acceptRecommendation(projectId, recommendation.id, decidedBy, '');
+				await acceptRecommendation(projectId, recommendation.id, decidedBy, decisionReason);
 			} else if (action === 'reject') {
-				await rejectRecommendation(projectId, recommendation.id, decidedBy, '');
+				await rejectRecommendation(projectId, recommendation.id, decidedBy, decisionReason);
 			} else {
-				const response = await discussRecommendation(projectId, recommendation.id, decidedBy, '');
+				const response = await discussRecommendation(projectId, recommendation.id, decidedBy, decisionReason);
 				setContextPacks((current) => ({
 					...current,
 					[recommendation.id]: response.contextPack,
 				}));
 			}
+			setDecisionNotes((current) => ({
+				...current,
+				[recommendation.id]: '',
+			}));
 			await loadRecommendations();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to update recommendation');
 		} finally {
 			setBusyId(null);
 		}
-	}, [loadRecommendations, projectId]);
+	}, [decisionNotes, loadRecommendations, projectId]);
 
 	if (loading) {
 		return <div className="recommendation-inbox__state">Loading recommendations...</div>;
@@ -134,6 +141,23 @@ export function RecommendationInbox() {
 							<p>{recommendation.evidence}</p>
 						</div>
 
+						<label className="recommendation-card__note">
+							<span>Decision note</span>
+							<textarea
+								value={decisionNotes[recommendation.id] ?? ''}
+								onChange={(event) => {
+									const value = event.target.value;
+									setDecisionNotes((current) => ({
+										...current,
+										[recommendation.id]: value,
+									}));
+								}}
+								disabled={busyId === recommendation.id}
+								placeholder="Optional rationale for the acceptance, rejection, or discussion request."
+								rows={3}
+							/>
+						</label>
+
 						<div className="recommendation-card__actions">
 							<Button
 								variant="primary"
@@ -160,6 +184,27 @@ export function RecommendationInbox() {
 								Discuss
 							</Button>
 						</div>
+
+						{recommendation.decisionReason && (
+							<div className="recommendation-card__detail">
+								<strong>Decision note</strong>
+								<p>{recommendation.decisionReason}</p>
+							</div>
+						)}
+
+						{(recommendation.decidedBy || recommendation.decidedAt) && (
+							<div className="recommendation-card__detail">
+								<strong>Decision</strong>
+								<p>{formatDecisionSummary(recommendation)}</p>
+							</div>
+						)}
+
+						{recommendation.promotedToType && recommendation.promotedToId && (
+							<div className="recommendation-card__detail">
+								<strong>Promoted artifact</strong>
+								<p>{formatPromotedArtifact(recommendation)}</p>
+							</div>
+						)}
 
 						{contextPacks[recommendation.id] && (
 							<pre className="recommendation-card__context-pack">{contextPacks[recommendation.id]}</pre>
@@ -220,4 +265,26 @@ function canRejectRecommendation(status: RecommendationStatus): boolean {
 
 function canDiscussRecommendation(status: RecommendationStatus): boolean {
 	return status === RecommendationStatus.PENDING;
+}
+
+function formatDecisionSummary(recommendation: Recommendation): string {
+	const parts: string[] = [];
+	if (recommendation.decidedBy) {
+		parts.push(`by ${recommendation.decidedBy}`);
+	}
+	const decidedAt = timestampToDate(recommendation.decidedAt);
+	if (decidedAt) {
+		parts.push(`on ${decidedAt.toLocaleString()}`);
+	}
+	return parts.join(' ');
+}
+
+function formatPromotedArtifact(recommendation: Recommendation): string {
+	if (!recommendation.promotedToType || !recommendation.promotedToId) {
+		return '';
+	}
+	if (recommendation.promotedToType === 'initiative_decision') {
+		return `Initiative decision ${recommendation.promotedToId}`;
+	}
+	return `Task ${recommendation.promotedToId}`;
 }

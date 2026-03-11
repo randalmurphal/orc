@@ -90,10 +90,16 @@ describe('RecommendationInbox', () => {
 	it('discusses a recommendation and renders the returned context pack', async () => {
 		vi.mocked(listRecommendations)
 			.mockResolvedValueOnce(makeListResponse([makeRecommendation()]))
-			.mockResolvedValueOnce(makeListResponse([makeRecommendation({ status: RecommendationStatus.DISCUSSED })]));
+			.mockResolvedValueOnce(makeListResponse([makeRecommendation({
+				status: RecommendationStatus.DISCUSSED,
+				decisionReason: 'Needs a narrower plan.',
+			})]));
 		vi.mocked(discussRecommendation).mockResolvedValue(
 			create(DiscussRecommendationResponseSchema, {
-				recommendation: makeRecommendation({ status: RecommendationStatus.DISCUSSED }),
+				recommendation: makeRecommendation({
+					status: RecommendationStatus.DISCUSSED,
+					decisionReason: 'Needs a narrower plan.',
+				}),
 				contextPack: 'Recommendation REC-001\nKind: cleanup',
 			}),
 		);
@@ -101,13 +107,16 @@ describe('RecommendationInbox', () => {
 		render(<RecommendationInbox />);
 
 		await screen.findByText('Clean up duplicate polling');
+		fireEvent.change(screen.getByLabelText('Decision note'), {
+			target: { value: 'Needs a narrower plan.' },
+		});
 		fireEvent.click(screen.getByRole('button', { name: 'Discuss' }));
 
 		await screen.findByText(/Recommendation REC-001/);
-		expect(discussRecommendation).toHaveBeenCalledWith('proj-001', 'REC-001', 'operator', '');
+		expect(discussRecommendation).toHaveBeenCalledWith('proj-001', 'REC-001', 'operator', 'Needs a narrower plan.');
 	});
 
-	it('accepts and rejects recommendations through the API and refreshes the list', async () => {
+	it('accepts and rejects recommendations through the API, preserves decision notes, and shows promoted artifacts', async () => {
 		vi.mocked(listRecommendations)
 			.mockResolvedValueOnce(makeListResponse([
 				makeRecommendation(),
@@ -118,7 +127,13 @@ describe('RecommendationInbox', () => {
 				}),
 			]))
 			.mockResolvedValueOnce(makeListResponse([
-				makeRecommendation({ status: RecommendationStatus.ACCEPTED }),
+				makeRecommendation({
+					status: RecommendationStatus.ACCEPTED,
+					decisionReason: 'Looks worth shipping.',
+					decidedBy: 'operator',
+					promotedToType: 'task',
+					promotedToId: 'TASK-099',
+				}),
 				makeRecommendation({
 					id: 'REC-002',
 					title: 'Reject me',
@@ -126,17 +141,30 @@ describe('RecommendationInbox', () => {
 				}),
 			]))
 			.mockResolvedValueOnce(makeListResponse([
-				makeRecommendation({ status: RecommendationStatus.ACCEPTED }),
+				makeRecommendation({
+					status: RecommendationStatus.ACCEPTED,
+					decisionReason: 'Looks worth shipping.',
+					decidedBy: 'operator',
+					promotedToType: 'task',
+					promotedToId: 'TASK-099',
+				}),
 				makeRecommendation({
 					id: 'REC-002',
 					title: 'Reject me',
 					status: RecommendationStatus.REJECTED,
+					decisionReason: 'Not worth the churn.',
 					dedupeKey: 'cleanup:task-001:reject-me',
 				}),
 			]));
 		vi.mocked(acceptRecommendation).mockResolvedValue(
 			create(AcceptRecommendationResponseSchema, {
-				recommendation: makeRecommendation({ status: RecommendationStatus.ACCEPTED }),
+				recommendation: makeRecommendation({
+					status: RecommendationStatus.ACCEPTED,
+					decisionReason: 'Looks worth shipping.',
+					decidedBy: 'operator',
+					promotedToType: 'task',
+					promotedToId: 'TASK-099',
+				}),
 			}),
 		);
 		vi.mocked(rejectRecommendation).mockResolvedValue(
@@ -145,6 +173,7 @@ describe('RecommendationInbox', () => {
 					id: 'REC-002',
 					title: 'Reject me',
 					status: RecommendationStatus.REJECTED,
+					decisionReason: 'Not worth the churn.',
 					dedupeKey: 'cleanup:task-001:reject-me',
 				}),
 			}),
@@ -153,16 +182,24 @@ describe('RecommendationInbox', () => {
 		render(<RecommendationInbox />);
 
 		await screen.findByText('Clean up duplicate polling');
+		fireEvent.change(screen.getAllByLabelText('Decision note')[0], {
+			target: { value: 'Looks worth shipping.' },
+		});
 		fireEvent.click(screen.getAllByRole('button', { name: 'Accept' })[0]);
 
 		await waitFor(() => {
-			expect(acceptRecommendation).toHaveBeenCalledWith('proj-001', 'REC-001', 'operator', '');
+			expect(acceptRecommendation).toHaveBeenCalledWith('proj-001', 'REC-001', 'operator', 'Looks worth shipping.');
 		});
+		await screen.findByText('Task TASK-099');
+		expect(screen.getByText('Looks worth shipping.')).toBeInTheDocument();
 
+		fireEvent.change(screen.getAllByLabelText('Decision note')[1], {
+			target: { value: 'Not worth the churn.' },
+		});
 		fireEvent.click(screen.getAllByRole('button', { name: 'Reject' })[1]);
 
 		await waitFor(() => {
-			expect(rejectRecommendation).toHaveBeenCalledWith('proj-001', 'REC-002', 'operator', '');
+			expect(rejectRecommendation).toHaveBeenCalledWith('proj-001', 'REC-002', 'operator', 'Not worth the churn.');
 		});
 		expect(listRecommendations).toHaveBeenCalledTimes(3);
 	});
