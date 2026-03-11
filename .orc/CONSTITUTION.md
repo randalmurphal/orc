@@ -76,6 +76,13 @@ When rules conflict, higher priority wins:
 |-----------|------|-----|-------------|
 | **Persist to rctx** | `applyGateOutputToVars()` and `applyPhaseContentToVars()` MUST store to `rctx.PhaseOutputVars` (TASK-709) | `ResolveAll()` creates fresh vars map; only `rctx.PhaseOutputVars` survives | Gate output lost on retry, templates render empty variables |
 
+### Prompt Context & Shared Paths
+
+| Invariant | Rule | Why | Consequence |
+|-----------|------|-----|-------------|
+| **No Eager Global Prompt Enrichment** | Executor-side prompt context MUST NOT load whole-project state on every phase unless the active prompt/system prompt actually references it | Shared-path scans quietly scale with project size and make every task slower | Token/latency regressions, hidden hot paths, degraded UX at scale |
+| **Failure Must Not Masquerade As Absence** | If prompt context is required for a phase because the prompt references it, load failure MUST fail the phase instead of silently degrading to the same value as "no data" | Empty-string fallback hides integrity and operator-context bugs | Incorrect agent decisions, missing context, hard-to-debug review escapes |
+
 ### Git & Worktrees
 
 | Invariant | Rule | Why | Consequence |
