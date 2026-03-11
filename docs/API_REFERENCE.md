@@ -18,6 +18,7 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Session](#session) | `/api/session` | Current session metrics |
 | [Dashboard](#dashboard) | `/api/dashboard/*`, `/api/stats/*` | Statistics, activity, and file analytics |
 | [Notifications](#notifications) | Connect RPC | User notification management |
+| [Attention Dashboard](#attentiondashboardservice) | Connect RPC | Project and cross-project attention hub |
 | [Recommendations](#recommendationservice) | Connect RPC | Project-scoped recommendation inbox |
 | [Events](#events) | `/api/events` | Timeline event queries |
 | [Workflows](#workflows) | `/api/workflows/*`, `/api/phase-templates/*` | Workflow and phase template configuration |
@@ -33,14 +34,16 @@ All Connect RPC services accept a `project_id` field in their request messages. 
 
 | Behavior | Condition |
 |----------|-----------|
-| Legacy single-project mode | `project_id` is empty or omitted |
+| Legacy single-project mode | `project_id` is empty or omitted for services that do not define cross-project behavior |
+| Cross-project attention dashboard | `GetAttentionDashboardData` is called with empty `project_id` while project cache is configured |
 | Project-scoped operation | `project_id` is set to a valid project ID |
 
 **How it works:**
 - The server maintains an LRU cache of project databases
 - When `project_id` is provided, the request is routed to that project's SQLite database
-- When `project_id` is empty, the server uses the CWD-based legacy backend (single project)
-- All project-scoped services follow this pattern: TaskService, InitiativeService, WorkflowService, TranscriptService, EventService, ConfigService, HostingService, DashboardService, DecisionService, NotificationService, RecommendationService, BranchService, FeedbackService
+- When `project_id` is empty, most services use the CWD-based legacy backend (single project)
+- `AttentionDashboardService/GetAttentionDashboardData` is the exception: empty `project_id` returns a cross-project attention view when the server has project cache wiring
+- All project-scoped services follow this pattern: TaskService, InitiativeService, WorkflowService, TranscriptService, EventService, ConfigService, HostingService, DashboardService, DecisionService, NotificationService, AttentionDashboardService, RecommendationService, BranchService, FeedbackService
 
 **Services with project_id support:**
 
@@ -52,6 +55,7 @@ All Connect RPC services accept a `project_id` field in their request messages. 
 | DashboardService | `dashboard.proto` | GetStats, GetActivityHeatmap, GetCostSummary, GetMetrics, GetDailyMetrics, GetMetricsByModel, GetOutcomes, GetTopInitiatives, GetTopFiles, GetComparison, GetTaskMetrics, GetCostReport |
 | DecisionService | `decision.proto` | ListDecisions, ResolveDecision, GetDecision, ListDecisionHistory |
 | NotificationService | `notification.proto` | ListNotifications, DismissNotification, DismissAllNotifications |
+| AttentionDashboardService | `attention_dashboard.proto` | GetAttentionDashboardData, PerformAttentionAction, UpdateQueueOrganization |
 | BranchService | `project.proto` | ListBranches, GetBranch, UpdateBranchStatus, DeleteBranch, CleanupStaleBranches |
 | ConfigService | `config.proto` | All request messages (GetConfig, UpdateConfig, GetSettings, UpdateSettings, GetSettingsHierarchy, ListHooks, CreateHook, UpdateHook, DeleteHook, ExportHooks, ImportHooks, ListSkills, CreateSkill, UpdateSkill, DeleteSkill, ExportSkills, ImportSkills, ScanClaudeDir, GetClaudeMd, UpdateClaudeMd, GetConstitution, UpdateConstitution, DeleteConstitution, ListPrompts, GetPrompt, GetDefaultPrompt, UpdatePrompt, DeletePrompt, ListPromptVariables, ListAgents, GetAgent, CreateAgent, UpdateAgent, DeleteAgent, ListScripts, DiscoverScripts, GetScript, CreateScript, UpdateScript, DeleteScript, ListTools, GetToolPermissions, UpdateToolPermissions, GetConfigStats) |
 | WorkflowService | `workflow.proto` | All request messages including run requests (ListWorkflowRuns, GetWorkflowRun, StartWorkflowRun, CancelWorkflowRun, SaveWorkflowLayout) |
@@ -2126,6 +2130,38 @@ Connect RPC service for user notifications. All requests accept `project_id`. Se
 | `created_at` | timestamp | When notification was created |
 | `expires_at` | timestamp (optional) | When notification expires |
 
+## AttentionDashboardService
+
+Attention dashboard API for operator-facing triage. Project-scoped calls return running work, queue state, pending recommendation count, and attention items backed by persisted attention signals. Cross-project calls return the aggregated attention inbox plus cross-project pending recommendation count.
+
+**Connect RPC Service:** `orc.v1.AttentionDashboardService`
+
+| Method | Description |
+|--------|-------------|
+| `GetAttentionDashboardData` | Load the attention dashboard for one project or, when `project_id` is omitted, the cross-project attention inbox |
+| `PerformAttentionAction` | Retry, skip, force, approve, reject, view, or resolve an attention item |
+| `UpdateQueueOrganization` | Handle queue swimlane UI state and task reordering requests |
+
+### GetAttentionDashboardData
+
+`project_id` controls the scope:
+
+| Request | Behavior |
+|---------|----------|
+| `{"project_id":"proj-123"}` | Returns project-scoped running summary, attention items, queue summary, and pending recommendation count |
+| `{}` or `{"project_id":""}` with project cache configured | Returns cross-project attention items and aggregated pending recommendation count. `running_summary` and `queue_summary` are empty in this mode. |
+
+Attention items generated from persisted signals include these extra fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `project_id` | string | Project that owns the signal |
+| `signal_kind` | string | Signal kind such as `blocker`, `decision_request`, `discussion_needed`, or `verification_summary` |
+| `reference_type` | string | Referenced entity type such as `task`, `run`, `recommendation`, or `initiative` |
+| `reference_id` | string | Referenced entity ID inside the owning project |
+
+Cross-project attention items use IDs in `<project_id>::<item_id>` format so they can be sent back to `PerformAttentionAction` without separately supplying `project_id`.
+
 ## RecommendationService
 
 Project-scoped recommendation inbox API. Recommendations remain pending until a human accepts, rejects, or marks them discussed.
@@ -2934,6 +2970,8 @@ Connect to `/api/ws` for real-time updates.
 | `files_changed` | `FilesChangedUpdate` | Files modified during task execution (see below) |
 | `decision_required` | `DecisionRequiredData` | Human gate requires approval (see below) |
 | `decision_resolved` | `DecisionResolvedData` | Gate decision was resolved (see below) |
+| `attention_signal_created` | `AttentionSignalCreatedData` | Persisted attention signal created or updated |
+| `attention_signal_resolved` | `AttentionSignalResolvedData` | Persisted attention signal resolved |
 
 ### Decision Event Data
 
