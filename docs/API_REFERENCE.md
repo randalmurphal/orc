@@ -62,7 +62,7 @@ All Connect RPC services accept a `project_id` field in their request messages. 
 | TranscriptService | `transcript.proto` | All request messages |
 | EventService | `events.proto` | All request messages |
 | ProjectService | `project.proto` | N/A (manages projects themselves, not project-scoped) |
-| RecommendationService | `recommendation.proto` | CreateRecommendation, GetRecommendation, ListRecommendations, AcceptRecommendation, RejectRecommendation, DiscussRecommendation |
+| RecommendationService | `recommendation.proto` | CreateRecommendation, GetRecommendation, ListRecommendations, ListRecommendationHistory, AcceptRecommendation, RejectRecommendation, DiscussRecommendation |
 | FeedbackService | `feedback.proto` | AddFeedback, ListFeedback, SendFeedback, DeleteFeedback |
 
 **REST API mapping:** For REST endpoints, `project_id` is passed as a query parameter (`?project_id=abc123`) or derived from the URL path (`/api/projects/:id/tasks`). File serving endpoints (`/files/tasks/{id}/attachments/*`, `/files/tasks/{id}/test-results/*`) and export/import endpoints (`/api/export`, `/api/import`) also accept `?project_id=...` for project routing.
@@ -2164,7 +2164,7 @@ Cross-project attention items use IDs in `<project_id>::<item_id>` format so the
 
 ## RecommendationService
 
-Project-scoped recommendation inbox API. Recommendations remain pending until a human accepts, rejects, or marks them discussed.
+Project-scoped recommendation inbox API. Recommendations remain pending until a human accepts, rejects, or marks them discussed. Acceptance is the promotion path: cleanup, risk, and follow-up recommendations create backlog tasks, while decision requests create initiative decisions.
 
 **Connect RPC Service:** `orc.v1.RecommendationService`
 
@@ -2173,11 +2173,12 @@ Project-scoped recommendation inbox API. Recommendations remain pending until a 
 | `CreateRecommendation` | Create a recommendation record for a project |
 | `GetRecommendation` | Load a single recommendation by ID |
 | `ListRecommendations` | List recommendations with optional status, kind, and source task filters |
-| `AcceptRecommendation` | Mark a recommendation accepted |
+| `ListRecommendationHistory` | Load the audit trail for one recommendation |
+| `AcceptRecommendation` | Accept a recommendation and promote it into a real backlog artifact |
 | `RejectRecommendation` | Mark a recommendation rejected |
 | `DiscussRecommendation` | Mark a recommendation discussed and return a context pack |
 
-All request messages accept `project_id`. `ListRecommendations` also supports `status`, `kind`, and `source_task_id` filters.
+All request messages accept `project_id`. `ListRecommendations` also supports `status`, `kind`, and `source_task_id` filters. `ListRecommendationHistory` requires `recommendation_id`.
 
 ### Recommendation Object
 
@@ -2203,6 +2204,30 @@ All request messages accept `project_id`. `ListRecommendations` also supports `s
 | `promoted_to_id` | string | Target entity ID if promoted later |
 | `promoted_by` | string | Actor who promoted it |
 | `promoted_at` | timestamp | When promotion happened |
+
+### RecommendationHistoryEntry
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | int64 | Monotonic history row ID |
+| `recommendation_id` | string | Recommendation the entry belongs to |
+| `from_status` | enum | Previous status, or `UNSPECIFIED` for the initial record |
+| `to_status` | enum | New status recorded by this history entry |
+| `decided_by` | string (optional) | Actor who made the transition |
+| `decision_reason` | string (optional) | Rationale captured for the transition |
+| `created_at` | timestamp | When the transition was recorded |
+
+### AcceptRecommendation
+
+Accepting a recommendation records the decision and creates the promoted artifact in the same operation.
+
+- `CLEANUP`, `RISK`, and `FOLLOW_UP` recommendations promote to new backlog tasks.
+- `DECISION_REQUEST` recommendations promote to initiative decisions tied to the source initiative or thread.
+- Repeating `AcceptRecommendation` for an already accepted recommendation is idempotent and returns the existing promoted artifact metadata.
+
+### ListRecommendationHistory
+
+Returns newest-first `RecommendationHistoryEntry` records for a single recommendation. The initial pending record is included so clients can render a full audit trail without reconstructing the first state locally.
 
 ### DiscussRecommendation
 
