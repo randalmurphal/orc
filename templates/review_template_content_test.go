@@ -260,6 +260,9 @@ func TestReviewTemplates_BlockEventDrivenAndProjectScopedGaps(t *testing.T) {
 				"isolation",
 				"toast",
 				"live state",
+				"whole-project",
+				"failed to load",
+				"no data",
 			} {
 				if !strings.Contains(strings.ToLower(content), strings.ToLower(required)) {
 					t.Errorf("%s missing event-driven/project-scoped review guidance %q", file, required)

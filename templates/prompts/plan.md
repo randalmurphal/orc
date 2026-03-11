@@ -177,6 +177,8 @@ If blocked due to unclear requirements:
 
 8. **Capture invariants, not aspirations** — invariants are things that must stay true under retries, failures, concurrent access, malformed input, and partial outages.
 9. **Event-driven and multi-project surfaces need explicit checks** — if a task touches live browser state or cross-project behavior, success criteria must cover external updates and project isolation, not just local clicks and counts.
+10. **Call out always-on cost explicitly** — if the change adds work on every phase, request, render, event tick, or task load, success criteria and verification must state why that cost is acceptable and how it stays bounded at scale.
+11. **Distinguish absence from load failure when behavior depends on it** — if optional context, summaries, or derived state affect decisions, the plan must say whether "no data" and "failed to load data" are different outcomes and how each should behave.
 </critical_constraints>
 
 <context>
@@ -230,6 +232,16 @@ Write 3-7 verifiable success criteria. Each must have:
 - An expected result
 - Error path coverage (what happens when things go wrong)
 - Enough specificity that a reviewer can decide PASS or FAIL without guessing
+
+If the change adds or modifies work on a shared path that runs repeatedly:
+- Include at least one success criterion for the cost model of that path.
+- Name the path explicitly (for example: every request, every workflow phase, every dashboard refresh, every task load).
+- State what keeps the work bounded or conditional instead of silently scaling with total project state.
+
+If the change adds optional prompt context, summaries, caches, or derived state:
+- Include at least one success criterion for failure semantics.
+- State whether "no data" and "failed to load data" are equivalent or intentionally different.
+- Require verification of the chosen behavior.
 
 If the task touches events, dashboards, inboxes, live views, or multi-project surfaces:
 - Include at least one success criterion for external-update behavior when the page should react while open.

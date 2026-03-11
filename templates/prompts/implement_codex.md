@@ -101,6 +101,8 @@ If blocked, still return the same top-level keys. Use `null` or `[]` for fields 
 8. If browser validation is required but the browser app cannot be run or validated, return `blocked` instead of claiming completion.
 9. If the browser surface is expected to react to external events, polling, or another actor's changes while it is open, set `live_update_surface=true` and validate it with a mutation initiated outside the page you are observing.
 10. If the browser-visible behavior must stay isolated to the selected project or tenant, set `project_scoped_surface=true` and validate that the behavior stays scoped correctly.
+11. If the diff adds work on a repeated/shared path (every request, workflow phase, task load, page refresh, poll tick), verify that the work is conditional or bounded rather than silently scaling with the whole project or dataset.
+12. If the diff adds optional context, summaries, caches, or derived state, verify that the code does not silently treat "failed to load" as "no data" unless the specification explicitly allows those outcomes to be equivalent.
 
 ## Verification Status Rules
 
@@ -150,8 +152,10 @@ Do not stop at same-page happy paths when the surface depends on external update
 9. For event-driven or live-updating browser surfaces, include at least one external mutation scenario in your validation.
 10. For multi-project or tenant-scoped browser surfaces, include an isolation scenario in your validation.
 11. Verify each success criterion from the spec with concrete evidence.
-12. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
-13. Output completion JSON.
+12. If the diff adds work on a repeated/shared path, record what triggers it, why it is bounded or lazy, and what verification proves that.
+13. If the diff adds optional context, summaries, caches, or derived state, verify whether "no data" and "load failure" are intentionally the same or intentionally different, and record evidence for that behavior.
+14. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
+15. Output completion JSON.
 
 {{#if TDD_TESTS_CONTENT}}
 If tests fail: fix your implementation, not the tests. If a test contradicts the spec, document as `AMEND-NNN`.

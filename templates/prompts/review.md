@@ -404,6 +404,12 @@ Treat performance as review-critical when the changes touch request paths, persi
 
 If the task changes a hot or scalable path and introduces an obvious performance risk, this is a HIGH-SEVERITY finding.
 
+Treat the following as review-critical by default, not optional polish:
+- New work added to a repeated/shared path such as every request, workflow phase, task load, dashboard refresh, or poll tick
+- Whole-project or whole-dataset scans added to a repeated/shared path without proof they are necessary and bounded
+- Optional context, summaries, caches, or derived state that silently collapse "load failed" into "no data" when callers may need to distinguish them
+- Lazy-vs-eager behavior that is not verified by tests when the implementation claims a hot path stays cheap
+
 ## Check 10: Simplicity, Maintainability, and Tests
 
 - Is the solution simpler than the problem requires, or did it add unnecessary layers?
@@ -423,11 +429,13 @@ If the code is significantly more complex than required, or tests do not convinc
 3. Review each changed file against the spec using the checks above
 4. Perform security review (OWASP Top 10, injection, auth bypass)
 5. Perform code quality review (correctness, performance, simplicity, maintainability, tests)
+6. For any new repeated/shared path work, explicitly verify the cost model and whether whole-project scans, broad state reconstruction, or eager loading were introduced
+7. For any new optional context or derived state, explicitly verify whether "no data" and "failed to load" are distinct outcomes and whether the implementation/test suite handles that intentionally
 {{#if SUPPORTS_SUBAGENTS}}
-6. Wait for sub-agent results and incorporate their findings
+8. Wait for sub-agent results and incorporate their findings
 {{/if}}
-7. If you made small fixes, commit them
-8. Output your structured response with the appropriate outcome
+9. If you made small fixes, commit them
+10. Output your structured response with the appropriate outcome
 {{#if SUPPORTS_SUBAGENTS}}
 
 **Your final decision must account for ALL sub-agent findings.** If a sub-agent found a high-severity issue, you must block even if your own review found nothing.

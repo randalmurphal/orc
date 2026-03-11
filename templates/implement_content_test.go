@@ -120,6 +120,17 @@ func TestImplementPrompts_RequireBrowserValidationContract(t *testing.T) {
 					t.Errorf("%s missing browser-validation guidance %q", file, required)
 				}
 			}
+
+			for _, required := range []string{
+				"repeated/shared path",
+				"conditional or bounded",
+				"failed to load",
+				"no data",
+			} {
+				if !strings.Contains(text, required) {
+					t.Errorf("%s missing shared-path/failure-semantics guidance %q", file, required)
+				}
+			}
 		})
 	}
 }

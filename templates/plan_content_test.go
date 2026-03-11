@@ -20,6 +20,9 @@ func TestPlanPrompt_RequiresEventDrivenAndProjectScopedChecks(t *testing.T) {
 		"event-driven",
 		"multi-project",
 		"`verification_plan.e2e`",
+		"always-on cost",
+		"failed to load data",
+		"no data",
 	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("plan.md missing planning guidance %q", required)

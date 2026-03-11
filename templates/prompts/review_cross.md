@@ -57,6 +57,8 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - Is the changed path likely to run frequently, under load, or on shared infrastructure?
 - Look for N+1 queries, repeated I/O, unbounded loops/retries, missing limits/timeouts, hot-path allocations/logging, and resource leaks.
 - Block obvious performance regressions on hot or scalable paths.
+- Treat new work on repeated/shared paths (every request, workflow phase, task load, page refresh, poll tick) as suspicious until the branch proves it is conditional or bounded.
+- Treat whole-project or whole-dataset scans added to repeated/shared paths as blocking unless the branch proves they are necessary and the cost is acceptable.
 
 **3. Simplicity & Maintainability**
 - Is the solution more complex than the task requires?
@@ -83,6 +85,7 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - Error messages must be useful for debugging
 - Errors in cleanup/defer must not mask the original error
 - Partial failures must leave the system in a consistent state
+- If the diff adds optional context, summaries, caches, or derived state, verify whether "no data" and "failed to load" are intentionally distinct. Silent collapse of both outcomes into the same empty value is a real finding when callers need that distinction.
 
 **7. Dead Code & Integration**
 - Every new function must be called from at least one production path
@@ -156,9 +159,10 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 6. **Check error paths** — trace every error from origin to handler. Any gaps?
 7. **Check browser validation** — if the implemented diff changes browser-visible behavior, verify the implementation output includes real browser-validation evidence rather than a planner guess
 8. **Check event-driven and project-scoped behavior** — if the diff adds live browser state or project-scoped behavior, verify external-mutation and isolation evidence
-9. **Verify integration** — new code is reachable from production paths
-10. If you found small issues, fix and commit them
-11. Output your structured response
+9. **Check shared-path cost model** — if the diff adds work on a repeated/shared path, verify what triggers it, whether it is lazy/bounded, and whether tests would catch accidental eager behavior
+10. **Verify integration** — new code is reachable from production paths
+11. If you found small issues, fix and commit them
+12. Output your structured response
 
 ## Success Criteria Verification (MANDATORY)
 

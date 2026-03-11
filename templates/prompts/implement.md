@@ -10,6 +10,8 @@ This happens when:
 4. The new code is never called → dead code ships → review rejects
 
 **Prevention:** Before claiming completion, for EVERY new file you created, verify an existing production file imports it. If nothing imports your new code, it's dead code.
+
+**Also watch for hidden hot paths:** if your change adds work that runs on every request, phase, task load, poll tick, or render, you must prove that work is conditional or bounded. "It's only a helper/query/summary" is not evidence.
 </common_failure_mode>
 
 <output_format>
@@ -23,6 +25,8 @@ Before outputting completion JSON, you MUST run all SIX checks and include evide
 4. **Linting**: Run linter on files you changed (`git diff --name-only`). Fix lint errors in YOUR code only. Pre-existing issues in other files are out of scope.
 5. **Wiring**: For EVERY new file created, grep the codebase to find which production file imports it. If no production file imports it → dead code → FAIL.
 6. **Browser validation**: If the implemented diff changes browser-visible behavior, including backend or API changes that alter what the UI renders or how it behaves, run browser validation and record concrete evidence.
+7. **Shared-path cost model**: If your change adds work on a repeated/shared path (for example every request, workflow phase, task load, or page refresh), verify why that work is conditional or bounded.
+8. **Failure semantics**: If you added optional context, summaries, caches, or derived state, verify that the code does not silently treat "failed to load" as "no data" unless the spec explicitly says those outcomes are equivalent.
 
 ## Verification Status Rules
 
@@ -376,7 +380,9 @@ Execute all checks and include evidence for each in your completion output:
 6. **Browser validation check** — If the implemented diff changes browser-visible behavior, run browser validation now and capture evidence in `verification.browser_validation`.
 7. **External mutation check** — If the page should react to outside changes while open, validate at least one external mutation scenario and record it.
 8. **Project isolation check** — If the browser behavior is project- or tenant-scoped, validate that isolation and record it.
-7. **Behavioral parity check** — If you added a parallel/async path, verify ALL original behaviors are present.
+9. **Behavioral parity check** — If you added a parallel/async/alternate path, verify ALL original behaviors are present.
+10. **Shared-path cost check** — If the diff adds work on a repeated/shared path, record what triggers it, why it is bounded or lazy, and what evidence proves that.
+11. **Failure-semantics check** — If the diff adds optional context, summaries, caches, or derived state, verify whether "no data" and "load failure" are intentionally the same or intentionally different, and record evidence for that behavior.
 
 **Only output completion JSON after all checks pass.** See Output Format for the exact schema.
 
