@@ -249,6 +249,72 @@ describe('RecommendationInbox', () => {
 		expect(screen.queryByText(/Accepted from pending by operator/)).not.toBeInTheDocument();
 	});
 
+	it('invalidates cached history after a decision so reopened history refetches fresh entries', async () => {
+		vi.mocked(listRecommendations)
+			.mockResolvedValueOnce(makeListResponse([makeRecommendation()]))
+			.mockResolvedValueOnce(makeListResponse([
+				makeRecommendation({
+					status: RecommendationStatus.ACCEPTED,
+					decisionReason: 'Looks worth shipping.',
+					decidedBy: 'operator',
+					promotedToType: 'task',
+					promotedToId: 'TASK-099',
+				}),
+			]));
+		vi.mocked(listRecommendationHistory)
+			.mockResolvedValueOnce(makeHistoryResponse([
+				makeHistoryEntry({
+					id: 1n,
+					fromStatus: RecommendationStatus.UNSPECIFIED,
+					toStatus: RecommendationStatus.PENDING,
+				}),
+			]))
+			.mockResolvedValueOnce(makeHistoryResponse([
+				makeHistoryEntry({
+					id: 2n,
+					fromStatus: RecommendationStatus.PENDING,
+					toStatus: RecommendationStatus.ACCEPTED,
+					decidedBy: 'operator',
+					decisionReason: 'Looks worth shipping.',
+				}),
+				makeHistoryEntry({
+					id: 1n,
+					fromStatus: RecommendationStatus.UNSPECIFIED,
+					toStatus: RecommendationStatus.PENDING,
+				}),
+			]));
+		vi.mocked(acceptRecommendation).mockResolvedValue(
+			create(AcceptRecommendationResponseSchema, {
+				recommendation: makeRecommendation({
+					status: RecommendationStatus.ACCEPTED,
+					decisionReason: 'Looks worth shipping.',
+					decidedBy: 'operator',
+					promotedToType: 'task',
+					promotedToId: 'TASK-099',
+				}),
+			}),
+		);
+
+		render(<RecommendationInbox />);
+
+		await screen.findByText('Clean up duplicate polling');
+		fireEvent.click(screen.getByRole('button', { name: 'Show history' }));
+		await screen.findByText('Pending');
+		expect(listRecommendationHistory).toHaveBeenCalledTimes(1);
+
+		fireEvent.change(screen.getByLabelText('Decision note'), {
+			target: { value: 'Looks worth shipping.' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+
+		await screen.findByText('Task TASK-099');
+		expect(screen.queryByText(/Accepted from pending by operator/)).not.toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Show history' }));
+		await screen.findByText(/Accepted from pending by operator/);
+		expect(listRecommendationHistory).toHaveBeenCalledTimes(2);
+	});
+
 	it('refreshes when an external recommendation event arrives for the current project', async () => {
 		vi.mocked(listRecommendations)
 			.mockResolvedValueOnce(makeListResponse([makeRecommendation()]))

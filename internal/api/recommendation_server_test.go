@@ -201,6 +201,35 @@ func TestRecommendationServiceRejectsPrePromotedCreate(t *testing.T) {
 	require.Equal(t, connect.CodeInvalidArgument, connectErr.Code())
 }
 
+func TestRecommendationServiceListHistoryReturnsNotFoundForMissingRecommendation(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	storageFixturesForRecommendation(t, backend)
+	projectCache := testProjectCacheForBackend("proj-001", backend)
+
+	recommendationSvc := NewRecommendationServer(backend, slog.Default(), nil)
+	recommendationSvc.(*recommendationServer).SetProjectCache(projectCache)
+
+	mux := http.NewServeMux()
+	path, handler := orcv1connect.NewRecommendationServiceHandler(recommendationSvc)
+	mux.Handle(path, corsHandler(handler))
+
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	client := orcv1connect.NewRecommendationServiceClient(http.DefaultClient, ts.URL)
+	_, err := client.ListRecommendationHistory(context.Background(), connect.NewRequest(&orcv1.ListRecommendationHistoryRequest{
+		ProjectId:        "proj-001",
+		RecommendationId: "REC-404",
+	}))
+	require.Error(t, err)
+
+	connectErr := new(connect.Error)
+	require.ErrorAs(t, err, &connectErr)
+	require.Equal(t, connect.CodeNotFound, connectErr.Code())
+}
+
 func TestRecommendationServiceRejectAndDiscussAreIdempotent(t *testing.T) {
 	t.Parallel()
 

@@ -154,6 +154,13 @@ func (s *recommendationServer) ListRecommendationHistory(
 	if req.Msg.RecommendationId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("recommendation_id is required"))
 	}
+	rec, err := backend.LoadRecommendation(req.Msg.RecommendationId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if rec == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("recommendation %s not found", req.Msg.RecommendationId))
+	}
 
 	history, err := backend.LoadRecommendationHistory(req.Msg.RecommendationId)
 	if err != nil {
@@ -460,9 +467,15 @@ func (s *recommendationServer) publishPromotedArtifact(projectID string, rec *or
 
 	if rec.PromotedToType == db.RecommendationPromotionTypeTask && rec.PromotedToId != "" {
 		taskItem, err := s.mustLoadPromotedTask(projectID, rec.PromotedToId)
-		if err == nil && taskItem != nil {
-			s.publisher.Publish(events.NewProjectEvent(events.EventTaskCreated, projectID, taskItem.Id, taskItem))
+		if err != nil {
+			s.logger.Warn("load promoted task for publication", "project_id", projectID, "task_id", rec.PromotedToId, "error", err)
+			return
 		}
+		if taskItem == nil {
+			s.logger.Warn("promoted task missing during publication", "project_id", projectID, "task_id", rec.PromotedToId)
+			return
+		}
+		s.publisher.Publish(events.NewProjectEvent(events.EventTaskCreated, projectID, taskItem.Id, taskItem))
 	}
 }
 

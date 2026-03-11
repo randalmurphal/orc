@@ -26,6 +26,26 @@ export function RecommendationInbox() {
 	const [historyById, setHistoryById] = useState<Record<string, RecommendationHistoryEntry[]>>({});
 	const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
 
+	const invalidateHistory = useCallback((recommendationId: string) => {
+		setHistoryById((current) => {
+			if (!(recommendationId in current)) {
+				return current;
+			}
+			const next = { ...current };
+			delete next[recommendationId];
+			return next;
+		});
+		setExpandedHistory((current) => {
+			if (!current[recommendationId]) {
+				return current;
+			}
+			return {
+				...current,
+				[recommendationId]: false,
+			};
+		});
+	}, []);
+
 	const loadRecommendations = useCallback(async () => {
 		setLoading(true);
 		setError(null);
@@ -48,9 +68,10 @@ export function RecommendationInbox() {
 			if (signal.projectId !== projectId) {
 				return;
 			}
+			invalidateHistory(signal.recommendationId);
 			void loadRecommendations();
 		});
-	}, [loadRecommendations, projectId]);
+	}, [invalidateHistory, loadRecommendations, projectId]);
 
 	const pendingRecommendations = useMemo(
 		() => recommendations.filter((recommendation) => recommendation.status === RecommendationStatus.PENDING),
@@ -81,13 +102,14 @@ export function RecommendationInbox() {
 				...current,
 				[recommendation.id]: '',
 			}));
+			invalidateHistory(recommendation.id);
 			await loadRecommendations();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to update recommendation');
 		} finally {
 			setBusyId(null);
 		}
-	}, [decisionNotes, loadRecommendations, projectId]);
+	}, [decisionNotes, invalidateHistory, loadRecommendations, projectId]);
 
 	const toggleHistory = useCallback(async (recommendationId: string) => {
 		if (expandedHistory[recommendationId]) {
