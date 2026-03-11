@@ -6,6 +6,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -73,6 +74,8 @@ type CodexExecutor struct {
 	// CLI-level timeout (default: 30 minutes). The llmkit default (5m) is too
 	// short for extended reasoning on large repos.
 	timeout time.Duration
+	// Inactivity timeout for silent stalled turns.
+	inactivityTimeout time.Duration
 
 	// Schema validation retry limit for non-guaranteed structured output
 	schemaRetries int
@@ -194,6 +197,11 @@ func WithCodexTimeout(d time.Duration) CodexExecutorOption {
 	return func(e *CodexExecutor) { e.timeout = d }
 }
 
+// WithCodexInactivityTimeout sets the no-output watchdog timeout for codex turns.
+func WithCodexInactivityTimeout(d time.Duration) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.inactivityTimeout = d }
+}
+
 // WithCodexSchemaRetries sets the number of schema validation retries.
 // Default is 2 (total 3 attempts including the first).
 func WithCodexSchemaRetries(retries int) CodexExecutorOption {
@@ -208,6 +216,7 @@ func NewCodexExecutor(opts ...CodexExecutorOption) *CodexExecutor {
 		bypassApprovalsAndSandbox: true,
 		schemaRetries:             2,
 		timeout:                   30 * time.Minute,
+		inactivityTimeout:         DefaultProviderInactivityTimeout,
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -275,6 +284,13 @@ func (e *CodexExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnRe
 
 		result, err := e.executeSingleTurn(ctx, prompt, schemaFile, start)
 		if err != nil {
+			var stalledErr *codexTurnStalledError
+			if errors.As(err, &stalledErr) {
+				e.logger.Warn("retrying codex turn after stalled stream", "phase", e.phaseID, "attempt", attempt+1)
+				result, err = e.executeSingleTurnFresh(ctx, buildCodexStallRetryPrompt(prompt, stalledErr), schemaFile, start)
+			}
+		}
+		if err != nil {
 			lastResult = result
 			lastErr = err
 			// Only retry on JSON parse errors, not transport/execution errors.
@@ -335,6 +351,15 @@ func (e *CodexExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnRe
 	}, lastErr
 }
 
+type codexTurnStalledError struct {
+	timeout        time.Duration
+	lastToolResult *codex.ToolResult
+}
+
+func (e *codexTurnStalledError) Error() string {
+	return fmt.Sprintf("codex stalled after %v without output", e.timeout)
+}
+
 // ExecuteTurnWithoutSchema sends a prompt without requiring structured output.
 func (e *CodexExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt string) (*TurnResult, error) {
 	start := time.Now()
@@ -389,6 +414,9 @@ func (e *CodexExecutor) SessionID() string {
 func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFile string, start time.Time) (*TurnResult, error) {
 	ctx, cancel := e.codexContextWithTimeout(ctx)
 	defer cancel()
+	watchdog := NewTurnWatchdog(e.inactivityTimeout, cancel)
+	watchdog.Start(ctx)
+	watchdog.RecordActivity()
 
 	if e.transcriptHandler != nil {
 		e.transcriptHandler.StoreUserPrompt(prompt)
@@ -412,9 +440,12 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 		usage          *codex.TokenUsage
 		sessionID      = e.sessionID
 		numTurns       int
+		lastToolResult *codex.ToolResult
+		sawTerminal    bool
 	)
 
 	for chunk := range stream {
+		watchdog.RecordActivity()
 		if chunk.SessionID != "" && chunk.SessionID != sessionID {
 			sessionID = chunk.SessionID
 			e.UpdateSessionID(sessionID)
@@ -431,6 +462,14 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 				e.transcriptHandler.StoreToolCall(toolCall.Name, toolCall.Arguments, e.model)
 			}
 		}
+		if len(chunk.ToolResults) > 0 {
+			lastToolResult = &chunk.ToolResults[len(chunk.ToolResults)-1]
+			if e.transcriptHandler != nil {
+				for _, toolResult := range chunk.ToolResults {
+					e.transcriptHandler.StoreToolResult(toolResult.Name, toolResult.Output, toolResult.Status, toolResult.ExitCode, e.model)
+				}
+			}
+		}
 		if chunk.FinalContent != "" {
 			finalContent = chunk.FinalContent
 		}
@@ -438,12 +477,23 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 			usage = chunk.Usage
 		}
 		if chunk.Done {
+			sawTerminal = true
 			numTurns++
 		}
 		if chunk.Error != nil {
 			content := strings.TrimSpace(contentBuilder.String())
 			if finalContent != "" {
 				content = strings.TrimSpace(finalContent)
+			}
+			if watchdog.Tripped() {
+				err := &codexTurnStalledError{timeout: watchdog.Timeout(), lastToolResult: lastToolResult}
+				return &TurnResult{
+					Content:   content,
+					Duration:  time.Since(start),
+					IsError:   true,
+					ErrorText: err.Error(),
+					SessionID: sessionID,
+				}, err
 			}
 			return &TurnResult{
 				Content:   content,
@@ -458,6 +508,16 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 	content := strings.TrimSpace(contentBuilder.String())
 	if finalContent != "" {
 		content = strings.TrimSpace(finalContent)
+	}
+	if watchdog.Tripped() && !sawTerminal {
+		err := &codexTurnStalledError{timeout: watchdog.Timeout(), lastToolResult: lastToolResult}
+		return &TurnResult{
+			Content:   content,
+			Duration:  time.Since(start),
+			IsError:   true,
+			ErrorText: err.Error(),
+			SessionID: sessionID,
+		}, err
 	}
 	result := &TurnResult{
 		Content:   content,
@@ -486,6 +546,56 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 	}
 
 	return result, nil
+}
+
+func (e *CodexExecutor) executeSingleTurnFresh(ctx context.Context, prompt, schemaFile string, start time.Time) (*TurnResult, error) {
+	prevSessionID := e.sessionID
+	prevResume := e.resume
+	e.sessionID = ""
+	e.resume = false
+	if e.transcriptHandler != nil {
+		e.transcriptHandler.UpdateSessionID("")
+	}
+	defer func() {
+		if e.sessionID == "" {
+			e.sessionID = prevSessionID
+			e.resume = prevResume
+			if e.transcriptHandler != nil {
+				e.transcriptHandler.UpdateSessionID(prevSessionID)
+			}
+		}
+	}()
+	return e.executeSingleTurn(ctx, prompt, schemaFile, start)
+}
+
+func buildCodexStallRetryPrompt(originalPrompt string, stalled *codexTurnStalledError) string {
+	var prompt strings.Builder
+	prompt.WriteString("The previous Codex turn stalled and never emitted a terminal event.\n")
+	prompt.WriteString("Do not restart broad reconnaissance. Continue from the current repository state, fix the last failing validation, rerun only the necessary verification, and then return the required completion output.\n")
+	if stalled != nil && stalled.lastToolResult != nil {
+		prompt.WriteString("\nLast tool result before the stall:\n")
+		prompt.WriteString(stalled.lastToolResult.Name)
+		if stalled.lastToolResult.Status != "" || stalled.lastToolResult.ExitCode != nil {
+			prompt.WriteString("\n")
+			if stalled.lastToolResult.Status != "" {
+				prompt.WriteString("status: ")
+				prompt.WriteString(stalled.lastToolResult.Status)
+			}
+			if stalled.lastToolResult.ExitCode != nil {
+				if stalled.lastToolResult.Status != "" {
+					prompt.WriteString(", ")
+				}
+				prompt.WriteString(fmt.Sprintf("exit_code: %d", *stalled.lastToolResult.ExitCode))
+			}
+		}
+		if stalled.lastToolResult.Output != "" {
+			prompt.WriteString("\n")
+			prompt.WriteString(truncatePreview(stalled.lastToolResult.Output, 12000))
+		}
+	}
+	prompt.WriteString("\n\nOriginal task prompt:\n")
+	prompt.WriteString(originalPrompt)
+	return prompt.String()
 }
 
 func (e *CodexExecutor) buildCLIOptions(schemaFile string) []codex.CodexOption {

@@ -82,6 +82,17 @@ func TestStoreAssistantText_EmptyMessageID(t *testing.T) {
 	}
 }
 
+func TestStoreAssistantTextWithUsage_SkipsEmptyContent(t *testing.T) {
+	backend := &mockTranscriptBackend{}
+	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil, nil)
+
+	h.StoreAssistantTextWithUsage("", "gpt-5", "msg-1", 10, 5, 0, 0)
+
+	if len(backend.transcripts) != 0 {
+		t.Fatalf("expected no transcript for empty assistant content, got %d", len(backend.transcripts))
+	}
+}
+
 func TestStoreAssistantText_FallbackModel(t *testing.T) {
 	backend := &mockTranscriptBackend{}
 	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "default-model", nil, nil)
@@ -141,5 +152,30 @@ func TestStoreToolCall(t *testing.T) {
 	}
 	if got := backend.transcripts[0].Content; got != "Read\n{\n  \"file_path\": \"main.go\"\n}" {
 		t.Fatalf("content = %q", got)
+	}
+}
+
+func TestStoreToolResult(t *testing.T) {
+	backend := &mockTranscriptBackend{}
+	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil, nil)
+
+	exitCode := 1
+	h.StoreToolResult("/bin/zsh -lc pwd", "/repo\n", "completed", &exitCode, "gpt-5")
+
+	if len(backend.transcripts) != 1 {
+		t.Fatalf("expected 1 transcript, got %d", len(backend.transcripts))
+	}
+	tr := backend.transcripts[0]
+	if tr.Type != "tool_result" {
+		t.Fatalf("type = %q, want tool_result", tr.Type)
+	}
+	if tr.Role != "tool" {
+		t.Fatalf("role = %q, want tool", tr.Role)
+	}
+	if tr.ToolResults == "" {
+		t.Fatal("expected full tool result metadata to be stored")
+	}
+	if tr.Content == "" {
+		t.Fatal("expected preview content to be stored")
 	}
 }

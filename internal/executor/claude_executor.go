@@ -73,6 +73,9 @@ type ClaudeExecutor struct {
 	// phaseConfig contains per-phase Claude CLI configuration
 	// (system prompts, tool restrictions, MCP servers, budgets, etc.)
 	phaseConfig *PhaseClaudeConfig
+
+	// Inactivity timeout for silent stalled turns.
+	inactivityTimeout time.Duration
 }
 
 // ClaudeExecutorOption configures a ClaudeExecutor.
@@ -111,6 +114,11 @@ func WithClaudeMaxTurns(maxTurns int) ClaudeExecutorOption {
 // WithClaudeLogger sets the logger.
 func WithClaudeLogger(l *slog.Logger) ClaudeExecutorOption {
 	return func(e *ClaudeExecutor) { e.logger = l }
+}
+
+// WithClaudeInactivityTimeout sets the no-output watchdog timeout for Claude turns.
+func WithClaudeInactivityTimeout(d time.Duration) ClaudeExecutorOption {
+	return func(e *ClaudeExecutor) { e.inactivityTimeout = d }
 }
 
 // WithClaudePhaseID sets the phase ID for schema selection.
@@ -178,8 +186,9 @@ func WithPhaseClaudeConfig(cfg *PhaseClaudeConfig) ClaudeExecutorOption {
 // If backend and taskID are provided, transcripts are stored automatically.
 func NewClaudeExecutor(opts ...ClaudeExecutorOption) *ClaudeExecutor {
 	e := &ClaudeExecutor{
-		claudePath: "claude",
-		logger:     slog.Default(),
+		claudePath:        "claude",
+		logger:            slog.Default(),
+		inactivityTimeout: DefaultProviderInactivityTimeout,
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -253,12 +262,17 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 	req := claude.CompletionRequest{
 		Messages: []claude.Message{{Role: claude.RoleUser, Content: prompt}},
 	}
-	if e.transcriptHandler != nil {
-		req.OnEvent = e.transcriptHandler.OnEvent
-	}
+	watchCtx, watchCancel := context.WithCancel(ctx)
+	defer watchCancel()
+	watchdog := NewTurnWatchdog(e.inactivityTimeout, watchCancel)
+	watchdog.Start(watchCtx)
+	req.OnEvent = e.wrapClaudeOnEvent(watchdog)
 
-	resp, err := cli.Complete(ctx, req)
+	resp, err := cli.Complete(watchCtx, req)
 	if err != nil {
+		if stallErr := watchdog.Error("claude"); stallErr != nil {
+			err = stallErr
+		}
 		return &TurnResult{
 			Duration:  time.Since(start),
 			IsError:   true,
@@ -274,11 +288,11 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 		SessionID: resp.SessionID,
 		Duration:  time.Since(start),
 		Usage: &orcv1.TokenUsage{
-			InputTokens:             int32(resp.Usage.InputTokens),
-			OutputTokens:            int32(resp.Usage.OutputTokens),
-			TotalTokens:             int32(resp.Usage.TotalTokens),
+			InputTokens:              int32(resp.Usage.InputTokens),
+			OutputTokens:             int32(resp.Usage.OutputTokens),
+			TotalTokens:              int32(resp.Usage.TotalTokens),
 			CacheCreationInputTokens: int32(resp.Usage.CacheCreationInputTokens),
-			CacheReadInputTokens:    int32(resp.Usage.CacheReadInputTokens),
+			CacheReadInputTokens:     int32(resp.Usage.CacheReadInputTokens),
 		},
 	}
 
@@ -325,12 +339,17 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 	req := claude.CompletionRequest{
 		Messages: []claude.Message{{Role: claude.RoleUser, Content: prompt}},
 	}
-	if e.transcriptHandler != nil {
-		req.OnEvent = e.transcriptHandler.OnEvent
-	}
+	watchCtx, watchCancel := context.WithCancel(ctx)
+	defer watchCancel()
+	watchdog := NewTurnWatchdog(e.inactivityTimeout, watchCancel)
+	watchdog.Start(watchCtx)
+	req.OnEvent = e.wrapClaudeOnEvent(watchdog)
 
-	resp, err := cli.Complete(ctx, req)
+	resp, err := cli.Complete(watchCtx, req)
 	if err != nil {
+		if stallErr := watchdog.Error("claude"); stallErr != nil {
+			err = stallErr
+		}
 		return &TurnResult{
 			Duration:  time.Since(start),
 			IsError:   true,
@@ -347,11 +366,11 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 		Duration:  time.Since(start),
 		Status:    PhaseStatusContinue, // Default - caller determines actual status
 		Usage: &orcv1.TokenUsage{
-			InputTokens:             int32(resp.Usage.InputTokens),
-			OutputTokens:            int32(resp.Usage.OutputTokens),
-			TotalTokens:             int32(resp.Usage.TotalTokens),
+			InputTokens:              int32(resp.Usage.InputTokens),
+			OutputTokens:             int32(resp.Usage.OutputTokens),
+			TotalTokens:              int32(resp.Usage.TotalTokens),
 			CacheCreationInputTokens: int32(resp.Usage.CacheCreationInputTokens),
-			CacheReadInputTokens:    int32(resp.Usage.CacheReadInputTokens),
+			CacheReadInputTokens:     int32(resp.Usage.CacheReadInputTokens),
 		},
 	}
 
@@ -418,6 +437,17 @@ func (e *ClaudeExecutor) buildBaseCLIOptions() []claude.ClaudeOption {
 	}
 
 	return opts
+}
+
+func (e *ClaudeExecutor) wrapClaudeOnEvent(watchdog *TurnWatchdog) func(claude.StreamEvent) {
+	return func(event claude.StreamEvent) {
+		if watchdog != nil {
+			watchdog.RecordActivity()
+		}
+		if e.transcriptHandler != nil {
+			e.transcriptHandler.OnEvent(event)
+		}
+	}
 }
 
 // applyPhaseConfig applies PhaseClaudeConfig options to the CLI options.

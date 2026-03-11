@@ -5,6 +5,7 @@ package executor
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"slices"
 	"sync"
@@ -297,7 +298,7 @@ func (h *TranscriptStreamHandler) StoreAssistantTextWithUsage(
 	text, model, messageID string,
 	inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens int,
 ) {
-	if h.backend == nil || h.taskID == "" {
+	if h.backend == nil || h.taskID == "" || text == "" {
 		return
 	}
 
@@ -441,6 +442,66 @@ func (h *TranscriptStreamHandler) StoreToolCall(name string, arguments json.RawM
 	}
 }
 
+// StoreToolResult stores a Codex tool result for live transcript visibility.
+func (h *TranscriptStreamHandler) StoreToolResult(name, output, status string, exitCode *int, model string) {
+	if h.backend == nil || h.taskID == "" {
+		return
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if model == "" {
+		model = h.model
+	}
+
+	content := formatToolResultPreview(name, output, status, exitCode)
+	metadata := map[string]any{
+		"name":   name,
+		"output": output,
+		"status": status,
+	}
+	if exitCode != nil {
+		metadata["exit_code"] = *exitCode
+	}
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		h.logger.Warn("failed to marshal tool result metadata",
+			"task", h.taskID,
+			"phase", h.phaseID,
+			"tool", name,
+			"error", err,
+		)
+		metadataJSON = nil
+	}
+
+	transcript := &storage.Transcript{
+		TaskID:        h.taskID,
+		Phase:         h.phaseID,
+		SessionID:     h.sessionID,
+		WorkflowRunID: h.runID,
+		MessageUUID:   uuid.NewString(),
+		Type:          "tool_result",
+		Role:          "tool",
+		Content:       content,
+		Model:         model,
+		ToolResults:   string(metadataJSON),
+		Timestamp:     time.Now().UnixMilli(),
+	}
+
+	if err := h.backend.AddTranscript(transcript); err != nil {
+		h.logger.Warn("failed to store tool result",
+			"task", h.taskID,
+			"phase", h.phaseID,
+			"tool", name,
+			"error", err,
+		)
+	}
+	if h.publisher != nil {
+		h.publisher.Transcript(h.taskID, h.phaseID, 1, "tool_result", content)
+	}
+}
+
 func formatToolCallContent(name string, arguments json.RawMessage) string {
 	if len(arguments) == 0 {
 		return name
@@ -452,4 +513,40 @@ func formatToolCallContent(name string, arguments json.RawMessage) string {
 	}
 
 	return name + "\n" + string(arguments)
+}
+
+func formatToolResultPreview(name, output, status string, exitCode *int) string {
+	var preview bytes.Buffer
+	if name != "" {
+		preview.WriteString(name)
+	}
+	if status != "" || exitCode != nil {
+		if preview.Len() > 0 {
+			preview.WriteString("\n")
+		}
+		if status != "" {
+			preview.WriteString("status: ")
+			preview.WriteString(status)
+		}
+		if exitCode != nil {
+			if status != "" {
+				preview.WriteString(", ")
+			}
+			preview.WriteString(fmt.Sprintf("exit_code: %d", *exitCode))
+		}
+	}
+	if output != "" {
+		if preview.Len() > 0 {
+			preview.WriteString("\n")
+		}
+		preview.WriteString(truncatePreview(output, 8192))
+	}
+	return preview.String()
+}
+
+func truncatePreview(text string, maxBytes int) string {
+	if maxBytes <= 0 || len(text) <= maxBytes {
+		return text
+	}
+	return text[:maxBytes] + "\n[truncated]"
 }

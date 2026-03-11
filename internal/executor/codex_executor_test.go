@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -357,7 +358,7 @@ func TestCodexExecutor_ExecuteSingleTurn_StreamsToolCallsBeforeCompletion(t *tes
 	scriptPath := filepath.Join(tmpDir, "fake-codex-tool.sh")
 	script := `#!/bin/sh
 echo '{"type":"thread.started","thread_id":"sess-tool-123"}'
-echo '{"type":"item.completed","item":{"type":"tool_call","id":"tool-1","name":"Read","arguments":{"file_path":"main.go"}}}'
+echo '{"type":"item.started","item":{"type":"tool_call","id":"tool-1","name":"Read","arguments":{"file_path":"main.go"}}}'
 sleep 0.2
 echo '{"type":"turn.completed","output":[{"text":"done"}],"turn_usage":{"input_tokens":5,"output_tokens":2,"total_tokens":7}}'
 `
@@ -466,6 +467,56 @@ echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{
 
 	if err := <-done; err != nil {
 		t.Fatalf("executeSingleTurn failed: %v", err)
+	}
+}
+
+func TestCodexExecutor_ExecuteSingleTurn_StallReturnsToolFailureContext(t *testing.T) {
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join(tmpDir, "fake-codex-stall.sh")
+	script := `#!/bin/sh
+echo '{"type":"thread.started","thread_id":"sess-stall-123"}'
+echo '{"type":"item.started","item":{"id":"item_0","type":"command_execution","command":"golangci-lint run","aggregated_output":"","exit_code":null,"status":"in_progress"}}'
+echo '{"type":"item.completed","item":{"id":"item_0","type":"command_execution","command":"golangci-lint run","aggregated_output":"typecheck failed\n","exit_code":1,"status":"completed"}}'
+# Stay alive long enough for the inactivity watchdog to cancel the stream.
+sleep 30
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake codex script: %v", err)
+	}
+
+	backend := &mockTranscriptBackend{}
+	exec := NewCodexExecutor(
+		WithCodexPath(scriptPath),
+		WithCodexWorkdir(tmpDir),
+		WithCodexModel("gpt-5.4"),
+		WithCodexPhaseID("implement"),
+		WithCodexBackend(backend),
+		WithCodexTaskID("TASK-001"),
+		WithCodexRunID("RUN-001"),
+		WithCodexInactivityTimeout(50*time.Millisecond),
+	)
+
+	_, err := exec.executeSingleTurn(context.Background(), "do the thing", "", time.Now())
+	if err == nil {
+		t.Fatal("expected stalled turn error")
+	}
+
+	var stalledErr *codexTurnStalledError
+	if !errors.As(err, &stalledErr) {
+		t.Fatalf("expected codexTurnStalledError, got %T (%v)", err, err)
+	}
+	if stalledErr.lastToolResult == nil {
+		t.Fatal("expected stalled error to include last tool result")
+	}
+	if stalledErr.lastToolResult.Output != "typecheck failed\n" {
+		t.Fatalf("last tool output = %q, want %q", stalledErr.lastToolResult.Output, "typecheck failed\n")
+	}
+
+	if len(backend.transcripts) != 3 {
+		t.Fatalf("expected prompt, tool call, tool result transcripts only, got %d", len(backend.transcripts))
+	}
+	if backend.transcripts[2].Type != "tool_result" {
+		t.Fatalf("final transcript type = %q, want tool_result", backend.transcripts[2].Type)
 	}
 }
 
