@@ -1,5 +1,47 @@
 package controlplane
 
+import "time"
+
+type AttentionSignalKind string
+
+const (
+	AttentionSignalKindBlocker             AttentionSignalKind = "blocker"
+	AttentionSignalKindDecisionRequest     AttentionSignalKind = "decision_request"
+	AttentionSignalKindDiscussionNeeded    AttentionSignalKind = "discussion_needed"
+	AttentionSignalKindVerificationSummary AttentionSignalKind = "verification_summary"
+)
+
+const (
+	AttentionSignalStatusBlocked  = "blocked"
+	AttentionSignalStatusFailed   = "failed"
+	AttentionSignalStatusActive   = "active"
+	AttentionSignalStatusResolved = "resolved"
+)
+
+const (
+	AttentionSignalReferenceTypeTask           = "task"
+	AttentionSignalReferenceTypeRecommendation = "recommendation"
+	AttentionSignalReferenceTypeRun            = "run"
+	AttentionSignalReferenceTypeInitiative     = "initiative"
+)
+
+// PersistedAttentionSignal is the project-scoped attention signal model stored
+// in ProjectDB and reused by executor, API, and prompt-context code.
+type PersistedAttentionSignal struct {
+	ID            string              `json:"id"`
+	ProjectID     string              `json:"project_id,omitempty"`
+	Kind          AttentionSignalKind `json:"kind"`
+	Status        string              `json:"status"`
+	ReferenceType string              `json:"reference_type"`
+	ReferenceID   string              `json:"reference_id"`
+	Title         string              `json:"title"`
+	Summary       string              `json:"summary,omitempty"`
+	CreatedAt     time.Time           `json:"created_at"`
+	UpdatedAt     time.Time           `json:"updated_at"`
+	ResolvedAt    *time.Time          `json:"resolved_at,omitempty"`
+	ResolvedBy    string              `json:"resolved_by,omitempty"`
+}
+
 // RecommendationCandidate is the provider-agnostic schema for a recommendation
 // draft before it is persisted to the project recommendation store.
 type RecommendationCandidate struct {

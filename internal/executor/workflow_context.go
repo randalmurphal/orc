@@ -350,11 +350,19 @@ func (we *WorkflowExecutor) populateControlPlaneContext(
 		return nil
 	}
 
+	signals, err := we.backend.LoadActiveAttentionSignals()
+	if err != nil {
+		return fmt.Errorf("load attention signals for control-plane context: %w", err)
+	}
 	tasks, err := we.backend.LoadAllTasks()
 	if err != nil {
 		return fmt.Errorf("load tasks for control-plane context: %w", err)
 	}
-	rctx.AttentionSummary = formatAttentionSignals(tasks)
+	signals = controlplane.MergeTaskAttentionSignals("", tasks, signals)
+	rctx.AttentionSummary, err = formatAttentionSignals(we.backend, signals)
+	if err != nil {
+		return fmt.Errorf("format attention signals for control-plane context: %w", err)
+	}
 	return nil
 }
 
@@ -406,42 +414,35 @@ func formatHandoffContext(
 	return controlplane.FormatHandoffPack(pack)
 }
 
-func formatAttentionSignals(tasks []*orcv1.Task) string {
-	signals := make([]controlplane.AttentionSignal, 0)
-	for _, taskItem := range tasks {
-		switch taskItem.GetStatus() {
-		case orcv1.TaskStatus_TASK_STATUS_BLOCKED, orcv1.TaskStatus_TASK_STATUS_FAILED:
-			signals = append(signals, controlplane.AttentionSignal{
-				Kind:    attentionKindName(taskItem.GetStatus()),
-				TaskID:  taskItem.GetId(),
-				Title:   taskItem.GetTitle(),
-				Status:  taskStatusName(taskItem.GetStatus()),
-				Phase:   task.GetCurrentPhaseProto(taskItem),
-				Summary: attentionSummaryForTask(taskItem),
-			})
+func formatAttentionSignals(
+	backend storage.Backend,
+	signals []*controlplane.PersistedAttentionSignal,
+) (string, error) {
+	promptSignals := make([]controlplane.AttentionSignal, 0, len(signals))
+	for _, persistedSignal := range signals {
+		if persistedSignal == nil {
+			continue
 		}
+
+		promptSignal, err := promptAttentionSignal(backend, persistedSignal)
+		if err != nil {
+			return "", err
+		}
+		promptSignals = append(promptSignals, promptSignal)
 	}
 
-	sort.Slice(signals, func(i, j int) bool {
-		return signals[i].TaskID < signals[j].TaskID
+	sort.Slice(promptSignals, func(i, j int) bool {
+		if promptSignals[i].TaskID == promptSignals[j].TaskID {
+			return promptSignals[i].Kind < promptSignals[j].Kind
+		}
+		return promptSignals[i].TaskID < promptSignals[j].TaskID
 	})
 
-	return controlplane.FormatAttentionSummary(signals)
+	return controlplane.FormatAttentionSummary(promptSignals), nil
 }
 
 func recommendationKindName(kind orcv1.RecommendationKind) string {
 	return strings.TrimPrefix(strings.ToLower(kind.String()), "recommendation_kind_")
-}
-
-func attentionKindName(status orcv1.TaskStatus) string {
-	switch status {
-	case orcv1.TaskStatus_TASK_STATUS_BLOCKED:
-		return "blocked_task"
-	case orcv1.TaskStatus_TASK_STATUS_FAILED:
-		return "failed_task"
-	default:
-		return ""
-	}
 }
 
 func taskStatusName(status orcv1.TaskStatus) string {
@@ -449,15 +450,105 @@ func taskStatusName(status orcv1.TaskStatus) string {
 }
 
 func attentionSummaryForTask(taskItem *orcv1.Task) string {
-	if taskItem == nil {
-		return ""
+	return controlplane.TaskAttentionSummary(taskItem)
+}
+
+func promptAttentionSignal(
+	backend storage.Backend,
+	persistedSignal *controlplane.PersistedAttentionSignal,
+) (controlplane.AttentionSignal, error) {
+	if persistedSignal == nil {
+		return controlplane.AttentionSignal{}, fmt.Errorf("attention signal is required")
 	}
-	if taskItem.Metadata != nil {
-		if blockedReason := taskItem.Metadata["blocked_reason"]; blockedReason != "" {
-			return blockedReason
+
+	promptSignal := controlplane.AttentionSignal{
+		Kind:    string(persistedSignal.Kind),
+		TaskID:  persistedSignal.ReferenceID,
+		Title:   persistedSignal.Title,
+		Status:  persistedSignal.Status,
+		Summary: persistedSignal.Summary,
+	}
+
+	switch persistedSignal.ReferenceType {
+	case controlplane.AttentionSignalReferenceTypeTask:
+		taskItem, err := backend.LoadTask(persistedSignal.ReferenceID)
+		if err != nil {
+			return controlplane.AttentionSignal{}, fmt.Errorf(
+				"load task %s for attention signal %s: %w",
+				persistedSignal.ReferenceID,
+				persistedSignal.ID,
+				err,
+			)
+		}
+		if taskItem == nil {
+			return controlplane.AttentionSignal{}, fmt.Errorf(
+				"task %s for attention signal %s not found",
+				persistedSignal.ReferenceID,
+				persistedSignal.ID,
+			)
+		}
+
+		promptSignal.TaskID = taskItem.GetId()
+		if promptSignal.Title == "" {
+			promptSignal.Title = taskItem.GetTitle()
+		}
+		if promptSignal.Status == "" {
+			promptSignal.Status = taskStatusName(taskItem.GetStatus())
+		}
+		promptSignal.Phase = task.GetCurrentPhaseProto(taskItem)
+		if promptSignal.Summary == "" {
+			promptSignal.Summary = attentionSummaryForTask(taskItem)
+		}
+
+	case controlplane.AttentionSignalReferenceTypeRun:
+		run, err := backend.GetWorkflowRun(persistedSignal.ReferenceID)
+		if err != nil {
+			return controlplane.AttentionSignal{}, fmt.Errorf(
+				"load run %s for attention signal %s: %w",
+				persistedSignal.ReferenceID,
+				persistedSignal.ID,
+				err,
+			)
+		}
+		if run == nil {
+			return controlplane.AttentionSignal{}, fmt.Errorf(
+				"run %s for attention signal %s not found",
+				persistedSignal.ReferenceID,
+				persistedSignal.ID,
+			)
+		}
+		if run.TaskID != nil && *run.TaskID != "" {
+			taskItem, err := backend.LoadTask(*run.TaskID)
+			if err != nil {
+				return controlplane.AttentionSignal{}, fmt.Errorf(
+					"load task %s for attention signal %s: %w",
+					*run.TaskID,
+					persistedSignal.ID,
+					err,
+				)
+			}
+			if taskItem == nil {
+				return controlplane.AttentionSignal{}, fmt.Errorf(
+					"task %s for attention signal %s not found",
+					*run.TaskID,
+					persistedSignal.ID,
+				)
+			}
+			promptSignal.TaskID = taskItem.GetId()
+			if promptSignal.Title == "" {
+				promptSignal.Title = taskItem.GetTitle()
+			}
+			if promptSignal.Status == "" {
+				promptSignal.Status = taskStatusName(taskItem.GetStatus())
+			}
+			promptSignal.Phase = task.GetCurrentPhaseProto(taskItem)
+			if promptSignal.Summary == "" {
+				promptSignal.Summary = attentionSummaryForTask(taskItem)
+			}
 		}
 	}
-	return task.GetDescriptionProto(taskItem)
+
+	return promptSignal, nil
 }
 
 func handoffNextSteps(taskID string, recommendations []*orcv1.Recommendation) []string {

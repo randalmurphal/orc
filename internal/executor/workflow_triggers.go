@@ -8,6 +8,7 @@ import (
 	"errors"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/trigger"
 	"github.com/randalmurphal/orc/internal/workflow"
@@ -110,6 +111,10 @@ func (we *WorkflowExecutor) handleCompletionWithTriggers(
 			task.UpdateTimestampProto(t)
 			if saveErr := we.backend.SaveTask(t); saveErr != nil {
 				we.logger.Error("failed to save blocked task after gate rejection",
+					"task_id", t.Id, "error", saveErr)
+			}
+			if saveErr := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusBlocked, rejErr.Reason); saveErr != nil {
+				we.logger.Error("failed to save blocked-task attention signal after gate rejection",
 					"task_id", t.Id, "error", saveErr)
 			}
 			return err

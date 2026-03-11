@@ -7,6 +7,7 @@ import (
 	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
@@ -245,6 +246,13 @@ type Backend interface {
 	UpdateRecommendationStatus(id string, status orcv1.RecommendationStatus, decidedBy, decisionReason string) (*orcv1.Recommendation, error)
 	CountRecommendationsByStatus(status orcv1.RecommendationStatus) (int, error)
 	GetNextRecommendationID() (string, error)
+
+	// Attention signal operations (project-scoped operator inbox)
+	SaveAttentionSignal(signal *controlplane.PersistedAttentionSignal) error
+	LoadAttentionSignal(id string) (*controlplane.PersistedAttentionSignal, error)
+	LoadActiveAttentionSignals() ([]*controlplane.PersistedAttentionSignal, error)
+	ResolveAttentionSignal(id string, resolvedBy string) (*controlplane.PersistedAttentionSignal, error)
+	CountActiveAttentionSignals() (int, error)
 
 	// Phase output operations (unified storage for all phase artifacts)
 	SavePhaseOutput(output *PhaseOutputInfo) error

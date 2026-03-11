@@ -5,9 +5,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"unicode"
-
-	"github.com/randalmurphal/orc/internal/db"
 )
 
 func TestSchemaRoundTrip(t *testing.T) {
@@ -41,6 +38,20 @@ func TestSchemaRoundTrip(t *testing.T) {
 				Summary: "Schema owner approval is still pending.",
 			},
 			jsonField: `"task_id":"TASK-101"`,
+		},
+		{
+			name: "persisted attention signal",
+			value: PersistedAttentionSignal{
+				ID:            "ATT-001",
+				ProjectID:     "proj-001",
+				Kind:          AttentionSignalKindBlocker,
+				Status:        AttentionSignalStatusBlocked,
+				ReferenceType: AttentionSignalReferenceTypeTask,
+				ReferenceID:   "TASK-101",
+				Title:         "Wait on schema review",
+				Summary:       "Schema owner approval is still pending.",
+			},
+			jsonField: `"reference_type":"task"`,
 		},
 		{
 			name: "promoted draft",
@@ -224,31 +235,6 @@ func TestLimitsRecommendationSummary(t *testing.T) {
 	}
 }
 
-func TestSchemaParity(t *testing.T) {
-	t.Parallel()
-
-	candidateType := reflect.TypeOf(RecommendationCandidate{})
-	dbType := reflect.TypeOf(db.Recommendation{})
-
-	sharedFields := []string{"Kind", "Title", "Summary", "ProposedAction", "Evidence", "DedupeKey"}
-	for _, fieldName := range sharedFields {
-		candidateField, ok := candidateType.FieldByName(fieldName)
-		if !ok {
-			t.Fatalf("RecommendationCandidate missing field %s", fieldName)
-		}
-		dbField, ok := dbType.FieldByName(fieldName)
-		if !ok {
-			t.Fatalf("db.Recommendation missing field %s", fieldName)
-		}
-
-		candidateJSONName := jsonFieldName(candidateField)
-		dbJSONName := snakeCase(dbField.Name)
-		if candidateJSONName != dbJSONName {
-			t.Fatalf("%s json name mismatch: candidate=%s db=%s", fieldName, candidateJSONName, dbJSONName)
-		}
-	}
-}
-
 func buildAttentionSignals(count int) []AttentionSignal {
 	signals := make([]AttentionSignal, 0, count)
 	for i := 0; i < count; i++ {
@@ -272,21 +258,6 @@ func repeatedList(count int, value string) []string {
 	return items
 }
 
-func jsonFieldName(field reflect.StructField) string {
-	return strings.Split(field.Tag.Get("json"), ",")[0]
-}
-
-func snakeCase(value string) string {
-	var builder strings.Builder
-	for index, r := range value {
-		if unicode.IsUpper(r) {
-			if index > 0 {
-				builder.WriteByte('_')
-			}
-			builder.WriteRune(unicode.ToLower(r))
-			continue
-		}
-		builder.WriteRune(r)
-	}
-	return builder.String()
-}
+// Schema parity coverage lives in internal/db/schema_parity_test.go to avoid
+// a controlplane <-> db test import cycle once db/attention_signal.go imports
+// controlplane.

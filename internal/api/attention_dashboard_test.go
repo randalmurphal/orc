@@ -28,6 +28,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
+	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -61,6 +62,7 @@ func TestGetAttentionDashboardData_ReturnsThreeSections(t *testing.T) {
 	require.NoError(t, backend.SaveTask(runningTask))
 	require.NoError(t, backend.SaveTask(blockedTask))
 	require.NoError(t, backend.SaveTask(queuedTask))
+	saveAttentionSignalForTask(t, backend, blockedTask.Id, blockedTask.Title, controlplane.AttentionSignalStatusBlocked, "Blocked by task TASK-001")
 
 	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
@@ -200,6 +202,7 @@ func TestGetAttentionItems_IncludesBlockedTasks(t *testing.T) {
 	blockedTask.Priority = orcv1.TaskPriority_TASK_PRIORITY_HIGH
 
 	require.NoError(t, backend.SaveTask(blockedTask))
+	saveAttentionSignalForTask(t, backend, blockedTask.Id, blockedTask.Title, controlplane.AttentionSignalStatusBlocked, "Blocked by task TASK-001")
 
 	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
@@ -531,6 +534,9 @@ func TestGetAttentionItems_SortedByPriority(t *testing.T) {
 	require.NoError(t, backend.SaveTask(criticalTask))
 	require.NoError(t, backend.SaveTask(highTask))
 	require.NoError(t, backend.SaveTask(normalTask))
+	saveAttentionSignalForTask(t, backend, criticalTask.Id, criticalTask.Title, controlplane.AttentionSignalStatusBlocked, "Critical blocker")
+	saveAttentionSignalForTask(t, backend, highTask.Id, highTask.Title, controlplane.AttentionSignalStatusBlocked, "High-priority blocker")
+	saveAttentionSignalForTask(t, backend, normalTask.Id, normalTask.Title, controlplane.AttentionSignalStatusBlocked, "Normal blocker")
 
 	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
@@ -652,6 +658,7 @@ func TestAttentionDashboardData_CorrectDataFiltering(t *testing.T) {
 	require.NoError(t, backend.SaveTask(queuedNormal))
 	require.NoError(t, backend.SaveTask(queuedLow))
 	require.NoError(t, backend.SaveTask(completedTask))
+	saveAttentionSignalForTask(t, backend, blockedHighPriority.Id, blockedHighPriority.Title, controlplane.AttentionSignalStatusBlocked, "Blocked by dependency DEP-001")
 
 	server := NewAttentionDashboardServer(backend, nil, nil, nil)
 
@@ -906,9 +913,9 @@ func TestUpdateQueueOrganization_TaskReorder(t *testing.T) {
 	req := connect.NewRequest(&orcv1.UpdateQueueOrganizationRequest{
 		Update: &orcv1.UpdateQueueOrganizationRequest_TaskReorder{
 			TaskReorder: &orcv1.TaskReorderUpdate{
-				TaskId:               "TASK-006",
-				TargetInitiativeId:   "INIT-002",
-				NewPosition:          1,
+				TaskId:             "TASK-006",
+				TargetInitiativeId: "INIT-002",
+				NewPosition:        1,
 			},
 		},
 	})
@@ -947,9 +954,9 @@ func TestUpdateQueueOrganization_TaskReorderToUnassigned(t *testing.T) {
 	req := connect.NewRequest(&orcv1.UpdateQueueOrganizationRequest{
 		Update: &orcv1.UpdateQueueOrganizationRequest_TaskReorder{
 			TaskReorder: &orcv1.TaskReorderUpdate{
-				TaskId:               "TASK-007",
-				TargetInitiativeId:   "", // Empty = unassigned
-				NewPosition:          1,
+				TaskId:             "TASK-007",
+				TargetInitiativeId: "", // Empty = unassigned
+				NewPosition:        1,
 			},
 		},
 	})
@@ -975,9 +982,9 @@ func TestUpdateQueueOrganization_InvalidTaskReorder(t *testing.T) {
 	req := connect.NewRequest(&orcv1.UpdateQueueOrganizationRequest{
 		Update: &orcv1.UpdateQueueOrganizationRequest_TaskReorder{
 			TaskReorder: &orcv1.TaskReorderUpdate{
-				TaskId:               "NONEXISTENT",
-				TargetInitiativeId:   "INIT-002",
-				NewPosition:          1,
+				TaskId:             "NONEXISTENT",
+				TargetInitiativeId: "INIT-002",
+				NewPosition:        1,
 			},
 		},
 	})
@@ -1005,9 +1012,9 @@ func TestUpdateQueueOrganization_InvalidInitiative(t *testing.T) {
 	req := connect.NewRequest(&orcv1.UpdateQueueOrganizationRequest{
 		Update: &orcv1.UpdateQueueOrganizationRequest_TaskReorder{
 			TaskReorder: &orcv1.TaskReorderUpdate{
-				TaskId:               "TASK-008",
-				TargetInitiativeId:   "NONEXISTENT",
-				NewPosition:          1,
+				TaskId:             "TASK-008",
+				TargetInitiativeId: "NONEXISTENT",
+				NewPosition:        1,
 			},
 		},
 	})
@@ -1043,4 +1050,24 @@ func NewAttentionDashboardServerWithEventPublisher(backend storage.Backend, even
 	// This would be implemented to inject a custom event publisher
 	// for testing event publication in SC-7
 	return NewAttentionDashboardServer(backend, nil, nil, nil)
+}
+
+func saveAttentionSignalForTask(
+	t *testing.T,
+	backend *storage.DatabaseBackend,
+	taskID string,
+	title string,
+	status string,
+	summary string,
+) {
+	t.Helper()
+
+	require.NoError(t, backend.SaveAttentionSignal(&controlplane.PersistedAttentionSignal{
+		Kind:          controlplane.AttentionSignalKindBlocker,
+		Status:        status,
+		ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+		ReferenceID:   taskID,
+		Title:         title,
+		Summary:       summary,
+	}))
 }

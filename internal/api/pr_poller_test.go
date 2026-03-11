@@ -7,6 +7,7 @@ import (
 	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/initiative"
@@ -234,6 +235,19 @@ func (b *emptyBackend) CountRecommendationsByStatus(orcv1.RecommendationStatus) 
 	return 0, nil
 }
 func (b *emptyBackend) GetNextRecommendationID() (string, error) { return "", nil }
+func (b *emptyBackend) SaveAttentionSignal(*controlplane.PersistedAttentionSignal) error {
+	return nil
+}
+func (b *emptyBackend) LoadAttentionSignal(string) (*controlplane.PersistedAttentionSignal, error) {
+	return nil, nil
+}
+func (b *emptyBackend) LoadActiveAttentionSignals() ([]*controlplane.PersistedAttentionSignal, error) {
+	return nil, nil
+}
+func (b *emptyBackend) ResolveAttentionSignal(string, string) (*controlplane.PersistedAttentionSignal, error) {
+	return nil, nil
+}
+func (b *emptyBackend) CountActiveAttentionSignals() (int, error) { return 0, nil }
 
 // Phase output methods
 func (b *emptyBackend) SavePhaseOutput(*storage.PhaseOutputInfo) error { return nil }
