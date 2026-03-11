@@ -17,6 +17,46 @@ import (
 	"github.com/randalmurphal/orc/internal/workflow"
 )
 
+// finalizeBlockedRun marks the task blocked, terminalizes the workflow run, and
+// releases the executor claim. This is the fail-closed path for blocked work.
+func (we *WorkflowExecutor) finalizeBlockedRun(run *db.WorkflowRun, t *orcv1.Task, reason, blockedReason string) {
+	now := time.Now()
+
+	if run != nil {
+		run.Status = string(workflow.RunStatusCompleted)
+		run.Error = reason
+		run.CompletedAt = &now
+		if err := we.backend.SaveWorkflowRun(run); err != nil {
+			we.logger.Warn("failed to save blocked workflow run", "run", run.ID, "error", err)
+		}
+	}
+
+	if t == nil {
+		return
+	}
+
+	t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	task.EnsureMetadataProto(t)
+	if blockedReason != "" {
+		t.Metadata["blocked_reason"] = blockedReason
+	}
+	t.Metadata["blocked_error"] = reason
+	task.UpdateTimestampProto(t)
+	if we.task != nil {
+		task.SetErrorProto(we.task.Execution, reason)
+	}
+	if err := we.backend.SaveTask(t); err != nil {
+		we.logger.Warn("failed to save blocked task", "task_id", t.Id, "error", err)
+	}
+	if err := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusBlocked, reason); err != nil {
+		we.logger.Warn("failed to save blocked-task attention signal", "task_id", t.Id, "error", err)
+	}
+	if err := we.backend.ClearTaskExecutor(t.Id); err != nil {
+		we.logger.Warn("failed to clear task executor", "task_id", t.Id, "error", err)
+	}
+	we.publishTaskUpdated(t)
+}
+
 // failRun marks a run as failed and syncs task status.
 // Commits any work-in-progress before updating status to preserve changes.
 func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *orcv1.Task, err error) {

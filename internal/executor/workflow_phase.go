@@ -527,8 +527,10 @@ func (we *WorkflowExecutor) executePhase(
 			"raw_output_length", len(execResult.Content),
 		)
 	}
-	// Save structured phase output to phase_outputs table only for artifact-producing phases.
-	if tmpl.ProducesArtifact && result.Content != "" && t != nil {
+	// Save structured phase output to phase_outputs when the template explicitly
+	// declares an output variable or produces an artifact. Review phases need
+	// durable structured output even though they are not artifact-producing.
+	if result.Content != "" && t != nil && (tmpl.ProducesArtifact || tmpl.OutputVarName != "") {
 		// Use template's output variable name, fall back to OUTPUT_<PHASE_ID>
 		outputVarName := tmpl.OutputVarName
 		if outputVarName == "" {

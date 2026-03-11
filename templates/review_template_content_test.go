@@ -78,6 +78,8 @@ func TestReviewTemplate_IntegrationCompletenessSection(t *testing.T) {
 		{"never-called", "no defined-but-never-called functions (dead code)"},
 		{"interfaces", "new interfaces wired into the system"},
 		{"registered", "hooks/callbacks/triggers registered"},
+		{"alternate write", "hidden alternate write paths covered"},
+		{"mirrored linkage", "mirrored linkage parity checked"},
 	}
 
 	for _, item := range checklistItems {
@@ -107,6 +109,11 @@ func TestReviewRound1_IntegrationCompletenessChecks(t *testing.T) {
 	}
 	if !strings.Contains(lower, "called from") || !strings.Contains(lower, "production") {
 		t.Error("review_round1.md Integration Completeness should check functions called from production code")
+	}
+	for _, required := range []string{"alternate write", "mirrored linkage", "project-scoped cache", "distributed state parity"} {
+		if !strings.Contains(lower, required) {
+			t.Errorf("review_round1.md Integration Completeness missing %q", required)
+		}
 	}
 }
 
@@ -170,7 +177,7 @@ func TestReviewRound1_HighSeverityClassification(t *testing.T) {
 	// Verify they're associated with high severity.
 	// Find the section containing severity definitions and check both terms
 	// appear in context with "high"
-	severityTerms := []string{"dead code", "missing integration"}
+	severityTerms := []string{"dead code", "missing integration", "project-scoped cache", "distributed state parity"}
 	for _, term := range severityTerms {
 		termIdx := strings.Index(lower, term)
 		if termIdx == -1 {
@@ -182,6 +189,23 @@ func TestReviewRound1_HighSeverityClassification(t *testing.T) {
 		window := lower[start:end]
 		if !strings.Contains(window, "high") {
 			t.Errorf("%q should be associated with high severity in review_round1.md", term)
+		}
+	}
+}
+
+func TestReviewRound1_RequiresAlternateWritersScopedCachesAndParityChecks(t *testing.T) {
+	t.Parallel()
+
+	content := strings.ToLower(readReviewTemplate(t, "review_round1.md"))
+	for _, required := range []string{
+		"alternate write",
+		"mirrored linkage",
+		"project-scoped cache",
+		"local id",
+		"distributed state parity",
+	} {
+		if !strings.Contains(content, required) {
+			t.Errorf("review_round1.md missing exploratory check %q", required)
 		}
 	}
 }
@@ -268,12 +292,35 @@ func TestReviewTemplates_BlockEventDrivenAndProjectScopedGaps(t *testing.T) {
 				"atomicity",
 				"rollback",
 				"persisted",
+				"alternate write path",
+				"mirrored linkage",
+				"project-scoped cache",
+				"local id",
+				"source of truth",
+				"distributed state parity",
 			} {
 				if !strings.Contains(strings.ToLower(content), strings.ToLower(required)) {
 					t.Errorf("%s missing event-driven/project-scoped review guidance %q", file, required)
 				}
 			}
 		})
+	}
+}
+
+func TestReviewRound2_RechecksAlternateWritersScopedCachesAndParity(t *testing.T) {
+	t.Parallel()
+
+	content := strings.ToLower(readReviewTemplate(t, "review_round2.md"))
+	for _, required := range []string{
+		"alternate write",
+		"mirrored linkage",
+		"project-scoped caches",
+		"local id",
+		"distributed state parity",
+	} {
+		if !strings.Contains(content, required) {
+			t.Errorf("review_round2.md missing re-verification guidance %q", required)
+		}
 	}
 }
 

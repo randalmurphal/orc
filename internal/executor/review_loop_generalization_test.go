@@ -28,6 +28,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -566,7 +567,7 @@ func TestReviewLoop_RejectsAndRetriesThenApproves(t *testing.T) {
 }
 
 // =============================================================================
-// SC-11: Integration test: max loops exceeded continues forward
+// SC-11: Integration test: max loops exceeded on blocked review fails closed
 // =============================================================================
 
 func TestReviewLoop_MaxIterationsExceeded(t *testing.T) {
@@ -610,14 +611,24 @@ func TestReviewLoop_MaxIterationsExceeded(t *testing.T) {
 		Prompt:      "test max loops",
 	})
 
-	// Should complete (not fail) when max loops exceeded
-	if err != nil {
-		t.Fatalf("Run() should succeed when max_loops exceeded, got: %v", err)
+	if err == nil {
+		t.Fatal("Run() should block when review remains blocked after max_loops")
+	}
+	if !errors.Is(err, ErrTaskBlocked) {
+		t.Fatalf("Run() error = %v, want ErrTaskBlocked", err)
 	}
 
 	// Verify exactly 6 calls
 	if mock.CallCount() != 6 {
 		t.Errorf("mock call count = %d, want 6", mock.CallCount())
+	}
+
+	reloaded, loadErr := backend.LoadTask(tsk.Id)
+	if loadErr != nil {
+		t.Fatalf("load task: %v", loadErr)
+	}
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
+		t.Errorf("task status = %v, want BLOCKED", reloaded.Status)
 	}
 }
 

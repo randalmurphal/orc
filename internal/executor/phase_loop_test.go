@@ -11,29 +11,32 @@
 //   - Failure modes (invalid condition, missing target, forward reference)
 //
 // Coverage mapping:
-//   SC-1:  TestPhaseLoop_JSONConditionTriggersLoop
-//   SC-2:  TestPhaseLoop_ReviewImplementLoop
-//   SC-3:  TestPhaseLoop_MaxLoopsExceeded
-//   SC-4:  TestPhaseLoop_LegacyConditionCompat
-//   SC-5:  TestPhaseLoop_GateRetrySharesCounter
-//   SC-6:  TestPhaseLoop_NoRetryCountsMapForTaskContext
-//   SC-7:  TestPhaseLoop_EffectiveMaxForPhase (unit, covered in db tests)
-//   SC-8:  TestPhaseLoop_EventPublished
-//   SC-9:  TestPhaseLoop_NoEventOnMaxExceeded
-//   SC-10: (covered in events package tests)
+//
+//	SC-1:  TestPhaseLoop_JSONConditionTriggersLoop
+//	SC-2:  TestPhaseLoop_ReviewImplementLoop
+//	SC-3:  TestPhaseLoop_MaxLoopsExceeded
+//	SC-4:  TestPhaseLoop_LegacyConditionCompat
+//	SC-5:  TestPhaseLoop_GateRetrySharesCounter
+//	SC-6:  TestPhaseLoop_NoRetryCountsMapForTaskContext
+//	SC-7:  TestPhaseLoop_EffectiveMaxForPhase (unit, covered in db tests)
+//	SC-8:  TestPhaseLoop_EventPublished
+//	SC-9:  TestPhaseLoop_NoEventOnMaxExceeded
+//	SC-10: (covered in events package tests)
 //
 // Failure modes:
-//   TestPhaseLoop_InvalidCondition
-//   TestPhaseLoop_InvalidTarget
-//   TestPhaseLoop_ForwardReference
-//   TestPhaseLoop_MissingPhaseOutput
-//   TestPhaseLoop_EmptyCondition
-//   TestPhaseLoop_NonTaskContext
+//
+//	TestPhaseLoop_InvalidCondition
+//	TestPhaseLoop_InvalidTarget
+//	TestPhaseLoop_ForwardReference
+//	TestPhaseLoop_MissingPhaseOutput
+//	TestPhaseLoop_EmptyCondition
+//	TestPhaseLoop_NonTaskContext
 package executor
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"testing"
 
@@ -70,7 +73,7 @@ func (p *loopTestPublisher) Subscribe(taskID string) <-chan events.Event {
 }
 
 func (p *loopTestPublisher) Unsubscribe(taskID string, ch <-chan events.Event) {}
-func (p *loopTestPublisher) Close()                                             {}
+func (p *loopTestPublisher) Close()                                            {}
 
 // hasPhaseLoopEvent checks if a "looping" phase event was published.
 func (p *loopTestPublisher) hasPhaseLoopEvent(taskID, phase, loopTo string) bool {
@@ -292,7 +295,7 @@ func TestPhaseLoop_ReviewImplementLoop(t *testing.T) {
 }
 
 // =============================================================================
-// SC-3: Max loops exceeded → continues forward, does NOT fail
+// SC-3: Max loops exceeded on a blocked phase → fail closed
 // =============================================================================
 
 func TestPhaseLoop_MaxLoopsExceeded(t *testing.T) {
@@ -341,14 +344,24 @@ func TestPhaseLoop_MaxLoopsExceeded(t *testing.T) {
 		Prompt:      "test max loops",
 	})
 
-	// Task should complete (not fail) — max_loops exceeded continues forward
-	if err != nil {
-		t.Fatalf("Run() should succeed even when max_loops exceeded, got: %v", err)
+	if err == nil {
+		t.Fatal("Run() should block when max_loops is exhausted for a blocked phase")
+	}
+	if !errors.Is(err, ErrTaskBlocked) {
+		t.Fatalf("Run() error = %v, want ErrTaskBlocked", err)
 	}
 
 	// Verify exactly 6 calls: (impl+review) × 3
 	if mock.CallCount() != 6 {
 		t.Errorf("mock call count = %d, want 6", mock.CallCount())
+	}
+
+	reloaded, loadErr := backend.LoadTask(tsk.Id)
+	if loadErr != nil {
+		t.Fatalf("load task: %v", loadErr)
+	}
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
+		t.Errorf("task status = %v, want BLOCKED", reloaded.Status)
 	}
 }
 
@@ -429,10 +442,10 @@ func TestPhaseLoop_GateRetrySharesCounter(t *testing.T) {
 
 	// Save phase templates with retry config
 	implTmpl := &db.PhaseTemplate{
-		ID:            "implement",
-		Name:          "Implement",
-		PromptSource:  "embedded",
-		GateType:      "auto",
+		ID:           "implement",
+		Name:         "Implement",
+		PromptSource: "embedded",
+		GateType:     "auto",
 	}
 	reviewTmpl := &db.PhaseTemplate{
 		ID:             "review",
@@ -651,7 +664,7 @@ func TestPhaseLoop_NoEventOnMaxExceeded(t *testing.T) {
 	mock := &MockTurnExecutor{
 		Responses: []string{
 			`{"status": "complete", "summary": "Done"}`,
-			`{"needs_changes": true, "summary": "Issues"}`,    // Triggers loop 1
+			`{"needs_changes": true, "summary": "Issues"}`, // Triggers loop 1
 			`{"status": "complete", "summary": "Fixed"}`,
 			`{"needs_changes": true, "summary": "Still bad"}`, // Max exceeded, NO loop
 		},
@@ -671,8 +684,11 @@ func TestPhaseLoop_NoEventOnMaxExceeded(t *testing.T) {
 		TaskID:      tsk.Id,
 		Prompt:      "test no event on max",
 	})
-	if err != nil {
-		t.Fatalf("Run() error: %v", err)
+	if err == nil {
+		t.Fatal("Run() should block when a blocked phase exhausts max_loops")
+	}
+	if !errors.Is(err, ErrTaskBlocked) {
+		t.Fatalf("Run() error = %v, want ErrTaskBlocked", err)
 	}
 
 	// Should have exactly 1 loop event (from the first loop, not the exceeded one)
@@ -683,7 +699,7 @@ func TestPhaseLoop_NoEventOnMaxExceeded(t *testing.T) {
 }
 
 // =============================================================================
-// Failure mode: Invalid JSON condition → log warning, continue forward
+// Failure mode: Invalid JSON condition on blocked review → fail closed
 // =============================================================================
 
 func TestPhaseLoop_InvalidCondition(t *testing.T) {
@@ -715,14 +731,16 @@ func TestPhaseLoop_InvalidCondition(t *testing.T) {
 		WithSkipGates(true),
 	)
 
-	// Should NOT fail — invalid condition logs warning and continues forward
 	_, err := we.Run(context.Background(), "loop-wf", WorkflowRunOptions{
 		ContextType: ContextTask,
 		TaskID:      tsk.Id,
 		Prompt:      "test invalid condition",
 	})
-	if err != nil {
-		t.Fatalf("Run() should not fail on invalid loop condition, got: %v", err)
+	if err == nil {
+		t.Fatal("Run() should block on invalid loop condition for a blocked phase")
+	}
+	if !errors.Is(err, ErrTaskBlocked) {
+		t.Fatalf("Run() error = %v, want ErrTaskBlocked", err)
 	}
 
 	// Verify NO loop happened (2 calls: implement + review)
@@ -732,7 +750,7 @@ func TestPhaseLoop_InvalidCondition(t *testing.T) {
 }
 
 // =============================================================================
-// Failure mode: loop_to_phase references non-existent phase
+// Failure mode: loop_to_phase references non-existent phase on blocked review
 // =============================================================================
 
 func TestPhaseLoop_InvalidTarget(t *testing.T) {
@@ -791,14 +809,16 @@ func TestPhaseLoop_InvalidTarget(t *testing.T) {
 		WithSkipGates(true),
 	)
 
-	// Should NOT fail — nonexistent target logs warning and continues forward
 	_, err := we.Run(context.Background(), "invalid-target-wf", WorkflowRunOptions{
 		ContextType: ContextTask,
 		TaskID:      tsk.Id,
 		Prompt:      "test bad target",
 	})
-	if err != nil {
-		t.Fatalf("Run() should not fail on invalid loop target, got: %v", err)
+	if err == nil {
+		t.Fatal("Run() should block on invalid loop target for a blocked phase")
+	}
+	if !errors.Is(err, ErrTaskBlocked) {
+		t.Fatalf("Run() error = %v, want ErrTaskBlocked", err)
 	}
 
 	// No loop should occur (2 calls only)
@@ -982,7 +1002,7 @@ func TestPhaseLoop_MaxLoopsOne(t *testing.T) {
 			`{"status": "complete", "summary": "Done"}`,
 			`{"needs_changes": true, "summary": "Issues"}`, // Loop 1
 			`{"status": "complete", "summary": "Fixed"}`,
-			`{"needs_changes": true, "summary": "More"}`,   // Max reached → no loop
+			`{"needs_changes": true, "summary": "More"}`, // Max reached → no loop
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -999,8 +1019,11 @@ func TestPhaseLoop_MaxLoopsOne(t *testing.T) {
 		TaskID:      tsk.Id,
 		Prompt:      "test max 1",
 	})
-	if err != nil {
-		t.Fatalf("Run() error: %v", err)
+	if err == nil {
+		t.Fatal("Run() should block when a blocked phase exhausts max_loops")
+	}
+	if !errors.Is(err, ErrTaskBlocked) {
+		t.Fatalf("Run() error = %v, want ErrTaskBlocked", err)
 	}
 
 	// 4 calls: impl, review(loop), impl, review(max reached, no loop)
@@ -1058,7 +1081,7 @@ func TestPhaseLoop_FinalPhaseLoop(t *testing.T) {
 			`{"status": "complete", "summary": "Done"}`,
 			`{"needs_changes": true, "summary": "Issues"}`, // Loop back
 			`{"status": "complete", "summary": "Fixed"}`,
-			`{"needs_changes": false, "summary": "All good"}`,    // Complete
+			`{"needs_changes": false, "summary": "All good"}`, // Complete
 		},
 		SessionIDValue: "mock-session",
 	}
@@ -1173,7 +1196,7 @@ func TestPhaseLoop_VarsSurviveLoop(t *testing.T) {
 	// Simulate what the loop block does: reset phases but keep vars/PriorOutputs
 	// The vars map and rctx.PriorOutputs must NOT be cleared
 	vars := variable.VariableSet{
-		"SPEC_CONTENT": "original spec",
+		"SPEC_CONTENT":  "original spec",
 		"REVIEW_OUTPUT": `{"findings": "issue A"}`,
 	}
 

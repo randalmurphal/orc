@@ -8,6 +8,7 @@ prompt_path: prompts/review.md
 input_variables: ["SPEC_CONTENT", "REVIEW_ROUND", "REVIEW_FINDINGS"]
 output_type: none
 produces_artifact: false
+output_var_name: OUTPUT_REVIEW
 
 thinking: true
 gate_type: auto

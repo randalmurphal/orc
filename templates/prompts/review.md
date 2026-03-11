@@ -352,6 +352,17 @@ If the diff adds or changes events, subscriptions, dashboards, inboxes, live vie
 
 Missing project scoping, stale live state, or notification-only wiring on an operator surface are HIGH-SEVERITY findings. Block them.
 
+## Check 6c: Alternate Writers, Mirrored State, and Scoped Caches (CRITICAL)
+
+If the diff changes a source of truth, promotion flow, acceptance path, persisted summary, or project-scoped browser state:
+
+- Verify all alternate write paths are covered, not just the obvious new RPC or helper. Check retries, imports, repair jobs, admin/operator flows, background jobs, and failure recovery paths.
+- Verify mirrored linkage or join tables stay in create/update/delete parity with the source of truth, including cleanup and delete paths.
+- Verify project-scoped caches, browser-local state, and memoized UI stores key by project or tenant scope plus a stable identifier. Local ID alone is a blocking correctness bug.
+- Verify distributed state parity across DB rows, mirrored tables, caches, events, and browser-visible summaries. The branch must make the source of truth obvious and keep duplicates synchronized.
+
+Missing alternate writers, mirrored-table parity, scoped cache keys, or distributed state parity are HIGH-SEVERITY findings. Block them.
+
 ## Check 7: Behavioral Parity (CRITICAL for parallel/concurrent code)
 
 **If the implementation adds a new execution path (parallel, async, alternate mode):**
@@ -412,6 +423,7 @@ Treat the following as review-critical by default, not optional polish:
 - Replacing computed/live reconstruction with persisted/materialized state without proving rollout parity for pre-existing data and in-flight states
 - New stored state that is not kept in sync by every production transition, retry path, or failure path that mutates the underlying truth; missing transition coverage is a blocking issue
 - Multi-write operator actions that can partially succeed without atomicity or explicit rollback, leaving operator-visible state inconsistent
+- Custom ad hoc verification harnesses that replace an existing repo command, fixture, or browser path without proving the standard path was insufficient
 
 ## Check 10: Simplicity, Maintainability, and Tests
 
@@ -435,11 +447,12 @@ If the code is significantly more complex than required, or tests do not convinc
 6. For any new repeated/shared path work, explicitly verify the cost model and whether whole-project scans, broad state reconstruction, or eager loading were introduced
 7. For any new optional context or derived state, explicitly verify whether "no data" and "failed to load" are distinct outcomes and whether the implementation/test suite handles that intentionally
 8. If the diff replaces computed/live behavior with persisted/materialized state, explicitly verify rollout parity, transition coverage, and atomicity or rollback for multi-write operator actions
+9. If the diff changes a source of truth, explicitly verify alternate writers, mirrored linkage parity, project-scoped cache keys, and distributed state parity
 {{#if SUPPORTS_SUBAGENTS}}
-9. Wait for sub-agent results and incorporate their findings
+10. Wait for sub-agent results and incorporate their findings
 {{/if}}
-10. If you made small fixes, commit them
-11. Output your structured response with the appropriate outcome
+11. If you made small fixes, commit them
+12. Output your structured response with the appropriate outcome
 {{#if SUPPORTS_SUBAGENTS}}
 
 **Your final decision must account for ALL sub-agent findings.** If a sub-agent found a high-severity issue, you must block even if your own review found nothing.

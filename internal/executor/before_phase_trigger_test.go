@@ -2,11 +2,14 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"log/slog"
 	"testing"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/trigger"
@@ -21,7 +24,7 @@ func TestBeforePhaseTrigger_GateMode(t *testing.T) {
 
 	// Create a task and workflow with a before-phase trigger on implement
 	tsk := task.NewProtoTask("TASK-001", "Test before-phase gate")
-		tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -80,7 +83,7 @@ func TestBeforePhaseTrigger_ReactionMode(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tsk := task.NewProtoTask("TASK-001", "Test reaction trigger")
-		tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -128,14 +131,14 @@ func TestBeforePhaseTrigger_OutputVariable(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	tsk := task.NewProtoTask("TASK-001", "Test output variable")
-		tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
 	mockRunner := &mockTriggerRunner{
 		beforePhaseResult: &trigger.BeforePhaseTriggerResult{
-			Blocked:     false,
+			Blocked: false,
 			UpdatedVars: map[string]string{
 				"validation_result": "all checks passed",
 				"existing_var":      "preserved",
@@ -276,6 +279,94 @@ func TestBeforePhaseTrigger_SkippedOnResume(t *testing.T) {
 	// The executor's phase loop handles this, but the evaluateBeforePhaseTriggers
 	// method should also be safe to call (no-op or normal evaluation).
 	_ = result // The key assertion is that it doesn't panic or error
+}
+
+func TestRun_BlockedBeforePhaseTrigger_FinalizesRunAndClearsExecutor(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	gdb := testGlobalDBFrom(backend)
+
+	if err := gdb.SaveWorkflow(&db.Workflow{ID: "before-trigger-wf", Name: "Before Trigger Workflow"}); err != nil {
+		t.Fatalf("save workflow: %v", err)
+	}
+	if err := gdb.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:            "implement",
+		Name:          "implement",
+		PromptSource:  "db",
+		PromptContent: "unused",
+	}); err != nil {
+		t.Fatalf("save phase template: %v", err)
+	}
+
+	beforeTriggers, err := json.Marshal([]workflow.BeforePhaseTrigger{{
+		AgentID: "validator-agent",
+		Mode:    workflow.GateModeGate,
+	}})
+	if err != nil {
+		t.Fatalf("marshal before triggers: %v", err)
+	}
+
+	if err := gdb.SaveWorkflowPhase(&db.WorkflowPhase{
+		WorkflowID:      "before-trigger-wf",
+		PhaseTemplateID: "implement",
+		Sequence:        1,
+		BeforeTriggers:  string(beforeTriggers),
+	}); err != nil {
+		t.Fatalf("save workflow phase: %v", err)
+	}
+
+	tsk := task.NewProtoTask("TASK-BTRIGGER-001", "Blocked before-phase trigger")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	wfID := "before-trigger-wf"
+	tsk.WorkflowId = &wfID
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	we := NewWorkflowExecutor(
+		backend, backend.DB(), gdb, &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowTriggerRunner(&mockTriggerRunner{
+			beforePhaseResult: &trigger.BeforePhaseTriggerResult{
+				Blocked:       true,
+				BlockedReason: "precondition validation failed",
+			},
+		}),
+	)
+
+	_, runErr := we.Run(context.Background(), "before-trigger-wf", WorkflowRunOptions{
+		ContextType: ContextTask,
+		TaskID:      tsk.Id,
+	})
+	if runErr == nil {
+		t.Fatal("Run() should block when before-phase trigger blocks")
+	}
+	if !errors.Is(runErr, ErrTaskBlocked) {
+		t.Fatalf("Run() error = %v, want ErrTaskBlocked", runErr)
+	}
+
+	updated, err := backend.LoadTask(tsk.Id)
+	if err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+	if updated.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
+		t.Errorf("task status = %v, want BLOCKED", updated.Status)
+	}
+	if updated.ExecutorPid != 0 {
+		t.Errorf("executor pid = %d, want 0 after blocked run", updated.ExecutorPid)
+	}
+
+	runs, err := backend.ListWorkflowRuns(db.WorkflowRunListOpts{TaskID: tsk.Id})
+	if err != nil {
+		t.Fatalf("list workflow runs: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("workflow runs = %d, want 1", len(runs))
+	}
+	if runs[0].Status != string(workflow.RunStatusCompleted) {
+		t.Errorf("run status = %q, want %q", runs[0].Status, workflow.RunStatusCompleted)
+	}
 }
 
 // --- Mock for TriggerRunner interface used by executor ---

@@ -930,6 +930,67 @@ func TestRetryFlowPreservesPhaseOutputVars(t *testing.T) {
 	}
 }
 
+func TestReviewPhaseOutputIsPersistedWhenOutputVarConfigured(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	gdb := testGlobalDBFrom(backend)
+
+	if err := gdb.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:            "review",
+		Name:          "review",
+		PromptSource:  "db",
+		PromptContent: "Review the branch.",
+		OutputVarName: "OUTPUT_REVIEW",
+	}); err != nil {
+		t.Fatalf("save review template: %v", err)
+	}
+
+	setupSinglePhaseWorkflow(t, backend, "review-output-wf", "review")
+
+	tsk := task.NewProtoTask("TASK-REVIEW-OUTPUT-001", "Persist review output")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	wfID := "review-output-wf"
+	tsk.WorkflowId = &wfID
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	mockTE := &MockTurnExecutor{
+		Responses:      []string{`{"needs_changes": false, "summary": "Looks good", "details": "No blocking issues."}`},
+		SessionIDValue: "mock-session",
+	}
+
+	we := NewWorkflowExecutor(
+		backend, backend.DB(), gdb, &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowTurnExecutor(mockTE),
+		WithSkipGates(true),
+	)
+
+	runResult, err := we.Run(context.Background(), "review-output-wf", WorkflowRunOptions{
+		ContextType: ContextTask,
+		TaskID:      tsk.Id,
+	})
+	if err != nil {
+		t.Fatalf("Run() error: %v", err)
+	}
+
+	output, err := backend.GetPhaseOutput(runResult.RunID, "review")
+	if err != nil {
+		t.Fatalf("get phase output: %v", err)
+	}
+	if output == nil {
+		t.Fatal("expected persisted review phase output")
+	}
+	if output.OutputVarName != "OUTPUT_REVIEW" {
+		t.Errorf("output var name = %q, want %q", output.OutputVarName, "OUTPUT_REVIEW")
+	}
+	if output.Content == "" {
+		t.Error("expected persisted review content to be non-empty")
+	}
+}
+
 // SC-6: Integration test — retried phase's rendered prompt contains the gate
 // output variable from the rejecting gate.
 //
@@ -1012,8 +1073,8 @@ func TestRetryFlowPreservesGateOutputVars(t *testing.T) {
 				reviewCallCount++
 				if reviewCallCount == 1 {
 					return &gate.Decision{
-						Approved: false,
-						Reason:   "needs fixes",
+						Approved:  false,
+						Reason:    "needs fixes",
 						OutputVar: "GATE_REVIEW",
 						OutputData: map[string]any{
 							"verdict":  "needs_fix",

@@ -362,6 +362,10 @@ If you added a new execution path that mirrors an existing one:
   - State updates
   - Error handling
   - Logging/metrics
+  - Hidden alternate write paths (retries, imports, repair jobs, admin/operator flows, failure recovery)
+  - Mirrored linkage or join-table updates
+  - Project-scoped cache key parity for project-scoped caches
+  - Distributed state parity across DB, cache, events, and browser-visible summaries
 
 ### Integration Verification
 
@@ -386,6 +390,11 @@ Execute all checks and include evidence for each in your completion output:
 12. **Rollout parity check** — If the diff replaces computed/live reconstruction with persisted/materialized state, verify rollout parity for pre-existing data and in-flight states before any backfill or migration completes.
 13. **Transition coverage check** — Inventory every production transition that mutates the new stored state, including operator actions, standard RPCs, retries, background paths, and failure paths.
 14. **Atomicity/rollback check** — If an operator action performs multiple writes, prove the action provides atomicity or explicit rollback so partial failure cannot leave the visible state inconsistent.
+15. **Alternate writer check** — Grep for all alternate write paths to the affected truth, not just the obvious new call site.
+16. **Mirrored linkage parity check** — If relationship state is stored in a mirrored linkage or join table, prove create/update/delete parity across both representations.
+17. **Project-scoped cache key check** — If browser-local state, project-scoped caches, or memoized stores are involved, prove every get/set/delete key includes project or tenant scope. `local-ID-only` keys are not sufficient, and local ID alone is not sufficient.
+18. **Distributed state parity check** — If the feature duplicates state across DB rows, mirrored tables, caches, events, or browser-visible summaries, identify the source of truth and prove distributed state parity across the copies.
+19. **Bounded discovery check** — Use the smallest set of production paths and existing repo verification flows needed to prove the task. Do not build ad hoc harnesses unless the normal path cannot validate the behavior.
 
 **Only output completion JSON after all checks pass.** See Output Format for the exact schema.
 

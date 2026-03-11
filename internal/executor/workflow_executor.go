@@ -371,16 +371,16 @@ func NewWorkflowExecutor(
 	opts ...WorkflowExecutorOption,
 ) *WorkflowExecutor {
 	we := &WorkflowExecutor{
-		backend:       backend,
-		projectDB:     projectDB,
-		globalDB:      globalDB,
-		orcConfig:     orcConfig,
-		resolver:      variable.NewResolver(workingDir),
-		gateEvaluator: gate.New(),
-		workingDir:    workingDir,
-		logger:        slog.Default(),
-		claudePath:    "claude",
-		publisher:     events.NewPublishHelper(nil), // Initialize with nil-safe wrapper
+		backend:          backend,
+		projectDB:        projectDB,
+		globalDB:         globalDB,
+		orcConfig:        orcConfig,
+		resolver:         variable.NewResolver(workingDir),
+		gateEvaluator:    gate.New(),
+		workingDir:       workingDir,
+		logger:           slog.Default(),
+		claudePath:       "claude",
+		publisher:        events.NewPublishHelper(nil), // Initialize with nil-safe wrapper
 		pendingDecisions: gate.NewPendingDecisionStore(),
 	}
 
@@ -935,21 +935,13 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		}
 		triggerResult := we.evaluateBeforePhaseTriggers(execCtx, wfPhase, t, vars)
 		if triggerResult.Blocked {
-			we.logger.Info("phase blocked by before-phase trigger",
-				"phase", tmpl.ID,
-				"reason", triggerResult.BlockedReason,
-			)
-			if t != nil {
-				t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
-				task.SetErrorProto(we.task.Execution, fmt.Sprintf("blocked by trigger: %s", triggerResult.BlockedReason))
-				if err := we.backend.SaveTask(t); err != nil {
-					we.logger.Warn("failed to save blocked task", "error", err)
-				}
-				if err := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusBlocked, triggerResult.BlockedReason); err != nil {
-					we.logger.Warn("failed to save blocked-task attention signal", "task_id", t.Id, "error", err)
-				}
-			}
-			return result, fmt.Errorf("blocked by before-phase trigger: %s", triggerResult.BlockedReason)
+			reason := fmt.Sprintf("blocked by before-phase trigger: %s", triggerResult.BlockedReason)
+			we.logger.Info("phase blocked by before-phase trigger", "phase", tmpl.ID, "reason", triggerResult.BlockedReason)
+			we.finalizeBlockedRun(run, t, reason, "before_phase_trigger")
+			result.Success = false
+			result.Error = reason
+			result.CompletedAt = run.CompletedAt
+			return result, fmt.Errorf("%w: %s", ErrTaskBlocked, reason)
 		}
 		// Apply any updated variables from triggers
 		if triggerResult.UpdatedVars != nil {
@@ -1015,11 +1007,19 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			}
 		}
 
+		blockOnLoopFailure := false
+		blockedLoopReason := ""
+
 		// Check for loop configuration and handle iterative loops
 		if phase.LoopConfig != "" {
 			loopCfg, loopErr := db.ParseLoopConfig(phase.LoopConfig)
 			if loopErr != nil {
-				we.logger.Warn("invalid loop config", "phase", tmpl.ID, "error", loopErr)
+				if phaseResult.BlockedReason != "" {
+					blockOnLoopFailure = true
+					blockedLoopReason = fmt.Sprintf("invalid loop config for blocked phase %s: %v", tmpl.ID, loopErr)
+				} else {
+					we.logger.Warn("invalid loop config", "phase", tmpl.ID, "error", loopErr)
+				}
 			} else if loopCfg != nil && len(loopCfg.Condition) > 0 {
 				maxLoops := loopCfg.EffectiveMaxLoops()
 				if we.maxLoopOverride > 0 && maxLoops > we.maxLoopOverride {
@@ -1045,8 +1045,12 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					}
 					condResult, condErr := EvaluateCondition(string(loopCfg.Condition), condCtx)
 					if condErr != nil {
-						we.logger.Warn("invalid loop condition", "phase", tmpl.ID, "error", condErr)
-						// Fail-safe: continue forward (no loop)
+						if phaseResult.BlockedReason != "" {
+							blockOnLoopFailure = true
+							blockedLoopReason = fmt.Sprintf("invalid loop condition for blocked phase %s: %v", tmpl.ID, condErr)
+						} else {
+							we.logger.Warn("invalid loop condition", "phase", tmpl.ID, "error", condErr)
+						}
 					} else {
 						shouldLoop = condResult
 					}
@@ -1073,10 +1077,15 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					}
 
 					if loopIdx < 0 {
-						we.logger.Warn("loop target phase not found",
-							"phase", tmpl.ID,
-							"loop_to", loopCfg.LoopToPhase,
-						)
+						if phaseResult.BlockedReason != "" {
+							blockOnLoopFailure = true
+							blockedLoopReason = fmt.Sprintf("loop target phase %q not found for blocked phase %s", loopCfg.LoopToPhase, tmpl.ID)
+						} else {
+							we.logger.Warn("loop target phase not found",
+								"phase", tmpl.ID,
+								"loop_to", loopCfg.LoopToPhase,
+							)
+						}
 					} else {
 						// Increment loop counter
 						loopCount++
@@ -1155,28 +1164,42 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						continue
 					}
 				} else if shouldLoop {
-					we.logger.Info("max loop iterations reached",
-						"phase", tmpl.ID,
-						"loop_count", loopCount,
-						"max_loops", maxLoops,
-					)
+					if phaseResult.BlockedReason != "" {
+						blockOnLoopFailure = true
+						blockedLoopReason = fmt.Sprintf("blocked phase %s still requires changes after %d loop iterations", tmpl.ID, loopCount)
+					} else {
+						we.logger.Info("max loop iterations reached",
+							"phase", tmpl.ID,
+							"loop_count", loopCount,
+							"max_loops", maxLoops,
+						)
+					}
 				}
 			}
 		}
 
+		if blockOnLoopFailure {
+			reason := blockedLoopReason
+			if reason == "" {
+				reason = fmt.Sprintf("blocked phase %s could not continue looping safely", tmpl.ID)
+			}
+			we.logger.Info("blocked phase cannot continue after loop evaluation", "phase", tmpl.ID, "reason", reason)
+			we.finalizeBlockedRun(run, t, reason, "review_loop_exhausted")
+			result.Success = false
+			result.Error = reason
+			result.CompletedAt = run.CompletedAt
+			return result, fmt.Errorf("%w: %s", ErrTaskBlocked, reason)
+		}
+
 		// Evaluate phase gate
-		// For blocked phases, bypass gate evaluation and force rejection
 		gateResult, gateErr := we.evaluatePhaseGate(ctx, tmpl, phase, phaseResult.Content, t, rctx)
 		if gateErr != nil {
-			we.logger.Warn("gate evaluation failed", "phase", tmpl.ID, "error", gateErr)
-			// Continue on gate error - don't block automation
+			we.failRun(run, t, fmt.Errorf("evaluate gate for %s: %w", tmpl.ID, gateErr))
+			return result, gateErr
 		}
 
 		// Handle blocked phases: force gate rejection to trigger retry.
-		// Skip this when a loop config exists — the loop system already evaluated
-		// the blocked state and decided whether to loop back. If it didn't loop
-		// (max reached, invalid condition, invalid target), proceed forward.
-		if phaseResult.BlockedReason != "" && phase.LoopConfig == "" {
+		if phaseResult.BlockedReason != "" {
 			we.logger.Info("phase blocked, forcing gate rejection for retry",
 				"phase", tmpl.ID,
 				"reason", phaseResult.BlockedReason,
@@ -1202,24 +1225,13 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			// Handle gate decision
 			if gateResult.Pending {
 				// Task is blocked waiting for human decision
+				reason := fmt.Sprintf("blocked at gate: %s (phase %s)", gateResult.Reason, tmpl.ID)
 				we.logger.Info("gate decision pending", "phase", tmpl.ID)
-				if t != nil {
-					t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
-					if err := we.backend.SaveTask(t); err != nil {
-						we.logger.Error("failed to save blocked task", "error", err)
-					}
-					if err := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusBlocked, gateResult.Reason); err != nil {
-						we.logger.Warn("failed to save blocked-task attention signal", "task_id", t.Id, "error", err)
-					}
-				}
-				if we.task != nil {
-					errMsg := fmt.Sprintf("blocked at gate: %s (phase %s)", gateResult.Reason, tmpl.ID)
-					task.SetErrorProto(we.task.Execution, errMsg)
-					if err := we.backend.SaveTask(we.task); err != nil {
-						we.logger.Warn("failed to save blocked state", "error", err)
-					}
-				}
-				return result, fmt.Errorf("blocked at gate: %s", gateResult.Reason)
+				we.finalizeBlockedRun(run, t, reason, "gate_pending")
+				result.Success = false
+				result.Error = reason
+				result.CompletedAt = run.CompletedAt
+				return result, fmt.Errorf("%w: %s", ErrTaskBlocked, reason)
 			}
 
 			if !gateResult.Approved {
@@ -1238,6 +1250,11 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 				switch rejectedAction {
 				case workflow.GateActionSkipPhase, workflow.GateActionContinue:
+					if we.phaseRequiresPassingReview(tmpl.ID) {
+						failErr := fmt.Errorf("review did not pass: %s", gateResult.Reason)
+						we.failGateRejection(run, t, failErr)
+						return result, failErr
+					}
 					// skip_phase / continue: don't retry or fail, proceed to next phase
 					we.logger.Info("gate rejected, action allows continuation",
 						"phase", tmpl.ID,
@@ -1599,6 +1616,13 @@ type PhaseResult struct {
 }
 
 // Helper functions
+
+func (we *WorkflowExecutor) phaseRequiresPassingReview(phaseID string) bool {
+	if we.orcConfig == nil || !we.orcConfig.Review.RequirePass {
+		return false
+	}
+	return phaseID == "review" || phaseID == "review_cross"
+}
 
 // applyPhaseContentToVars updates variable maps with phase output content.
 // Called both when resuming from completed phases and after phase completion.

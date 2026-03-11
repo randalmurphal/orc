@@ -25,7 +25,7 @@ The most common failure is missing integration completeness issues — dead code
 | Severity | Criteria |
 |----------|----------|
 | **critical** | Incomplete updates (missed dependents), removed preserved functionality |
-| **high** | Bugs, security issues, incorrect behavior, dead code, missing integration, obvious performance regressions on important paths |
+| **high** | Bugs, security issues, incorrect behavior, dead code, missing integration, obvious performance regressions on important paths, alternate writers, mirrored linkage drift, project-scoped cache bugs, distributed state parity gaps |
 | **medium** | Missing edge cases, unclear code, unnecessary complexity, weak or incomplete tests |
 | **low** | Style issues, minor improvements, suggestions |
 </critical_constraints>
@@ -101,6 +101,10 @@ For each issue, determine if it violates the constitution:
 - [ ] No defined-but-never-called functions exist (dead code)
 - [ ] New interfaces have implementations wired into the system
 - [ ] If the task adds hooks/callbacks/triggers, they are registered
+- [ ] Hidden alternate write paths are covered, not just the obvious new RPC or helper
+- [ ] Mirrored linkage or join tables stay in create/update/delete parity with the source of truth
+- [ ] Project-scoped caches and browser-local state key by project or tenant scope, not local ID alone
+- [ ] Distributed state parity holds across DB rows, mirrored tables, caches, events, and browser-visible summaries
 
 ## Step 3: Document Findings
 
@@ -111,4 +115,5 @@ When deciding severity, bias toward blocking if the issue affects:
 - performance on a hot or scalable path
 - code simplicity or maintainability enough to obscure correctness
 - test coverage for critical behavior or failure modes
+- alternate writers, mirrored linkage state, project-scoped cache keys, or distributed state parity
 </instructions>

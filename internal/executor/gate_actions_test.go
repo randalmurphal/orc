@@ -2,37 +2,41 @@
 //
 // These tests define the contract for gate output action resolution and dispatch.
 // The implementation will:
-//   1. Add OutputConfig field to GateEvaluationResult (SC-7)
-//   2. Create resolveApprovedAction / resolveRejectedAction functions (gate_actions.go)
-//   3. Replace hardcoded gate handling in executor loop with action dispatch
+//  1. Add OutputConfig field to GateEvaluationResult (SC-7)
+//  2. Create resolveApprovedAction / resolveRejectedAction functions (gate_actions.go)
+//  3. Replace hardcoded gate handling in executor loop with action dispatch
 //
 // Coverage mapping:
-//   SC-1:  TestResolveRejectedAction (fail case) + TestGateAction_OnRejectedFail_FailsTask
-//   SC-2:  TestResolveRejectedAction (retry case) + TestGateAction_OnRejectedRetry_RetriesFromPhase
-//   SC-3:  TestGateAction_OnRejectedRetry_MaxRetriesFallsToFail
-//   SC-4:  TestResolveRejectedAction (skip_phase case) + TestGateAction_OnRejectedSkipPhase_SkipsCurrent
-//   SC-5:  TestResolveApprovedAction (skip_phase case) + TestGateAction_OnApprovedSkipPhase_SkipsNextPhase
-//   SC-6:  TestResolveApprovedAction (empty/continue cases) + TestGateAction_OnApprovedContinue_Backward
-//   SC-7:  TestGateEvaluationResult_OutputConfigField + TestEvaluatePhaseGate_PopulatesOutputConfig
-//   SC-8:  TestResolveRejectedAction (run_script case) + TestGateAction_OnRejectedRunScript_ThenFail
-//   SC-9:  TestResolveApprovedAction (run_script case) + TestGateAction_OnApprovedRunScript_ThenContinue
-//   SC-10: TestRetryFrom_OutputCfgWinsOverTemplate + TestEvaluatePhaseGate_OutputCfgRetryFromPrecedence
+//
+//	SC-1:  TestResolveRejectedAction (fail case) + TestGateAction_OnRejectedFail_FailsTask
+//	SC-2:  TestResolveRejectedAction (retry case) + TestGateAction_OnRejectedRetry_RetriesFromPhase
+//	SC-3:  TestGateAction_OnRejectedRetry_MaxRetriesFallsToFail
+//	SC-4:  TestResolveRejectedAction (skip_phase case) + TestGateAction_OnRejectedSkipPhase_SkipsCurrent
+//	SC-5:  TestResolveApprovedAction (skip_phase case) + TestGateAction_OnApprovedSkipPhase_SkipsNextPhase
+//	SC-6:  TestResolveApprovedAction (empty/continue cases) + TestGateAction_OnApprovedContinue_Backward
+//	SC-7:  TestGateEvaluationResult_OutputConfigField + TestEvaluatePhaseGate_PopulatesOutputConfig
+//	SC-8:  TestResolveRejectedAction (run_script case) + TestGateAction_OnRejectedRunScript_ThenFail
+//	SC-9:  TestResolveApprovedAction (run_script case) + TestGateAction_OnApprovedRunScript_ThenContinue
+//	SC-10: TestRetryFrom_OutputCfgWinsOverTemplate + TestEvaluatePhaseGate_OutputCfgRetryFromPrecedence
 //
 // Edge cases:
-//   TestResolveApprovedAction / TestResolveRejectedAction (nil, invalid action)
-//   TestGateAction_SkipPhaseOnLastPhase_WarnsAndContinues
-//   TestGateAction_SkipGates_NoOutputConfig
-//   TestGateAction_RunScriptOverride_FlipsToFail
+//
+//	TestResolveApprovedAction / TestResolveRejectedAction (nil, invalid action)
+//	TestGateAction_SkipPhaseOnLastPhase_WarnsAndContinues
+//	TestGateAction_SkipGates_NoOutputConfig
+//	TestGateAction_RunScriptOverride_FlipsToFail
 //
 // Failure modes:
-//   TestGateAction_RetryNoRetryFrom_FailsWithError
-//   TestGateAction_RunScriptEmptyPath_WarnsAndAppliesSecondary
-//   TestResolveRejectedAction (invalid action → legacy)
+//
+//	TestGateAction_RetryNoRetryFrom_FailsWithError
+//	TestGateAction_RunScriptEmptyPath_WarnsAndAppliesSecondary
+//	TestResolveRejectedAction (invalid action → legacy)
 package executor
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
 	"testing"
@@ -119,7 +123,6 @@ func TestEvaluatePhaseGate_PopulatesOutputConfig(t *testing.T) {
 		OnApproved:   "continue",
 		OnRejected:   "fail",
 		RetryFrom:    "implement",
-		Script:       "/tmp/script.sh",
 	})
 
 	mockEval := &recordingGateEvaluator{
@@ -211,6 +214,97 @@ func TestEvaluatePhaseGate_NoOutputConfig_NilOutputConfig(t *testing.T) {
 	}
 	if result.OutputConfig != nil {
 		t.Errorf("OutputConfig should be nil when no GateOutputConfig configured, got %+v", result.OutputConfig)
+	}
+}
+
+func TestEvaluatePhaseGate_InvalidOutputConfig_ReturnsError(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+
+	tsk := task.NewProtoTask("TASK-OCF-003", "Test invalid output config")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	we := NewWorkflowExecutor(
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowGateEvaluator(&recordingGateEvaluator{decision: &gate.Decision{Approved: true, Reason: "approved"}}),
+	)
+
+	tmpl := &db.PhaseTemplate{
+		ID:               "review",
+		GateType:         "ai",
+		GateOutputConfig: "{not-json",
+	}
+	phase := &db.WorkflowPhase{WorkflowID: "wf-001", PhaseTemplateID: "review"}
+
+	_, err := we.evaluatePhaseGate(context.Background(), tmpl, phase, "output", tsk)
+	if err == nil {
+		t.Fatal("evaluatePhaseGate should fail on invalid GateOutputConfig")
+	}
+}
+
+func TestEvaluatePhaseGate_InvalidInputConfig_ReturnsError(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+
+	tsk := task.NewProtoTask("TASK-OCF-004", "Test invalid input config")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	we := NewWorkflowExecutor(
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowGateEvaluator(&recordingGateEvaluator{decision: &gate.Decision{Approved: true, Reason: "approved"}}),
+	)
+
+	tmpl := &db.PhaseTemplate{
+		ID:              "review",
+		GateType:        "ai",
+		GateInputConfig: "{not-json",
+	}
+	phase := &db.WorkflowPhase{WorkflowID: "wf-001", PhaseTemplateID: "review"}
+
+	_, err := we.evaluatePhaseGate(context.Background(), tmpl, phase, "output", tsk)
+	if err == nil {
+		t.Fatal("evaluatePhaseGate should fail on invalid GateInputConfig")
+	}
+}
+
+func TestEvaluatePhaseGate_InvalidScriptPath_ReturnsError(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+
+	tsk := task.NewProtoTask("TASK-OCF-005", "Test invalid gate script path")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	outputCfgJSON, _ := json.Marshal(db.GateOutputConfig{
+		Script: "../bad-script.sh",
+	})
+
+	we := NewWorkflowExecutor(
+		backend, nil, testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowGateEvaluator(&recordingGateEvaluator{decision: &gate.Decision{Approved: true, Reason: "approved"}}),
+	)
+
+	tmpl := &db.PhaseTemplate{
+		ID:               "review",
+		GateType:         "ai",
+		GateOutputConfig: string(outputCfgJSON),
+	}
+	phase := &db.WorkflowPhase{WorkflowID: "wf-001", PhaseTemplateID: "review"}
+
+	_, err := we.evaluatePhaseGate(context.Background(), tmpl, phase, "output", tsk)
+	if err == nil {
+		t.Fatal("evaluatePhaseGate should fail on invalid gate script path")
 	}
 }
 
@@ -700,6 +794,152 @@ func TestGateAction_OnRejectedRetry_MaxRetriesFallsToFail(t *testing.T) {
 	}
 	if updated.Status != orcv1.TaskStatus_TASK_STATUS_FAILED {
 		t.Errorf("task status = %v, want FAILED after retry exhaustion", updated.Status)
+	}
+}
+
+func TestGateAction_PendingDecision_BlocksAndClearsExecutor(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+
+	if err := backend.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:            "review",
+		Name:          "review",
+		PromptSource:  "db",
+		PromptContent: "Test prompt for review",
+		GateType:      "ai",
+	}); err != nil {
+		t.Fatalf("save review template: %v", err)
+	}
+
+	setupSinglePhaseWorkflow(t, backend, "pending-gate-wf", "review")
+
+	tsk := task.NewProtoTask("TASK-PENDING-001", "Test pending gate")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	wfID := "pending-gate-wf"
+	tsk.WorkflowId = &wfID
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	mockEval := &configGateEvaluator{
+		decisionFn: func(g *gate.Gate, output string, opts *gate.EvaluateOptions) (*gate.Decision, error) {
+			return &gate.Decision{Pending: true, Reason: "awaiting human decision"}, nil
+		},
+	}
+
+	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
+
+	we := NewWorkflowExecutor(
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowGateEvaluator(mockEval),
+		WithWorkflowTurnExecutor(mockTE),
+	)
+
+	_, err := we.Run(context.Background(), "pending-gate-wf", WorkflowRunOptions{
+		ContextType: ContextTask,
+		TaskID:      tsk.Id,
+	})
+	if err == nil {
+		t.Fatal("expected blocked error for pending gate")
+	}
+	if !errors.Is(err, ErrTaskBlocked) {
+		t.Fatalf("Run() error = %v, want ErrTaskBlocked", err)
+	}
+
+	updated, loadErr := backend.LoadTask(tsk.Id)
+	if loadErr != nil {
+		t.Fatalf("load task: %v", loadErr)
+	}
+	if updated.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
+		t.Errorf("task status = %v, want BLOCKED", updated.Status)
+	}
+	if updated.ExecutorPid != 0 {
+		t.Errorf("executor pid = %d, want 0 after pending gate", updated.ExecutorPid)
+	}
+
+	runs, loadErr := backend.ListWorkflowRuns(db.WorkflowRunListOpts{TaskID: tsk.Id})
+	if loadErr != nil {
+		t.Fatalf("list workflow runs: %v", loadErr)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("workflow runs = %d, want 1", len(runs))
+	}
+	if runs[0].Status != string(workflow.RunStatusCompleted) {
+		t.Errorf("run status = %q, want %q", runs[0].Status, workflow.RunStatusCompleted)
+	}
+}
+
+func TestGateAction_ReviewRequirePass_BlocksContinuationOnRejectedReview(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+
+	outputCfgJSON, _ := json.Marshal(db.GateOutputConfig{
+		OnRejected: "continue",
+	})
+	if err := backend.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:               "review",
+		Name:             "review",
+		PromptSource:     "db",
+		PromptContent:    "Test prompt for review",
+		GateType:         "ai",
+		GateOutputConfig: string(outputCfgJSON),
+	}); err != nil {
+		t.Fatalf("save review template: %v", err)
+	}
+	if err := backend.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:            "docs",
+		Name:          "docs",
+		PromptSource:  "db",
+		PromptContent: "Test prompt for docs",
+	}); err != nil {
+		t.Fatalf("save docs template: %v", err)
+	}
+
+	setupTwoPhaseWorkflow(t, backend, "review-require-pass-wf", "review", "docs")
+
+	tsk := task.NewProtoTask("TASK-REVIEW-PASS-001", "Review must pass")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	wfID := "review-require-pass-wf"
+	tsk.WorkflowId = &wfID
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	mockEval := &configGateEvaluator{
+		decisionFn: func(g *gate.Gate, output string, opts *gate.EvaluateOptions) (*gate.Decision, error) {
+			if opts.Phase == "review" {
+				return &gate.Decision{Approved: false, Reason: "still has issues"}, nil
+			}
+			return &gate.Decision{Approved: true, Reason: "approved"}, nil
+		},
+	}
+
+	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
+
+	we := NewWorkflowExecutor(
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{
+			Review: config.ReviewConfig{RequirePass: true},
+		}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowGateEvaluator(mockEval),
+		WithWorkflowTurnExecutor(mockTE),
+	)
+
+	_, err := we.Run(context.Background(), "review-require-pass-wf", WorkflowRunOptions{
+		ContextType: ContextTask,
+		TaskID:      tsk.Id,
+	})
+	if err == nil {
+		t.Fatal("expected rejected review to fail when review.require_pass is true")
+	}
+
+	updated, loadErr := backend.LoadTask(tsk.Id)
+	if loadErr != nil {
+		t.Fatalf("load task: %v", loadErr)
+	}
+	if updated.Status != orcv1.TaskStatus_TASK_STATUS_FAILED {
+		t.Errorf("task status = %v, want FAILED", updated.Status)
 	}
 }
 

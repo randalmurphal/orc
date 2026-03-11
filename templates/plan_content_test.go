@@ -34,3 +34,26 @@ func TestPlanPrompt_RequiresEventDrivenAndProjectScopedChecks(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanPrompt_RequiresAlternateWritersScopedCachesAndStateParity(t *testing.T) {
+	t.Parallel()
+
+	content, err := Prompts.ReadFile("prompts/plan.md")
+	if err != nil {
+		t.Fatalf("failed to read plan.md: %v", err)
+	}
+
+	text := string(content)
+	for _, required := range []string{
+		"alternate write path",
+		"mirrored linkage",
+		"project-scoped cache",
+		"local ID alone is not sufficient",
+		"source of truth",
+		"distributed state parity",
+	} {
+		if !strings.Contains(text, required) {
+			t.Errorf("plan.md missing planning guidance %q", required)
+		}
+	}
+}

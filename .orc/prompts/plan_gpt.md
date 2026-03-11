@@ -89,6 +89,10 @@ Rules:
    - rollout parity for existing rows or in-flight state
    - every production transition that keeps the new truth synchronized
    - atomicity or rollback for multi-write actions
+   - hidden alternate write paths such as retries, importers, repair jobs, admin flows, and failure recovery paths
+   - mirrored linkage or join-table parity when relationship state is stored twice
+   - cache-key correctness for project-scoped UI state; local ID alone is not sufficient
+   - source-of-truth and distributed state parity across DB rows, mirrored tables, caches, events, and browser-visible summaries
 9. If the change adds work on a repeated path (request, phase, poll, render, load, event), call out the cost model and how it stays bounded.
 10. Distinguish "no data" from "failed to load data" whenever behavior depends on that difference.
 11. Omit speculation. If the code does not prove a claim, either inspect more or state the assumption explicitly.
@@ -140,5 +144,6 @@ Process:
 Before you finalize, ask yourself:
 - What would cause this implementation to look correct locally but still be wrong in production?
 - What transitions or failure paths would a rushed implementer forget?
+- What alternate writers, mirrored tables, or project-scoped cache keys would let stale or cross-project state slip through?
 - What tests would actually catch those mistakes?
 </instructions>

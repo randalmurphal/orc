@@ -77,25 +77,23 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 		Type: gateType,
 	}
 
-	// Parse gate input/output configs from PhaseTemplate (best-effort: log warning on failure)
+	// Parse gate input/output configs from PhaseTemplate.
 	var inputCfg *db.GateInputConfig
 	if tmpl.GateInputConfig != "" {
 		parsed, parseErr := db.ParseGateInputConfig(tmpl.GateInputConfig)
 		if parseErr != nil {
-			we.logger.Warn("parse gate input config", "phase", tmpl.ID, "error", parseErr)
-		} else {
-			inputCfg = parsed
+			return nil, fmt.Errorf("parse gate input config for %s: %w", tmpl.ID, parseErr)
 		}
+		inputCfg = parsed
 	}
 
 	var outputCfg *db.GateOutputConfig
 	if tmpl.GateOutputConfig != "" {
 		parsed, parseErr := db.ParseGateOutputConfig(tmpl.GateOutputConfig)
 		if parseErr != nil {
-			we.logger.Warn("parse gate output config", "phase", tmpl.ID, "error", parseErr)
-		} else {
-			outputCfg = parsed
+			return nil, fmt.Errorf("parse gate output config for %s: %w", tmpl.ID, parseErr)
 		}
+		outputCfg = parsed
 	}
 
 	opts := &gate.EvaluateOptions{
@@ -126,7 +124,10 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 	result.OutputConfig = outputCfg
 
 	if outputCfg != nil && outputCfg.Script != "" {
-		scriptResult := we.runGateScript(ctx, outputCfg.Script, decision, result)
+		scriptResult, scriptErr := we.runGateScript(ctx, outputCfg.Script, decision, result)
+		if scriptErr != nil {
+			return nil, fmt.Errorf("run gate script for %s: %w", tmpl.ID, scriptErr)
+		}
 		if scriptResult != nil && scriptResult.Override {
 			// Script wants to override the gate decision
 			result.Approved = !result.Approved
@@ -147,13 +148,11 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 }
 
 // runGateScript executes a gate output script and returns the result.
-// Infrastructure errors (script not found, timeout) are logged and return nil.
-func (we *WorkflowExecutor) runGateScript(ctx context.Context, scriptPath string, _ *gate.Decision, gateResult *GateEvaluationResult) *gate.ScriptResult {
+func (we *WorkflowExecutor) runGateScript(ctx context.Context, scriptPath string, _ *gate.Decision, gateResult *GateEvaluationResult) (*gate.ScriptResult, error) {
 	// Validate and resolve script path
 	resolvedPath, err := gate.ValidateScriptPath(scriptPath, we.workingDir)
 	if err != nil {
-		we.logger.Warn("gate script path invalid", "path", scriptPath, "error", err)
-		return nil
+		return nil, fmt.Errorf("validate gate script path %q: %w", scriptPath, err)
 	}
 
 	// Build gate output JSON to pipe to script
@@ -164,18 +163,16 @@ func (we *WorkflowExecutor) runGateScript(ctx context.Context, scriptPath string
 		"output_var":  gateResult.OutputVar,
 	})
 	if err != nil {
-		we.logger.Warn("marshal gate output for script", "error", err)
-		return nil
+		return nil, fmt.Errorf("marshal gate output: %w", err)
 	}
 
 	handler := gate.NewScriptHandler(we.logger)
 	scriptResult, err := handler.Run(ctx, resolvedPath, string(outputJSON), we.workingDir)
 	if err != nil {
-		we.logger.Warn("gate script execution failed", "path", resolvedPath, "error", err)
-		return nil
+		return nil, fmt.Errorf("execute gate script %q: %w", resolvedPath, err)
 	}
 
-	return scriptResult
+	return scriptResult, nil
 }
 
 // resolveGateType determines the effective gate type for a phase.

@@ -180,6 +180,10 @@ If blocked due to unclear requirements:
 10. **Call out always-on cost explicitly** — if the change adds work on every phase, request, render, event tick, or task load, success criteria and verification must state why that cost is acceptable and how it stays bounded at scale.
 11. **Distinguish absence from load failure when behavior depends on it** — if optional context, summaries, or derived state affect decisions, the plan must say whether "no data" and "failed to load data" are different outcomes and how each should behave.
 12. **Replacing computed state with persisted state needs a transition plan** — if the task moves an operator view, summary, counter, status, or other derived behavior from computed/live reconstruction to stored/materialized state, the plan must cover rollout parity, every production transition that mutates that state, and atomicity or rollback expectations for multi-write operator actions.
+13. **Inventory alternate write paths, not just the obvious one** — if the change claims a new source of truth or a single promotion path, success criteria must cover hidden alternate write paths such as retries, imports, backfills, repair jobs, admin flows, and failure recovery paths.
+14. **Name mirrored linkage state explicitly** — if relationship state is duplicated in a linkage or join table, success criteria must prove create/update/delete parity across the source of truth and the mirrored table.
+15. **Treat project-scoped cache keys as part of correctness** — if caches, local UI state, or browser stores are involved, the plan must define the cache key and prove it includes project or tenant scope plus a stable identifier; local ID alone is not sufficient.
+16. **State the source of truth and distributed state parity** — when data is duplicated across DB rows, caches, events, or browser-visible summaries, the plan must name the source of truth and require parity checks across every duplicated representation.
 </critical_constraints>
 
 <context>
@@ -247,6 +251,7 @@ If the change adds optional prompt context, summaries, caches, or derived state:
 If the task touches events, dashboards, inboxes, live views, or multi-project surfaces:
 - Include at least one success criterion for external-update behavior when the page should react while open.
 - Include at least one success criterion for project or tenant isolation when the behavior must stay scoped.
+- Include at least one success criterion that inventories hidden alternate write paths and event sources, not just the obvious request path.
 - Put those checks into `verification_plan.e2e` or the test list explicitly.
 - Treat this as event-driven behavior, not generic UI polish.
 
@@ -254,6 +259,12 @@ If the task replaces computed/live reconstruction with persisted/materialized st
 - Include at least one success criterion for rollout parity so pre-existing data and in-flight states still appear correctly before any backfill or rewrite completes.
 - Include at least one success criterion that inventories every production transition, RPC, background path, or failure path that must keep the new state synchronized.
 - Include at least one success criterion for atomicity or rollback when an operator action writes more than one thing and partial failure would leave the product lying.
+- Include at least one success criterion for mirrored linkage or join-table parity when relationship state is stored in more than one place.
+- Include at least one success criterion that names the source of truth and checks distributed state parity across DB, cache, events, and browser-visible summaries.
+
+If the task touches caches, browser-local state, or project-scoped UI state:
+- Include at least one success criterion for cache-key correctness.
+- Explicitly verify that project or tenant scope is part of the key when IDs are only locally unique.
 
 **Anti-patterns to avoid:**
 - "File exists" — test behavior, not existence

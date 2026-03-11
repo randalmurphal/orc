@@ -113,6 +113,16 @@ grep -rn "NewFunction\|new_module" path/to/production/code/  # Must find a calle
 
 If the fix refactored code into a new helper/file but nothing imports it, this is a HIGH-SEVERITY finding — the fix itself introduced dead code.
 
+### Step 2d: Truth and Scope Re-Verification
+
+If round 1 involved a source of truth, promotion flow, persisted summary, or project-scoped browser state, re-check all of these after the fix:
+
+- [ ] Hidden alternate write paths are now covered, not just the obvious new request path
+- [ ] Mirrored linkage or join tables stay in create/update/delete parity with the source of truth
+- [ ] Project-scoped caches or browser-local state use keys that include project or tenant scope; local ID alone is not sufficient
+- [ ] Distributed state parity still holds across DB rows, mirrored tables, caches, events, and browser-visible summaries
+- [ ] Any custom verification harness was actually necessary, or the normal repo/browser path now proves the behavior directly
+
 ### Step 2c: Spec Compliance Re-Check
 
 Verify each success criterion (SC-X) from the original spec is still met after fixes. Fixes that break previously-passing criteria are regressions.

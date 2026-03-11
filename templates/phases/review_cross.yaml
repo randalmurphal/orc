@@ -8,6 +8,7 @@ prompt_path: prompts/review_cross.md
 input_variables: ["SPEC_CONTENT"]
 output_type: none
 produces_artifact: false
+output_var_name: OUTPUT_REVIEW_CROSS
 
 thinking: true
 gate_type: auto

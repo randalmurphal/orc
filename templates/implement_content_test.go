@@ -139,3 +139,54 @@ func TestImplementPrompts_RequireBrowserValidationContract(t *testing.T) {
 		})
 	}
 }
+
+func TestImplementPrompts_RequireAlternateWriterAndStateParityChecks(t *testing.T) {
+	t.Parallel()
+
+	files := []string{"prompts/implement.md", "prompts/implement_codex.md"}
+	for _, file := range files {
+		file := file
+		t.Run(file, func(t *testing.T) {
+			t.Parallel()
+
+			content, err := Prompts.ReadFile(file)
+			if err != nil {
+				t.Fatalf("failed to read %s: %v", file, err)
+			}
+
+			text := string(content)
+			for _, required := range []string{
+				"alternate write path",
+				"mirrored linkage",
+				"project-scoped cache",
+				"local-ID-only",
+				"source of truth",
+				"distributed state parity",
+			} {
+				if !strings.Contains(text, required) {
+					t.Errorf("%s missing thoroughness guidance %q", file, required)
+				}
+			}
+		})
+	}
+}
+
+func TestImplementTemplate_BehavioralParityChecklistCoversMirrorsCachesAndDistributedState(t *testing.T) {
+	content, err := Prompts.ReadFile("prompts/implement.md")
+	if err != nil {
+		t.Fatal("failed to read implement.md:", err)
+	}
+
+	text := string(content)
+	required := []string{
+		"Hidden alternate write paths",
+		"Mirrored linkage or join-table updates",
+		"Project-scoped cache key parity",
+		"Distributed state parity",
+	}
+	for _, needle := range required {
+		if !strings.Contains(text, needle) {
+			t.Errorf("implement.md missing behavioral parity checklist item %q", needle)
+		}
+	}
+}

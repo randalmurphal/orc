@@ -279,10 +279,10 @@ func TestEvaluatePhaseGate_MalformedInputConfig(t *testing.T) {
 	)
 
 	tmpl := &db.PhaseTemplate{
-		ID:              "review",
-		GateType:        "ai",
-		GateAgentID:     "agent-1",
-		GateInputConfig: "{invalid json", // Malformed
+		ID:               "review",
+		GateType:         "ai",
+		GateAgentID:      "agent-1",
+		GateInputConfig:  "{invalid json", // Malformed
 		GateOutputConfig: `{"variable_name":"TEST_VAR"}`,
 	}
 
@@ -291,33 +291,15 @@ func TestEvaluatePhaseGate_MalformedInputConfig(t *testing.T) {
 		PhaseTemplateID: "review",
 	}
 
-	// Should NOT error — malformed input config logs warning, passes nil
-	result, err := we.evaluatePhaseGate(
+	_, err := we.evaluatePhaseGate(
 		context.Background(), tmpl, phase, "output", tsk,
 	)
 
-	if err != nil {
-		t.Fatalf("evaluatePhaseGate should not error on malformed input config: %v", err)
+	if err == nil {
+		t.Fatal("evaluatePhaseGate should fail on malformed input config")
 	}
-	if !result.Approved {
-		t.Error("gate should still evaluate successfully")
-	}
-
-	if mockEval.lastOptions == nil {
-		t.Fatal("options should be passed even with malformed input config")
-	}
-
-	// InputConfig should be nil (parse failed), but other fields populated
-	if mockEval.lastOptions.InputConfig != nil {
-		t.Error("InputConfig should be nil when parsing fails")
-	}
-	if mockEval.lastOptions.AgentID != "agent-1" {
-		t.Errorf("AgentID = %q, want %q (other fields should still be set)",
-			mockEval.lastOptions.AgentID, "agent-1")
-	}
-	// OutputConfig should still be parsed successfully
-	if mockEval.lastOptions.OutputConfig == nil {
-		t.Error("OutputConfig should be parsed successfully even when InputConfig fails")
+	if mockEval.lastOptions != nil {
+		t.Fatal("gate evaluator should not be called when gate input config is malformed")
 	}
 }
 
@@ -356,26 +338,15 @@ func TestEvaluatePhaseGate_MalformedOutputConfig(t *testing.T) {
 		PhaseTemplateID: "review",
 	}
 
-	result, err := we.evaluatePhaseGate(
+	_, err := we.evaluatePhaseGate(
 		context.Background(), tmpl, phase, "output", tsk,
 	)
 
-	if err != nil {
-		t.Fatalf("evaluatePhaseGate should not error on malformed output config: %v", err)
+	if err == nil {
+		t.Fatal("evaluatePhaseGate should fail on malformed output config")
 	}
-	if !result.Approved {
-		t.Error("gate should still evaluate successfully")
-	}
-
-	if mockEval.lastOptions == nil {
-		t.Fatal("options should be passed even with malformed output config")
-	}
-
-	if mockEval.lastOptions.OutputConfig != nil {
-		t.Error("OutputConfig should be nil when parsing fails")
-	}
-	if mockEval.lastOptions.InputConfig == nil {
-		t.Error("InputConfig should still be parsed when OutputConfig fails")
+	if mockEval.lastOptions != nil {
+		t.Fatal("gate evaluator should not be called when gate output config is malformed")
 	}
 }
 
@@ -485,18 +456,12 @@ func TestGateOutputScript_ScriptInvokedOnApproval(t *testing.T) {
 		PhaseTemplateID: "review",
 	}
 
-	// The script won't exist at the path, so ScriptHandler should log a warning
-	// and leave the gate decision unchanged (infrastructure error = no block).
-	result, err := we.evaluatePhaseGate(
+	_, err := we.evaluatePhaseGate(
 		context.Background(), tmpl, phase, "output", tsk,
 	)
 
-	if err != nil {
-		t.Fatalf("evaluatePhaseGate should not error on script failure: %v", err)
-	}
-	// Gate decision should stand when script fails (not found)
-	if !result.Approved {
-		t.Error("gate decision should be preserved when script has infrastructure error")
+	if err == nil {
+		t.Fatal("evaluatePhaseGate should fail when the gate script cannot be executed")
 	}
 }
 
