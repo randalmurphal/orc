@@ -18,6 +18,7 @@ import { estimatePhaseCompletion } from '@/lib/utils/progressEstimation';
 import type { SessionMetrics, PhaseProgress } from '@/components/common/RealTimeMetrics';
 import type { Task, ExecutionState } from '@/gen/orc/v1/task_pb';
 import { emitRecommendationSignal } from './recommendationSignals';
+import { emitAttentionDashboardSignal } from './attentionDashboardSignals';
 
 /**
  * Interface for the subset of TaskStore methods used by event handlers
@@ -156,6 +157,11 @@ export function handleEvent(event: Event): void {
 				});
 				taskStore.addTask(task);
 			}
+			emitAttentionDashboardSignal({
+				projectId: event.projectId ?? '',
+				taskId,
+				type: 'task-updated',
+			});
 			break;
 		}
 
@@ -164,12 +170,22 @@ export function handleEvent(event: Event): void {
 			if (task) {
 				taskStore.updateTask(taskId, task);
 			}
+			emitAttentionDashboardSignal({
+				projectId: event.projectId ?? '',
+				taskId,
+				type: 'task-updated',
+			});
 			break;
 		}
 
 		case 'taskDeleted': {
 			const { taskId } = event.payload.value;
 			taskStore.removeTask(taskId);
+			emitAttentionDashboardSignal({
+				projectId: event.projectId ?? '',
+				taskId,
+				type: 'task-updated',
+			});
 			toast.info(`Task ${taskId} deleted`);
 			break;
 		}
@@ -325,6 +341,11 @@ export function handleEvent(event: Event): void {
 				options: [], // Options fetched via API when needed
 			});
 			uiStore.addPendingDecision(decision);
+			emitAttentionDashboardSignal({
+				projectId: event.projectId ?? '',
+				taskId: eventData.taskId,
+				type: 'decision-required',
+			});
 			toast.warning(`Decision required: ${eventData.taskTitle} - ${eventData.question}`);
 			break;
 		}
@@ -333,6 +354,11 @@ export function handleEvent(event: Event): void {
 			const uiStore = useUIStore.getState();
 			const { decisionId, taskId, approved } = event.payload.value;
 			uiStore.removePendingDecision(decisionId);
+			emitAttentionDashboardSignal({
+				projectId: event.projectId ?? '',
+				taskId,
+				type: 'decision-resolved',
+			});
 			const action = approved ? 'approved' : 'rejected';
 			toast.info(`Decision ${action} for task ${taskId}`);
 			break;

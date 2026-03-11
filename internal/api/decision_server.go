@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
+	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -17,7 +17,6 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // decisionServer implements the DecisionServiceHandler interface.
@@ -69,7 +68,10 @@ func (s *decisionServer) ListPendingDecisions(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListPendingDecisionsRequest],
 ) (*connect.Response[orcv1.ListPendingDecisionsResponse], error) {
-	decisions := s.pendingDecisions.List()
+	if req.Msg.GetProjectId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("project_id is required"))
+	}
+	decisions := s.pendingDecisions.List(req.Msg.GetProjectId())
 
 	// Filter by task ID if specified
 	taskFilter := ""
@@ -95,7 +97,10 @@ func (s *decisionServer) GetPendingDecision(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetPendingDecisionRequest],
 ) (*connect.Response[orcv1.GetPendingDecisionResponse], error) {
-	decision, ok := s.pendingDecisions.Get(req.Msg.Id)
+	if req.Msg.GetProjectId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("project_id is required"))
+	}
+	decision, ok := s.pendingDecisions.Get(req.Msg.GetProjectId(), req.Msg.Id)
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("decision not found: %s", req.Msg.Id))
 	}
@@ -110,37 +115,12 @@ func (s *decisionServer) ResolveDecision(
 	ctx context.Context,
 	req *connect.Request[orcv1.ResolveDecisionRequest],
 ) (*connect.Response[orcv1.ResolveDecisionResponse], error) {
+	if req.Msg.GetProjectId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("project_id is required"))
+	}
 	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-
-	decisionID := req.Msg.Id
-
-	// Get pending decision
-	decision, ok := s.pendingDecisions.Get(decisionID)
-	if !ok {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("decision not found: %s", decisionID))
-	}
-
-	// Load task
-	t, err := backend.LoadTask(decision.TaskID)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", decision.TaskID))
-	}
-
-	// Verify task is blocked
-	if t.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
-		return nil, connect.NewError(connect.CodeFailedPrecondition,
-			fmt.Errorf("task is not blocked (status: %s)", t.Status.String()))
-	}
-
-	// Verify phase matches current task phase to prevent stale decisions
-	currentPhase := task.GetCurrentPhaseProto(t)
-	if currentPhase != decision.Phase {
-		return nil, connect.NewError(connect.CodeFailedPrecondition,
-			fmt.Errorf("decision phase mismatch: task is at phase %q, decision is for phase %q",
-				currentPhase, decision.Phase))
 	}
 
 	// Extract optional fields
@@ -157,91 +137,31 @@ func (s *decisionServer) ResolveDecision(
 		selectedOption = *req.Msg.SelectedOption
 	}
 
-	now := time.Now()
-
-	// Record gate decision in task execution state
-	task.EnsureExecutionProto(t)
-	gateDecision := &orcv1.GateDecision{
-		Phase:     decision.Phase,
-		GateType:  decision.GateType,
-		Approved:  req.Msg.Approved,
-		Timestamp: timestamppb.New(now),
-	}
-	if reason != "" {
-		gateDecision.Reason = &reason
-	}
-	t.Execution.Gates = append(t.Execution.Gates, gateDecision)
-
-	// Save task
-	if err := backend.SaveTask(t); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save task: %w", err))
-	}
-
-	// Record in database if available
-	if dbBackend, ok := backend.(*storage.DatabaseBackend); ok {
-		dbDecision := &db.GateDecision{
-			TaskID:    decision.TaskID,
-			Phase:     decision.Phase,
-			GateType:  decision.GateType,
-			Approved:  req.Msg.Approved,
-			Reason:    reason,
-			DecidedBy: resolvedBy,
-			DecidedAt: now,
+	resolved, err := resolvePendingDecision(
+		backend,
+		s.pendingDecisions,
+		s.publisher,
+		req.Msg.GetProjectId(),
+		req.Msg.Id,
+		req.Msg.Approved,
+		reason,
+		resolvedBy,
+		selectedOption,
+	)
+	if err != nil {
+		switch {
+		case strings.HasPrefix(err.Error(), "decision not found"):
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		case strings.HasPrefix(err.Error(), "task not found"):
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		case strings.HasPrefix(err.Error(), "decision option not found"):
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		case strings.HasPrefix(err.Error(), "task is not blocked"),
+			strings.HasPrefix(err.Error(), "decision phase mismatch"):
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		default:
+			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		if err := dbBackend.DB().AddGateDecision(dbDecision); err != nil {
-			s.logger.Warn("failed to record gate decision in database", "error", err)
-			// Don't fail the request - database recording is optional
-		}
-	}
-
-	// Update task status based on approval
-	var newStatus orcv1.TaskStatus
-	if req.Msg.Approved {
-		newStatus = orcv1.TaskStatus_TASK_STATUS_PLANNED
-	} else {
-		newStatus = orcv1.TaskStatus_TASK_STATUS_FAILED
-	}
-
-	t.Status = newStatus
-	if err := backend.SaveTask(t); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save task: %w", err))
-	}
-
-	// Emit decision_resolved event
-	resolvedData := events.DecisionResolvedData{
-		DecisionID: decisionID,
-		TaskID:     decision.TaskID,
-		Phase:      decision.Phase,
-		Approved:   req.Msg.Approved,
-		Reason:     reason,
-		ResolvedBy: resolvedBy,
-		ResolvedAt: now,
-	}
-
-	s.publisher.Publish(events.Event{
-		Type:   events.EventDecisionResolved,
-		TaskID: decision.TaskID,
-		Data:   resolvedData,
-		Time:   now,
-	})
-
-	// Remove decision from pending store
-	s.pendingDecisions.Remove(decisionID)
-
-	// Build response
-	resolved := &orcv1.ResolvedDecision{
-		Id:         decisionID,
-		TaskId:     decision.TaskID,
-		Phase:      decision.Phase,
-		Approved:   req.Msg.Approved,
-		ResolvedBy: resolvedBy,
-		ResolvedAt: timestamppb.New(now),
-	}
-	if selectedOption != "" {
-		resolved.SelectedOption = &selectedOption
-	}
-	if reason != "" {
-		resolved.Reason = &reason
 	}
 
 	return connect.NewResponse(&orcv1.ResolveDecisionResponse{
@@ -331,6 +251,19 @@ func (s *decisionServer) ListResolvedDecisions(
 
 // pendingDecisionToProto converts a gate.PendingDecision to proto.
 func pendingDecisionToProto(d *gate.PendingDecision) *orcv1.PendingDecision {
+	options := make([]*orcv1.DecisionOption, 0, len(d.Options))
+	for _, option := range d.Options {
+		protoOption := &orcv1.DecisionOption{
+			Id:          option.ID,
+			Label:       option.Label,
+			Recommended: option.Recommended,
+		}
+		if option.Description != "" {
+			protoOption.Description = &option.Description
+		}
+		options = append(options, protoOption)
+	}
+
 	return &orcv1.PendingDecision{
 		Id:          d.DecisionID,
 		TaskId:      d.TaskID,
@@ -339,7 +272,7 @@ func pendingDecisionToProto(d *gate.PendingDecision) *orcv1.PendingDecision {
 		GateType:    d.GateType,
 		Question:    d.Question,
 		Context:     d.Context,
-		Options:     nil, // Options not stored in gate.PendingDecision
+		Options:     options,
 		RequestedAt: timestamppb.New(d.RequestedAt),
 	}
 }

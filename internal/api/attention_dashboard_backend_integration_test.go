@@ -25,9 +25,9 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/gate"
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/internal/initiative"
 )
 
 // ============================================================================
@@ -40,7 +40,7 @@ func TestPerformAttentionAction_RetryAction(t *testing.T) {
 	t.Parallel()
 
 	backend := storage.NewTestBackend(t)
-	
+
 	// Create a failed task
 	failedTask := task.NewProtoTask("TASK-001", "Failed task")
 	failedTask.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
@@ -69,18 +69,25 @@ func TestPerformAttentionAction_RetryAction(t *testing.T) {
 // TestPerformAttentionAction_ApproveAction verifies SC-1:
 // APPROVE actions should call DecisionService.ResolveDecision with approved=true
 func TestPerformAttentionAction_ApproveAction(t *testing.T) {
-	t.Parallel()
+	tmpDir := setupTestHome(t)
+	proj := setupTestProject(t, tmpDir, "alpha")
 
-	backend := storage.NewTestBackend(t)
+	cache := NewProjectCache(10)
+	defer func() { _ = cache.Close() }()
+
+	backend, err := cache.GetBackend(proj.ID)
+	require.NoError(t, err)
 
 	// Create a blocked task with pending decision
 	blockedTask := task.NewProtoTask("TASK-002", "Blocked task")
 	blockedTask.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	blockedTask.CurrentPhase = stringPtr("implement")
 	require.NoError(t, backend.SaveTask(blockedTask))
 
 	// Create a pending decisions store with a test decision
 	pendingDecisions := gate.NewPendingDecisionStore()
 	testDecision := &gate.PendingDecision{
+		ProjectID:   proj.ID,
 		DecisionID:  "DEC-001",
 		TaskID:      "TASK-002",
 		TaskTitle:   "Blocked task",
@@ -88,15 +95,26 @@ func TestPerformAttentionAction_ApproveAction(t *testing.T) {
 		GateType:    "human",
 		Question:    "Should we proceed with this implementation?",
 		Context:     "Test decision",
+		Options: []gate.PendingDecisionOption{
+			{
+				ID:          "ship-now",
+				Label:       "Ship now",
+				Description: "Accept the reviewed path",
+				Recommended: true,
+			},
+		},
 		RequestedAt: time.Now(),
 	}
-	pendingDecisions.Add(testDecision)
+	require.NoError(t, pendingDecisions.Add(testDecision))
 
-	server := NewAttentionDashboardServer(backend, nil, pendingDecisions, nil)
+	server := NewAttentionDashboardServer(nil, nil, pendingDecisions, nil).(*attentionDashboardServer)
+	server.SetProjectCache(cache)
 
 	req := connect.NewRequest(&orcv1.PerformAttentionActionRequest{
+		ProjectId:       proj.ID,
 		AttentionItemId: "decision-DEC-001",
 		Action:          orcv1.AttentionAction_ATTENTION_ACTION_APPROVE,
+		DecisionOptionId: "ship-now",
 	})
 
 	resp, err := server.PerformAttentionAction(context.Background(), req)
@@ -136,41 +154,123 @@ func TestPerformAttentionAction_ViewAction(t *testing.T) {
 // buildAttentionItems() should load pending decisions from DecisionService.ListPendingDecisions
 // and include them as attention items with APPROVE/REJECT actions
 func TestAttentionDashboard_IncludesPendingDecisions(t *testing.T) {
-	t.Parallel()
+	tmpDir := setupTestHome(t)
+	proj := setupTestProject(t, tmpDir, "alpha")
 
-	backend := storage.NewTestBackend(t)
-	
-	// Create tasks - this will be extended once decision storage is implemented
+	cache := NewProjectCache(10)
+	defer func() { _ = cache.Close() }()
+
+	backend, err := cache.GetBackend(proj.ID)
+	require.NoError(t, err)
+
 	blockedTask := task.NewProtoTask("TASK-004", "Blocked task needing decision")
 	blockedTask.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 	require.NoError(t, backend.SaveTask(blockedTask))
 
-	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+	pendingDecisions := gate.NewPendingDecisionStore()
+	require.NoError(t, pendingDecisions.Add(&gate.PendingDecision{
+		ProjectID:   proj.ID,
+		DecisionID:  "DEC-004",
+		TaskID:      "TASK-004",
+		TaskTitle:   blockedTask.Title,
+		Phase:       "review",
+		GateType:    "human",
+		Question:    "Approve rollout?",
+		Context:     "Needs a human decision",
+		RequestedAt: time.Now(),
+	}))
 
-	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{})
+	server := NewAttentionDashboardServer(nil, nil, pendingDecisions, nil).(*attentionDashboardServer)
+	server.SetProjectCache(cache)
+
+	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
+		ProjectId: proj.ID,
+	})
 	resp, err := server.GetAttentionDashboardData(context.Background(), req)
 	require.NoError(t, err)
 
-	// Should include attention items for pending decisions (once decision store is connected)
-	// For now, test passes when no decisions are found, but will be extended
-	// when decision service integration is complete
-	attentionItems := resp.Msg.AttentionItems
-	
-	// Look for decision-type attention items
-	decisionItems := make([]*orcv1.AttentionItem, 0)
-	for _, item := range attentionItems {
-		if item.Type == orcv1.AttentionItemType_ATTENTION_ITEM_TYPE_PENDING_DECISION ||
-			item.Type == orcv1.AttentionItemType_ATTENTION_ITEM_TYPE_GATE_APPROVAL {
+	var decisionItem *orcv1.AttentionItem
+	for _, item := range resp.Msg.AttentionItems {
+		if item.Type == orcv1.AttentionItemType_ATTENTION_ITEM_TYPE_PENDING_DECISION {
+			decisionItem = item
+			break
+		}
+	}
+
+	require.NotNil(t, decisionItem, "should include pending decision attention item")
+	assert.Equal(t, proj.ID+"::decision-DEC-004", decisionItem.Id)
+	assert.Equal(t, "TASK-004", decisionItem.TaskId)
+	assert.Equal(t, "Blocked task needing decision", decisionItem.Title)
+	assert.Equal(t, proj.ID, decisionItem.ProjectId)
+	assert.Contains(t, decisionItem.AvailableActions, orcv1.AttentionAction_ATTENTION_ACTION_APPROVE)
+	assert.Contains(t, decisionItem.AvailableActions, orcv1.AttentionAction_ATTENTION_ACTION_REJECT)
+}
+
+func TestAttentionDashboard_PendingDecisionsStayProjectScoped(t *testing.T) {
+	tmpDir := setupTestHome(t)
+	projectOne := setupTestProject(t, tmpDir, "alpha")
+	projectTwo := setupTestProject(t, tmpDir, "beta")
+
+	cache := NewProjectCache(10)
+	defer func() { _ = cache.Close() }()
+
+	backendOne, err := cache.GetBackend(projectOne.ID)
+	require.NoError(t, err)
+	backendTwo, err := cache.GetBackend(projectTwo.ID)
+	require.NoError(t, err)
+
+	taskOne := task.NewProtoTask("TASK-001", "Alpha decision")
+	taskOne.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	require.NoError(t, backendOne.SaveTask(taskOne))
+
+	taskTwo := task.NewProtoTask("TASK-001", "Beta decision")
+	taskTwo.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	require.NoError(t, backendTwo.SaveTask(taskTwo))
+
+	store := gate.NewPendingDecisionStore()
+	require.NoError(t, store.Add(&gate.PendingDecision{
+		ProjectID:   projectOne.ID,
+		DecisionID:  "gate-review",
+		TaskID:      taskOne.Id,
+		TaskTitle:   taskOne.Title,
+		Phase:       "review",
+		GateType:    "human",
+		Question:    "Approve alpha?",
+		RequestedAt: time.Now(),
+	}))
+	require.NoError(t, store.Add(&gate.PendingDecision{
+		ProjectID:   projectTwo.ID,
+		DecisionID:  "gate-review",
+		TaskID:      taskTwo.Id,
+		TaskTitle:   taskTwo.Title,
+		Phase:       "review",
+		GateType:    "human",
+		Question:    "Approve beta?",
+		RequestedAt: time.Now(),
+	}))
+
+	server := NewAttentionDashboardServer(nil, nil, store, nil).(*attentionDashboardServer)
+	server.SetProjectCache(cache)
+
+	resp, err := server.GetAttentionDashboardData(context.Background(), connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
+		ProjectId: projectOne.ID,
+	}))
+	require.NoError(t, err)
+
+	var decisionItems []*orcv1.AttentionItem
+	for _, item := range resp.Msg.AttentionItems {
+		if item.Type == orcv1.AttentionItemType_ATTENTION_ITEM_TYPE_PENDING_DECISION {
 			decisionItems = append(decisionItems, item)
 		}
 	}
 
-	// Test currently expects empty decisions but will be updated when decision store is integrated
-	// This test will fail when proper decision loading is implemented
-	assert.NotNil(t, decisionItems, "Should have array for decision items (even if empty initially)")
+	require.Len(t, decisionItems, 1)
+	require.Equal(t, projectOne.ID, decisionItems[0].ProjectId)
+	require.Equal(t, "Approve alpha?", decisionItems[0].Description)
+	require.Equal(t, projectOne.ID+"::decision-gate-review", decisionItems[0].Id)
 }
 
-// ============================================================================ 
+// ============================================================================
 // SC-3: Running tasks show real output lines and initiatives show calculated completion
 // ============================================================================
 
@@ -220,7 +320,7 @@ func TestRunningSummary_RealOutputLines(t *testing.T) {
 	// Should have running task with real output lines
 	require.Len(t, resp.Msg.RunningSummary.Tasks, 1, "Should have one running task")
 	runningTaskResp := resp.Msg.RunningSummary.Tasks[0]
-	
+
 	// Output lines should be populated from transcripts (not empty)
 	assert.NotEmpty(t, runningTaskResp.OutputLines, "OutputLines should be populated from transcripts, not hardcoded empty")
 	assert.Contains(t, runningTaskResp.OutputLines, "Starting implementation...", "Should include recent transcript content")

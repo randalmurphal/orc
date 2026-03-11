@@ -50,6 +50,7 @@ type Decision struct {
 
 // EvaluateOptions contains context for gate evaluation.
 type EvaluateOptions struct {
+	ProjectID     string
 	TaskID        string
 	TaskTitle     string
 	Phase         string
@@ -58,13 +59,13 @@ type EvaluateOptions struct {
 	DecisionStore *PendingDecisionStore // Store for pending decisions
 
 	// AI gate fields
-	AgentID      string                // Agent to use for evaluation
-	InputConfig  *db.GateInputConfig   // What context to include
-	OutputConfig *db.GateOutputConfig  // How to handle results
-	PhaseOutputs map[string]string     // Available phase outputs (keyed by phase ID)
-	TaskDesc     string                // Task description
-	TaskCategory string                // Task category
-	TaskWeight   string                // Task weight
+	AgentID      string               // Agent to use for evaluation
+	InputConfig  *db.GateInputConfig  // What context to include
+	OutputConfig *db.GateOutputConfig // How to handle results
+	PhaseOutputs map[string]string    // Available phase outputs (keyed by phase ID)
+	TaskDesc     string               // Task description
+	TaskCategory string               // Task category
+	TaskWeight   string               // Task weight
 }
 
 // Evaluator evaluates gates between phases.
@@ -239,6 +240,7 @@ func (e *Evaluator) emitDecisionRequired(gate *Gate, opts *EvaluateOptions) (*De
 	// Create pending decision
 	now := time.Now()
 	decision := &PendingDecision{
+		ProjectID:   opts.ProjectID,
 		DecisionID:  decisionID,
 		TaskID:      opts.TaskID,
 		TaskTitle:   opts.TaskTitle,
@@ -250,7 +252,9 @@ func (e *Evaluator) emitDecisionRequired(gate *Gate, opts *EvaluateOptions) (*De
 	}
 
 	// Store pending decision
-	opts.DecisionStore.Add(decision)
+	if err := opts.DecisionStore.Add(decision); err != nil {
+		return nil, fmt.Errorf("store pending decision: %w", err)
+	}
 
 	// Emit event
 	eventData := events.DecisionRequiredData{
@@ -264,12 +268,12 @@ func (e *Evaluator) emitDecisionRequired(gate *Gate, opts *EvaluateOptions) (*De
 		RequestedAt: now,
 	}
 
-	opts.Publisher.Publish(events.Event{
-		Type:   events.EventDecisionRequired,
-		TaskID: opts.TaskID,
-		Data:   eventData,
-		Time:   now,
-	})
+	opts.Publisher.Publish(events.NewProjectEvent(
+		events.EventDecisionRequired,
+		opts.ProjectID,
+		opts.TaskID,
+		eventData,
+	))
 
 	// Return pending decision (non-blocking)
 	return &Decision{

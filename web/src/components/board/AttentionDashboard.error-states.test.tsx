@@ -133,6 +133,12 @@ vi.mock('@/stores/uiStore', () => ({
 	usePendingDecisions: () => [],
 }));
 
+vi.mock('@/stores', () => ({
+	toast: {
+		error: vi.fn(),
+	},
+}));
+
 // Mock router navigation
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {

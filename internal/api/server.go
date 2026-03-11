@@ -241,7 +241,6 @@ func New(cfg *Config) *Server {
 	return s
 }
 
-
 // parseAddr extracts host and port from an address string like ":8080" or "127.0.0.1:8080"
 func parseAddr(addr string) (host string, port int, err error) {
 	// Handle ":8080" format
@@ -744,6 +743,7 @@ func (s *Server) resumeTask(id string, projectID string) (map[string]any, error)
 			executor.WithWorkflowGitOps(gitOps),
 			executor.WithWorkflowClaudePath(claudePath),
 			executor.WithWorkflowCodexPath(codexPath),
+			executor.WithWorkflowPendingDecisions(s.pendingDecisions),
 			executor.WithWorkflowTokenRates(executor.ProviderRatesForConfig(s.orcConfig)),
 		)
 
@@ -839,6 +839,7 @@ func (s *Server) startTask(id string, projectID string) error {
 			executor.WithWorkflowGitOps(gitOps),
 			executor.WithWorkflowClaudePath(claudePath),
 			executor.WithWorkflowCodexPath(codexPath),
+			executor.WithWorkflowPendingDecisions(s.pendingDecisions),
 			executor.WithWorkflowTokenRates(executor.ProviderRatesForConfig(s.orcConfig)),
 		)
 

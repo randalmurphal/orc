@@ -334,19 +334,31 @@ func (s *attentionDashboardServer) calculateInitiativeCompletion(backend storage
 }
 
 // loadPendingDecisionItems creates attention items for pending decisions.
-func (s *attentionDashboardServer) loadPendingDecisionItems() []*orcv1.AttentionItem {
+func (s *attentionDashboardServer) loadPendingDecisionItems(projectID string) []*orcv1.AttentionItem {
 	var items []*orcv1.AttentionItem
 
 	if s.pendingDecisions == nil {
 		return items
 	}
 
-	// Get all pending decisions from the store
-	allDecisions := s.pendingDecisions.List()
+	allDecisions := s.pendingDecisions.List(projectID)
 
 	for _, decision := range allDecisions {
+		options := make([]*orcv1.DecisionOption, 0, len(decision.Options))
+		for _, option := range decision.Options {
+			protoOption := &orcv1.DecisionOption{
+				Id:          option.ID,
+				Label:       option.Label,
+				Recommended: option.Recommended,
+			}
+			if option.Description != "" {
+				protoOption.Description = &option.Description
+			}
+			options = append(options, protoOption)
+		}
+
 		item := &orcv1.AttentionItem{
-			Id:          fmt.Sprintf("decision-%s", decision.DecisionID),
+			Id:          attentionItemID(decision.ProjectID, fmt.Sprintf("decision-%s", decision.DecisionID)),
 			Type:        orcv1.AttentionItemType_ATTENTION_ITEM_TYPE_PENDING_DECISION,
 			TaskId:      decision.TaskID,
 			Title:       decision.TaskTitle,
@@ -361,6 +373,8 @@ func (s *attentionDashboardServer) loadPendingDecisionItems() []*orcv1.Attention
 				orcv1.AttentionAction_ATTENTION_ACTION_REJECT,
 				orcv1.AttentionAction_ATTENTION_ACTION_VIEW,
 			},
+			DecisionOptions: options,
+			ProjectId: decision.ProjectID,
 		}
 		items = append(items, item)
 	}
@@ -394,7 +408,7 @@ func (s *attentionDashboardServer) buildAttentionItems(
 
 	// Add pending decisions if available
 	if s.pendingDecisions != nil {
-		pendingDecisionItems := s.loadPendingDecisionItems()
+		pendingDecisionItems := s.loadPendingDecisionItems(projectID)
 		items = append(items, pendingDecisionItems...)
 	}
 
@@ -866,7 +880,7 @@ func (s *attentionDashboardServer) PerformAttentionAction(
 		return s.handleRetryAction(backend, projectID, targetID)
 
 	case orcv1.AttentionAction_ATTENTION_ACTION_APPROVE:
-		return s.handleApproveAction(backend, projectID, targetID)
+		return s.handleApproveAction(backend, projectID, targetID, req.Msg.DecisionOptionId)
 
 	case orcv1.AttentionAction_ATTENTION_ACTION_REJECT:
 		return s.handleRejectAction(backend, projectID, targetID)
@@ -926,7 +940,12 @@ func (s *attentionDashboardServer) handleRetryAction(backend storage.Backend, pr
 }
 
 // handleApproveAction handles approval of pending decisions.
-func (s *attentionDashboardServer) handleApproveAction(backend storage.Backend, projectID string, decisionID string) (*connect.Response[orcv1.PerformAttentionActionResponse], error) {
+func (s *attentionDashboardServer) handleApproveAction(
+	backend storage.Backend,
+	projectID string,
+	decisionID string,
+	selectedOptionID string,
+) (*connect.Response[orcv1.PerformAttentionActionResponse], error) {
 	// If no pending decisions store, cannot handle decision actions
 	if s.pendingDecisions == nil {
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
@@ -934,46 +953,38 @@ func (s *attentionDashboardServer) handleApproveAction(backend storage.Backend, 
 			ErrorMessage: "pending decisions not available",
 		}), nil
 	}
-
-	// Get pending decision
-	decision, ok := s.pendingDecisions.Get(decisionID)
+	decision, ok := s.pendingDecisions.Get(projectID, decisionID)
 	if !ok {
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
 			Success:      false,
 			ErrorMessage: fmt.Sprintf("decision not found: %s", decisionID),
 		}), nil
 	}
+	if selectedOptionID != "" && !pendingDecisionHasOption(decision, selectedOptionID) {
+		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("decision option not found: %s", selectedOptionID),
+		}), nil
+	}
 
-	// Load task
-	t, err := backend.LoadTask(decision.TaskID)
+	resolvedBy := "dashboard"
+	_, err := resolvePendingDecision(
+		backend,
+		s.pendingDecisions,
+		s.publisher,
+		projectID,
+		decisionID,
+		true,
+		"",
+		resolvedBy,
+		selectedOptionID,
+	)
 	if err != nil {
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
 			Success:      false,
-			ErrorMessage: fmt.Sprintf("task not found: %s", decision.TaskID),
+			ErrorMessage: err.Error(),
 		}), nil
 	}
-
-	// Verify task is blocked
-	if t.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
-		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
-			Success:      false,
-			ErrorMessage: fmt.Sprintf("task is not blocked (status: %s)", t.Status.String()),
-		}), nil
-	}
-
-	originalTask := proto.Clone(t).(*orcv1.Task)
-
-	// Unblock the task (set to running)
-	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	task.UpdateTimestampProto(t)
-
-	if err := transitionTaskWithAttentionSync(backend, s.publisher, projectID, originalTask, t, "dashboard_approve"); err != nil {
-		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
-			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to update task attention state: %v", err),
-		}), nil
-	}
-	s.pendingDecisions.Remove(decisionID)
 
 	return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
 		Success: true,
@@ -989,34 +1000,20 @@ func (s *attentionDashboardServer) handleRejectAction(backend storage.Backend, p
 			ErrorMessage: "pending decisions not available",
 		}), nil
 	}
-
-	// Get pending decision
-	decision, ok := s.pendingDecisions.Get(decisionID)
-	if !ok {
+	if _, ok := s.pendingDecisions.Get(projectID, decisionID); !ok {
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
 			Success:      false,
 			ErrorMessage: fmt.Sprintf("decision not found: %s", decisionID),
 		}), nil
 	}
 
-	// Load task
-	t, err := backend.LoadTask(decision.TaskID)
+	resolvedBy := "dashboard"
+	_, err := resolvePendingDecision(backend, s.pendingDecisions, s.publisher, projectID, decisionID, false, "", resolvedBy, "")
 	if err != nil {
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
 			Success:      false,
-			ErrorMessage: fmt.Sprintf("task not found: %s", decision.TaskID),
+			ErrorMessage: err.Error(),
 		}), nil
-	}
-
-	// Remove from pending decisions (rejection means canceling)
-	s.pendingDecisions.Remove(decisionID)
-
-	// Task remains blocked or could be set to failed - for now keep it blocked
-	// This behavior might need to be refined based on requirements
-
-	// Publish event if publisher is available
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 	}
 
 	return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
@@ -1150,7 +1147,7 @@ func (s *attentionDashboardServer) UpdateQueueOrganization(
 		return s.handleSwimlaneStateUpdate(backend, update.SwimlaneState)
 
 	case *orcv1.UpdateQueueOrganizationRequest_TaskReorder:
-		return s.handleTaskReorderUpdate(backend, update.TaskReorder)
+		return s.handleTaskReorderUpdate(backend, req.Msg.GetProjectId(), update.TaskReorder)
 
 	default:
 		return connect.NewResponse(&orcv1.UpdateQueueOrganizationResponse{
@@ -1181,7 +1178,11 @@ func (s *attentionDashboardServer) handleSwimlaneStateUpdate(backend storage.Bac
 }
 
 // handleTaskReorderUpdate handles reordering tasks within or between initiatives.
-func (s *attentionDashboardServer) handleTaskReorderUpdate(backend storage.Backend, taskReorder *orcv1.TaskReorderUpdate) (*connect.Response[orcv1.UpdateQueueOrganizationResponse], error) {
+func (s *attentionDashboardServer) handleTaskReorderUpdate(
+	backend storage.Backend,
+	projectID string,
+	taskReorder *orcv1.TaskReorderUpdate,
+) (*connect.Response[orcv1.UpdateQueueOrganizationResponse], error) {
 	// Load the task to be reordered
 	t, err := backend.LoadTask(taskReorder.TaskId)
 	if err != nil {
@@ -1235,7 +1236,7 @@ func (s *attentionDashboardServer) handleTaskReorderUpdate(backend storage.Backe
 
 	// Publish event for real-time updates
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+		publishTaskUpdatedEvent(s.publisher, projectID, t)
 	}
 
 	if s.logger != nil {

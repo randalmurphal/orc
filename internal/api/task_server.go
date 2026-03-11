@@ -603,7 +603,7 @@ func (s *taskServer) UpdateTask(
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+		publishTaskUpdatedEvent(s.publisher, req.Msg.GetProjectId(), t)
 	}
 
 	return connect.NewResponse(&orcv1.UpdateTaskResponse{
@@ -917,7 +917,7 @@ func (s *taskServer) AddBlocker(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
-	s.publisher.Publish(events.Event{Type: "task_updated", TaskID: t.Id, Data: t})
+	publishTaskUpdatedEvent(s.publisher, req.Msg.GetProjectId(), t)
 	return connect.NewResponse(&orcv1.AddBlockerResponse{Task: t}), nil
 }
 
@@ -953,7 +953,7 @@ func (s *taskServer) RemoveBlocker(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
-	s.publisher.Publish(events.Event{Type: "task_updated", TaskID: t.Id, Data: t})
+	publishTaskUpdatedEvent(s.publisher, req.Msg.GetProjectId(), t)
 	return connect.NewResponse(&orcv1.RemoveBlockerResponse{}), nil
 }
 
@@ -998,7 +998,7 @@ func (s *taskServer) AddRelated(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
-	s.publisher.Publish(events.Event{Type: "task_updated", TaskID: t.Id, Data: t})
+	publishTaskUpdatedEvent(s.publisher, req.Msg.GetProjectId(), t)
 	return connect.NewResponse(&orcv1.AddRelatedResponse{Task: t}), nil
 }
 
@@ -1034,7 +1034,7 @@ func (s *taskServer) RemoveRelated(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
-	s.publisher.Publish(events.Event{Type: "task_updated", TaskID: t.Id, Data: t})
+	publishTaskUpdatedEvent(s.publisher, req.Msg.GetProjectId(), t)
 	return connect.NewResponse(&orcv1.RemoveRelatedResponse{}), nil
 }
 
@@ -1408,7 +1408,7 @@ func (s *taskServer) FinalizeTask(
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+		publishTaskUpdatedEvent(s.publisher, req.Msg.GetProjectId(), t)
 	}
 
 	// Return initial finalize state (actual finalization runs async in background)
@@ -2492,11 +2492,7 @@ func (s *taskServer) PauseAllTasks(
 				continue
 			}
 			pausedTasks = append(pausedTasks, t)
-			s.publisher.Publish(events.Event{
-				Type:   events.EventTaskUpdated,
-				TaskID: t.Id,
-				Data:   t,
-			})
+			publishTaskUpdatedEvent(s.publisher, req.Msg.GetProjectId(), t)
 		}
 	}
 
@@ -2530,11 +2526,7 @@ func (s *taskServer) ResumeAllTasks(
 				continue
 			}
 			resumedTasks = append(resumedTasks, t)
-			s.publisher.Publish(events.Event{
-				Type:   events.EventTaskUpdated,
-				TaskID: t.Id,
-				Data:   t,
-			})
+			publishTaskUpdatedEvent(s.publisher, req.Msg.GetProjectId(), t)
 		}
 	}
 

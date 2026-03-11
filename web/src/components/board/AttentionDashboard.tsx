@@ -8,12 +8,14 @@
  * - Queue: Ready tasks organized by initiative
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import './AttentionDashboard.css';
 import { useCurrentProjectId } from '@/stores/projectStore';
 import { attentionDashboardClient } from '@/lib/client';
+import { toast } from '@/stores';
+import { onAttentionDashboardSignal } from '@/lib/events/attentionDashboardSignals';
 import type {
 	GetAttentionDashboardDataResponse,
 	RunningTask,
@@ -37,6 +39,10 @@ interface CollapsedState {
 	[swimlaneId: string]: boolean;
 }
 
+interface LoadDashboardOptions {
+	background?: boolean;
+}
+
 // Use centralized client from @/lib/client
 
 /**
@@ -51,36 +57,81 @@ export function AttentionDashboard({ className }: AttentionDashboardProps) {
 	const [error, setError] = useState<string | null>(null);
 	const [collapsedState, setCollapsedState] = useState<CollapsedState>({});
 	const [expandedRunningTasks, setExpandedRunningTasks] = useState<Set<string>>(new Set());
+	const [pendingActions, setPendingActions] = useState<Record<string, AttentionAction>>({});
+	const hasLoadedDashboardDataRef = useRef(false);
+	const backgroundRefreshInFlightRef = useRef(false);
+	const backgroundRefreshQueuedRef = useRef(false);
 
 	// Load dashboard data
-	const loadDashboardData = useCallback(async () => {
+	const loadDashboardData = useCallback(async (options: LoadDashboardOptions = {}) => {
+		const isBackgroundRefresh = options.background ?? false;
+		const shouldShowLoadingState = !isBackgroundRefresh || !hasLoadedDashboardDataRef.current;
+
 		try {
-			setLoading(true);
+			if (shouldShowLoadingState) {
+				setLoading(true);
+			}
 			setError(null);
 
 			const response = await attentionDashboardClient.getAttentionDashboardData({
 				projectId,
 			});
 
+			hasLoadedDashboardDataRef.current = true;
 			setDashboardData(response);
+			return true;
 		} catch (err) {
 			console.error('Failed to load dashboard data:', err);
-			setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+			if (!isBackgroundRefresh || !hasLoadedDashboardDataRef.current) {
+				setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+			}
+			return false;
 		} finally {
-			setLoading(false);
+			if (shouldShowLoadingState) {
+				setLoading(false);
+			}
 		}
 	}, [projectId]);
+
+	const requestBackgroundRefresh = useCallback(() => {
+		if (backgroundRefreshInFlightRef.current) {
+			backgroundRefreshQueuedRef.current = true;
+			return;
+		}
+
+		backgroundRefreshInFlightRef.current = true;
+		void loadDashboardData({ background: true }).finally(() => {
+			backgroundRefreshInFlightRef.current = false;
+			if (!backgroundRefreshQueuedRef.current) {
+				return;
+			}
+
+			backgroundRefreshQueuedRef.current = false;
+			requestBackgroundRefresh();
+		});
+	}, [loadDashboardData]);
 
 	// Load data on mount and project change
 	useEffect(() => {
 		loadDashboardData();
 	}, [loadDashboardData]);
 
-	// Auto-refresh every 5 seconds for real-time updates
+	// Keep a slow fallback refresh for missed events or manual backend changes.
 	useEffect(() => {
-		const interval = setInterval(loadDashboardData, 5000);
+		const interval = setInterval(() => {
+			requestBackgroundRefresh();
+		}, 30000);
 		return () => clearInterval(interval);
-	}, [loadDashboardData]);
+	}, [requestBackgroundRefresh]);
+
+	useEffect(() => {
+		return onAttentionDashboardSignal((signal) => {
+			if (signal.projectId !== projectId) {
+				return;
+			}
+			requestBackgroundRefresh();
+		});
+	}, [projectId, requestBackgroundRefresh]);
 
 	// Handle task navigation
 	const handleTaskClick = useCallback((taskId: string) => {
@@ -108,6 +159,43 @@ export function AttentionDashboard({ className }: AttentionDashboardProps) {
 		}));
 	}, []);
 
+	const handleAttentionAction = useCallback(async (
+		item: AttentionItem,
+		action: AttentionAction,
+		decisionOptionId?: string,
+	) => {
+		setPendingActions((prev) => ({
+			...prev,
+			[item.id]: action,
+		}));
+
+		try {
+			const response = await attentionDashboardClient.performAttentionAction({
+				projectId,
+				attentionItemId: item.id,
+				action,
+				decisionOptionId: decisionOptionId ?? '',
+			});
+			if (!response.success) {
+				throw new Error(response.errorMessage || 'Attention action failed');
+			}
+
+			const refreshed = await loadDashboardData({ background: true });
+			if (!refreshed) {
+				toast.warning('Action succeeded, but the dashboard did not refresh.');
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Attention action failed';
+			toast.error(message);
+		} finally {
+			setPendingActions((prev) => {
+				const next = { ...prev };
+				delete next[item.id];
+				return next;
+			});
+		}
+	}, [loadDashboardData, projectId]);
+
 	if (loading) {
 		return (
 			<div className="attention-dashboard-loading">
@@ -120,7 +208,7 @@ export function AttentionDashboard({ className }: AttentionDashboardProps) {
 		return (
 			<div className="attention-dashboard-error">
 				<p>Error loading dashboard: {error}</p>
-				<button onClick={loadDashboardData}>Retry</button>
+				<button onClick={() => void loadDashboardData()}>Retry</button>
 			</div>
 		);
 	}
@@ -162,6 +250,8 @@ export function AttentionDashboard({ className }: AttentionDashboardProps) {
 				<AttentionSection
 					items={dashboardData.attentionItems}
 					onTaskClick={handleTaskClick}
+					pendingActions={pendingActions}
+					onAction={handleAttentionAction}
 				/>
 			</section>
 
@@ -373,9 +463,11 @@ function PhasePipeline({ progress }: PhasePipelineProps) {
 interface AttentionSectionProps {
 	items: AttentionItem[];
 	onTaskClick: (taskId: string) => void;
+	pendingActions: Record<string, AttentionAction>;
+	onAction: (item: AttentionItem, action: AttentionAction, decisionOptionId?: string) => void;
 }
 
-function AttentionSection({ items, onTaskClick }: AttentionSectionProps) {
+function AttentionSection({ items, onTaskClick, pendingActions, onAction }: AttentionSectionProps) {
 	if (items.length === 0) {
 		return <div className="empty-section">No items need attention</div>;
 	}
@@ -387,6 +479,8 @@ function AttentionSection({ items, onTaskClick }: AttentionSectionProps) {
 					key={item.id}
 					item={item}
 					onTaskClick={onTaskClick}
+					pendingAction={pendingActions[item.id]}
+					onAction={onAction}
 				/>
 			))}
 		</div>
@@ -397,9 +491,11 @@ function AttentionSection({ items, onTaskClick }: AttentionSectionProps) {
 interface AttentionItemCardProps {
 	item: AttentionItem;
 	onTaskClick: (taskId: string) => void;
+	pendingAction?: AttentionAction;
+	onAction: (item: AttentionItem, action: AttentionAction, decisionOptionId?: string) => void;
 }
 
-function AttentionItemCard({ item, onTaskClick }: AttentionItemCardProps) {
+function AttentionItemCard({ item, onTaskClick, pendingAction, onAction }: AttentionItemCardProps) {
 	// Get type-specific styling class
 	const getTypeClass = (type: typeof item.type) => {
 		switch (type) {
@@ -413,6 +509,22 @@ function AttentionItemCard({ item, onTaskClick }: AttentionItemCardProps) {
 				return 'normal';
 		}
 	};
+
+	const isActionPending = (action: AttentionAction) => pendingAction === action;
+
+	const renderActionButton = (
+		action: AttentionAction,
+		label: string,
+		className: string,
+	) => (
+		<button
+			className={className}
+			disabled={pendingAction !== undefined}
+			onClick={() => onAction(item, action)}
+		>
+			{isActionPending(action) ? 'Working…' : label}
+		</button>
+	);
 
 	return (
 		<div className={cn('attention-item', getPriorityClass(item.priority), getTypeClass(item.type))}>
@@ -439,45 +551,36 @@ function AttentionItemCard({ item, onTaskClick }: AttentionItemCardProps) {
 					<button
 						className="action-btn"
 						onClick={() => onTaskClick(item.taskId)}
+						disabled={pendingAction !== undefined}
 					>
 						View
 					</button>
 				)}
 
 				{item.availableActions.includes(AttentionAction.SKIP) && (
-					<button className="action-btn secondary">
-						Skip
-					</button>
+					renderActionButton(AttentionAction.SKIP, 'Skip', 'action-btn secondary')
 				)}
 
 				{item.availableActions.includes(AttentionAction.FORCE) && (
-					<button className="action-btn secondary">
-						Force
-					</button>
+					renderActionButton(AttentionAction.FORCE, 'Force', 'action-btn secondary')
 				)}
 
 				{item.availableActions.includes(AttentionAction.APPROVE) && (
-					<button className="action-btn primary">
-						Approve
-					</button>
+					(item.decisionOptions && item.decisionOptions.length > 0)
+						? null
+						: renderActionButton(AttentionAction.APPROVE, 'Approve', 'action-btn primary')
 				)}
 
 				{item.availableActions.includes(AttentionAction.REJECT) && (
-					<button className="action-btn secondary">
-						Reject
-					</button>
+					renderActionButton(AttentionAction.REJECT, 'Reject', 'action-btn secondary')
 				)}
 
 				{item.availableActions.includes(AttentionAction.RETRY) && (
-					<button className="action-btn primary">
-						Retry
-					</button>
+					renderActionButton(AttentionAction.RETRY, 'Retry', 'action-btn primary')
 				)}
 
 				{item.availableActions.includes(AttentionAction.RESOLVE) && (
-					<button className="action-btn primary">
-						Resolve
-					</button>
+					renderActionButton(AttentionAction.RESOLVE, 'Resolve', 'action-btn primary')
 				)}
 			</div>
 
@@ -491,6 +594,8 @@ function AttentionItemCard({ item, onTaskClick }: AttentionItemCardProps) {
 							className={cn('decision-option', {
 								recommended: option.recommended,
 							})}
+							onClick={() => void onAction(item, AttentionAction.APPROVE, option.id)}
+							disabled={pendingAction !== undefined}
 						>
 							{option.label}
 						</button>

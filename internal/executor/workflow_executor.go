@@ -147,6 +147,7 @@ type WorkflowExecutor struct {
 	sessionBroadcaster *SessionBroadcaster // For real-time session metrics
 	resourceTracker    *ResourceTracker    // For orphan process detection
 	hostingProvider    hosting.Provider    // Injected hosting provider (for testing)
+	pendingDecisions   *gate.PendingDecisionStore
 
 	// Per-run state (set during Run)
 	worktreePath string             // Path to worktree (if created)
@@ -218,6 +219,14 @@ func WithWorkflowClaudePath(path string) WorkflowExecutorOption {
 func WithWorkflowCodexPath(path string) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
 		we.codexPath = path
+	}
+}
+
+// WithWorkflowPendingDecisions sets the shared pending decision store so
+// control-plane prompt context can reflect live gate decisions in API-backed runs.
+func WithWorkflowPendingDecisions(store *gate.PendingDecisionStore) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.pendingDecisions = store
 	}
 }
 
@@ -372,6 +381,7 @@ func NewWorkflowExecutor(
 		logger:        slog.Default(),
 		claudePath:    "claude",
 		publisher:     events.NewPublishHelper(nil), // Initialize with nil-safe wrapper
+		pendingDecisions: gate.NewPendingDecisionStore(),
 	}
 
 	for _, opt := range opts {

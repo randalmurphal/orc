@@ -18,6 +18,7 @@ import (
 	"github.com/randalmurphal/orc/internal/brief"
 	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
@@ -359,10 +360,18 @@ func (we *WorkflowExecutor) populateControlPlaneContext(
 		return fmt.Errorf("load tasks for control-plane context: %w", err)
 	}
 	signals = controlplane.MergeTaskAttentionSignals("", tasks, signals)
-	rctx.AttentionSummary, err = formatAttentionSignals(we.backend, signals)
+	promptSignals, err := buildPromptAttentionSignals(we.backend, signals)
 	if err != nil {
 		return fmt.Errorf("format attention signals for control-plane context: %w", err)
 	}
+	promptSignals = append(promptSignals, promptPendingDecisionSignals(we.projectIDForEvents(), we.pendingDecisions)...)
+	sort.Slice(promptSignals, func(i, j int) bool {
+		if promptSignals[i].TaskID == promptSignals[j].TaskID {
+			return promptSignals[i].Kind < promptSignals[j].Kind
+		}
+		return promptSignals[i].TaskID < promptSignals[j].TaskID
+	})
+	rctx.AttentionSummary = controlplane.FormatAttentionSummary(promptSignals)
 	return nil
 }
 
@@ -414,10 +423,10 @@ func formatHandoffContext(
 	return controlplane.FormatHandoffPack(pack)
 }
 
-func formatAttentionSignals(
+func buildPromptAttentionSignals(
 	backend storage.Backend,
 	signals []*controlplane.PersistedAttentionSignal,
-) (string, error) {
+) ([]controlplane.AttentionSignal, error) {
 	promptSignals := make([]controlplane.AttentionSignal, 0, len(signals))
 	for _, persistedSignal := range signals {
 		if persistedSignal == nil {
@@ -426,19 +435,44 @@ func formatAttentionSignals(
 
 		promptSignal, err := promptAttentionSignal(backend, persistedSignal)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		promptSignals = append(promptSignals, promptSignal)
 	}
 
-	sort.Slice(promptSignals, func(i, j int) bool {
-		if promptSignals[i].TaskID == promptSignals[j].TaskID {
-			return promptSignals[i].Kind < promptSignals[j].Kind
-		}
-		return promptSignals[i].TaskID < promptSignals[j].TaskID
-	})
+	return promptSignals, nil
+}
 
-	return controlplane.FormatAttentionSummary(promptSignals), nil
+func promptPendingDecisionSignals(
+	projectID string,
+	store *gate.PendingDecisionStore,
+) []controlplane.AttentionSignal {
+	if projectID == "" || store == nil {
+		return nil
+	}
+
+	decisions := store.List(projectID)
+	signals := make([]controlplane.AttentionSignal, 0, len(decisions))
+	for _, decision := range decisions {
+		if decision == nil {
+			continue
+		}
+
+		summary := decision.Question
+		if decision.Context != "" {
+			summary = strings.TrimSpace(summary + "\n" + decision.Context)
+		}
+		signals = append(signals, controlplane.AttentionSignal{
+			Kind:    string(controlplane.AttentionSignalKindDecisionRequest),
+			TaskID:  decision.TaskID,
+			Title:   decision.TaskTitle,
+			Status:  "pending_decision",
+			Phase:   decision.Phase,
+			Summary: summary,
+		})
+	}
+
+	return signals
 }
 
 func recommendationKindName(kind orcv1.RecommendationKind) string {

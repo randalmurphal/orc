@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 
@@ -855,6 +857,57 @@ func TestInternalEventToProto_TaskEvents(t *testing.T) {
 			t.Errorf("expected task_id 'TASK-003', got %q", deleted.TaskId)
 		}
 	})
+}
+
+func TestInternalEventToProto_DecisionEventsFromTypedPayloads(t *testing.T) {
+	t.Parallel()
+
+	requestedAt := time.Now().UTC().Truncate(time.Second)
+	required := internalEventToProto(events.NewProjectEvent(
+		events.EventDecisionRequired,
+		"proj-123",
+		"TASK-001",
+		events.DecisionRequiredData{
+			DecisionID:  "gate-123",
+			TaskID:      "TASK-001",
+			TaskTitle:   "Review task",
+			Phase:       "review",
+			GateType:    "human",
+			Question:    "Ship it?",
+			Context:     "Needs approval",
+			RequestedAt: requestedAt,
+		},
+	))
+	if required == nil {
+		t.Fatal("expected decision required proto event")
+	}
+	require.Equal(t, "proj-123", required.GetProjectId())
+	require.Equal(t, "Review task", required.GetDecisionRequired().TaskTitle)
+	require.Equal(t, requestedAt, required.GetDecisionRequired().RequestedAt.AsTime())
+
+	resolvedAt := requestedAt.Add(time.Minute)
+	resolved := internalEventToProto(events.NewProjectEvent(
+		events.EventDecisionResolved,
+		"proj-123",
+		"TASK-001",
+		events.DecisionResolvedData{
+			DecisionID: "gate-123",
+			TaskID:     "TASK-001",
+			Phase:      "review",
+			Approved:   true,
+			Reason:     "Looks good",
+			ResolvedBy: "reviewer",
+			ResolvedAt: resolvedAt,
+		},
+	))
+	if resolved == nil {
+		t.Fatal("expected decision resolved proto event")
+	}
+	require.Equal(t, "proj-123", resolved.GetProjectId())
+	require.Equal(t, "reviewer", resolved.GetDecisionResolved().ResolvedBy)
+	require.NotNil(t, resolved.GetDecisionResolved().Reason)
+	require.Equal(t, "Looks good", resolved.GetDecisionResolved().GetReason())
+	require.Equal(t, resolvedAt, resolved.GetDecisionResolved().ResolvedAt.AsTime())
 }
 
 // TestDbEventToProto_UsesDatabaseID verifies that dbEventToProto uses the database

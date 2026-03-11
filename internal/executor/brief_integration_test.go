@@ -21,6 +21,7 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -537,6 +538,92 @@ func TestPopulateControlPlaneContextIncludesLegacyAttentionTasksWithoutSignals(t
 	require.NoError(t, err)
 	require.Contains(t, rctx.AttentionSummary, blockedTask.Id)
 	require.Contains(t, rctx.AttentionSummary, failedTask.Id)
+}
+
+func TestPopulateControlPlaneContextIncludesPersistedOperatorAttentionKinds(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	we := NewWorkflowExecutor(backend, backend.DB(), testGlobalDBFrom(backend), config.Default(), t.TempDir())
+
+	taskItem := task.NewProtoTask("TASK-201", "Operator-visible task")
+	taskItem.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	currentPhase := "review"
+	taskItem.CurrentPhase = &currentPhase
+	require.NoError(t, backend.SaveTask(taskItem))
+
+	signals := []*controlplane.PersistedAttentionSignal{
+		{
+			Kind:          controlplane.AttentionSignalKindDecisionRequest,
+			Status:        controlplane.AttentionSignalStatusActive,
+			ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+			ReferenceID:   taskItem.Id,
+			Title:         "Decision needed",
+			Summary:       "Choose whether to continue rollout.",
+		},
+		{
+			Kind:          controlplane.AttentionSignalKindDiscussionNeeded,
+			Status:        controlplane.AttentionSignalStatusActive,
+			ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+			ReferenceID:   taskItem.Id,
+			Title:         "Discussion needed",
+			Summary:       "Clarify the operator handoff.",
+		},
+		{
+			Kind:          controlplane.AttentionSignalKindVerificationSummary,
+			Status:        controlplane.AttentionSignalStatusActive,
+			ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+			ReferenceID:   taskItem.Id,
+			Title:         "Verification summary",
+			Summary:       "Browser validation found a warning.",
+		},
+	}
+	for _, signal := range signals {
+		require.NoError(t, backend.SaveAttentionSignal(signal))
+	}
+
+	rctx := &variable.ResolutionContext{}
+	err := we.populateControlPlaneContext(rctx, "review", taskItem, controlPlaneVariableUsage{
+		AttentionSummary: true,
+	})
+	require.NoError(t, err)
+	require.Contains(t, rctx.AttentionSummary, "Kind: decision_request")
+	require.Contains(t, rctx.AttentionSummary, "Kind: discussion_needed")
+	require.Contains(t, rctx.AttentionSummary, "Kind: verification_summary")
+	require.Contains(t, rctx.AttentionSummary, taskItem.Id)
+}
+
+func TestPromptPendingDecisionSignals(t *testing.T) {
+	t.Parallel()
+
+	store := gate.NewPendingDecisionStore()
+	require.NoError(t, store.Add(&gate.PendingDecision{
+		ProjectID:   "proj-001",
+		DecisionID:  "gate_TASK-200_review",
+		TaskID:      "TASK-200",
+		TaskTitle:   "Needs approval",
+		Phase:       "review",
+		GateType:    "human",
+		Question:    "Approve release?",
+		Context:     "Operator sign-off required",
+		RequestedAt: time.Now(),
+	}))
+	require.NoError(t, store.Add(&gate.PendingDecision{
+		ProjectID:   "proj-002",
+		DecisionID:  "gate_TASK-201_review",
+		TaskID:      "TASK-201",
+		TaskTitle:   "Other project",
+		Phase:       "review",
+		GateType:    "human",
+		Question:    "Ignore me",
+		RequestedAt: time.Now(),
+	}))
+
+	signals := promptPendingDecisionSignals("proj-001", store)
+	require.Len(t, signals, 1)
+	require.Equal(t, "TASK-200", signals[0].TaskID)
+	require.Equal(t, string(controlplane.AttentionSignalKindDecisionRequest), signals[0].Kind)
+	require.Contains(t, signals[0].Summary, "Approve release?")
 }
 
 func TestPopulateControlPlaneContextSkipsBackendWhenVarsUnused(t *testing.T) {

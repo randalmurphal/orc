@@ -15,14 +15,18 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { handleEvent } from './handlers';
 import { onRecommendationSignal } from './recommendationSignals';
+import { onAttentionDashboardSignal } from './attentionDashboardSignals';
 import { useTaskStore } from '@/stores/taskStore';
 import { useInitiativeStore } from '@/stores/initiativeStore';
 import { create } from '@bufbuild/protobuf';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 import {
+	DecisionRequiredEventSchema,
+	DecisionResolvedEventSchema,
 	EventSchema,
 	RecommendationCreatedEventSchema,
 	TaskCreatedEventSchema,
+	TaskDeletedEventSchema,
 	TaskUpdatedEventSchema,
 	InitiativeCreatedEventSchema,
 	type Event,
@@ -333,6 +337,177 @@ describe('handleEvent - recommendation events', () => {
 				projectId: 'proj-001',
 				recommendationId: 'REC-001',
 				type: 'created',
+			},
+		]);
+	});
+});
+
+describe('handleEvent - attention dashboard signals', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('emits a dashboard signal for taskCreated events', () => {
+		const received: Array<{ projectId: string; taskId?: string; type: string }> = [];
+		const unsubscribe = onAttentionDashboardSignal((signal) => {
+			received.push(signal);
+		});
+		const event = create(EventSchema, {
+			id: 'evt-task-created',
+			timestamp: createTimestamp(),
+			projectId: 'proj-001',
+			taskId: 'TASK-199',
+			payload: {
+				case: 'taskCreated',
+				value: create(TaskCreatedEventSchema, {
+					taskId: 'TASK-199',
+					title: 'Created task',
+					initiativeId: 'INIT-001',
+				}),
+			},
+		});
+
+		handleEvent(event);
+		unsubscribe();
+
+		expect(received).toEqual([
+			{
+				projectId: 'proj-001',
+				taskId: 'TASK-199',
+				type: 'task-updated',
+			},
+		]);
+	});
+
+	it('emits a dashboard signal for taskUpdated events', () => {
+		const received: Array<{ projectId: string; taskId?: string; type: string }> = [];
+		const unsubscribe = onAttentionDashboardSignal((signal) => {
+			received.push(signal);
+		});
+		const updatedTask = createMockTask({
+			id: 'TASK-200',
+			title: 'Update me',
+		});
+		const event = create(EventSchema, {
+			id: 'evt-task-updated',
+			timestamp: createTimestamp(),
+			projectId: 'proj-001',
+			taskId: 'TASK-200',
+			payload: {
+				case: 'taskUpdated',
+				value: create(TaskUpdatedEventSchema, {
+					taskId: 'TASK-200',
+					task: updatedTask,
+					changedFields: ['status'],
+				}),
+			},
+		});
+
+		handleEvent(event);
+		unsubscribe();
+
+		expect(received).toEqual([
+			{
+				projectId: 'proj-001',
+				taskId: 'TASK-200',
+				type: 'task-updated',
+			},
+		]);
+	});
+
+	it('emits a dashboard signal for taskDeleted events', () => {
+		const received: Array<{ projectId: string; taskId?: string; type: string }> = [];
+		const unsubscribe = onAttentionDashboardSignal((signal) => {
+			received.push(signal);
+		});
+		const event = create(EventSchema, {
+			id: 'evt-task-deleted',
+			timestamp: createTimestamp(),
+			projectId: 'proj-001',
+			payload: {
+				case: 'taskDeleted',
+				value: create(TaskDeletedEventSchema, {
+					taskId: 'TASK-200',
+				}),
+			},
+		});
+
+		handleEvent(event);
+		unsubscribe();
+
+		expect(received).toEqual([
+			{
+				projectId: 'proj-001',
+				taskId: 'TASK-200',
+				type: 'task-updated',
+			},
+		]);
+	});
+
+	it('emits a dashboard signal for decisionRequired events', () => {
+		const received: Array<{ projectId: string; taskId?: string; type: string }> = [];
+		const unsubscribe = onAttentionDashboardSignal((signal) => {
+			received.push(signal);
+		});
+		const event = create(EventSchema, {
+			id: 'evt-decision-required',
+			timestamp: createTimestamp(),
+			projectId: 'proj-001',
+			payload: {
+				case: 'decisionRequired',
+				value: create(DecisionRequiredEventSchema, {
+					decisionId: 'DEC-001',
+					taskId: 'TASK-201',
+					taskTitle: 'Needs a call',
+					phase: 'review',
+					gateType: 'human',
+					question: 'Ship it?',
+					context: 'Needs approval',
+					requestedAt: createTimestamp(),
+				}),
+			},
+		});
+
+		handleEvent(event);
+		unsubscribe();
+
+		expect(received).toEqual([
+			{
+				projectId: 'proj-001',
+				taskId: 'TASK-201',
+				type: 'decision-required',
+			},
+		]);
+	});
+
+	it('emits a dashboard signal for decisionResolved events', () => {
+		const received: Array<{ projectId: string; taskId?: string; type: string }> = [];
+		const unsubscribe = onAttentionDashboardSignal((signal) => {
+			received.push(signal);
+		});
+		const event = create(EventSchema, {
+			id: 'evt-decision-resolved',
+			timestamp: createTimestamp(),
+			projectId: 'proj-001',
+			payload: {
+				case: 'decisionResolved',
+				value: create(DecisionResolvedEventSchema, {
+					decisionId: 'DEC-001',
+					taskId: 'TASK-201',
+					approved: true,
+					resolvedAt: createTimestamp(),
+				}),
+			},
+		});
+
+		handleEvent(event);
+		unsubscribe();
+
+		expect(received).toEqual([
+			{
+				projectId: 'proj-001',
+				taskId: 'TASK-201',
+				type: 'decision-resolved',
 			},
 		]);
 	});

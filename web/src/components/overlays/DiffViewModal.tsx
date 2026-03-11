@@ -286,15 +286,19 @@ export function DiffViewModal({
 		if (!open) return;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
-			// Don't handle keys when search is visible and focused
+			// Escape should clear search whenever the search UI is open, even if
+			// focus has drifted inside the modal.
+			if (searchVisible && e.key === 'Escape') {
+				setSearchVisible(false);
+				setSearchQuery('');
+				fileListRef.current?.focus();
+				e.preventDefault();
+				e.stopPropagation();
+				return;
+			}
+
+			// Don't handle other shortcuts while the search input owns focus.
 			if (searchVisible && document.activeElement === searchInputRef.current) {
-				if (e.key === 'Escape') {
-					setSearchVisible(false);
-					setSearchQuery('');
-					fileListRef.current?.focus();
-					e.preventDefault();
-					e.stopPropagation();
-				}
 				return;
 			}
 

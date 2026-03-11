@@ -421,12 +421,41 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 				DecisionRequired: &orcv1.DecisionRequiredEvent{
 					DecisionId: getString(data, "decision_id"),
 					TaskId:     e.TaskID,
+					TaskTitle:  getString(data, "task_title"),
 					Phase:      getString(data, "phase"),
 					GateType:   getString(data, "gate_type"),
 					Question:   getString(data, "question"),
 					Context:    getString(data, "context"),
 				},
 			}
+		} else if data, ok := e.Data.(*events.DecisionRequiredData); ok {
+			payload := &orcv1.DecisionRequiredEvent{
+				DecisionId: data.DecisionID,
+				TaskId:     data.TaskID,
+				TaskTitle:  data.TaskTitle,
+				Phase:      data.Phase,
+				GateType:   data.GateType,
+				Question:   data.Question,
+				Context:    data.Context,
+			}
+			if !data.RequestedAt.IsZero() {
+				payload.RequestedAt = timestamppb.New(data.RequestedAt)
+			}
+			result.Payload = &orcv1.Event_DecisionRequired{DecisionRequired: payload}
+		} else if data, ok := e.Data.(events.DecisionRequiredData); ok {
+			payload := &orcv1.DecisionRequiredEvent{
+				DecisionId: data.DecisionID,
+				TaskId:     data.TaskID,
+				TaskTitle:  data.TaskTitle,
+				Phase:      data.Phase,
+				GateType:   data.GateType,
+				Question:   data.Question,
+				Context:    data.Context,
+			}
+			if !data.RequestedAt.IsZero() {
+				payload.RequestedAt = timestamppb.New(data.RequestedAt)
+			}
+			result.Payload = &orcv1.Event_DecisionRequired{DecisionRequired: payload}
 		}
 
 	case events.EventDecisionResolved:
@@ -440,6 +469,36 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 					ResolvedBy: getString(data, "resolved_by"),
 				},
 			}
+		} else if data, ok := e.Data.(*events.DecisionResolvedData); ok {
+			payload := &orcv1.DecisionResolvedEvent{
+				DecisionId: data.DecisionID,
+				TaskId:     data.TaskID,
+				Phase:      data.Phase,
+				Approved:   data.Approved,
+				ResolvedBy: data.ResolvedBy,
+			}
+			if data.Reason != "" {
+				payload.Reason = &data.Reason
+			}
+			if !data.ResolvedAt.IsZero() {
+				payload.ResolvedAt = timestamppb.New(data.ResolvedAt)
+			}
+			result.Payload = &orcv1.Event_DecisionResolved{DecisionResolved: payload}
+		} else if data, ok := e.Data.(events.DecisionResolvedData); ok {
+			payload := &orcv1.DecisionResolvedEvent{
+				DecisionId: data.DecisionID,
+				TaskId:     data.TaskID,
+				Phase:      data.Phase,
+				Approved:   data.Approved,
+				ResolvedBy: data.ResolvedBy,
+			}
+			if data.Reason != "" {
+				payload.Reason = &data.Reason
+			}
+			if !data.ResolvedAt.IsZero() {
+				payload.ResolvedAt = timestamppb.New(data.ResolvedAt)
+			}
+			result.Payload = &orcv1.Event_DecisionResolved{DecisionResolved: payload}
 		}
 
 	case events.EventError:

@@ -69,6 +69,17 @@ func TestIsPhaseTimeoutError(t *testing.T) {
 	}
 }
 
+func TestNewWorkflowExecutorInitializesPendingDecisionStore(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	we := NewWorkflowExecutor(backend, backend.DB(), testGlobalDBFrom(backend), config.Default(), t.TempDir())
+
+	if we.pendingDecisions == nil {
+		t.Fatal("pendingDecisions should be initialized by default")
+	}
+}
+
 func TestPhaseTimeoutError_Error(t *testing.T) {
 	t.Parallel()
 
