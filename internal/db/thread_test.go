@@ -640,6 +640,19 @@ func TestThread_PromoteRecommendationDraft(t *testing.T) {
 	if rec.SourceRunID != "RUN-001" {
 		t.Fatalf("expected derived source run RUN-001, got %s", rec.SourceRunID)
 	}
+	history, err := pdb.ListRecommendationHistory(rec.ID)
+	if err != nil {
+		t.Fatalf("ListRecommendationHistory: %v", err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("expected 1 history entry, got %d", len(history))
+	}
+	if history[0].FromStatus != "" {
+		t.Fatalf("expected empty from_status for initial history, got %q", history[0].FromStatus)
+	}
+	if history[0].ToStatus != RecommendationStatusPending {
+		t.Fatalf("expected pending history status, got %s", history[0].ToStatus)
+	}
 
 	got, err := pdb.GetThread(thread.ID)
 	if err != nil {

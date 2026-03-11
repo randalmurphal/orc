@@ -317,7 +317,6 @@ func (p *ProjectDB) ListThreads(opts ThreadListOpts) ([]Thread, error) {
 	if opts.TaskID != "" {
 		query += fmt.Sprintf(" AND task_id = %s", dialectPlaceholder(p.Dialect(), argIndex))
 		args = append(args, opts.TaskID)
-		argIndex++
 	}
 	query += " ORDER BY updated_at DESC"
 
@@ -494,6 +493,12 @@ func (p *ProjectDB) PromoteThreadRecommendationDraft(ctx context.Context, draftI
 			DedupeKey:      recommendationDedupeKey(draft),
 		}
 		if err := createRecommendationTx(tx, recommendation); err != nil {
+			return err
+		}
+		if err := insertRecommendationHistoryTx(tx, p.Driver(), &RecommendationHistory{
+			RecommendationID: recommendation.ID,
+			ToStatus:         RecommendationStatusPending,
+		}); err != nil {
 			return err
 		}
 
