@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { create } from '@bufbuild/protobuf';
 import {
+	AddThreadLinkRequestSchema,
+	CreateThreadDecisionDraftRequestSchema,
+	CreateThreadRecommendationDraftRequestSchema,
 	GetThreadRequestSchema,
 	PromoteThreadDecisionDraftRequestSchema,
 	PromoteThreadRecommendationDraftRequestSchema,
@@ -24,6 +27,8 @@ const EMPTY_MESSAGES: ThreadMessage[] = [];
 const EMPTY_LINKS: ThreadLink[] = [];
 const EMPTY_RECOMMENDATION_DRAFTS: ThreadRecommendationDraft[] = [];
 const EMPTY_DECISION_DRAFTS: ThreadDecisionDraft[] = [];
+const DEFAULT_LINK_TYPE = 'file';
+const DEFAULT_RECOMMENDATION_KIND = 'follow_up';
 
 export function DiscussionPanel({ threadId, projectId, messages: initialMessages }: DiscussionPanelProps) {
 	const stableMessages = initialMessages ?? EMPTY_MESSAGES;
@@ -31,9 +36,24 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 	const [links, setLinks] = useState<ThreadLink[]>(EMPTY_LINKS);
 	const [recommendationDrafts, setRecommendationDrafts] = useState<ThreadRecommendationDraft[]>(EMPTY_RECOMMENDATION_DRAFTS);
 	const [decisionDrafts, setDecisionDrafts] = useState<ThreadDecisionDraft[]>(EMPTY_DECISION_DRAFTS);
+	const [threadTaskId, setThreadTaskId] = useState('');
+	const [threadInitiativeId, setThreadInitiativeId] = useState('');
 	const [input, setInput] = useState('');
+	const [linkType, setLinkType] = useState(DEFAULT_LINK_TYPE);
+	const [linkTargetId, setLinkTargetId] = useState('');
+	const [linkTitle, setLinkTitle] = useState('');
+	const [recommendationKind, setRecommendationKind] = useState(DEFAULT_RECOMMENDATION_KIND);
+	const [recommendationTitle, setRecommendationTitle] = useState('');
+	const [recommendationSummary, setRecommendationSummary] = useState('');
+	const [recommendationAction, setRecommendationAction] = useState('');
+	const [recommendationEvidence, setRecommendationEvidence] = useState('');
+	const [decisionInitiativeId, setDecisionInitiativeId] = useState('');
+	const [decisionText, setDecisionText] = useState('');
+	const [decisionRationale, setDecisionRationale] = useState('');
 	const [sending, setSending] = useState(false);
-	const [loadingThread, setLoadingThread] = useState(initialMessages === undefined);
+	const [addingLink, setAddingLink] = useState(false);
+	const [creatingDraft, setCreatingDraft] = useState<'recommendation' | 'decision' | null>(null);
+	const [loadingThread, setLoadingThread] = useState(true);
 	const [promotingDraftId, setPromotingDraftId] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -44,26 +64,28 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 	}, [stableMessages]);
 
 	const syncThreadState = useCallback((thread?: {
+		taskId?: string;
+		initiativeId?: string;
 		messages?: ThreadMessage[];
 		links?: ThreadLink[];
 		recommendationDrafts?: ThreadRecommendationDraft[];
 		decisionDrafts?: ThreadDecisionDraft[];
 	}) => {
-		setMessages(thread?.messages ?? EMPTY_MESSAGES);
+		if (thread?.messages !== undefined) {
+			setMessages(thread.messages);
+		}
 		setLinks(thread?.links ?? EMPTY_LINKS);
 		setRecommendationDrafts(thread?.recommendationDrafts ?? EMPTY_RECOMMENDATION_DRAFTS);
 		setDecisionDrafts(thread?.decisionDrafts ?? EMPTY_DECISION_DRAFTS);
+		setThreadTaskId(thread?.taskId ?? '');
+		setThreadInitiativeId(thread?.initiativeId ?? '');
+		setDecisionInitiativeId((currentValue) => currentValue || thread?.initiativeId || '');
 	}, []);
 
 	useEffect(() => {
-		if (initialMessages !== undefined) {
-			setLoadingThread(false);
-			return;
-		}
-
 		let cancelled = false;
 		const loadThread = async () => {
-			setLoadingThread(true);
+			setLoadingThread(initialMessages === undefined);
 			try {
 				const response = await threadClient.getThread(
 					create(GetThreadRequestSchema, {
@@ -182,6 +204,125 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		}
 	}, [projectId, syncThreadState, threadId]);
 
+	const addLink = useCallback(async () => {
+		const targetId = linkTargetId.trim();
+		if (!targetId || addingLink) {
+			return;
+		}
+
+		setAddingLink(true);
+		setError(null);
+		try {
+			const response = await threadClient.addLink(
+				create(AddThreadLinkRequestSchema, {
+					projectId,
+					threadId,
+					link: {
+						linkType,
+						targetId,
+						title: linkTitle.trim(),
+					},
+				})
+			);
+			syncThreadState(response.thread);
+			setLinkTargetId('');
+			setLinkTitle('');
+		} catch {
+			setError('Failed to add linked context. Try again.');
+		} finally {
+			setAddingLink(false);
+		}
+	}, [addingLink, linkTargetId, linkTitle, linkType, projectId, syncThreadState, threadId]);
+
+	const createRecommendationDraft = useCallback(async () => {
+		if (creatingDraft !== null) {
+			return;
+		}
+
+		const kind = recommendationKindFromValue(recommendationKind);
+		if (
+			kind === undefined ||
+			!recommendationTitle.trim() ||
+			!recommendationSummary.trim() ||
+			!recommendationAction.trim() ||
+			!recommendationEvidence.trim()
+		) {
+			setError('Recommendation drafts need kind, title, summary, proposed action, and evidence.');
+			return;
+		}
+
+		setCreatingDraft('recommendation');
+		setError(null);
+		try {
+			const response = await threadClient.createRecommendationDraft(
+				create(CreateThreadRecommendationDraftRequestSchema, {
+					projectId,
+					threadId,
+					draft: {
+						kind,
+						title: recommendationTitle.trim(),
+						summary: recommendationSummary.trim(),
+						proposedAction: recommendationAction.trim(),
+						evidence: recommendationEvidence.trim(),
+					},
+				})
+			);
+			syncThreadState(response.thread);
+			setRecommendationKind(DEFAULT_RECOMMENDATION_KIND);
+			setRecommendationTitle('');
+			setRecommendationSummary('');
+			setRecommendationAction('');
+			setRecommendationEvidence('');
+		} catch {
+			setError('Failed to create recommendation draft. Try again.');
+		} finally {
+			setCreatingDraft(null);
+		}
+	}, [
+		creatingDraft,
+		projectId,
+		recommendationAction,
+		recommendationEvidence,
+		recommendationKind,
+		recommendationSummary,
+		recommendationTitle,
+		syncThreadState,
+		threadId,
+	]);
+
+	const createDecisionDraft = useCallback(async () => {
+		if (creatingDraft !== null) {
+			return;
+		}
+		if (!decisionText.trim()) {
+			setError('Decision drafts need a decision.');
+			return;
+		}
+
+		setCreatingDraft('decision');
+		setError(null);
+		try {
+			const response = await threadClient.createDecisionDraft(
+				create(CreateThreadDecisionDraftRequestSchema, {
+					projectId,
+					threadId,
+					draft: {
+						initiativeId: decisionInitiativeId.trim(),
+						decision: decisionText.trim(),
+						rationale: decisionRationale.trim(),
+					},
+				})
+			);
+			syncThreadState(response.thread);
+			setDecisionText('');
+			setDecisionRationale('');
+		} catch {
+			setError('Failed to create decision draft. Try again.');
+		} finally {
+			setCreatingDraft(null);
+		}
+	}, [creatingDraft, decisionInitiativeId, decisionRationale, decisionText, projectId, syncThreadState, threadId]);
+
 	const handleKeyDown = (e: React.KeyboardEvent) => {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
@@ -193,7 +334,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 
 	return (
 		<div className="discussion-panel">
-			{(links.length > 0 || recommendationDrafts.length > 0 || decisionDrafts.length > 0) && (
+			{!loadingThread && (
 				<div className="discussion-panel__context">
 					{links.length > 0 && (
 						<div className="discussion-panel__section">
@@ -261,6 +402,138 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 							</div>
 						</div>
 					)}
+
+					<div className="discussion-panel__section">
+						<div className="discussion-panel__section-label">Add linked context</div>
+						<div className="discussion-panel__form-grid">
+							<select
+								aria-label="Link type"
+								value={linkType}
+								onChange={(e) => setLinkType(e.target.value)}
+								disabled={addingLink}
+							>
+								<option value="task">Task</option>
+								<option value="initiative">Initiative</option>
+								<option value="recommendation">Recommendation</option>
+								<option value="file">File</option>
+								<option value="diff">Diff</option>
+							</select>
+							<input
+								aria-label="Link target"
+								value={linkTargetId}
+								onChange={(e) => setLinkTargetId(e.target.value)}
+								placeholder={linkTargetPlaceholder(linkType, threadTaskId, threadInitiativeId)}
+								disabled={addingLink}
+							/>
+							<input
+								aria-label="Link title"
+								value={linkTitle}
+								onChange={(e) => setLinkTitle(e.target.value)}
+								placeholder="Optional title"
+								disabled={addingLink}
+							/>
+							<button
+								type="button"
+								className="discussion-panel__secondary-button"
+								onClick={addLink}
+								disabled={addingLink || !linkTargetId.trim()}
+							>
+								Add Link
+							</button>
+						</div>
+					</div>
+
+					<div className="discussion-panel__section">
+						<div className="discussion-panel__section-label">Create recommendation draft</div>
+						<div className="discussion-panel__form-grid">
+							<select
+								aria-label="Recommendation kind"
+								value={recommendationKind}
+								onChange={(e) => setRecommendationKind(e.target.value)}
+								disabled={creatingDraft !== null}
+							>
+								<option value="follow_up">Follow-up</option>
+								<option value="cleanup">Cleanup</option>
+								<option value="risk">Risk</option>
+								<option value="decision_request">Decision request</option>
+							</select>
+							<input
+								aria-label="Recommendation title"
+								value={recommendationTitle}
+								onChange={(e) => setRecommendationTitle(e.target.value)}
+								placeholder="Draft title"
+								disabled={creatingDraft !== null}
+							/>
+							<textarea
+								aria-label="Recommendation summary"
+								value={recommendationSummary}
+								onChange={(e) => setRecommendationSummary(e.target.value)}
+								placeholder="Summary"
+								disabled={creatingDraft !== null}
+								rows={2}
+							/>
+							<textarea
+								aria-label="Recommendation proposed action"
+								value={recommendationAction}
+								onChange={(e) => setRecommendationAction(e.target.value)}
+								placeholder="Proposed action"
+								disabled={creatingDraft !== null}
+								rows={2}
+							/>
+							<textarea
+								aria-label="Recommendation evidence"
+								value={recommendationEvidence}
+								onChange={(e) => setRecommendationEvidence(e.target.value)}
+								placeholder="Evidence"
+								disabled={creatingDraft !== null}
+								rows={2}
+							/>
+							<button
+								type="button"
+								className="discussion-panel__secondary-button"
+								onClick={createRecommendationDraft}
+								disabled={creatingDraft !== null}
+							>
+								Create Recommendation Draft
+							</button>
+						</div>
+					</div>
+
+					<div className="discussion-panel__section">
+						<div className="discussion-panel__section-label">Create decision draft</div>
+						<div className="discussion-panel__form-grid">
+							<input
+								aria-label="Decision initiative"
+								value={decisionInitiativeId}
+								onChange={(e) => setDecisionInitiativeId(e.target.value)}
+								placeholder={threadInitiativeId || 'Initiative ID'}
+								disabled={creatingDraft !== null}
+							/>
+							<input
+								aria-label="Decision text"
+								value={decisionText}
+								onChange={(e) => setDecisionText(e.target.value)}
+								placeholder="Decision"
+								disabled={creatingDraft !== null}
+							/>
+							<textarea
+								aria-label="Decision rationale"
+								value={decisionRationale}
+								onChange={(e) => setDecisionRationale(e.target.value)}
+								placeholder="Rationale"
+								disabled={creatingDraft !== null}
+								rows={2}
+							/>
+							<button
+								type="button"
+								className="discussion-panel__secondary-button"
+								onClick={createDecisionDraft}
+								disabled={creatingDraft !== null}
+							>
+								Create Decision Draft
+							</button>
+						</div>
+					</div>
 				</div>
 			)}
 
@@ -321,5 +594,36 @@ function recommendationKindLabel(kind: RecommendationKind): string {
 			return 'decision request';
 		default:
 			return 'follow-up';
+	}
+}
+
+function recommendationKindFromValue(value: string): RecommendationKind | undefined {
+	switch (value) {
+		case 'cleanup':
+			return RecommendationKind.CLEANUP;
+		case 'risk':
+			return RecommendationKind.RISK;
+		case 'decision_request':
+			return RecommendationKind.DECISION_REQUEST;
+		case 'follow_up':
+			return RecommendationKind.FOLLOW_UP;
+		default:
+			return undefined;
+	}
+}
+
+function linkTargetPlaceholder(linkType: string, threadTaskId: string, threadInitiativeId: string): string {
+	switch (linkType) {
+		case 'task':
+			return threadTaskId || 'TASK-001';
+		case 'initiative':
+			return threadInitiativeId || 'INIT-001';
+		case 'recommendation':
+			return 'REC-001';
+		case 'diff':
+			return `${threadTaskId || 'TASK-001'}:path/to/file.tsx`;
+		case 'file':
+		default:
+			return 'path/to/file.tsx';
 	}
 }

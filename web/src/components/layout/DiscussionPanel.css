@@ -44,6 +44,11 @@
 	gap: 8px;
 }
 
+.discussion-panel__form-grid {
+	display: grid;
+	gap: 8px;
+}
+
 .discussion-panel__link-pill {
 	display: inline-flex;
 	align-items: center;
@@ -107,6 +112,49 @@
 }
 
 .discussion-panel__draft-card button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.discussion-panel__context input,
+.discussion-panel__context select,
+.discussion-panel__context textarea {
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid var(--border-light);
+	border-radius: 8px;
+	background: var(--bg-base);
+	color: var(--text-primary);
+	font-size: 12px;
+	font-family: inherit;
+}
+
+.discussion-panel__context textarea {
+	resize: vertical;
+	min-height: 56px;
+}
+
+.discussion-panel__context input:focus,
+.discussion-panel__context select:focus,
+.discussion-panel__context textarea:focus {
+	outline: none;
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px var(--primary-dim);
+}
+
+.discussion-panel__secondary-button {
+	justify-self: start;
+	padding: 7px 12px;
+	border: 1px solid var(--border-light);
+	border-radius: 999px;
+	background: var(--bg-base);
+	color: var(--text-primary);
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.discussion-panel__secondary-button:disabled {
 	opacity: 0.5;
 	cursor: not-allowed;
 }

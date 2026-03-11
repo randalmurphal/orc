@@ -17,6 +17,9 @@ import { createTimestamp } from '@/test/factories';
 // Mock threadClient for send message tests
 vi.mock('@/lib/client', () => ({
 	threadClient: {
+		addLink: vi.fn(),
+		createRecommendationDraft: vi.fn(),
+		createDecisionDraft: vi.fn(),
 		sendMessage: vi.fn(),
 		getThread: vi.fn(),
 		promoteRecommendationDraft: vi.fn(),
@@ -147,6 +150,8 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 	it('should render thread context links and drafts from loaded thread state', async () => {
 		vi.mocked(threadClient.getThread).mockResolvedValue({
 			thread: createMockThread({
+				taskId: 'TASK-001',
+				initiativeId: 'INIT-001',
 				links: [
 					create(ThreadLinkSchema, { id: BigInt(1), threadId: 'thread-001', linkType: 'task', targetId: 'TASK-001', title: 'TASK-001' }),
 				],
@@ -183,6 +188,41 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 			expect(screen.getByText('Current context')).toBeInTheDocument();
 			expect(screen.getByText('Follow up on workspace')).toBeInTheDocument();
 			expect(screen.getByText('Keep recommendations human-gated')).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: /add link/i })).toBeInTheDocument();
+		});
+	});
+
+	it('should reload full thread context even when initial messages are provided', async () => {
+		vi.mocked(threadClient.getThread).mockResolvedValue({
+			thread: createMockThread({
+				links: [
+					create(ThreadLinkSchema, {
+						id: BigInt(1),
+						threadId: 'thread-001',
+						linkType: 'diff',
+						targetId: 'TASK-001:web/src/components/layout/DiscussionPanel.tsx',
+						title: 'DiscussionPanel diff',
+					}),
+				],
+			}),
+		} as never);
+
+		renderWithProviders(
+			<DiscussionPanel
+				threadId="thread-001"
+				projectId="proj-001"
+				messages={[createMockMessage({ content: 'Preloaded message' })]}
+			/>
+		);
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalledWith(
+				expect.objectContaining({
+					projectId: 'proj-001',
+					threadId: 'thread-001',
+				})
+			);
+			expect(screen.getByText('DiscussionPanel diff')).toBeInTheDocument();
 		});
 	});
 
@@ -409,6 +449,163 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 			);
 		});
 	});
+
+	it('should add typed context links from the workspace', async () => {
+		vi.mocked(threadClient.addLink).mockResolvedValue({
+			thread: createMockThread({
+				links: [
+					create(ThreadLinkSchema, {
+						id: BigInt(2),
+						threadId: 'thread-001',
+						linkType: 'file',
+						targetId: 'web/src/components/layout/DiscussionPanel.tsx',
+						title: 'DiscussionPanel.tsx',
+					}),
+				],
+			}),
+		} as never);
+
+		renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalled();
+		});
+
+		fireEvent.change(screen.getByLabelText('Link target'), {
+			target: { value: 'web/src/components/layout/DiscussionPanel.tsx' },
+		});
+		fireEvent.change(screen.getByLabelText('Link title'), {
+			target: { value: 'DiscussionPanel.tsx' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: /add link/i }));
+
+		await waitFor(() => {
+			expect(threadClient.addLink).toHaveBeenCalledWith(
+				expect.objectContaining({
+					projectId: 'proj-001',
+					threadId: 'thread-001',
+					link: expect.objectContaining({
+						linkType: 'file',
+						targetId: 'web/src/components/layout/DiscussionPanel.tsx',
+						title: 'DiscussionPanel.tsx',
+					}),
+				})
+			);
+			expect(screen.getByText('DiscussionPanel.tsx')).toBeInTheDocument();
+		});
+	});
+
+	it('should create a recommendation draft from the workspace', async () => {
+		vi.mocked(threadClient.createRecommendationDraft).mockResolvedValue({
+			thread: createMockThread({
+				recommendationDrafts: [
+					create(ThreadRecommendationDraftSchema, {
+						id: 'TRD-002',
+						threadId: 'thread-001',
+						kind: RecommendationKind.RISK,
+						title: 'Investigate reload gap',
+						summary: 'The panel should always reload full thread state.',
+						proposedAction: 'Keep the full-thread fetch on reopen.',
+						evidence: 'Initial messages skipped the fetch before this change.',
+						status: 'draft',
+					}),
+				],
+			}),
+		} as never);
+
+		renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalled();
+		});
+
+		fireEvent.change(screen.getByLabelText('Recommendation kind'), {
+			target: { value: 'risk' },
+		});
+		fireEvent.change(screen.getByLabelText('Recommendation title'), {
+			target: { value: 'Investigate reload gap' },
+		});
+		fireEvent.change(screen.getByLabelText('Recommendation summary'), {
+			target: { value: 'The panel should always reload full thread state.' },
+		});
+		fireEvent.change(screen.getByLabelText('Recommendation proposed action'), {
+			target: { value: 'Keep the full-thread fetch on reopen.' },
+		});
+		fireEvent.change(screen.getByLabelText('Recommendation evidence'), {
+			target: { value: 'Initial messages skipped the fetch before this change.' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: /create recommendation draft/i }));
+
+		await waitFor(() => {
+			expect(threadClient.createRecommendationDraft).toHaveBeenCalledWith(
+				expect.objectContaining({
+					projectId: 'proj-001',
+					threadId: 'thread-001',
+					draft: expect.objectContaining({
+						title: 'Investigate reload gap',
+					}),
+				})
+			);
+			expect(screen.getByText('Investigate reload gap')).toBeInTheDocument();
+		});
+	});
+
+	it('should create a decision draft from the workspace', async () => {
+		vi.mocked(threadClient.getThread).mockResolvedValue({
+			thread: createMockThread({
+				initiativeId: 'INIT-001',
+			}),
+		} as never);
+		vi.mocked(threadClient.createDecisionDraft).mockResolvedValue({
+			thread: createMockThread({
+				initiativeId: 'INIT-001',
+				decisionDrafts: [
+					create(ThreadDecisionDraftSchema, {
+						id: 'TDD-002',
+						threadId: 'thread-001',
+						initiativeId: 'INIT-001',
+						decision: 'Keep thread context persisted',
+						rationale: 'Reopen should restore the real workspace state.',
+						status: 'draft',
+					}),
+				],
+			}),
+		} as never);
+
+		renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalled();
+		});
+
+		fireEvent.change(screen.getByLabelText('Decision text'), {
+			target: { value: 'Keep thread context persisted' },
+		});
+		fireEvent.change(screen.getByLabelText('Decision rationale'), {
+			target: { value: 'Reopen should restore the real workspace state.' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: /create decision draft/i }));
+
+		await waitFor(() => {
+			expect(threadClient.createDecisionDraft).toHaveBeenCalledWith(
+				expect.objectContaining({
+					projectId: 'proj-001',
+					threadId: 'thread-001',
+					draft: expect.objectContaining({
+						initiativeId: 'INIT-001',
+						decision: 'Keep thread context persisted',
+					}),
+				})
+			);
+			expect(screen.getByText('Keep thread context persisted')).toBeInTheDocument();
+		});
+	});
 });
 
 // =============================================================================
@@ -482,7 +679,7 @@ describe('DiscussionPanel edge cases', () => {
 		);
 
 		// Should show some indication that this is a new conversation
-		const input = screen.getByRole('textbox');
+		const input = screen.getByPlaceholderText('Type a message...');
 		expect(input).toBeInTheDocument();
 	});
 
