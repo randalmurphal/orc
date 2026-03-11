@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ArchiveThreadRequest, ArchiveThreadResponse, CreateThreadRequest, CreateThreadResponse, DeleteThreadRequest, DeleteThreadResponse, GetThreadRequest, GetThreadResponse, ListThreadsRequest, ListThreadsResponse, RecordThreadDecisionRequest, RecordThreadDecisionResponse, SendThreadMessageRequest, SendThreadMessageResponse } from "./thread_pb.js";
+import { AddThreadLinkRequest, AddThreadLinkResponse, ArchiveThreadRequest, ArchiveThreadResponse, CreateThreadDecisionDraftRequest, CreateThreadDecisionDraftResponse, CreateThreadRecommendationDraftRequest, CreateThreadRecommendationDraftResponse, CreateThreadRequest, CreateThreadResponse, DeleteThreadRequest, DeleteThreadResponse, GetThreadRequest, GetThreadResponse, ListThreadsRequest, ListThreadsResponse, PromoteThreadDecisionDraftRequest, PromoteThreadDecisionDraftResponse, PromoteThreadRecommendationDraftRequest, PromoteThreadRecommendationDraftResponse, RecordThreadDecisionRequest, RecordThreadDecisionResponse, SendThreadMessageRequest, SendThreadMessageResponse } from "./thread_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -76,6 +76,61 @@ export const ThreadService = {
       name: "DeleteThread",
       I: DeleteThreadRequest,
       O: DeleteThreadResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Add a typed link to a thread.
+     *
+     * @generated from rpc orc.v1.ThreadService.AddLink
+     */
+    addLink: {
+      name: "AddLink",
+      I: AddThreadLinkRequest,
+      O: AddThreadLinkResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Create a recommendation draft in a thread.
+     *
+     * @generated from rpc orc.v1.ThreadService.CreateRecommendationDraft
+     */
+    createRecommendationDraft: {
+      name: "CreateRecommendationDraft",
+      I: CreateThreadRecommendationDraftRequest,
+      O: CreateThreadRecommendationDraftResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Promote a recommendation draft into the recommendation inbox.
+     *
+     * @generated from rpc orc.v1.ThreadService.PromoteRecommendationDraft
+     */
+    promoteRecommendationDraft: {
+      name: "PromoteRecommendationDraft",
+      I: PromoteThreadRecommendationDraftRequest,
+      O: PromoteThreadRecommendationDraftResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Create an initiative decision draft in a thread.
+     *
+     * @generated from rpc orc.v1.ThreadService.CreateDecisionDraft
+     */
+    createDecisionDraft: {
+      name: "CreateDecisionDraft",
+      I: CreateThreadDecisionDraftRequest,
+      O: CreateThreadDecisionDraftResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Promote a decision draft into a real initiative decision.
+     *
+     * @generated from rpc orc.v1.ThreadService.PromoteDecisionDraft
+     */
+    promoteDecisionDraft: {
+      name: "PromoteDecisionDraft",
+      I: PromoteThreadDecisionDraftRequest,
+      O: PromoteThreadDecisionDraftResponse,
       kind: MethodKind.Unary,
     },
     /**

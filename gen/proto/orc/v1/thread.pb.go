@@ -24,19 +24,22 @@ const (
 
 // Thread represents a conversation thread.
 type Thread struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	TaskId        string                 `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	InitiativeId  string                 `protobuf:"bytes,5,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
-	SessionId     string                 `protobuf:"bytes,6,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	FileContext   string                 `protobuf:"bytes,7,opt,name=file_context,json=fileContext,proto3" json:"file_context,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	Messages      []*ThreadMessage       `protobuf:"bytes,10,rep,name=messages,proto3" json:"messages,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState       `protogen:"open.v1"`
+	Id                   string                       `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title                string                       `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Status               string                       `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	TaskId               string                       `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	InitiativeId         string                       `protobuf:"bytes,5,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	SessionId            string                       `protobuf:"bytes,6,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	FileContext          string                       `protobuf:"bytes,7,opt,name=file_context,json=fileContext,proto3" json:"file_context,omitempty"`
+	CreatedAt            *timestamppb.Timestamp       `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt            *timestamppb.Timestamp       `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Messages             []*ThreadMessage             `protobuf:"bytes,10,rep,name=messages,proto3" json:"messages,omitempty"`
+	Links                []*ThreadLink                `protobuf:"bytes,11,rep,name=links,proto3" json:"links,omitempty"`
+	RecommendationDrafts []*ThreadRecommendationDraft `protobuf:"bytes,12,rep,name=recommendation_drafts,json=recommendationDrafts,proto3" json:"recommendation_drafts,omitempty"`
+	DecisionDrafts       []*ThreadDecisionDraft       `protobuf:"bytes,13,rep,name=decision_drafts,json=decisionDrafts,proto3" json:"decision_drafts,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Thread) Reset() {
@@ -139,6 +142,27 @@ func (x *Thread) GetMessages() []*ThreadMessage {
 	return nil
 }
 
+func (x *Thread) GetLinks() []*ThreadLink {
+	if x != nil {
+		return x.Links
+	}
+	return nil
+}
+
+func (x *Thread) GetRecommendationDrafts() []*ThreadRecommendationDraft {
+	if x != nil {
+		return x.RecommendationDrafts
+	}
+	return nil
+}
+
+func (x *Thread) GetDecisionDrafts() []*ThreadDecisionDraft {
+	if x != nil {
+		return x.DecisionDrafts
+	}
+	return nil
+}
+
 // ThreadMessage represents a single message within a thread.
 type ThreadMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -216,6 +240,381 @@ func (x *ThreadMessage) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// ThreadLink represents typed context linked to a thread.
+type ThreadLink struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ThreadId      string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	LinkType      string                 `protobuf:"bytes,3,opt,name=link_type,json=linkType,proto3" json:"link_type,omitempty"`
+	TargetId      string                 `protobuf:"bytes,4,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	Title         string                 `protobuf:"bytes,5,opt,name=title,proto3" json:"title,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ThreadLink) Reset() {
+	*x = ThreadLink{}
+	mi := &file_orc_v1_thread_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadLink) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadLink) ProtoMessage() {}
+
+func (x *ThreadLink) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadLink.ProtoReflect.Descriptor instead.
+func (*ThreadLink) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ThreadLink) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *ThreadLink) GetThreadId() string {
+	if x != nil {
+		return x.ThreadId
+	}
+	return ""
+}
+
+func (x *ThreadLink) GetLinkType() string {
+	if x != nil {
+		return x.LinkType
+	}
+	return ""
+}
+
+func (x *ThreadLink) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *ThreadLink) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ThreadLink) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+// ThreadRecommendationDraft captures a recommendation draft shaped in a discussion.
+type ThreadRecommendationDraft struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Id                       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ThreadId                 string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	Kind                     RecommendationKind     `protobuf:"varint,3,opt,name=kind,proto3,enum=orc.v1.RecommendationKind" json:"kind,omitempty"`
+	Title                    string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Summary                  string                 `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
+	ProposedAction           string                 `protobuf:"bytes,6,opt,name=proposed_action,json=proposedAction,proto3" json:"proposed_action,omitempty"`
+	Evidence                 string                 `protobuf:"bytes,7,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	DedupeKey                string                 `protobuf:"bytes,8,opt,name=dedupe_key,json=dedupeKey,proto3" json:"dedupe_key,omitempty"`
+	SourceTaskId             string                 `protobuf:"bytes,9,opt,name=source_task_id,json=sourceTaskId,proto3" json:"source_task_id,omitempty"`
+	SourceRunId              string                 `protobuf:"bytes,10,opt,name=source_run_id,json=sourceRunId,proto3" json:"source_run_id,omitempty"`
+	Status                   string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
+	PromotedRecommendationId string                 `protobuf:"bytes,12,opt,name=promoted_recommendation_id,json=promotedRecommendationId,proto3" json:"promoted_recommendation_id,omitempty"`
+	PromotedBy               string                 `protobuf:"bytes,13,opt,name=promoted_by,json=promotedBy,proto3" json:"promoted_by,omitempty"`
+	PromotedAt               *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=promoted_at,json=promotedAt,proto3" json:"promoted_at,omitempty"`
+	CreatedAt                *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt                *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *ThreadRecommendationDraft) Reset() {
+	*x = ThreadRecommendationDraft{}
+	mi := &file_orc_v1_thread_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadRecommendationDraft) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadRecommendationDraft) ProtoMessage() {}
+
+func (x *ThreadRecommendationDraft) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadRecommendationDraft.ProtoReflect.Descriptor instead.
+func (*ThreadRecommendationDraft) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ThreadRecommendationDraft) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetThreadId() string {
+	if x != nil {
+		return x.ThreadId
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetKind() RecommendationKind {
+	if x != nil {
+		return x.Kind
+	}
+	return RecommendationKind_RECOMMENDATION_KIND_UNSPECIFIED
+}
+
+func (x *ThreadRecommendationDraft) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetProposedAction() string {
+	if x != nil {
+		return x.ProposedAction
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetEvidence() string {
+	if x != nil {
+		return x.Evidence
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetDedupeKey() string {
+	if x != nil {
+		return x.DedupeKey
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetSourceTaskId() string {
+	if x != nil {
+		return x.SourceTaskId
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetSourceRunId() string {
+	if x != nil {
+		return x.SourceRunId
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetPromotedRecommendationId() string {
+	if x != nil {
+		return x.PromotedRecommendationId
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetPromotedBy() string {
+	if x != nil {
+		return x.PromotedBy
+	}
+	return ""
+}
+
+func (x *ThreadRecommendationDraft) GetPromotedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PromotedAt
+	}
+	return nil
+}
+
+func (x *ThreadRecommendationDraft) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *ThreadRecommendationDraft) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+// ThreadDecisionDraft captures an initiative decision draft shaped in a discussion.
+type ThreadDecisionDraft struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ThreadId           string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	InitiativeId       string                 `protobuf:"bytes,3,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	Decision           string                 `protobuf:"bytes,4,opt,name=decision,proto3" json:"decision,omitempty"`
+	Rationale          string                 `protobuf:"bytes,5,opt,name=rationale,proto3" json:"rationale,omitempty"`
+	Status             string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	PromotedDecisionId string                 `protobuf:"bytes,7,opt,name=promoted_decision_id,json=promotedDecisionId,proto3" json:"promoted_decision_id,omitempty"`
+	PromotedBy         string                 `protobuf:"bytes,8,opt,name=promoted_by,json=promotedBy,proto3" json:"promoted_by,omitempty"`
+	PromotedAt         *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=promoted_at,json=promotedAt,proto3" json:"promoted_at,omitempty"`
+	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt          *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ThreadDecisionDraft) Reset() {
+	*x = ThreadDecisionDraft{}
+	mi := &file_orc_v1_thread_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadDecisionDraft) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadDecisionDraft) ProtoMessage() {}
+
+func (x *ThreadDecisionDraft) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadDecisionDraft.ProtoReflect.Descriptor instead.
+func (*ThreadDecisionDraft) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ThreadDecisionDraft) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ThreadDecisionDraft) GetThreadId() string {
+	if x != nil {
+		return x.ThreadId
+	}
+	return ""
+}
+
+func (x *ThreadDecisionDraft) GetInitiativeId() string {
+	if x != nil {
+		return x.InitiativeId
+	}
+	return ""
+}
+
+func (x *ThreadDecisionDraft) GetDecision() string {
+	if x != nil {
+		return x.Decision
+	}
+	return ""
+}
+
+func (x *ThreadDecisionDraft) GetRationale() string {
+	if x != nil {
+		return x.Rationale
+	}
+	return ""
+}
+
+func (x *ThreadDecisionDraft) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ThreadDecisionDraft) GetPromotedDecisionId() string {
+	if x != nil {
+		return x.PromotedDecisionId
+	}
+	return ""
+}
+
+func (x *ThreadDecisionDraft) GetPromotedBy() string {
+	if x != nil {
+		return x.PromotedBy
+	}
+	return ""
+}
+
+func (x *ThreadDecisionDraft) GetPromotedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PromotedAt
+	}
+	return nil
+}
+
+func (x *ThreadDecisionDraft) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *ThreadDecisionDraft) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
 // CreateThread
 type CreateThreadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -224,13 +623,14 @@ type CreateThreadRequest struct {
 	TaskId        *string                `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
 	InitiativeId  *string                `protobuf:"bytes,4,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
 	FileContext   *string                `protobuf:"bytes,5,opt,name=file_context,json=fileContext,proto3,oneof" json:"file_context,omitempty"`
+	Links         []*ThreadLinkInput     `protobuf:"bytes,6,rep,name=links,proto3" json:"links,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateThreadRequest) Reset() {
 	*x = CreateThreadRequest{}
-	mi := &file_orc_v1_thread_proto_msgTypes[2]
+	mi := &file_orc_v1_thread_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -242,7 +642,7 @@ func (x *CreateThreadRequest) String() string {
 func (*CreateThreadRequest) ProtoMessage() {}
 
 func (x *CreateThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[2]
+	mi := &file_orc_v1_thread_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -255,7 +655,7 @@ func (x *CreateThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateThreadRequest.ProtoReflect.Descriptor instead.
 func (*CreateThreadRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{2}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateThreadRequest) GetProjectId() string {
@@ -293,6 +693,13 @@ func (x *CreateThreadRequest) GetFileContext() string {
 	return ""
 }
 
+func (x *CreateThreadRequest) GetLinks() []*ThreadLinkInput {
+	if x != nil {
+		return x.Links
+	}
+	return nil
+}
+
 type CreateThreadResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Thread        *Thread                `protobuf:"bytes,1,opt,name=thread,proto3" json:"thread,omitempty"`
@@ -302,7 +709,7 @@ type CreateThreadResponse struct {
 
 func (x *CreateThreadResponse) Reset() {
 	*x = CreateThreadResponse{}
-	mi := &file_orc_v1_thread_proto_msgTypes[3]
+	mi := &file_orc_v1_thread_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -314,7 +721,7 @@ func (x *CreateThreadResponse) String() string {
 func (*CreateThreadResponse) ProtoMessage() {}
 
 func (x *CreateThreadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[3]
+	mi := &file_orc_v1_thread_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -327,7 +734,7 @@ func (x *CreateThreadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateThreadResponse.ProtoReflect.Descriptor instead.
 func (*CreateThreadResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{3}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreateThreadResponse) GetThread() *Thread {
@@ -348,7 +755,7 @@ type GetThreadRequest struct {
 
 func (x *GetThreadRequest) Reset() {
 	*x = GetThreadRequest{}
-	mi := &file_orc_v1_thread_proto_msgTypes[4]
+	mi := &file_orc_v1_thread_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -360,7 +767,7 @@ func (x *GetThreadRequest) String() string {
 func (*GetThreadRequest) ProtoMessage() {}
 
 func (x *GetThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[4]
+	mi := &file_orc_v1_thread_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -373,7 +780,7 @@ func (x *GetThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetThreadRequest.ProtoReflect.Descriptor instead.
 func (*GetThreadRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{4}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetThreadRequest) GetProjectId() string {
@@ -399,7 +806,7 @@ type GetThreadResponse struct {
 
 func (x *GetThreadResponse) Reset() {
 	*x = GetThreadResponse{}
-	mi := &file_orc_v1_thread_proto_msgTypes[5]
+	mi := &file_orc_v1_thread_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -411,7 +818,7 @@ func (x *GetThreadResponse) String() string {
 func (*GetThreadResponse) ProtoMessage() {}
 
 func (x *GetThreadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[5]
+	mi := &file_orc_v1_thread_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -424,7 +831,7 @@ func (x *GetThreadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetThreadResponse.ProtoReflect.Descriptor instead.
 func (*GetThreadResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{5}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetThreadResponse) GetThread() *Thread {
@@ -446,7 +853,7 @@ type ListThreadsRequest struct {
 
 func (x *ListThreadsRequest) Reset() {
 	*x = ListThreadsRequest{}
-	mi := &file_orc_v1_thread_proto_msgTypes[6]
+	mi := &file_orc_v1_thread_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -458,7 +865,7 @@ func (x *ListThreadsRequest) String() string {
 func (*ListThreadsRequest) ProtoMessage() {}
 
 func (x *ListThreadsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[6]
+	mi := &file_orc_v1_thread_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -471,7 +878,7 @@ func (x *ListThreadsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListThreadsRequest.ProtoReflect.Descriptor instead.
 func (*ListThreadsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{6}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListThreadsRequest) GetProjectId() string {
@@ -504,7 +911,7 @@ type ListThreadsResponse struct {
 
 func (x *ListThreadsResponse) Reset() {
 	*x = ListThreadsResponse{}
-	mi := &file_orc_v1_thread_proto_msgTypes[7]
+	mi := &file_orc_v1_thread_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -516,7 +923,7 @@ func (x *ListThreadsResponse) String() string {
 func (*ListThreadsResponse) ProtoMessage() {}
 
 func (x *ListThreadsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[7]
+	mi := &file_orc_v1_thread_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -529,7 +936,7 @@ func (x *ListThreadsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListThreadsResponse.ProtoReflect.Descriptor instead.
 func (*ListThreadsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{7}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListThreadsResponse) GetThreads() []*Thread {
@@ -551,7 +958,7 @@ type SendThreadMessageRequest struct {
 
 func (x *SendThreadMessageRequest) Reset() {
 	*x = SendThreadMessageRequest{}
-	mi := &file_orc_v1_thread_proto_msgTypes[8]
+	mi := &file_orc_v1_thread_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -563,7 +970,7 @@ func (x *SendThreadMessageRequest) String() string {
 func (*SendThreadMessageRequest) ProtoMessage() {}
 
 func (x *SendThreadMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[8]
+	mi := &file_orc_v1_thread_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -576,7 +983,7 @@ func (x *SendThreadMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendThreadMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendThreadMessageRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{8}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SendThreadMessageRequest) GetProjectId() string {
@@ -610,7 +1017,7 @@ type SendThreadMessageResponse struct {
 
 func (x *SendThreadMessageResponse) Reset() {
 	*x = SendThreadMessageResponse{}
-	mi := &file_orc_v1_thread_proto_msgTypes[9]
+	mi := &file_orc_v1_thread_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -622,7 +1029,7 @@ func (x *SendThreadMessageResponse) String() string {
 func (*SendThreadMessageResponse) ProtoMessage() {}
 
 func (x *SendThreadMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[9]
+	mi := &file_orc_v1_thread_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -635,7 +1042,7 @@ func (x *SendThreadMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendThreadMessageResponse.ProtoReflect.Descriptor instead.
 func (*SendThreadMessageResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{9}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SendThreadMessageResponse) GetUserMessage() *ThreadMessage {
@@ -663,7 +1070,7 @@ type ArchiveThreadRequest struct {
 
 func (x *ArchiveThreadRequest) Reset() {
 	*x = ArchiveThreadRequest{}
-	mi := &file_orc_v1_thread_proto_msgTypes[10]
+	mi := &file_orc_v1_thread_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -675,7 +1082,7 @@ func (x *ArchiveThreadRequest) String() string {
 func (*ArchiveThreadRequest) ProtoMessage() {}
 
 func (x *ArchiveThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[10]
+	mi := &file_orc_v1_thread_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -688,7 +1095,7 @@ func (x *ArchiveThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveThreadRequest.ProtoReflect.Descriptor instead.
 func (*ArchiveThreadRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{10}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ArchiveThreadRequest) GetProjectId() string {
@@ -714,7 +1121,7 @@ type ArchiveThreadResponse struct {
 
 func (x *ArchiveThreadResponse) Reset() {
 	*x = ArchiveThreadResponse{}
-	mi := &file_orc_v1_thread_proto_msgTypes[11]
+	mi := &file_orc_v1_thread_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -726,7 +1133,7 @@ func (x *ArchiveThreadResponse) String() string {
 func (*ArchiveThreadResponse) ProtoMessage() {}
 
 func (x *ArchiveThreadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[11]
+	mi := &file_orc_v1_thread_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -739,7 +1146,7 @@ func (x *ArchiveThreadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveThreadResponse.ProtoReflect.Descriptor instead.
 func (*ArchiveThreadResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{11}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ArchiveThreadResponse) GetThread() *Thread {
@@ -760,7 +1167,7 @@ type DeleteThreadRequest struct {
 
 func (x *DeleteThreadRequest) Reset() {
 	*x = DeleteThreadRequest{}
-	mi := &file_orc_v1_thread_proto_msgTypes[12]
+	mi := &file_orc_v1_thread_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -772,7 +1179,7 @@ func (x *DeleteThreadRequest) String() string {
 func (*DeleteThreadRequest) ProtoMessage() {}
 
 func (x *DeleteThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[12]
+	mi := &file_orc_v1_thread_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -785,7 +1192,7 @@ func (x *DeleteThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteThreadRequest.ProtoReflect.Descriptor instead.
 func (*DeleteThreadRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{12}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DeleteThreadRequest) GetProjectId() string {
@@ -810,7 +1217,7 @@ type DeleteThreadResponse struct {
 
 func (x *DeleteThreadResponse) Reset() {
 	*x = DeleteThreadResponse{}
-	mi := &file_orc_v1_thread_proto_msgTypes[13]
+	mi := &file_orc_v1_thread_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -822,7 +1229,7 @@ func (x *DeleteThreadResponse) String() string {
 func (*DeleteThreadResponse) ProtoMessage() {}
 
 func (x *DeleteThreadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[13]
+	mi := &file_orc_v1_thread_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -835,7 +1242,651 @@ func (x *DeleteThreadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteThreadResponse.ProtoReflect.Descriptor instead.
 func (*DeleteThreadResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{13}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{16}
+}
+
+type ThreadLinkInput struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LinkType      string                 `protobuf:"bytes,1,opt,name=link_type,json=linkType,proto3" json:"link_type,omitempty"`
+	TargetId      string                 `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ThreadLinkInput) Reset() {
+	*x = ThreadLinkInput{}
+	mi := &file_orc_v1_thread_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadLinkInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadLinkInput) ProtoMessage() {}
+
+func (x *ThreadLinkInput) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadLinkInput.ProtoReflect.Descriptor instead.
+func (*ThreadLinkInput) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ThreadLinkInput) GetLinkType() string {
+	if x != nil {
+		return x.LinkType
+	}
+	return ""
+}
+
+func (x *ThreadLinkInput) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *ThreadLinkInput) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+type AddThreadLinkRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ThreadId      string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	Link          *ThreadLinkInput       `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddThreadLinkRequest) Reset() {
+	*x = AddThreadLinkRequest{}
+	mi := &file_orc_v1_thread_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddThreadLinkRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddThreadLinkRequest) ProtoMessage() {}
+
+func (x *AddThreadLinkRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddThreadLinkRequest.ProtoReflect.Descriptor instead.
+func (*AddThreadLinkRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *AddThreadLinkRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *AddThreadLinkRequest) GetThreadId() string {
+	if x != nil {
+		return x.ThreadId
+	}
+	return ""
+}
+
+func (x *AddThreadLinkRequest) GetLink() *ThreadLinkInput {
+	if x != nil {
+		return x.Link
+	}
+	return nil
+}
+
+type AddThreadLinkResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Thread        *Thread                `protobuf:"bytes,1,opt,name=thread,proto3" json:"thread,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddThreadLinkResponse) Reset() {
+	*x = AddThreadLinkResponse{}
+	mi := &file_orc_v1_thread_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddThreadLinkResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddThreadLinkResponse) ProtoMessage() {}
+
+func (x *AddThreadLinkResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddThreadLinkResponse.ProtoReflect.Descriptor instead.
+func (*AddThreadLinkResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *AddThreadLinkResponse) GetThread() *Thread {
+	if x != nil {
+		return x.Thread
+	}
+	return nil
+}
+
+type CreateThreadRecommendationDraftRequest struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	ProjectId     string                     `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ThreadId      string                     `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	Draft         *ThreadRecommendationDraft `protobuf:"bytes,3,opt,name=draft,proto3" json:"draft,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateThreadRecommendationDraftRequest) Reset() {
+	*x = CreateThreadRecommendationDraftRequest{}
+	mi := &file_orc_v1_thread_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateThreadRecommendationDraftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateThreadRecommendationDraftRequest) ProtoMessage() {}
+
+func (x *CreateThreadRecommendationDraftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateThreadRecommendationDraftRequest.ProtoReflect.Descriptor instead.
+func (*CreateThreadRecommendationDraftRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CreateThreadRecommendationDraftRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *CreateThreadRecommendationDraftRequest) GetThreadId() string {
+	if x != nil {
+		return x.ThreadId
+	}
+	return ""
+}
+
+func (x *CreateThreadRecommendationDraftRequest) GetDraft() *ThreadRecommendationDraft {
+	if x != nil {
+		return x.Draft
+	}
+	return nil
+}
+
+type CreateThreadRecommendationDraftResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Draft         *ThreadRecommendationDraft `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
+	Thread        *Thread                    `protobuf:"bytes,2,opt,name=thread,proto3" json:"thread,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateThreadRecommendationDraftResponse) Reset() {
+	*x = CreateThreadRecommendationDraftResponse{}
+	mi := &file_orc_v1_thread_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateThreadRecommendationDraftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateThreadRecommendationDraftResponse) ProtoMessage() {}
+
+func (x *CreateThreadRecommendationDraftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateThreadRecommendationDraftResponse.ProtoReflect.Descriptor instead.
+func (*CreateThreadRecommendationDraftResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *CreateThreadRecommendationDraftResponse) GetDraft() *ThreadRecommendationDraft {
+	if x != nil {
+		return x.Draft
+	}
+	return nil
+}
+
+func (x *CreateThreadRecommendationDraftResponse) GetThread() *Thread {
+	if x != nil {
+		return x.Thread
+	}
+	return nil
+}
+
+type PromoteThreadRecommendationDraftRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ThreadId      string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	DraftId       string                 `protobuf:"bytes,3,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	PromotedBy    string                 `protobuf:"bytes,4,opt,name=promoted_by,json=promotedBy,proto3" json:"promoted_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PromoteThreadRecommendationDraftRequest) Reset() {
+	*x = PromoteThreadRecommendationDraftRequest{}
+	mi := &file_orc_v1_thread_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromoteThreadRecommendationDraftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromoteThreadRecommendationDraftRequest) ProtoMessage() {}
+
+func (x *PromoteThreadRecommendationDraftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromoteThreadRecommendationDraftRequest.ProtoReflect.Descriptor instead.
+func (*PromoteThreadRecommendationDraftRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *PromoteThreadRecommendationDraftRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *PromoteThreadRecommendationDraftRequest) GetThreadId() string {
+	if x != nil {
+		return x.ThreadId
+	}
+	return ""
+}
+
+func (x *PromoteThreadRecommendationDraftRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *PromoteThreadRecommendationDraftRequest) GetPromotedBy() string {
+	if x != nil {
+		return x.PromotedBy
+	}
+	return ""
+}
+
+type PromoteThreadRecommendationDraftResponse struct {
+	state          protoimpl.MessageState     `protogen:"open.v1"`
+	Draft          *ThreadRecommendationDraft `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
+	Recommendation *Recommendation            `protobuf:"bytes,2,opt,name=recommendation,proto3" json:"recommendation,omitempty"`
+	Thread         *Thread                    `protobuf:"bytes,3,opt,name=thread,proto3" json:"thread,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PromoteThreadRecommendationDraftResponse) Reset() {
+	*x = PromoteThreadRecommendationDraftResponse{}
+	mi := &file_orc_v1_thread_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromoteThreadRecommendationDraftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromoteThreadRecommendationDraftResponse) ProtoMessage() {}
+
+func (x *PromoteThreadRecommendationDraftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromoteThreadRecommendationDraftResponse.ProtoReflect.Descriptor instead.
+func (*PromoteThreadRecommendationDraftResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *PromoteThreadRecommendationDraftResponse) GetDraft() *ThreadRecommendationDraft {
+	if x != nil {
+		return x.Draft
+	}
+	return nil
+}
+
+func (x *PromoteThreadRecommendationDraftResponse) GetRecommendation() *Recommendation {
+	if x != nil {
+		return x.Recommendation
+	}
+	return nil
+}
+
+func (x *PromoteThreadRecommendationDraftResponse) GetThread() *Thread {
+	if x != nil {
+		return x.Thread
+	}
+	return nil
+}
+
+type CreateThreadDecisionDraftRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ThreadId      string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	Draft         *ThreadDecisionDraft   `protobuf:"bytes,3,opt,name=draft,proto3" json:"draft,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateThreadDecisionDraftRequest) Reset() {
+	*x = CreateThreadDecisionDraftRequest{}
+	mi := &file_orc_v1_thread_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateThreadDecisionDraftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateThreadDecisionDraftRequest) ProtoMessage() {}
+
+func (x *CreateThreadDecisionDraftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateThreadDecisionDraftRequest.ProtoReflect.Descriptor instead.
+func (*CreateThreadDecisionDraftRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *CreateThreadDecisionDraftRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *CreateThreadDecisionDraftRequest) GetThreadId() string {
+	if x != nil {
+		return x.ThreadId
+	}
+	return ""
+}
+
+func (x *CreateThreadDecisionDraftRequest) GetDraft() *ThreadDecisionDraft {
+	if x != nil {
+		return x.Draft
+	}
+	return nil
+}
+
+type CreateThreadDecisionDraftResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Draft         *ThreadDecisionDraft   `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
+	Thread        *Thread                `protobuf:"bytes,2,opt,name=thread,proto3" json:"thread,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateThreadDecisionDraftResponse) Reset() {
+	*x = CreateThreadDecisionDraftResponse{}
+	mi := &file_orc_v1_thread_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateThreadDecisionDraftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateThreadDecisionDraftResponse) ProtoMessage() {}
+
+func (x *CreateThreadDecisionDraftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateThreadDecisionDraftResponse.ProtoReflect.Descriptor instead.
+func (*CreateThreadDecisionDraftResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *CreateThreadDecisionDraftResponse) GetDraft() *ThreadDecisionDraft {
+	if x != nil {
+		return x.Draft
+	}
+	return nil
+}
+
+func (x *CreateThreadDecisionDraftResponse) GetThread() *Thread {
+	if x != nil {
+		return x.Thread
+	}
+	return nil
+}
+
+type PromoteThreadDecisionDraftRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ThreadId      string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	DraftId       string                 `protobuf:"bytes,3,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	PromotedBy    string                 `protobuf:"bytes,4,opt,name=promoted_by,json=promotedBy,proto3" json:"promoted_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PromoteThreadDecisionDraftRequest) Reset() {
+	*x = PromoteThreadDecisionDraftRequest{}
+	mi := &file_orc_v1_thread_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromoteThreadDecisionDraftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromoteThreadDecisionDraftRequest) ProtoMessage() {}
+
+func (x *PromoteThreadDecisionDraftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromoteThreadDecisionDraftRequest.ProtoReflect.Descriptor instead.
+func (*PromoteThreadDecisionDraftRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *PromoteThreadDecisionDraftRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *PromoteThreadDecisionDraftRequest) GetThreadId() string {
+	if x != nil {
+		return x.ThreadId
+	}
+	return ""
+}
+
+func (x *PromoteThreadDecisionDraftRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *PromoteThreadDecisionDraftRequest) GetPromotedBy() string {
+	if x != nil {
+		return x.PromotedBy
+	}
+	return ""
+}
+
+type PromoteThreadDecisionDraftResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Draft         *ThreadDecisionDraft   `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
+	DecisionId    string                 `protobuf:"bytes,2,opt,name=decision_id,json=decisionId,proto3" json:"decision_id,omitempty"`
+	Thread        *Thread                `protobuf:"bytes,3,opt,name=thread,proto3" json:"thread,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PromoteThreadDecisionDraftResponse) Reset() {
+	*x = PromoteThreadDecisionDraftResponse{}
+	mi := &file_orc_v1_thread_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromoteThreadDecisionDraftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromoteThreadDecisionDraftResponse) ProtoMessage() {}
+
+func (x *PromoteThreadDecisionDraftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_thread_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromoteThreadDecisionDraftResponse.ProtoReflect.Descriptor instead.
+func (*PromoteThreadDecisionDraftResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *PromoteThreadDecisionDraftResponse) GetDraft() *ThreadDecisionDraft {
+	if x != nil {
+		return x.Draft
+	}
+	return nil
+}
+
+func (x *PromoteThreadDecisionDraftResponse) GetDecisionId() string {
+	if x != nil {
+		return x.DecisionId
+	}
+	return ""
+}
+
+func (x *PromoteThreadDecisionDraftResponse) GetThread() *Thread {
+	if x != nil {
+		return x.Thread
+	}
+	return nil
 }
 
 // RecordDecision
@@ -851,7 +1902,7 @@ type RecordThreadDecisionRequest struct {
 
 func (x *RecordThreadDecisionRequest) Reset() {
 	*x = RecordThreadDecisionRequest{}
-	mi := &file_orc_v1_thread_proto_msgTypes[14]
+	mi := &file_orc_v1_thread_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -863,7 +1914,7 @@ func (x *RecordThreadDecisionRequest) String() string {
 func (*RecordThreadDecisionRequest) ProtoMessage() {}
 
 func (x *RecordThreadDecisionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[14]
+	mi := &file_orc_v1_thread_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -876,7 +1927,7 @@ func (x *RecordThreadDecisionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordThreadDecisionRequest.ProtoReflect.Descriptor instead.
 func (*RecordThreadDecisionRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{14}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *RecordThreadDecisionRequest) GetProjectId() string {
@@ -916,7 +1967,7 @@ type RecordThreadDecisionResponse struct {
 
 func (x *RecordThreadDecisionResponse) Reset() {
 	*x = RecordThreadDecisionResponse{}
-	mi := &file_orc_v1_thread_proto_msgTypes[15]
+	mi := &file_orc_v1_thread_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -928,7 +1979,7 @@ func (x *RecordThreadDecisionResponse) String() string {
 func (*RecordThreadDecisionResponse) ProtoMessage() {}
 
 func (x *RecordThreadDecisionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_thread_proto_msgTypes[15]
+	mi := &file_orc_v1_thread_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -941,7 +1992,7 @@ func (x *RecordThreadDecisionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordThreadDecisionResponse.ProtoReflect.Descriptor instead.
 func (*RecordThreadDecisionResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_thread_proto_rawDescGZIP(), []int{15}
+	return file_orc_v1_thread_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RecordThreadDecisionResponse) GetDecisionId() string {
@@ -955,7 +2006,7 @@ var File_orc_v1_thread_proto protoreflect.FileDescriptor
 
 const file_orc_v1_thread_proto_rawDesc = "" +
 	"\n" +
-	"\x13orc/v1/thread.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xef\x02\n" +
+	"\x13orc/v1/thread.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1borc/v1/recommendation.proto\"\xb7\x04\n" +
 	"\x06Thread\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x16\n" +
@@ -970,21 +2021,74 @@ const file_orc_v1_thread_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x121\n" +
 	"\bmessages\x18\n" +
-	" \x03(\v2\x15.orc.v1.ThreadMessageR\bmessages\"\xa5\x01\n" +
+	" \x03(\v2\x15.orc.v1.ThreadMessageR\bmessages\x12(\n" +
+	"\x05links\x18\v \x03(\v2\x12.orc.v1.ThreadLinkR\x05links\x12V\n" +
+	"\x15recommendation_drafts\x18\f \x03(\v2!.orc.v1.ThreadRecommendationDraftR\x14recommendationDrafts\x12D\n" +
+	"\x0fdecision_drafts\x18\r \x03(\v2\x1b.orc.v1.ThreadDecisionDraftR\x0edecisionDrafts\"\xa5\x01\n" +
 	"\rThreadMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x12\x12\n" +
 	"\x04role\x18\x03 \x01(\tR\x04role\x12\x18\n" +
 	"\acontent\x18\x04 \x01(\tR\acontent\x129\n" +
 	"\n" +
-	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xe9\x01\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xc4\x01\n" +
+	"\n" +
+	"ThreadLink\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x12\x1b\n" +
+	"\tlink_type\x18\x03 \x01(\tR\blinkType\x12\x1b\n" +
+	"\ttarget_id\x18\x04 \x01(\tR\btargetId\x12\x14\n" +
+	"\x05title\x18\x05 \x01(\tR\x05title\x129\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x80\x05\n" +
+	"\x19ThreadRecommendationDraft\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x12.\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x1a.orc.v1.RecommendationKindR\x04kind\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x18\n" +
+	"\asummary\x18\x05 \x01(\tR\asummary\x12'\n" +
+	"\x0fproposed_action\x18\x06 \x01(\tR\x0eproposedAction\x12\x1a\n" +
+	"\bevidence\x18\a \x01(\tR\bevidence\x12\x1d\n" +
+	"\n" +
+	"dedupe_key\x18\b \x01(\tR\tdedupeKey\x12$\n" +
+	"\x0esource_task_id\x18\t \x01(\tR\fsourceTaskId\x12\"\n" +
+	"\rsource_run_id\x18\n" +
+	" \x01(\tR\vsourceRunId\x12\x16\n" +
+	"\x06status\x18\v \x01(\tR\x06status\x12<\n" +
+	"\x1apromoted_recommendation_id\x18\f \x01(\tR\x18promotedRecommendationId\x12\x1f\n" +
+	"\vpromoted_by\x18\r \x01(\tR\n" +
+	"promotedBy\x12;\n" +
+	"\vpromoted_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"promotedAt\x129\n" +
+	"\n" +
+	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xbf\x03\n" +
+	"\x13ThreadDecisionDraft\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x12#\n" +
+	"\rinitiative_id\x18\x03 \x01(\tR\finitiativeId\x12\x1a\n" +
+	"\bdecision\x18\x04 \x01(\tR\bdecision\x12\x1c\n" +
+	"\trationale\x18\x05 \x01(\tR\trationale\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\x120\n" +
+	"\x14promoted_decision_id\x18\a \x01(\tR\x12promotedDecisionId\x12\x1f\n" +
+	"\vpromoted_by\x18\b \x01(\tR\n" +
+	"promotedBy\x12;\n" +
+	"\vpromoted_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"promotedAt\x129\n" +
+	"\n" +
+	"created_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x98\x02\n" +
 	"\x13CreateThreadRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1c\n" +
 	"\atask_id\x18\x03 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12(\n" +
 	"\rinitiative_id\x18\x04 \x01(\tH\x01R\finitiativeId\x88\x01\x01\x12&\n" +
-	"\ffile_context\x18\x05 \x01(\tH\x02R\vfileContext\x88\x01\x01B\n" +
+	"\ffile_context\x18\x05 \x01(\tH\x02R\vfileContext\x88\x01\x01\x12-\n" +
+	"\x05links\x18\x06 \x03(\v2\x17.orc.v1.ThreadLinkInputR\x05linksB\n" +
 	"\n" +
 	"\b_task_idB\x10\n" +
 	"\x0e_initiative_idB\x0f\n" +
@@ -1022,7 +2126,57 @@ const file_orc_v1_thread_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
 	"\tthread_id\x18\x02 \x01(\tR\bthreadId\"\x16\n" +
-	"\x14DeleteThreadResponse\"\x93\x01\n" +
+	"\x14DeleteThreadResponse\"a\n" +
+	"\x0fThreadLinkInput\x12\x1b\n" +
+	"\tlink_type\x18\x01 \x01(\tR\blinkType\x12\x1b\n" +
+	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\"\x7f\n" +
+	"\x14AddThreadLinkRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x12+\n" +
+	"\x04link\x18\x03 \x01(\v2\x17.orc.v1.ThreadLinkInputR\x04link\"?\n" +
+	"\x15AddThreadLinkResponse\x12&\n" +
+	"\x06thread\x18\x01 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"\x9d\x01\n" +
+	"&CreateThreadRecommendationDraftRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x127\n" +
+	"\x05draft\x18\x03 \x01(\v2!.orc.v1.ThreadRecommendationDraftR\x05draft\"\x8a\x01\n" +
+	"'CreateThreadRecommendationDraftResponse\x127\n" +
+	"\x05draft\x18\x01 \x01(\v2!.orc.v1.ThreadRecommendationDraftR\x05draft\x12&\n" +
+	"\x06thread\x18\x02 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"\xa1\x01\n" +
+	"'PromoteThreadRecommendationDraftRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x12\x19\n" +
+	"\bdraft_id\x18\x03 \x01(\tR\adraftId\x12\x1f\n" +
+	"\vpromoted_by\x18\x04 \x01(\tR\n" +
+	"promotedBy\"\xcb\x01\n" +
+	"(PromoteThreadRecommendationDraftResponse\x127\n" +
+	"\x05draft\x18\x01 \x01(\v2!.orc.v1.ThreadRecommendationDraftR\x05draft\x12>\n" +
+	"\x0erecommendation\x18\x02 \x01(\v2\x16.orc.v1.RecommendationR\x0erecommendation\x12&\n" +
+	"\x06thread\x18\x03 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"\x91\x01\n" +
+	" CreateThreadDecisionDraftRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x121\n" +
+	"\x05draft\x18\x03 \x01(\v2\x1b.orc.v1.ThreadDecisionDraftR\x05draft\"~\n" +
+	"!CreateThreadDecisionDraftResponse\x121\n" +
+	"\x05draft\x18\x01 \x01(\v2\x1b.orc.v1.ThreadDecisionDraftR\x05draft\x12&\n" +
+	"\x06thread\x18\x02 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"\x9b\x01\n" +
+	"!PromoteThreadDecisionDraftRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x12\x19\n" +
+	"\bdraft_id\x18\x03 \x01(\tR\adraftId\x12\x1f\n" +
+	"\vpromoted_by\x18\x04 \x01(\tR\n" +
+	"promotedBy\"\xa0\x01\n" +
+	"\"PromoteThreadDecisionDraftResponse\x121\n" +
+	"\x05draft\x18\x01 \x01(\v2\x1b.orc.v1.ThreadDecisionDraftR\x05draft\x12\x1f\n" +
+	"\vdecision_id\x18\x02 \x01(\tR\n" +
+	"decisionId\x12&\n" +
+	"\x06thread\x18\x03 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"\x93\x01\n" +
 	"\x1bRecordThreadDecisionRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
@@ -1031,14 +2185,19 @@ const file_orc_v1_thread_proto_rawDesc = "" +
 	"\trationale\x18\x04 \x01(\tR\trationale\"?\n" +
 	"\x1cRecordThreadDecisionResponse\x12\x1f\n" +
 	"\vdecision_id\x18\x01 \x01(\tR\n" +
-	"decisionId2\xae\x04\n" +
+	"decisionId2\xd0\b\n" +
 	"\rThreadService\x12I\n" +
 	"\fCreateThread\x12\x1b.orc.v1.CreateThreadRequest\x1a\x1c.orc.v1.CreateThreadResponse\x12@\n" +
 	"\tGetThread\x12\x18.orc.v1.GetThreadRequest\x1a\x19.orc.v1.GetThreadResponse\x12F\n" +
 	"\vListThreads\x12\x1a.orc.v1.ListThreadsRequest\x1a\x1b.orc.v1.ListThreadsResponse\x12R\n" +
 	"\vSendMessage\x12 .orc.v1.SendThreadMessageRequest\x1a!.orc.v1.SendThreadMessageResponse\x12L\n" +
 	"\rArchiveThread\x12\x1c.orc.v1.ArchiveThreadRequest\x1a\x1d.orc.v1.ArchiveThreadResponse\x12I\n" +
-	"\fDeleteThread\x12\x1b.orc.v1.DeleteThreadRequest\x1a\x1c.orc.v1.DeleteThreadResponse\x12[\n" +
+	"\fDeleteThread\x12\x1b.orc.v1.DeleteThreadRequest\x1a\x1c.orc.v1.DeleteThreadResponse\x12F\n" +
+	"\aAddLink\x12\x1c.orc.v1.AddThreadLinkRequest\x1a\x1d.orc.v1.AddThreadLinkResponse\x12|\n" +
+	"\x19CreateRecommendationDraft\x12..orc.v1.CreateThreadRecommendationDraftRequest\x1a/.orc.v1.CreateThreadRecommendationDraftResponse\x12\x7f\n" +
+	"\x1aPromoteRecommendationDraft\x12/.orc.v1.PromoteThreadRecommendationDraftRequest\x1a0.orc.v1.PromoteThreadRecommendationDraftResponse\x12j\n" +
+	"\x13CreateDecisionDraft\x12(.orc.v1.CreateThreadDecisionDraftRequest\x1a).orc.v1.CreateThreadDecisionDraftResponse\x12m\n" +
+	"\x14PromoteDecisionDraft\x12).orc.v1.PromoteThreadDecisionDraftRequest\x1a*.orc.v1.PromoteThreadDecisionDraftResponse\x12[\n" +
 	"\x0eRecordDecision\x12#.orc.v1.RecordThreadDecisionRequest\x1a$.orc.v1.RecordThreadDecisionResponseB\x87\x01\n" +
 	"\n" +
 	"com.orc.v1B\vThreadProtoP\x01Z3github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1\xa2\x02\x03OXX\xaa\x02\x06Orc.V1\xca\x02\x06Orc\\V1\xe2\x02\x12Orc\\V1\\GPBMetadata\xea\x02\aOrc::V1b\x06proto3"
@@ -1055,56 +2214,107 @@ func file_orc_v1_thread_proto_rawDescGZIP() []byte {
 	return file_orc_v1_thread_proto_rawDescData
 }
 
-var file_orc_v1_thread_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_orc_v1_thread_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_orc_v1_thread_proto_goTypes = []any{
-	(*Thread)(nil),                       // 0: orc.v1.Thread
-	(*ThreadMessage)(nil),                // 1: orc.v1.ThreadMessage
-	(*CreateThreadRequest)(nil),          // 2: orc.v1.CreateThreadRequest
-	(*CreateThreadResponse)(nil),         // 3: orc.v1.CreateThreadResponse
-	(*GetThreadRequest)(nil),             // 4: orc.v1.GetThreadRequest
-	(*GetThreadResponse)(nil),            // 5: orc.v1.GetThreadResponse
-	(*ListThreadsRequest)(nil),           // 6: orc.v1.ListThreadsRequest
-	(*ListThreadsResponse)(nil),          // 7: orc.v1.ListThreadsResponse
-	(*SendThreadMessageRequest)(nil),     // 8: orc.v1.SendThreadMessageRequest
-	(*SendThreadMessageResponse)(nil),    // 9: orc.v1.SendThreadMessageResponse
-	(*ArchiveThreadRequest)(nil),         // 10: orc.v1.ArchiveThreadRequest
-	(*ArchiveThreadResponse)(nil),        // 11: orc.v1.ArchiveThreadResponse
-	(*DeleteThreadRequest)(nil),          // 12: orc.v1.DeleteThreadRequest
-	(*DeleteThreadResponse)(nil),         // 13: orc.v1.DeleteThreadResponse
-	(*RecordThreadDecisionRequest)(nil),  // 14: orc.v1.RecordThreadDecisionRequest
-	(*RecordThreadDecisionResponse)(nil), // 15: orc.v1.RecordThreadDecisionResponse
-	(*timestamppb.Timestamp)(nil),        // 16: google.protobuf.Timestamp
+	(*Thread)(nil),                                   // 0: orc.v1.Thread
+	(*ThreadMessage)(nil),                            // 1: orc.v1.ThreadMessage
+	(*ThreadLink)(nil),                               // 2: orc.v1.ThreadLink
+	(*ThreadRecommendationDraft)(nil),                // 3: orc.v1.ThreadRecommendationDraft
+	(*ThreadDecisionDraft)(nil),                      // 4: orc.v1.ThreadDecisionDraft
+	(*CreateThreadRequest)(nil),                      // 5: orc.v1.CreateThreadRequest
+	(*CreateThreadResponse)(nil),                     // 6: orc.v1.CreateThreadResponse
+	(*GetThreadRequest)(nil),                         // 7: orc.v1.GetThreadRequest
+	(*GetThreadResponse)(nil),                        // 8: orc.v1.GetThreadResponse
+	(*ListThreadsRequest)(nil),                       // 9: orc.v1.ListThreadsRequest
+	(*ListThreadsResponse)(nil),                      // 10: orc.v1.ListThreadsResponse
+	(*SendThreadMessageRequest)(nil),                 // 11: orc.v1.SendThreadMessageRequest
+	(*SendThreadMessageResponse)(nil),                // 12: orc.v1.SendThreadMessageResponse
+	(*ArchiveThreadRequest)(nil),                     // 13: orc.v1.ArchiveThreadRequest
+	(*ArchiveThreadResponse)(nil),                    // 14: orc.v1.ArchiveThreadResponse
+	(*DeleteThreadRequest)(nil),                      // 15: orc.v1.DeleteThreadRequest
+	(*DeleteThreadResponse)(nil),                     // 16: orc.v1.DeleteThreadResponse
+	(*ThreadLinkInput)(nil),                          // 17: orc.v1.ThreadLinkInput
+	(*AddThreadLinkRequest)(nil),                     // 18: orc.v1.AddThreadLinkRequest
+	(*AddThreadLinkResponse)(nil),                    // 19: orc.v1.AddThreadLinkResponse
+	(*CreateThreadRecommendationDraftRequest)(nil),   // 20: orc.v1.CreateThreadRecommendationDraftRequest
+	(*CreateThreadRecommendationDraftResponse)(nil),  // 21: orc.v1.CreateThreadRecommendationDraftResponse
+	(*PromoteThreadRecommendationDraftRequest)(nil),  // 22: orc.v1.PromoteThreadRecommendationDraftRequest
+	(*PromoteThreadRecommendationDraftResponse)(nil), // 23: orc.v1.PromoteThreadRecommendationDraftResponse
+	(*CreateThreadDecisionDraftRequest)(nil),         // 24: orc.v1.CreateThreadDecisionDraftRequest
+	(*CreateThreadDecisionDraftResponse)(nil),        // 25: orc.v1.CreateThreadDecisionDraftResponse
+	(*PromoteThreadDecisionDraftRequest)(nil),        // 26: orc.v1.PromoteThreadDecisionDraftRequest
+	(*PromoteThreadDecisionDraftResponse)(nil),       // 27: orc.v1.PromoteThreadDecisionDraftResponse
+	(*RecordThreadDecisionRequest)(nil),              // 28: orc.v1.RecordThreadDecisionRequest
+	(*RecordThreadDecisionResponse)(nil),             // 29: orc.v1.RecordThreadDecisionResponse
+	(*timestamppb.Timestamp)(nil),                    // 30: google.protobuf.Timestamp
+	(RecommendationKind)(0),                          // 31: orc.v1.RecommendationKind
+	(*Recommendation)(nil),                           // 32: orc.v1.Recommendation
 }
 var file_orc_v1_thread_proto_depIdxs = []int32{
-	16, // 0: orc.v1.Thread.created_at:type_name -> google.protobuf.Timestamp
-	16, // 1: orc.v1.Thread.updated_at:type_name -> google.protobuf.Timestamp
+	30, // 0: orc.v1.Thread.created_at:type_name -> google.protobuf.Timestamp
+	30, // 1: orc.v1.Thread.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: orc.v1.Thread.messages:type_name -> orc.v1.ThreadMessage
-	16, // 3: orc.v1.ThreadMessage.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 4: orc.v1.CreateThreadResponse.thread:type_name -> orc.v1.Thread
-	0,  // 5: orc.v1.GetThreadResponse.thread:type_name -> orc.v1.Thread
-	0,  // 6: orc.v1.ListThreadsResponse.threads:type_name -> orc.v1.Thread
-	1,  // 7: orc.v1.SendThreadMessageResponse.user_message:type_name -> orc.v1.ThreadMessage
-	1,  // 8: orc.v1.SendThreadMessageResponse.assistant_message:type_name -> orc.v1.ThreadMessage
-	0,  // 9: orc.v1.ArchiveThreadResponse.thread:type_name -> orc.v1.Thread
-	2,  // 10: orc.v1.ThreadService.CreateThread:input_type -> orc.v1.CreateThreadRequest
-	4,  // 11: orc.v1.ThreadService.GetThread:input_type -> orc.v1.GetThreadRequest
-	6,  // 12: orc.v1.ThreadService.ListThreads:input_type -> orc.v1.ListThreadsRequest
-	8,  // 13: orc.v1.ThreadService.SendMessage:input_type -> orc.v1.SendThreadMessageRequest
-	10, // 14: orc.v1.ThreadService.ArchiveThread:input_type -> orc.v1.ArchiveThreadRequest
-	12, // 15: orc.v1.ThreadService.DeleteThread:input_type -> orc.v1.DeleteThreadRequest
-	14, // 16: orc.v1.ThreadService.RecordDecision:input_type -> orc.v1.RecordThreadDecisionRequest
-	3,  // 17: orc.v1.ThreadService.CreateThread:output_type -> orc.v1.CreateThreadResponse
-	5,  // 18: orc.v1.ThreadService.GetThread:output_type -> orc.v1.GetThreadResponse
-	7,  // 19: orc.v1.ThreadService.ListThreads:output_type -> orc.v1.ListThreadsResponse
-	9,  // 20: orc.v1.ThreadService.SendMessage:output_type -> orc.v1.SendThreadMessageResponse
-	11, // 21: orc.v1.ThreadService.ArchiveThread:output_type -> orc.v1.ArchiveThreadResponse
-	13, // 22: orc.v1.ThreadService.DeleteThread:output_type -> orc.v1.DeleteThreadResponse
-	15, // 23: orc.v1.ThreadService.RecordDecision:output_type -> orc.v1.RecordThreadDecisionResponse
-	17, // [17:24] is the sub-list for method output_type
-	10, // [10:17] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	2,  // 3: orc.v1.Thread.links:type_name -> orc.v1.ThreadLink
+	3,  // 4: orc.v1.Thread.recommendation_drafts:type_name -> orc.v1.ThreadRecommendationDraft
+	4,  // 5: orc.v1.Thread.decision_drafts:type_name -> orc.v1.ThreadDecisionDraft
+	30, // 6: orc.v1.ThreadMessage.created_at:type_name -> google.protobuf.Timestamp
+	30, // 7: orc.v1.ThreadLink.created_at:type_name -> google.protobuf.Timestamp
+	31, // 8: orc.v1.ThreadRecommendationDraft.kind:type_name -> orc.v1.RecommendationKind
+	30, // 9: orc.v1.ThreadRecommendationDraft.promoted_at:type_name -> google.protobuf.Timestamp
+	30, // 10: orc.v1.ThreadRecommendationDraft.created_at:type_name -> google.protobuf.Timestamp
+	30, // 11: orc.v1.ThreadRecommendationDraft.updated_at:type_name -> google.protobuf.Timestamp
+	30, // 12: orc.v1.ThreadDecisionDraft.promoted_at:type_name -> google.protobuf.Timestamp
+	30, // 13: orc.v1.ThreadDecisionDraft.created_at:type_name -> google.protobuf.Timestamp
+	30, // 14: orc.v1.ThreadDecisionDraft.updated_at:type_name -> google.protobuf.Timestamp
+	17, // 15: orc.v1.CreateThreadRequest.links:type_name -> orc.v1.ThreadLinkInput
+	0,  // 16: orc.v1.CreateThreadResponse.thread:type_name -> orc.v1.Thread
+	0,  // 17: orc.v1.GetThreadResponse.thread:type_name -> orc.v1.Thread
+	0,  // 18: orc.v1.ListThreadsResponse.threads:type_name -> orc.v1.Thread
+	1,  // 19: orc.v1.SendThreadMessageResponse.user_message:type_name -> orc.v1.ThreadMessage
+	1,  // 20: orc.v1.SendThreadMessageResponse.assistant_message:type_name -> orc.v1.ThreadMessage
+	0,  // 21: orc.v1.ArchiveThreadResponse.thread:type_name -> orc.v1.Thread
+	17, // 22: orc.v1.AddThreadLinkRequest.link:type_name -> orc.v1.ThreadLinkInput
+	0,  // 23: orc.v1.AddThreadLinkResponse.thread:type_name -> orc.v1.Thread
+	3,  // 24: orc.v1.CreateThreadRecommendationDraftRequest.draft:type_name -> orc.v1.ThreadRecommendationDraft
+	3,  // 25: orc.v1.CreateThreadRecommendationDraftResponse.draft:type_name -> orc.v1.ThreadRecommendationDraft
+	0,  // 26: orc.v1.CreateThreadRecommendationDraftResponse.thread:type_name -> orc.v1.Thread
+	3,  // 27: orc.v1.PromoteThreadRecommendationDraftResponse.draft:type_name -> orc.v1.ThreadRecommendationDraft
+	32, // 28: orc.v1.PromoteThreadRecommendationDraftResponse.recommendation:type_name -> orc.v1.Recommendation
+	0,  // 29: orc.v1.PromoteThreadRecommendationDraftResponse.thread:type_name -> orc.v1.Thread
+	4,  // 30: orc.v1.CreateThreadDecisionDraftRequest.draft:type_name -> orc.v1.ThreadDecisionDraft
+	4,  // 31: orc.v1.CreateThreadDecisionDraftResponse.draft:type_name -> orc.v1.ThreadDecisionDraft
+	0,  // 32: orc.v1.CreateThreadDecisionDraftResponse.thread:type_name -> orc.v1.Thread
+	4,  // 33: orc.v1.PromoteThreadDecisionDraftResponse.draft:type_name -> orc.v1.ThreadDecisionDraft
+	0,  // 34: orc.v1.PromoteThreadDecisionDraftResponse.thread:type_name -> orc.v1.Thread
+	5,  // 35: orc.v1.ThreadService.CreateThread:input_type -> orc.v1.CreateThreadRequest
+	7,  // 36: orc.v1.ThreadService.GetThread:input_type -> orc.v1.GetThreadRequest
+	9,  // 37: orc.v1.ThreadService.ListThreads:input_type -> orc.v1.ListThreadsRequest
+	11, // 38: orc.v1.ThreadService.SendMessage:input_type -> orc.v1.SendThreadMessageRequest
+	13, // 39: orc.v1.ThreadService.ArchiveThread:input_type -> orc.v1.ArchiveThreadRequest
+	15, // 40: orc.v1.ThreadService.DeleteThread:input_type -> orc.v1.DeleteThreadRequest
+	18, // 41: orc.v1.ThreadService.AddLink:input_type -> orc.v1.AddThreadLinkRequest
+	20, // 42: orc.v1.ThreadService.CreateRecommendationDraft:input_type -> orc.v1.CreateThreadRecommendationDraftRequest
+	22, // 43: orc.v1.ThreadService.PromoteRecommendationDraft:input_type -> orc.v1.PromoteThreadRecommendationDraftRequest
+	24, // 44: orc.v1.ThreadService.CreateDecisionDraft:input_type -> orc.v1.CreateThreadDecisionDraftRequest
+	26, // 45: orc.v1.ThreadService.PromoteDecisionDraft:input_type -> orc.v1.PromoteThreadDecisionDraftRequest
+	28, // 46: orc.v1.ThreadService.RecordDecision:input_type -> orc.v1.RecordThreadDecisionRequest
+	6,  // 47: orc.v1.ThreadService.CreateThread:output_type -> orc.v1.CreateThreadResponse
+	8,  // 48: orc.v1.ThreadService.GetThread:output_type -> orc.v1.GetThreadResponse
+	10, // 49: orc.v1.ThreadService.ListThreads:output_type -> orc.v1.ListThreadsResponse
+	12, // 50: orc.v1.ThreadService.SendMessage:output_type -> orc.v1.SendThreadMessageResponse
+	14, // 51: orc.v1.ThreadService.ArchiveThread:output_type -> orc.v1.ArchiveThreadResponse
+	16, // 52: orc.v1.ThreadService.DeleteThread:output_type -> orc.v1.DeleteThreadResponse
+	19, // 53: orc.v1.ThreadService.AddLink:output_type -> orc.v1.AddThreadLinkResponse
+	21, // 54: orc.v1.ThreadService.CreateRecommendationDraft:output_type -> orc.v1.CreateThreadRecommendationDraftResponse
+	23, // 55: orc.v1.ThreadService.PromoteRecommendationDraft:output_type -> orc.v1.PromoteThreadRecommendationDraftResponse
+	25, // 56: orc.v1.ThreadService.CreateDecisionDraft:output_type -> orc.v1.CreateThreadDecisionDraftResponse
+	27, // 57: orc.v1.ThreadService.PromoteDecisionDraft:output_type -> orc.v1.PromoteThreadDecisionDraftResponse
+	29, // 58: orc.v1.ThreadService.RecordDecision:output_type -> orc.v1.RecordThreadDecisionResponse
+	47, // [47:59] is the sub-list for method output_type
+	35, // [35:47] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_thread_proto_init() }
@@ -1112,14 +2322,15 @@ func file_orc_v1_thread_proto_init() {
 	if File_orc_v1_thread_proto != nil {
 		return
 	}
-	file_orc_v1_thread_proto_msgTypes[2].OneofWrappers = []any{}
+	file_orc_v1_recommendation_proto_init()
+	file_orc_v1_thread_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_thread_proto_rawDesc), len(file_orc_v1_thread_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

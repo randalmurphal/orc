@@ -986,6 +986,125 @@ func TestThreadServer_RecordDecision_NoInitiative(t *testing.T) {
 	}
 }
 
+func TestThreadServer_AddLinkAndPromoteRecommendationDraft(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+	publisher := events.NewMemoryPublisher()
+	defer publisher.Close()
+
+	mustCreateThreadServerFixtures(t, backend)
+
+	server := NewThreadServer(backend, publisher, slog.Default())
+
+	createResp, err := server.CreateThread(
+		context.Background(),
+		connect.NewRequest(&orcv1.CreateThreadRequest{
+			Title:  "Workspace thread",
+			TaskId: threadStringPtr("TASK-001"),
+		}),
+	)
+	if err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+	threadID := createResp.Msg.Thread.Id
+
+	_, err = server.AddLink(
+		context.Background(),
+		connect.NewRequest(&orcv1.AddThreadLinkRequest{
+			ThreadId: threadID,
+			Link: &orcv1.ThreadLinkInput{
+				LinkType: "diff",
+				TargetId: "TASK-001:web/src/components/layout/DiscussionPanel.tsx",
+				Title:    "DiscussionPanel diff",
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("AddLink: %v", err)
+	}
+
+	createDraftResp, err := server.CreateRecommendationDraft(
+		context.Background(),
+		connect.NewRequest(&orcv1.CreateThreadRecommendationDraftRequest{
+			ThreadId: threadID,
+			Draft: &orcv1.ThreadRecommendationDraft{
+				Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_FOLLOW_UP,
+				Title:          "Follow up on workspace promotion",
+				Summary:        "The thread workspace promotion path needs a regression test.",
+				ProposedAction: "Add an API test for draft promotion.",
+				Evidence:       "No API test covered this flow before.",
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("CreateRecommendationDraft: %v", err)
+	}
+	if createDraftResp.Msg.Thread == nil || len(createDraftResp.Msg.Thread.RecommendationDrafts) != 1 {
+		t.Fatalf("expected thread response with 1 recommendation draft")
+	}
+
+	promoteResp, err := server.PromoteRecommendationDraft(
+		context.Background(),
+		connect.NewRequest(&orcv1.PromoteThreadRecommendationDraftRequest{
+			ThreadId:   threadID,
+			DraftId:    createDraftResp.Msg.Draft.Id,
+			PromotedBy: "operator",
+		}),
+	)
+	if err != nil {
+		t.Fatalf("PromoteRecommendationDraft: %v", err)
+	}
+	if promoteResp.Msg.Recommendation == nil {
+		t.Fatal("expected created recommendation")
+	}
+	if promoteResp.Msg.Recommendation.SourceThreadId != threadID {
+		t.Fatalf("expected source thread %s, got %s", threadID, promoteResp.Msg.Recommendation.SourceThreadId)
+	}
+	if promoteResp.Msg.Draft.Status != db.ThreadDraftStatusPromoted {
+		t.Fatalf("expected promoted draft status, got %s", promoteResp.Msg.Draft.Status)
+	}
+
+	getResp, err := server.GetThread(
+		context.Background(),
+		connect.NewRequest(&orcv1.GetThreadRequest{ThreadId: threadID}),
+	)
+	if err != nil {
+		t.Fatalf("GetThread: %v", err)
+	}
+	if len(getResp.Msg.Thread.Links) != 3 {
+		t.Fatalf("expected task, diff, and recommendation links; got %d", len(getResp.Msg.Thread.Links))
+	}
+}
+
+func mustCreateThreadServerFixtures(t *testing.T, backend *storage.DatabaseBackend) {
+	t.Helper()
+
+	if err := backend.DB().SaveWorkflow(&db.Workflow{
+		ID:   "wf-thread",
+		Name: "Thread Workflow",
+	}); err != nil {
+		t.Fatalf("SaveWorkflow: %v", err)
+	}
+	if err := backend.DB().SaveTask(&db.Task{
+		ID:         "TASK-001",
+		Title:      "Thread Source Task",
+		WorkflowID: "wf-thread",
+		Status:     "running",
+	}); err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+	taskID := "TASK-001"
+	if err := backend.DB().SaveWorkflowRun(&db.WorkflowRun{
+		ID:          "RUN-001",
+		WorkflowID:  "wf-thread",
+		ContextType: "task",
+		TaskID:      &taskID,
+		Status:      "running",
+	}); err != nil {
+		t.Fatalf("SaveWorkflowRun: %v", err)
+	}
+}
+
 // ============================================================================
 // Failure mode: Concurrent SendMessage
 // ============================================================================

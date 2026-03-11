@@ -19,7 +19,7 @@ func TestThread_Create(t *testing.T) {
 		Title:        "Login discussion",
 		TaskID:       "TASK-001",
 		InitiativeID: "INIT-001",
-		FileContext:   `["main.go", "auth.go"]`,
+		FileContext:  `["main.go", "auth.go"]`,
 	}
 
 	err := pdb.CreateThread(thread)
@@ -534,5 +534,203 @@ func TestThread_NextID_Sequential(t *testing.T) {
 	}
 	if id2 != "THR-002" {
 		t.Errorf("expected THR-002, got %s", id2)
+	}
+}
+
+func TestThread_Get_PopulatesTypedLinksAndDrafts(t *testing.T) {
+	t.Parallel()
+	pdb := NewTestProjectDB(t)
+
+	mustCreateThreadFixtures(t, pdb)
+
+	thread := &Thread{
+		Title:        "Workspace thread",
+		TaskID:       "TASK-001",
+		InitiativeID: "INIT-001",
+		FileContext:  `["web/src/components/layout/DiscussionPanel.tsx"]`,
+		Links: []ThreadLink{
+			{LinkType: ThreadLinkTypeDiff, TargetID: "TASK-001:web/src/components/layout/DiscussionPanel.tsx", Title: "DiscussionPanel diff"},
+		},
+	}
+	if err := pdb.CreateThread(thread); err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+	if err := pdb.AddThreadMessage(&ThreadMessage{ThreadID: thread.ID, Role: "user", Content: "first"}); err != nil {
+		t.Fatalf("AddThreadMessage: %v", err)
+	}
+	if err := pdb.CreateThreadRecommendationDraft(&ThreadRecommendationDraft{
+		ThreadID:       thread.ID,
+		Kind:           RecommendationKindCleanup,
+		Title:          "Clean up sidebar duplication",
+		Summary:        "The sidebar repeats thread context logic.",
+		ProposedAction: "Extract the shared rendering path.",
+		Evidence:       "The same shape is rendered in three places.",
+	}); err != nil {
+		t.Fatalf("CreateThreadRecommendationDraft: %v", err)
+	}
+	if err := pdb.CreateThreadDecisionDraft(&ThreadDecisionDraft{
+		ThreadID:     thread.ID,
+		InitiativeID: "INIT-001",
+		Decision:     "Reuse the control-plane thread substrate",
+		Rationale:    "The old work already solved history and context persistence.",
+	}); err != nil {
+		t.Fatalf("CreateThreadDecisionDraft: %v", err)
+	}
+
+	got, err := pdb.GetThread(thread.ID)
+	if err != nil {
+		t.Fatalf("GetThread: %v", err)
+	}
+	if len(got.Messages) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(got.Messages))
+	}
+	if len(got.Links) != 4 {
+		t.Fatalf("expected 4 typed links, got %d", len(got.Links))
+	}
+	if got.Links[0].LinkType != ThreadLinkTypeTask {
+		t.Fatalf("expected first link to be task, got %s", got.Links[0].LinkType)
+	}
+	if len(got.RecommendationDrafts) != 1 {
+		t.Fatalf("expected 1 recommendation draft, got %d", len(got.RecommendationDrafts))
+	}
+	if len(got.DecisionDrafts) != 1 {
+		t.Fatalf("expected 1 decision draft, got %d", len(got.DecisionDrafts))
+	}
+}
+
+func TestThread_PromoteRecommendationDraft(t *testing.T) {
+	t.Parallel()
+	pdb := NewTestProjectDB(t)
+
+	mustCreateThreadFixtures(t, pdb)
+
+	thread := &Thread{
+		Title:  "Promotion thread",
+		TaskID: "TASK-001",
+	}
+	if err := pdb.CreateThread(thread); err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+
+	draft := &ThreadRecommendationDraft{
+		ThreadID:       thread.ID,
+		Kind:           RecommendationKindFollowUp,
+		Title:          "Follow up on thread promotion",
+		Summary:        "The new promotion path needs coverage.",
+		ProposedAction: "Add integration coverage for recommendation promotion.",
+		Evidence:       "No test currently exercises the draft path.",
+	}
+	if err := pdb.CreateThreadRecommendationDraft(draft); err != nil {
+		t.Fatalf("CreateThreadRecommendationDraft: %v", err)
+	}
+
+	promotedDraft, rec, err := pdb.PromoteThreadRecommendationDraft(context.Background(), draft.ID, "operator")
+	if err != nil {
+		t.Fatalf("PromoteThreadRecommendationDraft: %v", err)
+	}
+	if promotedDraft.Status != ThreadDraftStatusPromoted {
+		t.Fatalf("expected promoted status, got %s", promotedDraft.Status)
+	}
+	if rec.Status != RecommendationStatusPending {
+		t.Fatalf("expected pending recommendation, got %s", rec.Status)
+	}
+	if rec.SourceThreadID != thread.ID {
+		t.Fatalf("expected source thread %s, got %s", thread.ID, rec.SourceThreadID)
+	}
+	if rec.SourceRunID != "RUN-001" {
+		t.Fatalf("expected derived source run RUN-001, got %s", rec.SourceRunID)
+	}
+
+	got, err := pdb.GetThread(thread.ID)
+	if err != nil {
+		t.Fatalf("GetThread: %v", err)
+	}
+	if len(got.Links) != 2 {
+		t.Fatalf("expected task link plus promoted recommendation link, got %d", len(got.Links))
+	}
+	if got.Links[1].LinkType != ThreadLinkTypeRecommendation {
+		t.Fatalf("expected recommendation link, got %s", got.Links[1].LinkType)
+	}
+}
+
+func TestThread_PromoteDecisionDraft(t *testing.T) {
+	t.Parallel()
+	pdb := NewTestProjectDB(t)
+
+	mustCreateThreadFixtures(t, pdb)
+
+	thread := &Thread{
+		Title:        "Decision thread",
+		InitiativeID: "INIT-001",
+	}
+	if err := pdb.CreateThread(thread); err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+
+	draft := &ThreadDecisionDraft{
+		ThreadID:  thread.ID,
+		Decision:  "Keep recommendations human-gated",
+		Rationale: "Automatic backlog mutation is how you get noise with better branding.",
+	}
+	if err := pdb.CreateThreadDecisionDraft(draft); err != nil {
+		t.Fatalf("CreateThreadDecisionDraft: %v", err)
+	}
+
+	promotedDraft, decision, err := pdb.PromoteThreadDecisionDraft(context.Background(), draft.ID, "operator")
+	if err != nil {
+		t.Fatalf("PromoteThreadDecisionDraft: %v", err)
+	}
+	if promotedDraft.Status != ThreadDraftStatusPromoted {
+		t.Fatalf("expected promoted status, got %s", promotedDraft.Status)
+	}
+	if decision.InitiativeID != "INIT-001" {
+		t.Fatalf("expected initiative INIT-001, got %s", decision.InitiativeID)
+	}
+
+	decisions, err := pdb.GetInitiativeDecisions("INIT-001")
+	if err != nil {
+		t.Fatalf("GetInitiativeDecisions: %v", err)
+	}
+	if len(decisions) != 1 {
+		t.Fatalf("expected 1 stored initiative decision, got %d", len(decisions))
+	}
+	if decisions[0].Decision != "Keep recommendations human-gated" {
+		t.Fatalf("expected decision text to persist, got %q", decisions[0].Decision)
+	}
+}
+
+func mustCreateThreadFixtures(t *testing.T, pdb *ProjectDB) {
+	t.Helper()
+
+	if err := pdb.SaveWorkflow(&Workflow{
+		ID:   "wf-thread",
+		Name: "Thread Workflow",
+	}); err != nil {
+		t.Fatalf("SaveWorkflow: %v", err)
+	}
+	if err := pdb.SaveTask(&Task{
+		ID:         "TASK-001",
+		Title:      "Thread Source Task",
+		WorkflowID: "wf-thread",
+		Status:     "running",
+	}); err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+	taskID := "TASK-001"
+	if err := pdb.SaveWorkflowRun(&WorkflowRun{
+		ID:          "RUN-001",
+		WorkflowID:  "wf-thread",
+		ContextType: "task",
+		TaskID:      &taskID,
+		Status:      "running",
+	}); err != nil {
+		t.Fatalf("SaveWorkflowRun: %v", err)
+	}
+	if err := pdb.SaveInitiative(&Initiative{
+		ID:     "INIT-001",
+		Title:  "Operator Control Plane",
+		Status: "active",
+	}); err != nil {
+		t.Fatalf("SaveInitiative: %v", err)
 	}
 }

@@ -4,7 +4,14 @@ import { MemoryRouter } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
 import { DiscussionPanel } from './DiscussionPanel';
 import { TooltipProvider } from '@/components/ui';
-import { ThreadMessageSchema } from '@/gen/orc/v1/thread_pb';
+import {
+	ThreadDecisionDraftSchema,
+	ThreadLinkSchema,
+	ThreadMessageSchema,
+	ThreadRecommendationDraftSchema,
+	ThreadSchema,
+} from '@/gen/orc/v1/thread_pb';
+import { RecommendationKind } from '@/gen/orc/v1/recommendation_pb';
 import { createTimestamp } from '@/test/factories';
 
 // Mock threadClient for send message tests
@@ -12,6 +19,8 @@ vi.mock('@/lib/client', () => ({
 	threadClient: {
 		sendMessage: vi.fn(),
 		getThread: vi.fn(),
+		promoteRecommendationDraft: vi.fn(),
+		promoteDecisionDraft: vi.fn(),
 	},
 }));
 
@@ -46,8 +55,30 @@ function createMockMessage(overrides: Record<string, unknown> = {}) {
 	});
 }
 
+function createMockThread(overrides: Record<string, unknown> = {}) {
+	return create(ThreadSchema, {
+		id: 'thread-001',
+		title: 'Test Thread',
+		status: 'active',
+		taskId: '',
+		initiativeId: '',
+		sessionId: '',
+		fileContext: '',
+		createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+		updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+		messages: [],
+		links: [],
+		recommendationDrafts: [],
+		decisionDrafts: [],
+		...overrides,
+	});
+}
+
 beforeEach(() => {
 	vi.clearAllMocks();
+	vi.mocked(threadClient.getThread).mockResolvedValue({
+		thread: createMockThread(),
+	} as never);
 });
 
 afterEach(() => {
@@ -91,6 +122,68 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 
 		expect(screen.getByText('What is the plan?')).toBeInTheDocument();
 		expect(screen.getByText('Here is the plan...')).toBeInTheDocument();
+	});
+
+	it('should load thread history when opened without initial messages', async () => {
+		vi.mocked(threadClient.getThread).mockResolvedValue({
+			thread: createMockThread({
+				messages: [
+					createMockMessage({ id: BigInt(1), role: 'user', content: 'Restored message' }),
+					createMockMessage({ id: BigInt(2), role: 'assistant', content: 'Restored reply' }),
+				],
+			}),
+		} as never);
+
+		renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText('Restored message')).toBeInTheDocument();
+			expect(screen.getByText('Restored reply')).toBeInTheDocument();
+		});
+	});
+
+	it('should render thread context links and drafts from loaded thread state', async () => {
+		vi.mocked(threadClient.getThread).mockResolvedValue({
+			thread: createMockThread({
+				links: [
+					create(ThreadLinkSchema, { id: BigInt(1), threadId: 'thread-001', linkType: 'task', targetId: 'TASK-001', title: 'TASK-001' }),
+				],
+				recommendationDrafts: [
+					create(ThreadRecommendationDraftSchema, {
+						id: 'TRD-001',
+						threadId: 'thread-001',
+						kind: RecommendationKind.FOLLOW_UP,
+						title: 'Follow up on workspace',
+						summary: 'The promotion path needs a regression test.',
+						proposedAction: 'Add a regression test.',
+						evidence: 'No test covered this flow.',
+						status: 'draft',
+					}),
+				],
+				decisionDrafts: [
+					create(ThreadDecisionDraftSchema, {
+						id: 'TDD-001',
+						threadId: 'thread-001',
+						initiativeId: 'INIT-001',
+						decision: 'Keep recommendations human-gated',
+						rationale: 'Automatic backlog creation is noisy.',
+						status: 'draft',
+					}),
+				],
+			}),
+		} as never);
+
+		renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText('Current context')).toBeInTheDocument();
+			expect(screen.getByText('Follow up on workspace')).toBeInTheDocument();
+			expect(screen.getByText('Keep recommendations human-gated')).toBeInTheDocument();
+		});
 	});
 
 	it('should distinguish user and assistant messages visually', () => {
@@ -259,6 +352,61 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 		resolvePromise!({
 			userMessage: createMockMessage(),
 			assistantMessage: createMockMessage(),
+		});
+	});
+
+	it('should promote a recommendation draft from the workspace', async () => {
+		vi.mocked(threadClient.getThread).mockResolvedValue({
+			thread: createMockThread({
+				recommendationDrafts: [
+					create(ThreadRecommendationDraftSchema, {
+						id: 'TRD-001',
+						threadId: 'thread-001',
+						kind: RecommendationKind.FOLLOW_UP,
+						title: 'Follow up on workspace',
+						summary: 'The promotion path needs a regression test.',
+						proposedAction: 'Add a regression test.',
+						evidence: 'No test covered this flow.',
+						status: 'draft',
+					}),
+				],
+			}),
+		} as never);
+		vi.mocked(threadClient.promoteRecommendationDraft).mockResolvedValue({
+			thread: createMockThread({
+				recommendationDrafts: [
+					create(ThreadRecommendationDraftSchema, {
+						id: 'TRD-001',
+						threadId: 'thread-001',
+						kind: RecommendationKind.FOLLOW_UP,
+						title: 'Follow up on workspace',
+						summary: 'The promotion path needs a regression test.',
+						proposedAction: 'Add a regression test.',
+						evidence: 'No test covered this flow.',
+						status: 'promoted',
+					}),
+				],
+			}),
+		} as never);
+
+		renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: /promote to inbox/i })).toBeInTheDocument();
+		});
+
+		fireEvent.click(screen.getByRole('button', { name: /promote to inbox/i }));
+
+		await waitFor(() => {
+			expect(threadClient.promoteRecommendationDraft).toHaveBeenCalledWith(
+				expect.objectContaining({
+					projectId: 'proj-001',
+					threadId: 'thread-001',
+					draftId: 'TRD-001',
+				})
+			);
 		});
 	});
 });

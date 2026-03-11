@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
-	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -102,6 +101,13 @@ func (s *threadServer) CreateThread(
 	}
 	if req.Msg.FileContext != nil {
 		thread.FileContext = *req.Msg.FileContext
+	}
+	for _, link := range req.Msg.Links {
+		thread.Links = append(thread.Links, db.ThreadLink{
+			LinkType: link.LinkType,
+			TargetID: link.TargetId,
+			Title:    link.Title,
+		})
 	}
 
 	if err := backend.DB().CreateThread(thread); err != nil {
@@ -327,6 +333,162 @@ func (s *threadServer) DeleteThread(
 	return connect.NewResponse(&orcv1.DeleteThreadResponse{}), nil
 }
 
+// AddLink adds typed context to an existing thread.
+func (s *threadServer) AddLink(
+	ctx context.Context,
+	req *connect.Request[orcv1.AddThreadLinkRequest],
+) (*connect.Response[orcv1.AddThreadLinkResponse], error) {
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+	if req.Msg.Link == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("link is required"))
+	}
+
+	link := &db.ThreadLink{
+		ThreadID: req.Msg.ThreadId,
+		LinkType: req.Msg.Link.LinkType,
+		TargetID: req.Msg.Link.TargetId,
+		Title:    req.Msg.Link.Title,
+	}
+	if err := backend.DB().CreateThreadLink(link); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("create thread link: %w", err))
+	}
+
+	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload thread: %w", err))
+	}
+	return connect.NewResponse(&orcv1.AddThreadLinkResponse{Thread: threadToProto(thread)}), nil
+}
+
+// CreateRecommendationDraft persists a recommendation draft in a thread.
+func (s *threadServer) CreateRecommendationDraft(
+	ctx context.Context,
+	req *connect.Request[orcv1.CreateThreadRecommendationDraftRequest],
+) (*connect.Response[orcv1.CreateThreadRecommendationDraftResponse], error) {
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+	if req.Msg.Draft == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("draft is required"))
+	}
+
+	draft, err := threadRecommendationDraftFromProto(req.Msg.ThreadId, req.Msg.Draft)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := backend.DB().CreateThreadRecommendationDraft(draft); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("create recommendation draft: %w", err))
+	}
+
+	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload thread: %w", err))
+	}
+	return connect.NewResponse(&orcv1.CreateThreadRecommendationDraftResponse{
+		Draft:  threadRecommendationDraftToProto(draft),
+		Thread: threadToProto(thread),
+	}), nil
+}
+
+// PromoteRecommendationDraft promotes a draft into the recommendation inbox.
+func (s *threadServer) PromoteRecommendationDraft(
+	ctx context.Context,
+	req *connect.Request[orcv1.PromoteThreadRecommendationDraftRequest],
+) (*connect.Response[orcv1.PromoteThreadRecommendationDraftResponse], error) {
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
+	draft, rec, err := backend.DB().PromoteThreadRecommendationDraft(ctx, req.Msg.DraftId, req.Msg.PromotedBy)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("promote recommendation draft: %w", err))
+	}
+
+	recommendation, err := storageRecommendationToProto(rec)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("convert recommendation: %w", err))
+	}
+	s.publishThreadRecommendationCreated(req.Msg.ProjectId, recommendation)
+
+	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload thread: %w", err))
+	}
+	return connect.NewResponse(&orcv1.PromoteThreadRecommendationDraftResponse{
+		Draft:          threadRecommendationDraftToProto(draft),
+		Recommendation: recommendation,
+		Thread:         threadToProto(thread),
+	}), nil
+}
+
+// CreateDecisionDraft persists an initiative decision draft in a thread.
+func (s *threadServer) CreateDecisionDraft(
+	ctx context.Context,
+	req *connect.Request[orcv1.CreateThreadDecisionDraftRequest],
+) (*connect.Response[orcv1.CreateThreadDecisionDraftResponse], error) {
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+	if req.Msg.Draft == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("draft is required"))
+	}
+
+	draft := &db.ThreadDecisionDraft{
+		ThreadID:     req.Msg.ThreadId,
+		InitiativeID: req.Msg.Draft.InitiativeId,
+		Decision:     req.Msg.Draft.Decision,
+		Rationale:    req.Msg.Draft.Rationale,
+	}
+	if err := backend.DB().CreateThreadDecisionDraft(draft); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("create decision draft: %w", err))
+	}
+
+	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload thread: %w", err))
+	}
+	return connect.NewResponse(&orcv1.CreateThreadDecisionDraftResponse{
+		Draft:  threadDecisionDraftToProto(draft),
+		Thread: threadToProto(thread),
+	}), nil
+}
+
+// PromoteDecisionDraft promotes a draft into a real initiative decision.
+func (s *threadServer) PromoteDecisionDraft(
+	ctx context.Context,
+	req *connect.Request[orcv1.PromoteThreadDecisionDraftRequest],
+) (*connect.Response[orcv1.PromoteThreadDecisionDraftResponse], error) {
+	backend, err := s.getBackend(req.Msg.ProjectId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
+	draft, decision, err := backend.DB().PromoteThreadDecisionDraft(ctx, req.Msg.DraftId, req.Msg.PromotedBy)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("promote decision draft: %w", err))
+	}
+
+	if s.publisher != nil {
+		s.publisher.Publish(events.NewEvent(events.EventInitiativeUpdated, decision.InitiativeID, decision))
+	}
+
+	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload thread: %w", err))
+	}
+	return connect.NewResponse(&orcv1.PromoteThreadDecisionDraftResponse{
+		Draft:      threadDecisionDraftToProto(draft),
+		DecisionId: decision.ID,
+		Thread:     threadToProto(thread),
+	}), nil
+}
+
 // RecordDecision records a decision from a thread discussion to its linked initiative.
 func (s *threadServer) RecordDecision(
 	ctx context.Context,
@@ -349,24 +511,26 @@ func (s *threadServer) RecordDecision(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("thread %s has no linked initiative", thread.ID))
 	}
 
-	// Generate decision ID
-	decisionID := fmt.Sprintf("DEC-%s-%d", thread.ID, time.Now().UnixMilli())
-
-	decision := &db.InitiativeDecision{
-		ID:           decisionID,
+	decision := &db.ThreadDecisionDraft{
+		ThreadID:     thread.ID,
 		InitiativeID: thread.InitiativeID,
 		Decision:     req.Msg.Decision,
 		Rationale:    req.Msg.Rationale,
-		DecidedBy:    "thread:" + thread.ID,
-		DecidedAt:    time.Now(),
+	}
+	if err := backend.DB().CreateThreadDecisionDraft(decision); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("create decision draft: %w", err))
 	}
 
-	if err := backend.DB().AddInitiativeDecision(decision); err != nil {
+	promotedDraft, promotedDecision, err := backend.DB().PromoteThreadDecisionDraft(ctx, decision.ID, "thread:"+thread.ID)
+	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("record decision: %w", err))
+	}
+	if s.publisher != nil {
+		s.publisher.Publish(events.NewEvent(events.EventInitiativeUpdated, promotedDecision.InitiativeID, promotedDecision))
 	}
 
 	return connect.NewResponse(&orcv1.RecordThreadDecisionResponse{
-		DecisionId: decisionID,
+		DecisionId: promotedDraft.PromotedDecisionID,
 	}), nil
 }
 
@@ -432,6 +596,15 @@ func threadToProto(t *db.Thread) *orcv1.Thread {
 	for i := range t.Messages {
 		proto.Messages = append(proto.Messages, threadMessageToProto(&t.Messages[i]))
 	}
+	for i := range t.Links {
+		proto.Links = append(proto.Links, threadLinkToProto(&t.Links[i]))
+	}
+	for i := range t.RecommendationDrafts {
+		proto.RecommendationDrafts = append(proto.RecommendationDrafts, threadRecommendationDraftToProto(&t.RecommendationDrafts[i]))
+	}
+	for i := range t.DecisionDrafts {
+		proto.DecisionDrafts = append(proto.DecisionDrafts, threadDecisionDraftToProto(&t.DecisionDrafts[i]))
+	}
 
 	return proto
 }
@@ -454,4 +627,175 @@ func threadMessageToProto(m *db.ThreadMessage) *orcv1.ThreadMessage {
 	}
 
 	return proto
+}
+
+func threadLinkToProto(link *db.ThreadLink) *orcv1.ThreadLink {
+	if link == nil {
+		return nil
+	}
+
+	proto := &orcv1.ThreadLink{
+		Id:       link.ID,
+		ThreadId: link.ThreadID,
+		LinkType: link.LinkType,
+		TargetId: link.TargetID,
+		Title:    link.Title,
+	}
+	if !link.CreatedAt.IsZero() {
+		proto.CreatedAt = timestamppb.New(link.CreatedAt)
+	}
+	return proto
+}
+
+func threadRecommendationDraftFromProto(threadID string, protoDraft *orcv1.ThreadRecommendationDraft) (*db.ThreadRecommendationDraft, error) {
+	if protoDraft == nil {
+		return nil, fmt.Errorf("recommendation draft is required")
+	}
+	kind := recommendationKindProtoToString(protoDraft.Kind)
+	if kind == "" {
+		return nil, fmt.Errorf("recommendation kind is required")
+	}
+	return &db.ThreadRecommendationDraft{
+		ThreadID:       threadID,
+		Kind:           kind,
+		Title:          protoDraft.Title,
+		Summary:        protoDraft.Summary,
+		ProposedAction: protoDraft.ProposedAction,
+		Evidence:       protoDraft.Evidence,
+		DedupeKey:      protoDraft.DedupeKey,
+		SourceTaskID:   protoDraft.SourceTaskId,
+		SourceRunID:    protoDraft.SourceRunId,
+	}, nil
+}
+
+func threadRecommendationDraftToProto(draft *db.ThreadRecommendationDraft) *orcv1.ThreadRecommendationDraft {
+	if draft == nil {
+		return nil
+	}
+	kind, err := recommendationKindStringToProto(draft.Kind)
+	if err != nil {
+		kind = orcv1.RecommendationKind_RECOMMENDATION_KIND_UNSPECIFIED
+	}
+	proto := &orcv1.ThreadRecommendationDraft{
+		Id:                       draft.ID,
+		ThreadId:                 draft.ThreadID,
+		Kind:                     kind,
+		Title:                    draft.Title,
+		Summary:                  draft.Summary,
+		ProposedAction:           draft.ProposedAction,
+		Evidence:                 draft.Evidence,
+		DedupeKey:                draft.DedupeKey,
+		SourceTaskId:             draft.SourceTaskID,
+		SourceRunId:              draft.SourceRunID,
+		Status:                   draft.Status,
+		PromotedRecommendationId: draft.PromotedRecommendationID,
+		PromotedBy:               draft.PromotedBy,
+	}
+	if draft.PromotedAt != nil {
+		proto.PromotedAt = timestamppb.New(*draft.PromotedAt)
+	}
+	if !draft.CreatedAt.IsZero() {
+		proto.CreatedAt = timestamppb.New(draft.CreatedAt)
+	}
+	if !draft.UpdatedAt.IsZero() {
+		proto.UpdatedAt = timestamppb.New(draft.UpdatedAt)
+	}
+	return proto
+}
+
+func threadDecisionDraftToProto(draft *db.ThreadDecisionDraft) *orcv1.ThreadDecisionDraft {
+	if draft == nil {
+		return nil
+	}
+	proto := &orcv1.ThreadDecisionDraft{
+		Id:                 draft.ID,
+		ThreadId:           draft.ThreadID,
+		InitiativeId:       draft.InitiativeID,
+		Decision:           draft.Decision,
+		Rationale:          draft.Rationale,
+		Status:             draft.Status,
+		PromotedDecisionId: draft.PromotedDecisionID,
+		PromotedBy:         draft.PromotedBy,
+	}
+	if draft.PromotedAt != nil {
+		proto.PromotedAt = timestamppb.New(*draft.PromotedAt)
+	}
+	if !draft.CreatedAt.IsZero() {
+		proto.CreatedAt = timestamppb.New(draft.CreatedAt)
+	}
+	if !draft.UpdatedAt.IsZero() {
+		proto.UpdatedAt = timestamppb.New(draft.UpdatedAt)
+	}
+	return proto
+}
+
+func storageRecommendationToProto(rec *db.Recommendation) (*orcv1.Recommendation, error) {
+	if rec == nil {
+		return nil, fmt.Errorf("recommendation is required")
+	}
+
+	kind, err := recommendationKindStringToProto(rec.Kind)
+	if err != nil {
+		return nil, err
+	}
+	status, err := recommendationStatusStringToProto(rec.Status)
+	if err != nil {
+		return nil, err
+	}
+
+	proto := &orcv1.Recommendation{
+		Id:             rec.ID,
+		Kind:           kind,
+		Status:         status,
+		Title:          rec.Title,
+		Summary:        rec.Summary,
+		ProposedAction: rec.ProposedAction,
+		Evidence:       rec.Evidence,
+		SourceTaskId:   rec.SourceTaskID,
+		SourceRunId:    rec.SourceRunID,
+		SourceThreadId: rec.SourceThreadID,
+		DedupeKey:      rec.DedupeKey,
+		PromotedToType: rec.PromotedToType,
+		PromotedToId:   rec.PromotedToID,
+		PromotedBy:     rec.PromotedBy,
+	}
+	if rec.DecidedBy != "" {
+		proto.DecidedBy = &rec.DecidedBy
+	}
+	if rec.DecisionReason != "" {
+		proto.DecisionReason = &rec.DecisionReason
+	}
+	if rec.DecidedAt != nil {
+		proto.DecidedAt = timestamppb.New(*rec.DecidedAt)
+	}
+	if rec.PromotedAt != nil {
+		proto.PromotedAt = timestamppb.New(*rec.PromotedAt)
+	}
+	if !rec.CreatedAt.IsZero() {
+		proto.CreatedAt = timestamppb.New(rec.CreatedAt)
+	}
+	if !rec.UpdatedAt.IsZero() {
+		proto.UpdatedAt = timestamppb.New(rec.UpdatedAt)
+	}
+	return proto, nil
+}
+
+func (s *threadServer) publishThreadRecommendationCreated(projectID string, rec *orcv1.Recommendation) {
+	if s.publisher == nil || rec == nil {
+		return
+	}
+	s.publisher.Publish(events.NewProjectEvent(events.EventRecommendationCreated, projectID, rec.SourceTaskId, events.RecommendationCreatedData{
+		RecommendationID: rec.Id,
+		Kind:             recommendationKindProtoToString(rec.Kind),
+		Status:           recommendationStatusProtoToString(rec.Status),
+		Title:            rec.Title,
+		Summary:          rec.Summary,
+		SourceTaskID:     rec.SourceTaskId,
+		SourceRunID:      rec.SourceRunId,
+		SourceThreadID:   rec.SourceThreadId,
+		PromotedToType:   rec.PromotedToType,
+		PromotedToID:     rec.PromotedToId,
+		PromotedBy:       rec.PromotedBy,
+		PromotedAt:       recommendationTimestampString(rec.PromotedAt),
+	}))
 }

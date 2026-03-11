@@ -50,6 +50,20 @@ const (
 	// ThreadServiceDeleteThreadProcedure is the fully-qualified name of the ThreadService's
 	// DeleteThread RPC.
 	ThreadServiceDeleteThreadProcedure = "/orc.v1.ThreadService/DeleteThread"
+	// ThreadServiceAddLinkProcedure is the fully-qualified name of the ThreadService's AddLink RPC.
+	ThreadServiceAddLinkProcedure = "/orc.v1.ThreadService/AddLink"
+	// ThreadServiceCreateRecommendationDraftProcedure is the fully-qualified name of the
+	// ThreadService's CreateRecommendationDraft RPC.
+	ThreadServiceCreateRecommendationDraftProcedure = "/orc.v1.ThreadService/CreateRecommendationDraft"
+	// ThreadServicePromoteRecommendationDraftProcedure is the fully-qualified name of the
+	// ThreadService's PromoteRecommendationDraft RPC.
+	ThreadServicePromoteRecommendationDraftProcedure = "/orc.v1.ThreadService/PromoteRecommendationDraft"
+	// ThreadServiceCreateDecisionDraftProcedure is the fully-qualified name of the ThreadService's
+	// CreateDecisionDraft RPC.
+	ThreadServiceCreateDecisionDraftProcedure = "/orc.v1.ThreadService/CreateDecisionDraft"
+	// ThreadServicePromoteDecisionDraftProcedure is the fully-qualified name of the ThreadService's
+	// PromoteDecisionDraft RPC.
+	ThreadServicePromoteDecisionDraftProcedure = "/orc.v1.ThreadService/PromoteDecisionDraft"
 	// ThreadServiceRecordDecisionProcedure is the fully-qualified name of the ThreadService's
 	// RecordDecision RPC.
 	ThreadServiceRecordDecisionProcedure = "/orc.v1.ThreadService/RecordDecision"
@@ -69,6 +83,16 @@ type ThreadServiceClient interface {
 	ArchiveThread(context.Context, *connect.Request[v1.ArchiveThreadRequest]) (*connect.Response[v1.ArchiveThreadResponse], error)
 	// Delete a thread and all its messages.
 	DeleteThread(context.Context, *connect.Request[v1.DeleteThreadRequest]) (*connect.Response[v1.DeleteThreadResponse], error)
+	// Add a typed link to a thread.
+	AddLink(context.Context, *connect.Request[v1.AddThreadLinkRequest]) (*connect.Response[v1.AddThreadLinkResponse], error)
+	// Create a recommendation draft in a thread.
+	CreateRecommendationDraft(context.Context, *connect.Request[v1.CreateThreadRecommendationDraftRequest]) (*connect.Response[v1.CreateThreadRecommendationDraftResponse], error)
+	// Promote a recommendation draft into the recommendation inbox.
+	PromoteRecommendationDraft(context.Context, *connect.Request[v1.PromoteThreadRecommendationDraftRequest]) (*connect.Response[v1.PromoteThreadRecommendationDraftResponse], error)
+	// Create an initiative decision draft in a thread.
+	CreateDecisionDraft(context.Context, *connect.Request[v1.CreateThreadDecisionDraftRequest]) (*connect.Response[v1.CreateThreadDecisionDraftResponse], error)
+	// Promote a decision draft into a real initiative decision.
+	PromoteDecisionDraft(context.Context, *connect.Request[v1.PromoteThreadDecisionDraftRequest]) (*connect.Response[v1.PromoteThreadDecisionDraftResponse], error)
 	// Record a decision from a thread discussion to its linked initiative.
 	RecordDecision(context.Context, *connect.Request[v1.RecordThreadDecisionRequest]) (*connect.Response[v1.RecordThreadDecisionResponse], error)
 }
@@ -120,6 +144,36 @@ func NewThreadServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(threadServiceMethods.ByName("DeleteThread")),
 			connect.WithClientOptions(opts...),
 		),
+		addLink: connect.NewClient[v1.AddThreadLinkRequest, v1.AddThreadLinkResponse](
+			httpClient,
+			baseURL+ThreadServiceAddLinkProcedure,
+			connect.WithSchema(threadServiceMethods.ByName("AddLink")),
+			connect.WithClientOptions(opts...),
+		),
+		createRecommendationDraft: connect.NewClient[v1.CreateThreadRecommendationDraftRequest, v1.CreateThreadRecommendationDraftResponse](
+			httpClient,
+			baseURL+ThreadServiceCreateRecommendationDraftProcedure,
+			connect.WithSchema(threadServiceMethods.ByName("CreateRecommendationDraft")),
+			connect.WithClientOptions(opts...),
+		),
+		promoteRecommendationDraft: connect.NewClient[v1.PromoteThreadRecommendationDraftRequest, v1.PromoteThreadRecommendationDraftResponse](
+			httpClient,
+			baseURL+ThreadServicePromoteRecommendationDraftProcedure,
+			connect.WithSchema(threadServiceMethods.ByName("PromoteRecommendationDraft")),
+			connect.WithClientOptions(opts...),
+		),
+		createDecisionDraft: connect.NewClient[v1.CreateThreadDecisionDraftRequest, v1.CreateThreadDecisionDraftResponse](
+			httpClient,
+			baseURL+ThreadServiceCreateDecisionDraftProcedure,
+			connect.WithSchema(threadServiceMethods.ByName("CreateDecisionDraft")),
+			connect.WithClientOptions(opts...),
+		),
+		promoteDecisionDraft: connect.NewClient[v1.PromoteThreadDecisionDraftRequest, v1.PromoteThreadDecisionDraftResponse](
+			httpClient,
+			baseURL+ThreadServicePromoteDecisionDraftProcedure,
+			connect.WithSchema(threadServiceMethods.ByName("PromoteDecisionDraft")),
+			connect.WithClientOptions(opts...),
+		),
 		recordDecision: connect.NewClient[v1.RecordThreadDecisionRequest, v1.RecordThreadDecisionResponse](
 			httpClient,
 			baseURL+ThreadServiceRecordDecisionProcedure,
@@ -131,13 +185,18 @@ func NewThreadServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // threadServiceClient implements ThreadServiceClient.
 type threadServiceClient struct {
-	createThread   *connect.Client[v1.CreateThreadRequest, v1.CreateThreadResponse]
-	getThread      *connect.Client[v1.GetThreadRequest, v1.GetThreadResponse]
-	listThreads    *connect.Client[v1.ListThreadsRequest, v1.ListThreadsResponse]
-	sendMessage    *connect.Client[v1.SendThreadMessageRequest, v1.SendThreadMessageResponse]
-	archiveThread  *connect.Client[v1.ArchiveThreadRequest, v1.ArchiveThreadResponse]
-	deleteThread   *connect.Client[v1.DeleteThreadRequest, v1.DeleteThreadResponse]
-	recordDecision *connect.Client[v1.RecordThreadDecisionRequest, v1.RecordThreadDecisionResponse]
+	createThread               *connect.Client[v1.CreateThreadRequest, v1.CreateThreadResponse]
+	getThread                  *connect.Client[v1.GetThreadRequest, v1.GetThreadResponse]
+	listThreads                *connect.Client[v1.ListThreadsRequest, v1.ListThreadsResponse]
+	sendMessage                *connect.Client[v1.SendThreadMessageRequest, v1.SendThreadMessageResponse]
+	archiveThread              *connect.Client[v1.ArchiveThreadRequest, v1.ArchiveThreadResponse]
+	deleteThread               *connect.Client[v1.DeleteThreadRequest, v1.DeleteThreadResponse]
+	addLink                    *connect.Client[v1.AddThreadLinkRequest, v1.AddThreadLinkResponse]
+	createRecommendationDraft  *connect.Client[v1.CreateThreadRecommendationDraftRequest, v1.CreateThreadRecommendationDraftResponse]
+	promoteRecommendationDraft *connect.Client[v1.PromoteThreadRecommendationDraftRequest, v1.PromoteThreadRecommendationDraftResponse]
+	createDecisionDraft        *connect.Client[v1.CreateThreadDecisionDraftRequest, v1.CreateThreadDecisionDraftResponse]
+	promoteDecisionDraft       *connect.Client[v1.PromoteThreadDecisionDraftRequest, v1.PromoteThreadDecisionDraftResponse]
+	recordDecision             *connect.Client[v1.RecordThreadDecisionRequest, v1.RecordThreadDecisionResponse]
 }
 
 // CreateThread calls orc.v1.ThreadService.CreateThread.
@@ -170,6 +229,31 @@ func (c *threadServiceClient) DeleteThread(ctx context.Context, req *connect.Req
 	return c.deleteThread.CallUnary(ctx, req)
 }
 
+// AddLink calls orc.v1.ThreadService.AddLink.
+func (c *threadServiceClient) AddLink(ctx context.Context, req *connect.Request[v1.AddThreadLinkRequest]) (*connect.Response[v1.AddThreadLinkResponse], error) {
+	return c.addLink.CallUnary(ctx, req)
+}
+
+// CreateRecommendationDraft calls orc.v1.ThreadService.CreateRecommendationDraft.
+func (c *threadServiceClient) CreateRecommendationDraft(ctx context.Context, req *connect.Request[v1.CreateThreadRecommendationDraftRequest]) (*connect.Response[v1.CreateThreadRecommendationDraftResponse], error) {
+	return c.createRecommendationDraft.CallUnary(ctx, req)
+}
+
+// PromoteRecommendationDraft calls orc.v1.ThreadService.PromoteRecommendationDraft.
+func (c *threadServiceClient) PromoteRecommendationDraft(ctx context.Context, req *connect.Request[v1.PromoteThreadRecommendationDraftRequest]) (*connect.Response[v1.PromoteThreadRecommendationDraftResponse], error) {
+	return c.promoteRecommendationDraft.CallUnary(ctx, req)
+}
+
+// CreateDecisionDraft calls orc.v1.ThreadService.CreateDecisionDraft.
+func (c *threadServiceClient) CreateDecisionDraft(ctx context.Context, req *connect.Request[v1.CreateThreadDecisionDraftRequest]) (*connect.Response[v1.CreateThreadDecisionDraftResponse], error) {
+	return c.createDecisionDraft.CallUnary(ctx, req)
+}
+
+// PromoteDecisionDraft calls orc.v1.ThreadService.PromoteDecisionDraft.
+func (c *threadServiceClient) PromoteDecisionDraft(ctx context.Context, req *connect.Request[v1.PromoteThreadDecisionDraftRequest]) (*connect.Response[v1.PromoteThreadDecisionDraftResponse], error) {
+	return c.promoteDecisionDraft.CallUnary(ctx, req)
+}
+
 // RecordDecision calls orc.v1.ThreadService.RecordDecision.
 func (c *threadServiceClient) RecordDecision(ctx context.Context, req *connect.Request[v1.RecordThreadDecisionRequest]) (*connect.Response[v1.RecordThreadDecisionResponse], error) {
 	return c.recordDecision.CallUnary(ctx, req)
@@ -189,6 +273,16 @@ type ThreadServiceHandler interface {
 	ArchiveThread(context.Context, *connect.Request[v1.ArchiveThreadRequest]) (*connect.Response[v1.ArchiveThreadResponse], error)
 	// Delete a thread and all its messages.
 	DeleteThread(context.Context, *connect.Request[v1.DeleteThreadRequest]) (*connect.Response[v1.DeleteThreadResponse], error)
+	// Add a typed link to a thread.
+	AddLink(context.Context, *connect.Request[v1.AddThreadLinkRequest]) (*connect.Response[v1.AddThreadLinkResponse], error)
+	// Create a recommendation draft in a thread.
+	CreateRecommendationDraft(context.Context, *connect.Request[v1.CreateThreadRecommendationDraftRequest]) (*connect.Response[v1.CreateThreadRecommendationDraftResponse], error)
+	// Promote a recommendation draft into the recommendation inbox.
+	PromoteRecommendationDraft(context.Context, *connect.Request[v1.PromoteThreadRecommendationDraftRequest]) (*connect.Response[v1.PromoteThreadRecommendationDraftResponse], error)
+	// Create an initiative decision draft in a thread.
+	CreateDecisionDraft(context.Context, *connect.Request[v1.CreateThreadDecisionDraftRequest]) (*connect.Response[v1.CreateThreadDecisionDraftResponse], error)
+	// Promote a decision draft into a real initiative decision.
+	PromoteDecisionDraft(context.Context, *connect.Request[v1.PromoteThreadDecisionDraftRequest]) (*connect.Response[v1.PromoteThreadDecisionDraftResponse], error)
 	// Record a decision from a thread discussion to its linked initiative.
 	RecordDecision(context.Context, *connect.Request[v1.RecordThreadDecisionRequest]) (*connect.Response[v1.RecordThreadDecisionResponse], error)
 }
@@ -236,6 +330,36 @@ func NewThreadServiceHandler(svc ThreadServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(threadServiceMethods.ByName("DeleteThread")),
 		connect.WithHandlerOptions(opts...),
 	)
+	threadServiceAddLinkHandler := connect.NewUnaryHandler(
+		ThreadServiceAddLinkProcedure,
+		svc.AddLink,
+		connect.WithSchema(threadServiceMethods.ByName("AddLink")),
+		connect.WithHandlerOptions(opts...),
+	)
+	threadServiceCreateRecommendationDraftHandler := connect.NewUnaryHandler(
+		ThreadServiceCreateRecommendationDraftProcedure,
+		svc.CreateRecommendationDraft,
+		connect.WithSchema(threadServiceMethods.ByName("CreateRecommendationDraft")),
+		connect.WithHandlerOptions(opts...),
+	)
+	threadServicePromoteRecommendationDraftHandler := connect.NewUnaryHandler(
+		ThreadServicePromoteRecommendationDraftProcedure,
+		svc.PromoteRecommendationDraft,
+		connect.WithSchema(threadServiceMethods.ByName("PromoteRecommendationDraft")),
+		connect.WithHandlerOptions(opts...),
+	)
+	threadServiceCreateDecisionDraftHandler := connect.NewUnaryHandler(
+		ThreadServiceCreateDecisionDraftProcedure,
+		svc.CreateDecisionDraft,
+		connect.WithSchema(threadServiceMethods.ByName("CreateDecisionDraft")),
+		connect.WithHandlerOptions(opts...),
+	)
+	threadServicePromoteDecisionDraftHandler := connect.NewUnaryHandler(
+		ThreadServicePromoteDecisionDraftProcedure,
+		svc.PromoteDecisionDraft,
+		connect.WithSchema(threadServiceMethods.ByName("PromoteDecisionDraft")),
+		connect.WithHandlerOptions(opts...),
+	)
 	threadServiceRecordDecisionHandler := connect.NewUnaryHandler(
 		ThreadServiceRecordDecisionProcedure,
 		svc.RecordDecision,
@@ -256,6 +380,16 @@ func NewThreadServiceHandler(svc ThreadServiceHandler, opts ...connect.HandlerOp
 			threadServiceArchiveThreadHandler.ServeHTTP(w, r)
 		case ThreadServiceDeleteThreadProcedure:
 			threadServiceDeleteThreadHandler.ServeHTTP(w, r)
+		case ThreadServiceAddLinkProcedure:
+			threadServiceAddLinkHandler.ServeHTTP(w, r)
+		case ThreadServiceCreateRecommendationDraftProcedure:
+			threadServiceCreateRecommendationDraftHandler.ServeHTTP(w, r)
+		case ThreadServicePromoteRecommendationDraftProcedure:
+			threadServicePromoteRecommendationDraftHandler.ServeHTTP(w, r)
+		case ThreadServiceCreateDecisionDraftProcedure:
+			threadServiceCreateDecisionDraftHandler.ServeHTTP(w, r)
+		case ThreadServicePromoteDecisionDraftProcedure:
+			threadServicePromoteDecisionDraftHandler.ServeHTTP(w, r)
 		case ThreadServiceRecordDecisionProcedure:
 			threadServiceRecordDecisionHandler.ServeHTTP(w, r)
 		default:
@@ -289,6 +423,26 @@ func (UnimplementedThreadServiceHandler) ArchiveThread(context.Context, *connect
 
 func (UnimplementedThreadServiceHandler) DeleteThread(context.Context, *connect.Request[v1.DeleteThreadRequest]) (*connect.Response[v1.DeleteThreadResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ThreadService.DeleteThread is not implemented"))
+}
+
+func (UnimplementedThreadServiceHandler) AddLink(context.Context, *connect.Request[v1.AddThreadLinkRequest]) (*connect.Response[v1.AddThreadLinkResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ThreadService.AddLink is not implemented"))
+}
+
+func (UnimplementedThreadServiceHandler) CreateRecommendationDraft(context.Context, *connect.Request[v1.CreateThreadRecommendationDraftRequest]) (*connect.Response[v1.CreateThreadRecommendationDraftResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ThreadService.CreateRecommendationDraft is not implemented"))
+}
+
+func (UnimplementedThreadServiceHandler) PromoteRecommendationDraft(context.Context, *connect.Request[v1.PromoteThreadRecommendationDraftRequest]) (*connect.Response[v1.PromoteThreadRecommendationDraftResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ThreadService.PromoteRecommendationDraft is not implemented"))
+}
+
+func (UnimplementedThreadServiceHandler) CreateDecisionDraft(context.Context, *connect.Request[v1.CreateThreadDecisionDraftRequest]) (*connect.Response[v1.CreateThreadDecisionDraftResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ThreadService.CreateDecisionDraft is not implemented"))
+}
+
+func (UnimplementedThreadServiceHandler) PromoteDecisionDraft(context.Context, *connect.Request[v1.PromoteThreadDecisionDraftRequest]) (*connect.Response[v1.PromoteThreadDecisionDraftResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ThreadService.PromoteDecisionDraft is not implemented"))
 }
 
 func (UnimplementedThreadServiceHandler) RecordDecision(context.Context, *connect.Request[v1.RecordThreadDecisionRequest]) (*connect.Response[v1.RecordThreadDecisionResponse], error) {

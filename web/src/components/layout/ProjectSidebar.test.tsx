@@ -20,6 +20,8 @@ vi.mock('@/lib/client', () => ({
 		createThread: vi.fn(),
 		getThread: vi.fn(),
 		sendMessage: vi.fn(),
+		promoteRecommendationDraft: vi.fn(),
+		promoteDecisionDraft: vi.fn(),
 	},
 	taskClient: {
 		listTasks: vi.fn(),

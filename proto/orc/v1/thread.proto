@@ -3,6 +3,7 @@ syntax = "proto3";
 package orc.v1;
 
 import "google/protobuf/timestamp.proto";
+import "orc/v1/recommendation.proto";
 
 option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
 
@@ -22,6 +23,9 @@ message Thread {
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
   repeated ThreadMessage messages = 10;
+  repeated ThreadLink links = 11;
+  repeated ThreadRecommendationDraft recommendation_drafts = 12;
+  repeated ThreadDecisionDraft decision_drafts = 13;
 }
 
 // ThreadMessage represents a single message within a thread.
@@ -31,6 +35,51 @@ message ThreadMessage {
   string role = 3;
   string content = 4;
   google.protobuf.Timestamp created_at = 5;
+}
+
+// ThreadLink represents typed context linked to a thread.
+message ThreadLink {
+  int64 id = 1;
+  string thread_id = 2;
+  string link_type = 3;
+  string target_id = 4;
+  string title = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// ThreadRecommendationDraft captures a recommendation draft shaped in a discussion.
+message ThreadRecommendationDraft {
+  string id = 1;
+  string thread_id = 2;
+  RecommendationKind kind = 3;
+  string title = 4;
+  string summary = 5;
+  string proposed_action = 6;
+  string evidence = 7;
+  string dedupe_key = 8;
+  string source_task_id = 9;
+  string source_run_id = 10;
+  string status = 11;
+  string promoted_recommendation_id = 12;
+  string promoted_by = 13;
+  google.protobuf.Timestamp promoted_at = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp updated_at = 16;
+}
+
+// ThreadDecisionDraft captures an initiative decision draft shaped in a discussion.
+message ThreadDecisionDraft {
+  string id = 1;
+  string thread_id = 2;
+  string initiative_id = 3;
+  string decision = 4;
+  string rationale = 5;
+  string status = 6;
+  string promoted_decision_id = 7;
+  string promoted_by = 8;
+  google.protobuf.Timestamp promoted_at = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
 }
 
 // =============================================================================
@@ -56,6 +105,21 @@ service ThreadService {
   // Delete a thread and all its messages.
   rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadResponse);
 
+  // Add a typed link to a thread.
+  rpc AddLink(AddThreadLinkRequest) returns (AddThreadLinkResponse);
+
+  // Create a recommendation draft in a thread.
+  rpc CreateRecommendationDraft(CreateThreadRecommendationDraftRequest) returns (CreateThreadRecommendationDraftResponse);
+
+  // Promote a recommendation draft into the recommendation inbox.
+  rpc PromoteRecommendationDraft(PromoteThreadRecommendationDraftRequest) returns (PromoteThreadRecommendationDraftResponse);
+
+  // Create an initiative decision draft in a thread.
+  rpc CreateDecisionDraft(CreateThreadDecisionDraftRequest) returns (CreateThreadDecisionDraftResponse);
+
+  // Promote a decision draft into a real initiative decision.
+  rpc PromoteDecisionDraft(PromoteThreadDecisionDraftRequest) returns (PromoteThreadDecisionDraftResponse);
+
   // Record a decision from a thread discussion to its linked initiative.
   rpc RecordDecision(RecordThreadDecisionRequest) returns (RecordThreadDecisionResponse);
 }
@@ -71,6 +135,7 @@ message CreateThreadRequest {
   optional string task_id = 3;
   optional string initiative_id = 4;
   optional string file_context = 5;
+  repeated ThreadLinkInput links = 6;
 }
 
 message CreateThreadResponse {
@@ -127,6 +192,70 @@ message DeleteThreadRequest {
 }
 
 message DeleteThreadResponse {}
+
+message ThreadLinkInput {
+  string link_type = 1;
+  string target_id = 2;
+  string title = 3;
+}
+
+message AddThreadLinkRequest {
+  string project_id = 1;
+  string thread_id = 2;
+  ThreadLinkInput link = 3;
+}
+
+message AddThreadLinkResponse {
+  Thread thread = 1;
+}
+
+message CreateThreadRecommendationDraftRequest {
+  string project_id = 1;
+  string thread_id = 2;
+  ThreadRecommendationDraft draft = 3;
+}
+
+message CreateThreadRecommendationDraftResponse {
+  ThreadRecommendationDraft draft = 1;
+  Thread thread = 2;
+}
+
+message PromoteThreadRecommendationDraftRequest {
+  string project_id = 1;
+  string thread_id = 2;
+  string draft_id = 3;
+  string promoted_by = 4;
+}
+
+message PromoteThreadRecommendationDraftResponse {
+  ThreadRecommendationDraft draft = 1;
+  Recommendation recommendation = 2;
+  Thread thread = 3;
+}
+
+message CreateThreadDecisionDraftRequest {
+  string project_id = 1;
+  string thread_id = 2;
+  ThreadDecisionDraft draft = 3;
+}
+
+message CreateThreadDecisionDraftResponse {
+  ThreadDecisionDraft draft = 1;
+  Thread thread = 2;
+}
+
+message PromoteThreadDecisionDraftRequest {
+  string project_id = 1;
+  string thread_id = 2;
+  string draft_id = 3;
+  string promoted_by = 4;
+}
+
+message PromoteThreadDecisionDraftResponse {
+  ThreadDecisionDraft draft = 1;
+  string decision_id = 2;
+  Thread thread = 3;
+}
 
 // RecordDecision
 message RecordThreadDecisionRequest {

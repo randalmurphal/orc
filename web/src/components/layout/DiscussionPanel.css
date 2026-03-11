@@ -11,6 +11,104 @@
 	display: flex;
 	flex-direction: column;
 	height: 100%;
+	min-height: 0;
+}
+
+.discussion-panel__context {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 12px;
+	border-bottom: 1px solid var(--border-light);
+	background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
+}
+
+.discussion-panel__section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.discussion-panel__section-label {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--text-secondary);
+}
+
+.discussion-panel__link-list,
+.discussion-panel__draft-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.discussion-panel__link-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-radius: 999px;
+	background: var(--bg-base);
+	border: 1px solid var(--border-light);
+	font-size: 12px;
+	color: var(--text-primary);
+}
+
+.discussion-panel__link-type {
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-secondary);
+}
+
+.discussion-panel__draft-card {
+	display: flex;
+	flex: 1 1 220px;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+	border: 1px solid var(--border-light);
+	border-radius: 10px;
+	background: var(--bg-base);
+}
+
+.discussion-panel__draft-card h3,
+.discussion-panel__draft-card p {
+	margin: 0;
+}
+
+.discussion-panel__draft-meta {
+	display: flex;
+	justify-content: space-between;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-secondary);
+}
+
+.discussion-panel__draft-detail {
+	font-size: 12px;
+	color: var(--text-secondary);
+}
+
+.discussion-panel__draft-card button {
+	align-self: flex-start;
+	padding: 6px 10px;
+	border: 1px solid var(--border-light);
+	border-radius: 999px;
+	background: var(--bg-elevated);
+	color: var(--text-primary);
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.discussion-panel__draft-card button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 /* =============================================================================
@@ -42,6 +140,14 @@
 .discussion-panel__messages {
 	scrollbar-width: thin;
 	scrollbar-color: var(--border-light) transparent;
+}
+
+.discussion-panel__empty {
+	padding: 12px;
+	border-radius: 10px;
+	background: var(--bg-elevated);
+	color: var(--text-secondary);
+	font-size: 13px;
 }
 
 /* =============================================================================
