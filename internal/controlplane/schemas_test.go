@@ -257,3 +257,7 @@ func repeatedList(count int, value string) []string {
 	}
 	return items
 }
+
+// Schema parity coverage lives in internal/db/schema_parity_test.go to avoid
+// a controlplane <-> db test import cycle once db/attention_signal.go imports
+// controlplane.

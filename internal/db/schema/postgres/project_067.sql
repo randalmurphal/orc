@@ -11,9 +11,9 @@ CREATE TABLE IF NOT EXISTS attention_signals (
     reference_id TEXT NOT NULL,
     title TEXT NOT NULL,
     summary TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    resolved_at TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ,
     resolved_by TEXT
 );
 
