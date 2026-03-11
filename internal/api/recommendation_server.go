@@ -461,7 +461,7 @@ func (s *recommendationServer) publishPromotedArtifact(projectID string, rec *or
 	if rec.PromotedToType == db.RecommendationPromotionTypeTask && rec.PromotedToId != "" {
 		taskItem, err := s.mustLoadPromotedTask(projectID, rec.PromotedToId)
 		if err == nil && taskItem != nil {
-			s.publisher.Publish(events.NewEvent(events.EventTaskCreated, taskItem.Id, taskItem))
+			s.publisher.Publish(events.NewProjectEvent(events.EventTaskCreated, projectID, taskItem.Id, taskItem))
 		}
 	}
 }

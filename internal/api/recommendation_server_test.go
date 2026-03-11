@@ -91,6 +91,7 @@ func TestRecommendationServiceCRUDViaHTTP(t *testing.T) {
 	require.Equal(t, events.EventRecommendationDecided, publisher.events[1].Type)
 	require.Equal(t, "proj-001", publisher.events[1].ProjectID)
 	require.Equal(t, events.EventTaskCreated, publisher.events[2].Type)
+	require.Equal(t, "proj-001", publisher.events[2].ProjectID)
 
 	historyResp, err := client.ListRecommendationHistory(context.Background(), connect.NewRequest(&orcv1.ListRecommendationHistoryRequest{
 		ProjectId:        "proj-001",
