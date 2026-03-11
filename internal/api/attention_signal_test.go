@@ -92,12 +92,75 @@ func TestCrossProjectAttentionSignalsIncludeProjectIDAndStayIsolated(t *testing.
 	require.Equal(t, projectOne.ID, signals[0].ProjectID)
 	require.Equal(t, projectTwo.ID, signals[1].ProjectID)
 
+	rootResp, err := server.GetAttentionDashboardData(context.Background(), connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{}))
+	require.NoError(t, err)
+	require.Len(t, rootResp.Msg.AttentionItems, 2)
+	require.Equal(t, projectOne.ID+"::blocked-TASK-001", rootResp.Msg.AttentionItems[0].Id)
+	require.Equal(t, "TASK-001", rootResp.Msg.AttentionItems[0].TaskId)
+	require.Equal(t, projectTwo.ID+"::blocked-TASK-002", rootResp.Msg.AttentionItems[1].Id)
+
 	resp, err := server.GetAttentionDashboardData(context.Background(), connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: projectOne.ID,
 	}))
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.AttentionItems, 1)
 	require.Equal(t, "TASK-001", resp.Msg.AttentionItems[0].TaskId)
+}
+
+func TestCrossProjectAttentionRetryUsesItemProjectID(t *testing.T) {
+	tmpDir := setupTestHome(t)
+	projectOne := setupTestProject(t, tmpDir, "alpha")
+	projectTwo := setupTestProject(t, tmpDir, "beta")
+
+	cache := NewProjectCache(10)
+	defer func() { _ = cache.Close() }()
+
+	backendOne, err := cache.GetBackend(projectOne.ID)
+	require.NoError(t, err)
+	backendTwo, err := cache.GetBackend(projectTwo.ID)
+	require.NoError(t, err)
+
+	taskOne := task.NewProtoTask("TASK-001", "Alpha failed task")
+	taskOne.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	require.NoError(t, backendOne.SaveTask(taskOne))
+	require.NoError(t, backendOne.SaveAttentionSignal(&controlplane.PersistedAttentionSignal{
+		Kind:          controlplane.AttentionSignalKindBlocker,
+		Status:        controlplane.AttentionSignalStatusFailed,
+		ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+		ReferenceID:   taskOne.Id,
+		Title:         taskOne.Title,
+		Summary:       "Needs retry.",
+	}))
+
+	taskTwo := task.NewProtoTask("TASK-002", "Beta failed task")
+	taskTwo.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	require.NoError(t, backendTwo.SaveTask(taskTwo))
+	require.NoError(t, backendTwo.SaveAttentionSignal(&controlplane.PersistedAttentionSignal{
+		Kind:          controlplane.AttentionSignalKindBlocker,
+		Status:        controlplane.AttentionSignalStatusFailed,
+		ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+		ReferenceID:   taskTwo.Id,
+		Title:         taskTwo.Title,
+		Summary:       "Needs retry.",
+	}))
+
+	server := NewAttentionDashboardServer(nil, nil, nil, nil)
+	server.(*attentionDashboardServer).SetProjectCache(cache)
+
+	resp, err := server.PerformAttentionAction(context.Background(), connect.NewRequest(&orcv1.PerformAttentionActionRequest{
+		AttentionItemId: projectTwo.ID + "::failed-TASK-002",
+		Action:          orcv1.AttentionAction_ATTENTION_ACTION_RETRY,
+	}))
+	require.NoError(t, err)
+	require.True(t, resp.Msg.Success)
+
+	alphaSignals, err := backendOne.LoadActiveAttentionSignals()
+	require.NoError(t, err)
+	require.Len(t, alphaSignals, 1)
+
+	betaSignals, err := backendTwo.LoadActiveAttentionSignals()
+	require.NoError(t, err)
+	require.Empty(t, betaSignals)
 }
 
 func TestAttentionDashboardRetryActionResolvesSignal(t *testing.T) {

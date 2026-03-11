@@ -75,7 +75,16 @@ func (s *attentionDashboardServer) GetAttentionDashboardData(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetAttentionDashboardDataRequest],
 ) (*connect.Response[orcv1.GetAttentionDashboardDataResponse], error) {
-	backend, err := s.getBackend(req.Msg.GetProjectId())
+	projectID := req.Msg.GetProjectId()
+	if projectID == "" && s.projectCache != nil {
+		response, err := s.getCrossProjectAttentionDashboardData()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load cross-project attention dashboard data: %w", err))
+		}
+		return connect.NewResponse(response), nil
+	}
+
+	backend, err := s.getBackend(projectID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get backend: %w", err))
 	}
@@ -121,6 +130,37 @@ func (s *attentionDashboardServer) GetAttentionDashboardData(
 	}
 
 	return connect.NewResponse(response), nil
+}
+
+func (s *attentionDashboardServer) getCrossProjectAttentionDashboardData() (*orcv1.GetAttentionDashboardDataResponse, error) {
+	signals, err := s.loadCrossProjectAttentionSignals()
+	if err != nil {
+		return nil, fmt.Errorf("load cross-project attention signals: %w", err)
+	}
+
+	attentionItems, err := s.buildCrossProjectAttentionItems(signals)
+	if err != nil {
+		return nil, fmt.Errorf("build cross-project attention items: %w", err)
+	}
+
+	pendingRecommendations, err := s.countCrossProjectPendingRecommendations()
+	if err != nil {
+		return nil, fmt.Errorf("count cross-project pending recommendations: %w", err)
+	}
+
+	return &orcv1.GetAttentionDashboardDataResponse{
+		RunningSummary: &orcv1.RunningSummary{
+			TaskCount: 0,
+			Tasks:     []*orcv1.RunningTask{},
+		},
+		AttentionItems: attentionItems,
+		QueueSummary: &orcv1.QueueSummary{
+			TaskCount:       0,
+			Swimlanes:       []*orcv1.InitiativeSwimlane{},
+			UnassignedTasks: []*orcv1.QueuedTask{},
+		},
+		PendingRecommendations: int32(pendingRecommendations),
+	}, nil
 }
 
 // buildRunningSummary creates the running tasks summary with progress and timing.
@@ -362,6 +402,46 @@ func (s *attentionDashboardServer) buildAttentionItems(
 	return items, nil
 }
 
+func (s *attentionDashboardServer) buildCrossProjectAttentionItems(
+	signals []*controlplane.PersistedAttentionSignal,
+) ([]*orcv1.AttentionItem, error) {
+	if s.projectCache == nil {
+		return nil, fmt.Errorf("project cache not configured")
+	}
+
+	items := make([]*orcv1.AttentionItem, 0, len(signals))
+	for _, signal := range signals {
+		if signal == nil {
+			continue
+		}
+
+		backend, err := s.projectCache.GetBackend(signal.ProjectID)
+		if err != nil {
+			return nil, fmt.Errorf("get backend for project %s: %w", signal.ProjectID, err)
+		}
+
+		item, err := s.attentionItemFromSignal(backend, signal)
+		if err != nil {
+			return nil, err
+		}
+		if item != nil {
+			items = append(items, item)
+		}
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Priority == items[j].Priority {
+			if items[i].CreatedAt == nil || items[j].CreatedAt == nil {
+				return items[i].Id < items[j].Id
+			}
+			return items[i].CreatedAt.AsTime().Before(items[j].CreatedAt.AsTime())
+		}
+		return items[i].Priority < items[j].Priority
+	})
+
+	return items, nil
+}
+
 func (s *attentionDashboardServer) attentionItemFromSignal(
 	backend storage.Backend,
 	signal *controlplane.PersistedAttentionSignal,
@@ -421,7 +501,7 @@ func (s *attentionDashboardServer) blockerAttentionItem(
 	}
 
 	item := &orcv1.AttentionItem{
-		Id:               fmt.Sprintf("%s-%s", idPrefix, signal.ReferenceID),
+		Id:               attentionItemID(signal.ProjectID, fmt.Sprintf("%s-%s", idPrefix, signal.ReferenceID)),
 		Type:             itemType,
 		Title:            signal.Title,
 		Description:      description,
@@ -449,7 +529,7 @@ func (s *attentionDashboardServer) genericAttentionItem(
 	itemType orcv1.AttentionItemType,
 ) *orcv1.AttentionItem {
 	item := &orcv1.AttentionItem{
-		Id:               fmt.Sprintf("%s-%s", signal.Kind, signal.ReferenceID),
+		Id:               attentionItemID(signal.ProjectID, fmt.Sprintf("%s-%s", signal.Kind, signal.ReferenceID)),
 		Type:             itemType,
 		Title:            signal.Title,
 		Description:      signal.Summary,
@@ -514,6 +594,33 @@ func attentionSignalPriority(taskItem *orcv1.Task) orcv1.TaskPriority {
 		return orcv1.TaskPriority_TASK_PRIORITY_NORMAL
 	}
 	return taskItem.GetPriority()
+}
+
+func attentionItemID(projectID string, baseID string) string {
+	if projectID == "" {
+		return baseID
+	}
+	return projectID + "::" + baseID
+}
+
+func parseAttentionItemIdentifier(defaultProjectID string, rawID string) (string, string, error) {
+	if rawID == "" {
+		return "", "", fmt.Errorf("attention item ID is required")
+	}
+
+	projectID := defaultProjectID
+	baseID := rawID
+
+	if strings.Contains(rawID, "::") {
+		parts := strings.SplitN(rawID, "::", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return "", "", fmt.Errorf("invalid attention item ID format: %s", rawID)
+		}
+		projectID = parts[0]
+		baseID = parts[1]
+	}
+
+	return projectID, baseID, nil
 }
 
 func (s *attentionDashboardServer) resolveTaskAttentionSignals(
@@ -636,6 +743,33 @@ func (s *attentionDashboardServer) loadCrossProjectAttentionSignals() ([]*contro
 	return result, nil
 }
 
+func (s *attentionDashboardServer) countCrossProjectPendingRecommendations() (int, error) {
+	if s.projectCache == nil {
+		return 0, fmt.Errorf("project cache not configured")
+	}
+
+	registry, err := project.LoadRegistry()
+	if err != nil {
+		return 0, fmt.Errorf("load project registry: %w", err)
+	}
+
+	total := 0
+	for _, proj := range registry.ValidProjects() {
+		backend, err := s.projectCache.GetBackend(proj.ID)
+		if err != nil {
+			return 0, fmt.Errorf("get backend for project %s: %w", proj.ID, err)
+		}
+
+		count, err := backend.CountRecommendationsByStatus(orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING)
+		if err != nil {
+			return 0, fmt.Errorf("count pending recommendations for project %s: %w", proj.ID, err)
+		}
+		total += count
+	}
+
+	return total, nil
+}
+
 // buildQueueSummary creates queue summary organized by initiatives.
 func (s *attentionDashboardServer) buildQueueSummary(backend storage.Backend, tasks []*orcv1.Task) (*orcv1.QueueSummary, error) {
 	// Group planned tasks by initiative
@@ -728,12 +862,19 @@ func (s *attentionDashboardServer) PerformAttentionAction(
 	ctx context.Context,
 	req *connect.Request[orcv1.PerformAttentionActionRequest],
 ) (*connect.Response[orcv1.PerformAttentionActionResponse], error) {
-	backend, err := s.getBackend(req.Msg.GetProjectId())
+	projectID, attentionItemID, err := parseAttentionItemIdentifier(req.Msg.GetProjectId(), req.Msg.AttentionItemId)
+	if err != nil {
+		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
+			Success:      false,
+			ErrorMessage: err.Error(),
+		}), nil
+	}
+
+	backend, err := s.getBackend(projectID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get backend: %w", err))
 	}
 
-	attentionItemID := req.Msg.AttentionItemId
 	action := req.Msg.Action
 
 	// Parse attention item ID to determine type and target
@@ -757,22 +898,22 @@ func (s *attentionDashboardServer) PerformAttentionAction(
 		}), nil
 
 	case orcv1.AttentionAction_ATTENTION_ACTION_RETRY:
-		return s.handleRetryAction(backend, req.Msg.GetProjectId(), targetID)
+		return s.handleRetryAction(backend, projectID, targetID)
 
 	case orcv1.AttentionAction_ATTENTION_ACTION_APPROVE:
-		return s.handleApproveAction(backend, req.Msg.GetProjectId(), targetID)
+		return s.handleApproveAction(backend, projectID, targetID)
 
 	case orcv1.AttentionAction_ATTENTION_ACTION_REJECT:
-		return s.handleRejectAction(backend, req.Msg.GetProjectId(), targetID)
+		return s.handleRejectAction(backend, projectID, targetID)
 
 	case orcv1.AttentionAction_ATTENTION_ACTION_SKIP:
-		return s.handleSkipAction(backend, req.Msg.GetProjectId(), targetID, req.Msg.Reason)
+		return s.handleSkipAction(backend, projectID, targetID, req.Msg.Reason)
 
 	case orcv1.AttentionAction_ATTENTION_ACTION_FORCE:
-		return s.handleForceAction(backend, req.Msg.GetProjectId(), targetID, req.Msg.Reason)
+		return s.handleForceAction(backend, projectID, targetID, req.Msg.Reason)
 
 	case orcv1.AttentionAction_ATTENTION_ACTION_RESOLVE:
-		return s.handleResolveAction(backend, req.Msg.GetProjectId(), targetID, req.Msg.Comment)
+		return s.handleResolveAction(backend, projectID, targetID, req.Msg.Comment)
 
 	default:
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
