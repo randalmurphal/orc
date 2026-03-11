@@ -83,6 +83,12 @@ message AttentionItem {
   string blocked_reason = 10; // For blocked tasks
   string gate_question = 11; // For gate approvals
   string error_message = 12; // For failed tasks and error states
+
+  // Persisted attention signal metadata, populated for signal-backed items.
+  string project_id = 13;
+  string signal_kind = 14;
+  string reference_type = 15;
+  string reference_id = 16;
 }
 
 // Types of attention items

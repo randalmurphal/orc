@@ -101,6 +101,12 @@ func (s *attentionDashboardServer) GetAttentionDashboardData(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load attention signals: %w", err))
 	}
+	for _, signal := range activeSignals {
+		if signal == nil || signal.ProjectID != "" || projectID == "" {
+			continue
+		}
+		signal.ProjectID = projectID
+	}
 
 	// Build running summary
 	runningSummary := s.buildRunningSummary(backend, tasks, now)
@@ -508,6 +514,10 @@ func (s *attentionDashboardServer) blockerAttentionItem(
 		Priority:         attentionSignalPriority(refTask),
 		CreatedAt:        timestamppb.New(signal.UpdatedAt),
 		AvailableActions: actions,
+		ProjectId:        signal.ProjectID,
+		SignalKind:       string(signal.Kind),
+		ReferenceType:    signal.ReferenceType,
+		ReferenceId:      signal.ReferenceID,
 	}
 	if refTask != nil {
 		item.TaskId = refTask.GetId()
@@ -536,6 +546,10 @@ func (s *attentionDashboardServer) genericAttentionItem(
 		Priority:         attentionSignalPriority(refTask),
 		CreatedAt:        timestamppb.New(signal.UpdatedAt),
 		AvailableActions: []orcv1.AttentionAction{orcv1.AttentionAction_ATTENTION_ACTION_VIEW},
+		ProjectId:        signal.ProjectID,
+		SignalKind:       string(signal.Kind),
+		ReferenceType:    signal.ReferenceType,
+		ReferenceId:      signal.ReferenceID,
 	}
 	if refTask != nil {
 		item.TaskId = refTask.GetId()

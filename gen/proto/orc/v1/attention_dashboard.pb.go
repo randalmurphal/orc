@@ -673,8 +673,13 @@ type AttentionItem struct {
 	BlockedReason   string            `protobuf:"bytes,10,opt,name=blocked_reason,json=blockedReason,proto3" json:"blocked_reason,omitempty"`      // For blocked tasks
 	GateQuestion    string            `protobuf:"bytes,11,opt,name=gate_question,json=gateQuestion,proto3" json:"gate_question,omitempty"`         // For gate approvals
 	ErrorMessage    string            `protobuf:"bytes,12,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`         // For failed tasks and error states
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Persisted attention signal metadata, populated for signal-backed items.
+	ProjectId     string `protobuf:"bytes,13,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	SignalKind    string `protobuf:"bytes,14,opt,name=signal_kind,json=signalKind,proto3" json:"signal_kind,omitempty"`
+	ReferenceType string `protobuf:"bytes,15,opt,name=reference_type,json=referenceType,proto3" json:"reference_type,omitempty"`
+	ReferenceId   string `protobuf:"bytes,16,opt,name=reference_id,json=referenceId,proto3" json:"reference_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AttentionItem) Reset() {
@@ -787,6 +792,34 @@ func (x *AttentionItem) GetGateQuestion() string {
 func (x *AttentionItem) GetErrorMessage() string {
 	if x != nil {
 		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *AttentionItem) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *AttentionItem) GetSignalKind() string {
+	if x != nil {
+		return x.SignalKind
+	}
+	return ""
+}
+
+func (x *AttentionItem) GetReferenceType() string {
+	if x != nil {
+		return x.ReferenceType
+	}
+	return ""
+}
+
+func (x *AttentionItem) GetReferenceId() string {
+	if x != nil {
+		return x.ReferenceId
 	}
 	return ""
 }
@@ -1613,7 +1646,7 @@ const file_orc_v1_attention_dashboard_proto_rawDesc = "" +
 	"\x05steps\x18\x02 \x03(\v2\x11.orc.v1.PhaseStepR\x05steps\"P\n" +
 	"\tPhaseStep\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x17.orc.v1.PhaseStepStatusR\x06status\"\x86\x04\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x17.orc.v1.PhaseStepStatusR\x06status\"\x90\x05\n" +
 	"\rAttentionItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12-\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x19.orc.v1.AttentionItemTypeR\x04type\x12\x17\n" +
@@ -1628,7 +1661,13 @@ const file_orc_v1_attention_dashboard_proto_rawDesc = "" +
 	"\x0eblocked_reason\x18\n" +
 	" \x01(\tR\rblockedReason\x12#\n" +
 	"\rgate_question\x18\v \x01(\tR\fgateQuestion\x12#\n" +
-	"\rerror_message\x18\f \x01(\tR\ferrorMessage\"\xa6\x01\n" +
+	"\rerror_message\x18\f \x01(\tR\ferrorMessage\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\r \x01(\tR\tprojectId\x12\x1f\n" +
+	"\vsignal_kind\x18\x0e \x01(\tR\n" +
+	"signalKind\x12%\n" +
+	"\x0ereference_type\x18\x0f \x01(\tR\rreferenceType\x12!\n" +
+	"\freference_id\x18\x10 \x01(\tR\vreferenceId\"\xa6\x01\n" +
 	"\fQueueSummary\x12\x1d\n" +
 	"\n" +
 	"task_count\x18\x01 \x01(\x05R\ttaskCount\x128\n" +

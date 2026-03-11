@@ -42,6 +42,9 @@ func TestAttentionDashboardUsesPersistedSignals(t *testing.T) {
 	require.Len(t, resp.Msg.AttentionItems, 1)
 	require.Equal(t, "TASK-001", resp.Msg.AttentionItems[0].TaskId)
 	require.Equal(t, orcv1.AttentionItemType_ATTENTION_ITEM_TYPE_BLOCKED_TASK, resp.Msg.AttentionItems[0].Type)
+	require.Equal(t, string(controlplane.AttentionSignalKindBlocker), resp.Msg.AttentionItems[0].SignalKind)
+	require.Equal(t, controlplane.AttentionSignalReferenceTypeTask, resp.Msg.AttentionItems[0].ReferenceType)
+	require.Equal(t, taskWithSignal.Id, resp.Msg.AttentionItems[0].ReferenceId)
 }
 
 func TestCrossProjectAttentionSignalsIncludeProjectIDAndStayIsolated(t *testing.T) {
@@ -96,8 +99,13 @@ func TestCrossProjectAttentionSignalsIncludeProjectIDAndStayIsolated(t *testing.
 	require.NoError(t, err)
 	require.Len(t, rootResp.Msg.AttentionItems, 2)
 	require.Equal(t, projectOne.ID+"::blocked-TASK-001", rootResp.Msg.AttentionItems[0].Id)
+	require.Equal(t, projectOne.ID, rootResp.Msg.AttentionItems[0].ProjectId)
 	require.Equal(t, "TASK-001", rootResp.Msg.AttentionItems[0].TaskId)
+	require.Equal(t, string(controlplane.AttentionSignalKindBlocker), rootResp.Msg.AttentionItems[0].SignalKind)
+	require.Equal(t, controlplane.AttentionSignalReferenceTypeTask, rootResp.Msg.AttentionItems[0].ReferenceType)
+	require.Equal(t, taskOne.Id, rootResp.Msg.AttentionItems[0].ReferenceId)
 	require.Equal(t, projectTwo.ID+"::blocked-TASK-002", rootResp.Msg.AttentionItems[1].Id)
+	require.Equal(t, projectTwo.ID, rootResp.Msg.AttentionItems[1].ProjectId)
 
 	resp, err := server.GetAttentionDashboardData(context.Background(), connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: projectOne.ID,
@@ -105,6 +113,7 @@ func TestCrossProjectAttentionSignalsIncludeProjectIDAndStayIsolated(t *testing.
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.AttentionItems, 1)
 	require.Equal(t, "TASK-001", resp.Msg.AttentionItems[0].TaskId)
+	require.Equal(t, projectOne.ID, resp.Msg.AttentionItems[0].ProjectId)
 }
 
 func TestCrossProjectAttentionRetryUsesItemProjectID(t *testing.T) {
