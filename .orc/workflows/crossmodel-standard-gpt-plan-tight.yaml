@@ -1,0 +1,52 @@
+id: crossmodel-standard-gpt-plan-tight
+name: Cross-Model Standard (GPT Plan Tight)
+description: Strict default path variant with GPT 5.4 planning on a GPT-specific prompt, GPT 5.4 implementation, Opus primary review, GPT 5.4 xhigh cross-review, then targeted docs.
+phases:
+  - template: plan_gpt
+    sequence: 0
+    provider_override: codex
+    model_override: gpt-5.4
+
+  - template: implement_codex
+    sequence: 1
+    depends_on: ["plan_gpt"]
+    provider_override: codex
+    model_override: gpt-5.4
+
+  - template: review
+    sequence: 2
+    depends_on: ["implement_codex"]
+    model_override: opus
+    loop_config:
+      loop_to_phase: implement_codex
+      condition:
+        field: "phase_output.review.needs_changes"
+        op: "eq"
+        value: "true"
+      max_loops: 2
+      loop_templates:
+        "1": "prompts/review.md"
+        default: "prompts/review_round2.md"
+      loop_schemas:
+        "1": "ReviewFindingsSchema"
+        default: "ReviewDecisionSchema"
+
+  - template: review_cross
+    sequence: 3
+    depends_on: ["review"]
+    provider_override: codex
+    model_override: gpt-5.4
+    claude_config_override: '{"codex":{"reasoning_effort":"xhigh"}}'
+    loop_config:
+      loop_to_phase: implement_codex
+      condition:
+        field: "phase_output.review_cross.needs_changes"
+        op: "eq"
+        value: "true"
+      max_loops: 2
+
+  - template: docs
+    sequence: 4
+    depends_on: ["review_cross"]
+    provider_override: codex
+    model_override: gpt-5.4

@@ -261,12 +261,13 @@ func marshalWorkflowYAML(workflow *Workflow) ([]byte, error) {
 
 	for _, p := range workflow.Phases {
 		phase := workflowPhaseYAML{
-			Template:         p.PhaseTemplateID,
-			Sequence:         p.Sequence,
-			DependsOn:        p.DependsOn,
-			ModelOverride:    p.ModelOverride,
-			ProviderOverride: p.ProviderOverride,
-			Condition:        p.Condition,
+			Template:             p.PhaseTemplateID,
+			Sequence:             p.Sequence,
+			DependsOn:            p.DependsOn,
+			ModelOverride:        p.ModelOverride,
+			ProviderOverride:     p.ProviderOverride,
+			ClaudeConfigOverride: p.ClaudeConfigOverride,
+			Condition:            p.Condition,
 		}
 		if p.ThinkingOverride != nil {
 			phase.Thinking = p.ThinkingOverride

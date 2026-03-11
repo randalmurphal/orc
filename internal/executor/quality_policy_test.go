@@ -109,6 +109,40 @@ func TestGetSchemaForPhaseWithRound_PlanAndReviewCross(t *testing.T) {
 	}
 }
 
+func TestGetSchemaForPhaseWithRound_PlanAlias(t *testing.T) {
+	t.Parallel()
+
+	planSchema := GetSchemaForPhaseWithRound("plan_gpt", 0, true)
+	if !containsAllSnippets(planSchema, `"risk_assessment"`, `"verification_plan"`, `"invariants"`) {
+		t.Fatalf("plan_gpt schema should reuse plan schema: %s", planSchema)
+	}
+}
+
+func TestApplyQualityPolicyGateEscalation_PlanAlias(t *testing.T) {
+	t.Parallel()
+
+	we := &WorkflowExecutor{
+		orcConfig: &config.Config{
+			QualityPolicy: config.QualityPolicyConfig{
+				Mode:                   "adaptive_strict",
+				HumanGateRiskThreshold: "high",
+				PostReviewHumanGate:    true,
+			},
+		},
+	}
+
+	rctx := &variable.ResolutionContext{
+		PriorOutputs: map[string]string{
+			"plan_gpt": `{"status":"complete","risk_assessment":{"level":"high","requires_human_gate":true}}`,
+		},
+	}
+
+	got := we.applyQualityPolicyGateEscalation("plan_gpt", gate.GateAuto, rctx)
+	if got != gate.GateHuman {
+		t.Fatalf("applyQualityPolicyGateEscalation(plan_gpt) = %s, want human", got)
+	}
+}
+
 func containsAllSnippets(content string, snippets ...string) bool {
 	for _, snippet := range snippets {
 		if !strings.Contains(content, snippet) {

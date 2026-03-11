@@ -466,12 +466,13 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 	// Convert phases
 	for _, p := range wf.Phases {
 		wp := WorkflowPhase{
-			WorkflowID:       wf.ID,
-			PhaseTemplateID:  p.Template,
-			Sequence:         p.Sequence,
-			DependsOn:        p.DependsOn,
-			ModelOverride:    p.ModelOverride,
-			ProviderOverride: p.ProviderOverride,
+			WorkflowID:           wf.ID,
+			PhaseTemplateID:      p.Template,
+			Sequence:             p.Sequence,
+			DependsOn:            p.DependsOn,
+			ModelOverride:        p.ModelOverride,
+			ProviderOverride:     p.ProviderOverride,
+			ClaudeConfigOverride: p.ClaudeConfigOverride,
 		}
 		if p.Thinking != nil {
 			wp.ThinkingOverride = p.Thinking
@@ -590,15 +591,16 @@ type workflowTriggerYAML struct {
 }
 
 type workflowPhaseYAML struct {
-	Template         string   `yaml:"template"`
-	Sequence         int      `yaml:"sequence"`
-	DependsOn        []string `yaml:"depends_on,omitempty"`
-	ModelOverride    string   `yaml:"model_override,omitempty"`
-	ProviderOverride string   `yaml:"provider_override,omitempty"`
-	Thinking         *bool    `yaml:"thinking,omitempty"`
-	GateType         string   `yaml:"gate_type,omitempty"`
-	Condition        string   `yaml:"condition,omitempty"`
-	LoopConfig       any      `yaml:"loop_config,omitempty"` // Parsed as any, converted to JSON string
+	Template             string   `yaml:"template"`
+	Sequence             int      `yaml:"sequence"`
+	DependsOn            []string `yaml:"depends_on,omitempty"`
+	ModelOverride        string   `yaml:"model_override,omitempty"`
+	ProviderOverride     string   `yaml:"provider_override,omitempty"`
+	ClaudeConfigOverride string   `yaml:"claude_config_override,omitempty"`
+	Thinking             *bool    `yaml:"thinking,omitempty"`
+	GateType             string   `yaml:"gate_type,omitempty"`
+	Condition            string   `yaml:"condition,omitempty"`
+	LoopConfig           any      `yaml:"loop_config,omitempty"` // Parsed as any, converted to JSON string
 }
 
 type variableYAML struct {

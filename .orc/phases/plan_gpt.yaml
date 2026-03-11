@@ -1,0 +1,14 @@
+id: plan_gpt
+name: GPT Plan Phase
+description: GPT 5.4 planner variant with a concise, execution-facing prompt and explicit high reasoning effort.
+prompt_source: file
+prompt_path: plan_gpt.md
+output_schema: PlanSchema
+output_type: document
+produces_artifact: true
+artifact_type: plan
+output_var_name: PLAN_CONTENT
+thinking: true
+gate_type: auto
+checkpoint: true
+claude_config: '{"codex":{"reasoning_effort":"high"}}'

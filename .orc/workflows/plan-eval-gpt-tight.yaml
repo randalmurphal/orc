@@ -1,0 +1,9 @@
+id: plan-eval-gpt-tight
+name: Plan Eval (GPT 5.4 Tight)
+description: Project-scoped planner evaluation workflow using GPT 5.4 with a GPT-specific planner prompt and explicit high reasoning effort. No commit or PR side effects.
+completion_action: none
+phases:
+  - template: plan_gpt
+    sequence: 0
+    provider_override: codex
+    model_override: gpt-5.4

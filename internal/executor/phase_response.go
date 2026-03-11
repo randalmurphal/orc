@@ -95,6 +95,15 @@ func GetSchemaForPhase(phaseID string) string {
 	return GetSchemaForPhaseWithRound(phaseID, 0, false)
 }
 
+func canonicalPhaseID(phaseID string) string {
+	switch phaseID {
+	case "plan_gpt":
+		return "plan"
+	default:
+		return phaseID
+	}
+}
+
 // ImplementCompletionSchema is the JSON schema for implement phase.
 // Requires verification evidence when claiming completion.
 const ImplementCompletionSchema = `{
@@ -287,6 +296,8 @@ const DocsCompletionSchema = `{
 // with support for round-specific schemas (e.g., review round 1 vs round 2).
 // producesArtifact comes from the phase template's ProducesArtifact field.
 func GetSchemaForPhaseWithRound(phaseID string, round int, producesArtifact bool) string {
+	phaseID = canonicalPhaseID(phaseID)
+
 	// Docs phase uses specialized schema with initiative_notes support
 	if phaseID == "docs" {
 		return DocsCompletionSchema
@@ -358,6 +369,8 @@ func GetSchemaForIteration(loopCfg *db.LoopConfig, iteration int, phaseID string
 //   - Empty identifier uses phase default
 //   - Unknown identifier falls back to PhaseCompletionSchema
 func MapSchemaIdentifierToSchema(identifier string, phaseID string, producesArtifact bool) string {
+	phaseID = canonicalPhaseID(phaseID)
+
 	// Docs phase uses specialized schema (overrides producesArtifact check)
 	if phaseID == "docs" {
 		return DocsCompletionSchema
@@ -406,6 +419,8 @@ func MapSchemaIdentifierToSchema(identifier string, phaseID string, producesArti
 }
 
 func isImplementationPhase(phaseID string) bool {
+	phaseID = canonicalPhaseID(phaseID)
+
 	switch phaseID {
 	case "implement", "implement_codex":
 		return true
@@ -750,6 +765,7 @@ func ExtractContentFromOutput(content string) string {
 //
 // Returns (status, reason, error) similar to CheckPhaseCompletionJSON.
 func ParsePhaseSpecificResponse(phaseID string, reviewRound int, content string) (PhaseCompletionStatus, string, error) {
+	phaseID = canonicalPhaseID(phaseID)
 	content = strings.TrimSpace(content)
 
 	// Review phase uses specialized schemas

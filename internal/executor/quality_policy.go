@@ -20,6 +20,8 @@ func (we *WorkflowExecutor) applyQualityPolicyGateEscalation(
 	current gate.GateType,
 	rctx *variable.ResolutionContext,
 ) gate.GateType {
+	phaseID = canonicalPhaseID(phaseID)
+
 	if !qualityPolicyEnabled(we.orcConfig) {
 		return current
 	}
@@ -65,15 +67,18 @@ func loadPlanResponse(rctx *variable.ResolutionContext) (*PlanResponse, bool) {
 	if rctx == nil || rctx.PriorOutputs == nil {
 		return nil, false
 	}
-	output, ok := rctx.PriorOutputs["plan"]
-	if !ok || strings.TrimSpace(output) == "" {
-		return nil, false
+	for _, key := range []string{"plan", "plan_gpt"} {
+		output, ok := rctx.PriorOutputs[key]
+		if !ok || strings.TrimSpace(output) == "" {
+			continue
+		}
+		resp, err := ParsePlanResponse(output)
+		if err != nil {
+			continue
+		}
+		return resp, true
 	}
-	resp, err := ParsePlanResponse(output)
-	if err != nil {
-		return nil, false
-	}
-	return resp, true
+	return nil, false
 }
 
 func phaseOutputHasQuestions(rctx *variable.ResolutionContext, phaseID string) bool {

@@ -297,3 +297,23 @@ phases:
 	require.Len(t, wf.Phases, 1)
 	assert.Equal(t, "", wf.Phases[0].ProviderOverride)
 }
+
+func TestProviderYAML_ClaudeConfigOverride(t *testing.T) {
+	t.Parallel()
+
+	yamlData := []byte(`
+id: test-claude-config-override
+name: Claude Config Override Test
+phases:
+  - template: review_cross
+    sequence: 1
+    provider_override: codex
+    model_override: gpt-5.4
+    claude_config_override: '{"codex":{"reasoning_effort":"xhigh"}}'
+`)
+
+	wf, err := parseWorkflowYAML(yamlData)
+	require.NoError(t, err)
+	require.Len(t, wf.Phases, 1)
+	assert.Equal(t, `{"codex":{"reasoning_effort":"xhigh"}}`, wf.Phases[0].ClaudeConfigOverride)
+}
