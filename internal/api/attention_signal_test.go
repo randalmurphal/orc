@@ -39,12 +39,19 @@ func TestAttentionDashboardUsesPersistedSignals(t *testing.T) {
 	resp, err := server.GetAttentionDashboardData(context.Background(), connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{}))
 	require.NoError(t, err)
 
-	require.Len(t, resp.Msg.AttentionItems, 1)
-	require.Equal(t, "TASK-001", resp.Msg.AttentionItems[0].TaskId)
-	require.Equal(t, orcv1.AttentionItemType_ATTENTION_ITEM_TYPE_BLOCKED_TASK, resp.Msg.AttentionItems[0].Type)
-	require.Equal(t, string(controlplane.AttentionSignalKindBlocker), resp.Msg.AttentionItems[0].SignalKind)
-	require.Equal(t, controlplane.AttentionSignalReferenceTypeTask, resp.Msg.AttentionItems[0].ReferenceType)
-	require.Equal(t, taskWithSignal.Id, resp.Msg.AttentionItems[0].ReferenceId)
+	require.Len(t, resp.Msg.AttentionItems, 2)
+	itemsByTask := make(map[string]*orcv1.AttentionItem, len(resp.Msg.AttentionItems))
+	for _, item := range resp.Msg.AttentionItems {
+		itemsByTask[item.TaskId] = item
+	}
+
+	require.Contains(t, itemsByTask, taskWithSignal.Id)
+	require.Contains(t, itemsByTask, taskWithoutSignal.Id)
+	require.Equal(t, orcv1.AttentionItemType_ATTENTION_ITEM_TYPE_BLOCKED_TASK, itemsByTask[taskWithSignal.Id].Type)
+	require.Equal(t, string(controlplane.AttentionSignalKindBlocker), itemsByTask[taskWithSignal.Id].SignalKind)
+	require.Equal(t, controlplane.AttentionSignalReferenceTypeTask, itemsByTask[taskWithSignal.Id].ReferenceType)
+	require.Equal(t, taskWithSignal.Id, itemsByTask[taskWithSignal.Id].ReferenceId)
+	require.Equal(t, taskWithoutSignal.Id, itemsByTask[taskWithoutSignal.Id].ReferenceId)
 }
 
 func TestCrossProjectAttentionSignalsIncludeProjectIDAndStayIsolated(t *testing.T) {
@@ -114,6 +121,43 @@ func TestCrossProjectAttentionSignalsIncludeProjectIDAndStayIsolated(t *testing.
 	require.Len(t, resp.Msg.AttentionItems, 1)
 	require.Equal(t, "TASK-001", resp.Msg.AttentionItems[0].TaskId)
 	require.Equal(t, projectOne.ID, resp.Msg.AttentionItems[0].ProjectId)
+}
+
+func TestCrossProjectAttentionSignalsIncludeLegacyBlockedTasks(t *testing.T) {
+	tmpDir := setupTestHome(t)
+	projectOne := setupTestProject(t, tmpDir, "alpha")
+	projectTwo := setupTestProject(t, tmpDir, "beta")
+
+	cache := NewProjectCache(10)
+	defer func() { _ = cache.Close() }()
+
+	backendOne, err := cache.GetBackend(projectOne.ID)
+	require.NoError(t, err)
+	backendTwo, err := cache.GetBackend(projectTwo.ID)
+	require.NoError(t, err)
+
+	taskOne := task.NewProtoTask("TASK-001", "Alpha blocked task")
+	taskOne.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	require.NoError(t, backendOne.SaveTask(taskOne))
+
+	taskTwo := task.NewProtoTask("TASK-002", "Beta failed task")
+	taskTwo.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	require.NoError(t, backendTwo.SaveTask(taskTwo))
+
+	server := NewAttentionDashboardServer(nil, nil, nil, nil)
+	server.(*attentionDashboardServer).SetProjectCache(cache)
+
+	resp, err := server.GetAttentionDashboardData(context.Background(), connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.AttentionItems, 2)
+
+	itemsByProjectTask := make(map[string]*orcv1.AttentionItem, len(resp.Msg.AttentionItems))
+	for _, item := range resp.Msg.AttentionItems {
+		itemsByProjectTask[item.ProjectId+"::"+item.TaskId] = item
+	}
+
+	require.Contains(t, itemsByProjectTask, projectOne.ID+"::TASK-001")
+	require.Contains(t, itemsByProjectTask, projectTwo.ID+"::TASK-002")
 }
 
 func TestCrossProjectAttentionRetryUsesItemProjectID(t *testing.T) {
@@ -199,4 +243,47 @@ func TestAttentionDashboardRetryActionResolvesSignal(t *testing.T) {
 	signals, err := backend.LoadActiveAttentionSignals()
 	require.NoError(t, err)
 	require.Empty(t, signals)
+}
+
+func TestAttentionDashboardRetryActionRollsBackOnSignalFailure(t *testing.T) {
+	t.Parallel()
+
+	realBackend := storage.NewTestBackend(t)
+	backend := &failingResolveAttentionBackend{Backend: realBackend}
+	taskItem := task.NewProtoTask("TASK-001", "Failed task")
+	taskItem.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	require.NoError(t, realBackend.SaveTask(taskItem))
+	require.NoError(t, realBackend.SaveAttentionSignal(&controlplane.PersistedAttentionSignal{
+		Kind:          controlplane.AttentionSignalKindBlocker,
+		Status:        controlplane.AttentionSignalStatusFailed,
+		ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+		ReferenceID:   taskItem.Id,
+		Title:         taskItem.Title,
+		Summary:       "Implement phase failed.",
+	}))
+
+	server := NewAttentionDashboardServer(backend, nil, nil, nil)
+	resp, err := server.PerformAttentionAction(context.Background(), connect.NewRequest(&orcv1.PerformAttentionActionRequest{
+		AttentionItemId: "failed-TASK-001",
+		Action:          orcv1.AttentionAction_ATTENTION_ACTION_RETRY,
+	}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.Success)
+
+	reloadedTask, err := realBackend.LoadTask(taskItem.Id)
+	require.NoError(t, err)
+	require.Equal(t, orcv1.TaskStatus_TASK_STATUS_FAILED, reloadedTask.GetStatus())
+
+	signals, err := realBackend.LoadActiveAttentionSignals()
+	require.NoError(t, err)
+	require.Len(t, signals, 1)
+	require.Equal(t, controlplane.AttentionSignalStatusFailed, signals[0].Status)
+}
+
+type failingResolveAttentionBackend struct {
+	storage.Backend
+}
+
+func (f *failingResolveAttentionBackend) ResolveAttentionSignal(id string, resolvedBy string) (*controlplane.PersistedAttentionSignal, error) {
+	return nil, context.DeadlineExceeded
 }

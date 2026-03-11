@@ -29,8 +29,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -245,6 +247,98 @@ func TestRunTask_ExecutorFailure_RevertsStatus(t *testing.T) {
 	if loaded.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		t.Error("task status should not be RUNNING after executor failure")
 	}
+}
+
+func TestRunTask_FailedTaskResolvesFailedAttentionSignal(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	workflowID := "medium"
+	taskItem := &orcv1.Task{
+		Id:         "TASK-001",
+		Title:      "Retry failed task",
+		Status:     orcv1.TaskStatus_TASK_STATUS_FAILED,
+		WorkflowId: &workflowID,
+	}
+	require.NoError(t, backend.SaveTask(taskItem))
+	require.NoError(t, backend.SaveAttentionSignal(&controlplane.PersistedAttentionSignal{
+		Kind:          controlplane.AttentionSignalKindBlocker,
+		Status:        controlplane.AttentionSignalStatusFailed,
+		ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+		ReferenceID:   taskItem.Id,
+		Title:         taskItem.Title,
+		Summary:       "Previous run failed.",
+	}))
+
+	server := NewTaskServerWithExecutor(backend, nil, nil, nil, "", nil, nil, func(taskID, projectID string) error {
+		return nil
+	})
+
+	_, err := server.RunTask(context.Background(), connect.NewRequest(&orcv1.RunTaskRequest{TaskId: taskItem.Id}))
+	require.NoError(t, err)
+
+	signals, err := backend.LoadActiveAttentionSignals()
+	require.NoError(t, err)
+	require.Empty(t, signals)
+}
+
+func TestResumeTask_BlockedTaskResolvesBlockedAttentionSignal(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	taskItem := &orcv1.Task{
+		Id:     "TASK-001",
+		Title:  "Blocked task",
+		Status: orcv1.TaskStatus_TASK_STATUS_BLOCKED,
+	}
+	require.NoError(t, backend.SaveTask(taskItem))
+	require.NoError(t, backend.SaveAttentionSignal(&controlplane.PersistedAttentionSignal{
+		Kind:          controlplane.AttentionSignalKindBlocker,
+		Status:        controlplane.AttentionSignalStatusBlocked,
+		ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+		ReferenceID:   taskItem.Id,
+		Title:         taskItem.Title,
+		Summary:       "Waiting on operator input.",
+	}))
+
+	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
+
+	_, err := server.ResumeTask(context.Background(), connect.NewRequest(&orcv1.ResumeTaskRequest{TaskId: taskItem.Id}))
+	require.NoError(t, err)
+
+	signals, err := backend.LoadActiveAttentionSignals()
+	require.NoError(t, err)
+	require.Empty(t, signals)
+}
+
+func TestRetryTask_ResolvesFailedAttentionSignal(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	taskItem := &orcv1.Task{
+		Id:     "TASK-001",
+		Title:  "Failed task",
+		Status: orcv1.TaskStatus_TASK_STATUS_FAILED,
+	}
+	require.NoError(t, backend.SaveTask(taskItem))
+	require.NoError(t, backend.SaveAttentionSignal(&controlplane.PersistedAttentionSignal{
+		Kind:          controlplane.AttentionSignalKindBlocker,
+		Status:        controlplane.AttentionSignalStatusFailed,
+		ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+		ReferenceID:   taskItem.Id,
+		Title:         taskItem.Title,
+		Summary:       "Previous run failed.",
+	}))
+
+	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
+
+	_, err := server.RetryTask(context.Background(), connect.NewRequest(&orcv1.RetryTaskRequest{TaskId: taskItem.Id}))
+	require.NoError(t, err)
+
+	signals, err := backend.LoadActiveAttentionSignals()
+	require.NoError(t, err)
+	require.Empty(t, signals)
 }
 
 // ============================================================================
@@ -609,7 +703,7 @@ func TestRunTask_ConcurrentCalls_SecondFails(t *testing.T) {
 
 	mockExecutor := func(taskID, projectID string) error {
 		close(executorStarted) // Signal we started
-		<-executorDone        // Wait until test says to finish
+		<-executorDone         // Wait until test says to finish
 		return nil
 	}
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -112,7 +113,7 @@ func (s *attentionDashboardServer) GetAttentionDashboardData(
 	runningSummary := s.buildRunningSummary(backend, tasks, now)
 
 	// Build attention items (blocked, failed, pending decisions, gate approvals)
-	attentionItems, err := s.buildAttentionItems(backend, activeSignals)
+	attentionItems, err := s.buildAttentionItems(backend, tasks, activeSignals, projectID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build attention items: %w", err))
 	}
@@ -370,11 +371,14 @@ func (s *attentionDashboardServer) loadPendingDecisionItems() []*orcv1.Attention
 // buildAttentionItems creates attention items from persisted signals and pending decisions.
 func (s *attentionDashboardServer) buildAttentionItems(
 	backend storage.Backend,
+	tasks []*orcv1.Task,
 	signals []*controlplane.PersistedAttentionSignal,
+	projectID string,
 ) ([]*orcv1.AttentionItem, error) {
-	items := make([]*orcv1.AttentionItem, 0, len(signals))
+	mergedSignals := controlplane.MergeTaskAttentionSignals(projectID, tasks, signals)
+	items := make([]*orcv1.AttentionItem, 0, len(mergedSignals))
 
-	for _, signal := range signals {
+	for _, signal := range mergedSignals {
 		if signal == nil {
 			continue
 		}
@@ -637,64 +641,6 @@ func parseAttentionItemIdentifier(defaultProjectID string, rawID string) (string
 	return projectID, baseID, nil
 }
 
-func (s *attentionDashboardServer) resolveTaskAttentionSignals(
-	backend storage.Backend,
-	projectID string,
-	taskID string,
-	resolvedBy string,
-) error {
-	signals, err := backend.LoadActiveAttentionSignals()
-	if err != nil {
-		return fmt.Errorf("load active attention signals: %w", err)
-	}
-
-	for _, signal := range signals {
-		if signal == nil {
-			continue
-		}
-
-		referenceTask, err := attentionSignalTaskReference(backend, signal)
-		if err != nil {
-			return err
-		}
-		if referenceTask == nil || referenceTask.GetId() != taskID {
-			continue
-		}
-
-		resolvedSignal, err := backend.ResolveAttentionSignal(signal.ID, resolvedBy)
-		if err != nil {
-			return fmt.Errorf("resolve attention signal %s: %w", signal.ID, err)
-		}
-		s.publishAttentionSignalResolved(projectID, taskID, resolvedSignal)
-	}
-
-	return nil
-}
-
-func (s *attentionDashboardServer) publishAttentionSignalResolved(
-	projectID string,
-	taskID string,
-	signal *controlplane.PersistedAttentionSignal,
-) {
-	if s.publisher == nil || signal == nil || signal.ResolvedAt == nil {
-		return
-	}
-
-	s.publisher.Publish(events.NewProjectEvent(
-		events.EventAttentionSignalResolved,
-		projectID,
-		taskID,
-		events.AttentionSignalResolvedData{
-			SignalID:      signal.ID,
-			Kind:          string(signal.Kind),
-			ReferenceType: signal.ReferenceType,
-			ReferenceID:   signal.ReferenceID,
-			ResolvedBy:    signal.ResolvedBy,
-			ResolvedAt:    *signal.ResolvedAt,
-		},
-	))
-}
-
 func (s *attentionDashboardServer) loadCrossProjectAttentionSignals() ([]*controlplane.PersistedAttentionSignal, error) {
 	if s.projectCache == nil {
 		return nil, fmt.Errorf("project cache not configured")
@@ -721,6 +667,11 @@ func (s *attentionDashboardServer) loadCrossProjectAttentionSignals() ([]*contro
 		if err != nil {
 			return nil, fmt.Errorf("load attention signals for project %s: %w", proj.ID, err)
 		}
+		tasks, err := backend.LoadAllTasks()
+		if err != nil {
+			return nil, fmt.Errorf("load tasks for project %s: %w", proj.ID, err)
+		}
+		signals = controlplane.MergeTaskAttentionSignals(proj.ID, tasks, signals)
 
 		for _, signal := range signals {
 			if signal == nil {
@@ -956,26 +907,17 @@ func (s *attentionDashboardServer) handleRetryAction(backend storage.Backend, pr
 		}), nil
 	}
 
+	originalTask := proto.Clone(t).(*orcv1.Task)
+
 	// Set task to running (like ResumeTask does)
 	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	task.UpdateTimestampProto(t)
 
-	if err := backend.SaveTask(t); err != nil {
+	if err := transitionTaskWithAttentionSync(backend, s.publisher, projectID, originalTask, t, "dashboard_retry"); err != nil {
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
 			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to save task: %v", err),
+			ErrorMessage: fmt.Sprintf("failed to update task attention state: %v", err),
 		}), nil
-	}
-	if err := s.resolveTaskAttentionSignals(backend, projectID, taskID, "dashboard_retry"); err != nil {
-		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
-			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to resolve attention signal: %v", err),
-		}), nil
-	}
-
-	// Publish event if publisher is available
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 	}
 
 	return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
@@ -1019,30 +961,19 @@ func (s *attentionDashboardServer) handleApproveAction(backend storage.Backend, 
 		}), nil
 	}
 
-	// Remove from pending decisions (approval means proceeding)
-	s.pendingDecisions.Remove(decisionID)
+	originalTask := proto.Clone(t).(*orcv1.Task)
 
 	// Unblock the task (set to running)
 	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	task.UpdateTimestampProto(t)
 
-	if err := backend.SaveTask(t); err != nil {
+	if err := transitionTaskWithAttentionSync(backend, s.publisher, projectID, originalTask, t, "dashboard_approve"); err != nil {
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
 			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to save task: %v", err),
+			ErrorMessage: fmt.Sprintf("failed to update task attention state: %v", err),
 		}), nil
 	}
-	if err := s.resolveTaskAttentionSignals(backend, projectID, t.Id, "dashboard_approve"); err != nil {
-		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
-			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to resolve attention signal: %v", err),
-		}), nil
-	}
-
-	// Publish event if publisher is available
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
-	}
+	s.pendingDecisions.Remove(decisionID)
 
 	return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
 		Success: true,
@@ -1114,26 +1045,16 @@ func (s *attentionDashboardServer) handleSkipAction(backend storage.Backend, pro
 
 	// Skip task by setting it back to planned status
 	// Clear blockers since user explicitly chose to skip
+	originalTask := proto.Clone(t).(*orcv1.Task)
 	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	t.BlockedBy = nil
 	task.UpdateTimestampProto(t)
 
-	if err := backend.SaveTask(t); err != nil {
+	if err := transitionTaskWithAttentionSync(backend, s.publisher, projectID, originalTask, t, "dashboard_skip"); err != nil {
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
 			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to save task: %v", err),
+			ErrorMessage: fmt.Sprintf("failed to update task attention state: %v", err),
 		}), nil
-	}
-	if err := s.resolveTaskAttentionSignals(backend, projectID, taskID, "dashboard_skip"); err != nil {
-		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
-			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to resolve attention signal: %v", err),
-		}), nil
-	}
-
-	// Publish event if publisher is available
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 	}
 
 	return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
@@ -1162,25 +1083,15 @@ func (s *attentionDashboardServer) handleForceAction(backend storage.Backend, pr
 
 	// Force task by setting it to running despite blockage
 	// Keep blockers in case we need to track what was overridden
+	originalTask := proto.Clone(t).(*orcv1.Task)
 	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	task.UpdateTimestampProto(t)
 
-	if err := backend.SaveTask(t); err != nil {
+	if err := transitionTaskWithAttentionSync(backend, s.publisher, projectID, originalTask, t, "dashboard_force"); err != nil {
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
 			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to save task: %v", err),
+			ErrorMessage: fmt.Sprintf("failed to update task attention state: %v", err),
 		}), nil
-	}
-	if err := s.resolveTaskAttentionSignals(backend, projectID, taskID, "dashboard_force"); err != nil {
-		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
-			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to resolve attention signal: %v", err),
-		}), nil
-	}
-
-	// Publish event if publisher is available
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 	}
 
 	return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
@@ -1208,25 +1119,15 @@ func (s *attentionDashboardServer) handleResolveAction(backend storage.Backend, 
 	}
 
 	// Resolve task by setting it back to planned for potential retry
+	originalTask := proto.Clone(t).(*orcv1.Task)
 	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	task.UpdateTimestampProto(t)
 
-	if err := backend.SaveTask(t); err != nil {
+	if err := transitionTaskWithAttentionSync(backend, s.publisher, projectID, originalTask, t, "dashboard_resolve"); err != nil {
 		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
 			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to save task: %v", err),
+			ErrorMessage: fmt.Sprintf("failed to update task attention state: %v", err),
 		}), nil
-	}
-	if err := s.resolveTaskAttentionSignals(backend, projectID, taskID, "dashboard_resolve"); err != nil {
-		return connect.NewResponse(&orcv1.PerformAttentionActionResponse{
-			Success:      false,
-			ErrorMessage: fmt.Sprintf("failed to resolve attention signal: %v", err),
-		}), nil
-	}
-
-	// Publish event if publisher is available
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 	}
 
 	return connect.NewResponse(&orcv1.PerformAttentionActionResponse{

@@ -354,6 +354,11 @@ func (we *WorkflowExecutor) populateControlPlaneContext(
 	if err != nil {
 		return fmt.Errorf("load attention signals for control-plane context: %w", err)
 	}
+	tasks, err := we.backend.LoadAllTasks()
+	if err != nil {
+		return fmt.Errorf("load tasks for control-plane context: %w", err)
+	}
+	signals = controlplane.MergeTaskAttentionSignals("", tasks, signals)
 	rctx.AttentionSummary, err = formatAttentionSignals(we.backend, signals)
 	if err != nil {
 		return fmt.Errorf("format attention signals for control-plane context: %w", err)
@@ -445,15 +450,7 @@ func taskStatusName(status orcv1.TaskStatus) string {
 }
 
 func attentionSummaryForTask(taskItem *orcv1.Task) string {
-	if taskItem == nil {
-		return ""
-	}
-	if taskItem.Metadata != nil {
-		if blockedReason := taskItem.Metadata["blocked_reason"]; blockedReason != "" {
-			return blockedReason
-		}
-	}
-	return task.GetDescriptionProto(taskItem)
+	return controlplane.TaskAttentionSummary(taskItem)
 }
 
 func promptAttentionSignal(

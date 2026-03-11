@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -38,16 +39,16 @@ type TaskLifecycleTriggerRunner interface {
 // taskServer implements the TaskServiceHandler interface.
 type taskServer struct {
 	orcv1connect.UnimplementedTaskServiceHandler
-	backend        storage.Backend   // Legacy: single project backend (fallback)
-	projectCache   *ProjectCache     // Multi-project: cache of backends per project
-	config         *config.Config
-	logger         *slog.Logger
-	publisher      events.Publisher
-	projectRoot    string
-	diffCache      *diff.Cache
-	projectDB      *db.ProjectDB
-	taskExecutor   TaskExecutorFunc              // Optional: spawns executor for RunTask
-	triggerRunner  TaskLifecycleTriggerRunner    // Optional: evaluates lifecycle triggers
+	backend       storage.Backend // Legacy: single project backend (fallback)
+	projectCache  *ProjectCache   // Multi-project: cache of backends per project
+	config        *config.Config
+	logger        *slog.Logger
+	publisher     events.Publisher
+	projectRoot   string
+	diffCache     *diff.Cache
+	projectDB     *db.ProjectDB
+	taskExecutor  TaskExecutorFunc           // Optional: spawns executor for RunTask
+	triggerRunner TaskLifecycleTriggerRunner // Optional: evaluates lifecycle triggers
 }
 
 // getBackend returns the appropriate backend for a project ID.
@@ -1100,35 +1101,28 @@ func (s *taskServer) RunTask(
 
 	// Store original status for rollback if executor fails
 	originalStatus := t.Status
+	originalTask := proto.Clone(t).(*orcv1.Task)
 
 	// Set task to running
 	task.MarkStartedProto(t)
 
-	if err := backend.SaveTask(t); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
-	}
-
-	// Publish status update event
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+	if err := transitionTaskWithAttentionSync(backend, s.publisher, req.Msg.GetProjectId(), originalTask, t, "task_run"); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	// Spawn executor if callback is set
 	if s.taskExecutor != nil {
 		if err := s.taskExecutor(t.Id, req.Msg.GetProjectId()); err != nil {
 			// Executor failed to spawn - revert status
-			t.Status = originalStatus
-			task.UpdateTimestampProto(t)
-			if saveErr := backend.SaveTask(t); saveErr != nil {
+			revertedTask := proto.Clone(originalTask).(*orcv1.Task)
+			revertedTask.Status = originalStatus
+			task.UpdateTimestampProto(revertedTask)
+			if saveErr := persistTaskWithAttentionSync(backend, s.publisher, req.Msg.GetProjectId(), revertedTask, "task_run_revert"); saveErr != nil {
 				// Log but don't mask the original error
 				if s.logger != nil {
 					s.logger.Error("failed to revert task status after executor failure",
 						"task", t.Id, "error", saveErr)
 				}
-			}
-			// Publish status revert event
-			if s.publisher != nil {
-				s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 			}
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("spawn executor: %w", err))
 		}
@@ -1164,16 +1158,12 @@ func (s *taskServer) PauseTask(
 	}
 
 	// Set task to paused
+	originalTask := proto.Clone(t).(*orcv1.Task)
 	t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 	task.UpdateTimestampProto(t)
 
-	if err := backend.SaveTask(t); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
-	}
-
-	// Publish event
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+	if err := transitionTaskWithAttentionSync(backend, s.publisher, req.Msg.GetProjectId(), originalTask, t, "task_pause"); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	return connect.NewResponse(&orcv1.PauseTaskResponse{
@@ -1208,16 +1198,12 @@ func (s *taskServer) ResumeTask(
 	}
 
 	// Set task to running
+	originalTask := proto.Clone(t).(*orcv1.Task)
 	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	task.UpdateTimestampProto(t)
 
-	if err := backend.SaveTask(t); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
-	}
-
-	// Publish event
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+	if err := transitionTaskWithAttentionSync(backend, s.publisher, req.Msg.GetProjectId(), originalTask, t, "task_resume"); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	return connect.NewResponse(&orcv1.ResumeTaskResponse{
@@ -1246,19 +1232,15 @@ func (s *taskServer) SkipBlock(
 
 	// Clear blocked_by and reset status if blocked
 	if t.Status == orcv1.TaskStatus_TASK_STATUS_BLOCKED || len(t.BlockedBy) > 0 {
+		originalTask := proto.Clone(t).(*orcv1.Task)
 		t.BlockedBy = nil
 		if t.Status == orcv1.TaskStatus_TASK_STATUS_BLOCKED {
 			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 		}
 		task.UpdateTimestampProto(t)
 
-		if err := backend.SaveTask(t); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
-		}
-
-		// Publish event
-		if s.publisher != nil {
-			s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+		if err := transitionTaskWithAttentionSync(backend, s.publisher, req.Msg.GetProjectId(), originalTask, t, "task_skip_block"); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	}
 
@@ -1320,6 +1302,7 @@ func (s *taskServer) RetryTask(
 	task.SetRetryState(t, fromPhase, "", "manual retry", instructions, currentRetries+1)
 
 	// Reset status
+	originalTask := proto.Clone(t).(*orcv1.Task)
 	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	if t.Execution != nil {
 		t.Execution.Error = nil
@@ -1330,13 +1313,8 @@ func (s *taskServer) RetryTask(
 	task.EnsureQualityMetricsProto(t)
 	t.Quality.TotalRetries++
 
-	if err := backend.SaveTask(t); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
-	}
-
-	// Publish event
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+	if err := transitionTaskWithAttentionSync(backend, s.publisher, req.Msg.GetProjectId(), originalTask, t, "task_retry"); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	return connect.NewResponse(&orcv1.RetryTaskResponse{

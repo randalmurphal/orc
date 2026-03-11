@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/controlplane"
@@ -504,6 +506,37 @@ func TestEnrichControlPlaneContextClearsStaleValuesOnLoadFailure(t *testing.T) {
 	if rctx.HandoffContext != "" {
 		t.Fatalf("HandoffContext = %q, want empty string after load failure", rctx.HandoffContext)
 	}
+}
+
+func TestPopulateControlPlaneContextIncludesLegacyAttentionTasksWithoutSignals(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	we := NewWorkflowExecutor(backend, backend.DB(), testGlobalDBFrom(backend), config.Default(), t.TempDir())
+
+	blockedTask := task.NewProtoTask("TASK-101", "Blocked task without signal")
+	blockedTask.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	require.NoError(t, backend.SaveTask(blockedTask))
+
+	failedTask := task.NewProtoTask("TASK-102", "Failed task with signal")
+	failedTask.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	require.NoError(t, backend.SaveTask(failedTask))
+	require.NoError(t, backend.SaveAttentionSignal(&controlplane.PersistedAttentionSignal{
+		Kind:          controlplane.AttentionSignalKindBlocker,
+		Status:        controlplane.AttentionSignalStatusFailed,
+		ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+		ReferenceID:   failedTask.Id,
+		Title:         failedTask.Title,
+		Summary:       "Failed in review.",
+	}))
+
+	rctx := &variable.ResolutionContext{}
+	err := we.populateControlPlaneContext(rctx, "review", nil, controlPlaneVariableUsage{
+		AttentionSummary: true,
+	})
+	require.NoError(t, err)
+	require.Contains(t, rctx.AttentionSummary, blockedTask.Id)
+	require.Contains(t, rctx.AttentionSummary, failedTask.Id)
 }
 
 func TestPopulateControlPlaneContextSkipsBackendWhenVarsUnused(t *testing.T) {

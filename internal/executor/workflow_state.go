@@ -111,6 +111,25 @@ func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *orcv1.Task, err er
 	}
 }
 
+func (we *WorkflowExecutor) failTaskAfterCompletionError(t *orcv1.Task, completionErr error) {
+	if t == nil || completionErr == nil {
+		return
+	}
+
+	t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	task.EnsureMetadataProto(t)
+	t.Metadata["failed_reason"] = "completion_failed"
+	t.Metadata["failed_error"] = completionErr.Error()
+	task.UpdateTimestampProto(t)
+	if err := we.backend.SaveTask(t); err != nil {
+		we.logger.Warn("failed to save failed task", "task", t.Id, "error", err)
+	}
+	if err := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusFailed, completionErr.Error()); err != nil {
+		we.logger.Error("failed to save completion-failure attention signal", "task_id", t.Id, "error", err)
+	}
+	we.publishTaskUpdated(t)
+}
+
 // interruptRun marks a run as cancelled (interrupted by context cancellation) and syncs task status.
 // Commits work-in-progress before updating status to preserve changes.
 func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *orcv1.Task, currentPhase string, err error) {

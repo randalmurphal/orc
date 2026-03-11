@@ -124,6 +124,39 @@ func TestAttentionSignalFailRunDoesNotPersistWhenSignalSaveFails(t *testing.T) {
 	require.Empty(t, signals)
 }
 
+func TestAttentionSignalCompletionFailureCreatesSignalAndEvent(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	publisher := &testPublishHelper{}
+	we := NewWorkflowExecutor(
+		backend,
+		backend.DB(),
+		testGlobalDBFrom(backend),
+		config.Default(),
+		t.TempDir(),
+		WithWorkflowPublisher(publisher),
+	)
+
+	tsk := task.NewProtoTask("TASK-001", "Completion failure")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	require.NoError(t, backend.SaveTask(tsk))
+
+	we.failTaskAfterCompletionError(tsk, fmt.Errorf("pr creation failed"))
+
+	loadedTask, err := backend.LoadTask(tsk.Id)
+	require.NoError(t, err)
+	require.Equal(t, orcv1.TaskStatus_TASK_STATUS_FAILED, loadedTask.GetStatus())
+	require.Equal(t, "completion_failed", loadedTask.GetMetadata()["failed_reason"])
+
+	signals, err := backend.LoadActiveAttentionSignals()
+	require.NoError(t, err)
+	require.Len(t, signals, 1)
+	require.Equal(t, controlplane.AttentionSignalStatusFailed, signals[0].Status)
+	require.True(t, hasPublishedEvent(publisher.events, events.EventAttentionSignalCreated))
+	require.True(t, hasPublishedEvent(publisher.events, events.EventTaskUpdated))
+}
+
 type failingAttentionSignalBackend struct {
 	storage.Backend
 }

@@ -419,12 +419,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				we.failRun(run, t, panicErr)
 			} else if t != nil {
 				// run not created yet, but task exists — mark task failed directly
-				t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 				task.SetErrorProto(t.Execution, panicErr.Error())
-				task.UpdateTimestampProto(t)
-				if saveErr := we.backend.SaveTask(t); saveErr != nil {
-					we.logger.Error("failed to save task after panic", "error", saveErr)
-				}
+				we.failTaskAfterCompletionError(t, panicErr)
 			}
 			// Clear executor claim so task isn't orphaned
 			if t != nil {
@@ -1471,13 +1467,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 			// Other completion errors - fail the task properly
 			we.logger.Error("completion action failed", "task", t.Id, "error", completionErr)
-			t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
-			task.EnsureMetadataProto(t)
-			t.Metadata["failed_reason"] = "completion_failed"
-			t.Metadata["failed_error"] = completionErr.Error()
-			if err := we.backend.SaveTask(t); err != nil {
-				we.logger.Warn("failed to save failed task", "task", t.Id, "error", err)
-			}
+			we.failTaskAfterCompletionError(t, completionErr)
 			result.Success = false
 			result.Error = completionErr.Error()
 			return result, fmt.Errorf("completion failed: %w", completionErr)
