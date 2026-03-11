@@ -17,6 +17,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -341,6 +342,28 @@ func TestEnrichControlPlaneContext(t *testing.T) {
 	if err := backend.SaveTask(blockedTwo); err != nil {
 		t.Fatalf("save blocked task 2: %v", err)
 	}
+	for _, signal := range []*controlplane.PersistedAttentionSignal{
+		{
+			Kind:          controlplane.AttentionSignalKindBlocker,
+			Status:        controlplane.AttentionSignalStatusBlocked,
+			ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+			ReferenceID:   blockedOne.Id,
+			Title:         blockedOne.Title,
+			Summary:       "schema approval pending",
+		},
+		{
+			Kind:          controlplane.AttentionSignalKindBlocker,
+			Status:        controlplane.AttentionSignalStatusBlocked,
+			ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+			ReferenceID:   blockedTwo.Id,
+			Title:         blockedTwo.Title,
+			Summary:       blockedTwo.GetDescription(),
+		},
+	} {
+		if err := backend.SaveAttentionSignal(signal); err != nil {
+			t.Fatalf("save attention signal for %s: %v", signal.ReferenceID, err)
+		}
+	}
 
 	for _, recommendation := range []*orcv1.Recommendation{
 		{
@@ -568,8 +591,8 @@ func (f *failingControlPlaneBackend) LoadAllRecommendations() ([]*orcv1.Recommen
 	return nil, fmt.Errorf("recommendations unavailable")
 }
 
-func (f *failingControlPlaneBackend) LoadAllTasks() ([]*orcv1.Task, error) {
-	return nil, fmt.Errorf("tasks unavailable")
+func (f *failingControlPlaneBackend) LoadActiveAttentionSignals() ([]*controlplane.PersistedAttentionSignal, error) {
+	return nil, fmt.Errorf("attention signals unavailable")
 }
 
 // newNonDatabaseBackend creates a wrapper that satisfies storage.Backend

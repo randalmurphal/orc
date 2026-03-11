@@ -10,12 +10,13 @@ import (
 
 // Sequence names for atomic ID generation.
 const (
-	SeqWorkflowRun    = "workflow_run"
-	SeqTask           = "task"
-	SeqInitiative     = "initiative"
-	SeqAutoTask       = "auto_task"
-	SeqNote           = "note"
-	SeqRecommendation = "recommendation"
+	SeqWorkflowRun     = "workflow_run"
+	SeqTask            = "task"
+	SeqInitiative      = "initiative"
+	SeqAutoTask        = "auto_task"
+	SeqNote            = "note"
+	SeqRecommendation  = "recommendation"
+	SeqAttentionSignal = "attention_signal"
 )
 
 // NextSequence atomically increments and returns the next value for a sequence.

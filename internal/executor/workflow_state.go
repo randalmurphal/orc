@@ -9,7 +9,10 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
+	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
 )
@@ -36,6 +39,9 @@ func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *orcv1.Task, err erro
 		task.UpdateTimestampProto(t)
 		if saveErr := we.backend.SaveTask(t); saveErr != nil {
 			we.logger.Error("failed to save task status failed", "task_id", t.Id, "error", saveErr)
+		}
+		if signalErr := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusFailed, err.Error()); signalErr != nil {
+			we.logger.Error("failed to save failed-task attention signal", "task_id", t.Id, "error", signalErr)
 		}
 		// Publish task updated event for real-time UI updates
 		we.publishTaskUpdated(t)
@@ -91,6 +97,9 @@ func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *orcv1.Task, err er
 		if saveErr := we.backend.SaveTask(t); saveErr != nil {
 			we.logger.Error("failed to save task on setup failure", "error", saveErr)
 		}
+		if signalErr := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusFailed, err.Error()); signalErr != nil {
+			we.logger.Error("failed to save setup-failure attention signal", "task_id", t.Id, "error", signalErr)
+		}
 	}
 
 	// Update run status
@@ -134,6 +143,9 @@ func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *orcv1.Task, cur
 		task.UpdateTimestampProto(t)
 		if saveErr := we.backend.SaveTask(t); saveErr != nil {
 			we.logger.Error("failed to save task status paused", "task_id", t.Id, "error", saveErr)
+		}
+		if resolveErr := we.resolveAttentionSignalsForTask(t.Id, "executor"); resolveErr != nil {
+			we.logger.Error("failed to resolve attention signals on interrupt", "task_id", t.Id, "error", resolveErr)
 		}
 		// Publish task updated event for real-time UI updates
 		we.publishTaskUpdated(t)
@@ -230,3 +242,109 @@ func (we *WorkflowExecutor) recordCostToGlobal(ctx context.Context, t *orcv1.Tas
 	RecordCostEntry(we.globalDB, entry, we.logger)
 }
 
+func (we *WorkflowExecutor) upsertTaskAttentionSignal(t *orcv1.Task, status string, summary string) error {
+	if t == nil {
+		return nil
+	}
+
+	signal := &controlplane.PersistedAttentionSignal{
+		Kind:          controlplane.AttentionSignalKindBlocker,
+		Status:        status,
+		ReferenceType: controlplane.AttentionSignalReferenceTypeTask,
+		ReferenceID:   t.Id,
+		Title:         t.Title,
+		Summary:       summary,
+	}
+	if signal.Summary == "" {
+		signal.Summary = attentionSummaryForTask(t)
+	}
+
+	if err := we.backend.SaveAttentionSignal(signal); err != nil {
+		return err
+	}
+
+	we.publishAttentionSignalCreated(t.Id, signal)
+	return nil
+}
+
+func (we *WorkflowExecutor) resolveAttentionSignalsForTask(taskID string, resolvedBy string) error {
+	if taskID == "" {
+		return nil
+	}
+
+	signals, err := we.backend.LoadActiveAttentionSignals()
+	if err != nil {
+		return fmt.Errorf("load active attention signals for task %s: %w", taskID, err)
+	}
+
+	for _, signal := range signals {
+		if signal == nil {
+			continue
+		}
+		if signal.ReferenceType != controlplane.AttentionSignalReferenceTypeTask || signal.ReferenceID != taskID {
+			continue
+		}
+		resolvedSignal, resolveErr := we.backend.ResolveAttentionSignal(signal.ID, resolvedBy)
+		if resolveErr != nil {
+			return fmt.Errorf("resolve attention signal %s for task %s: %w", signal.ID, taskID, resolveErr)
+		}
+		we.publishAttentionSignalResolved(taskID, resolvedSignal)
+	}
+
+	return nil
+}
+
+func (we *WorkflowExecutor) publishAttentionSignalCreated(taskID string, signal *controlplane.PersistedAttentionSignal) {
+	if we.publisher == nil || signal == nil {
+		return
+	}
+
+	event := events.NewProjectEvent(
+		events.EventAttentionSignalCreated,
+		we.projectIDForEvents(),
+		taskID,
+		events.AttentionSignalCreatedData{
+			SignalID:      signal.ID,
+			Kind:          string(signal.Kind),
+			Status:        signal.Status,
+			ReferenceType: signal.ReferenceType,
+			ReferenceID:   signal.ReferenceID,
+			Title:         signal.Title,
+			Summary:       signal.Summary,
+		},
+	)
+	we.publisher.Publish(event)
+}
+
+func (we *WorkflowExecutor) publishAttentionSignalResolved(taskID string, signal *controlplane.PersistedAttentionSignal) {
+	if we.publisher == nil || signal == nil || signal.ResolvedAt == nil {
+		return
+	}
+
+	event := events.NewProjectEvent(
+		events.EventAttentionSignalResolved,
+		we.projectIDForEvents(),
+		taskID,
+		events.AttentionSignalResolvedData{
+			SignalID:      signal.ID,
+			Kind:          string(signal.Kind),
+			ReferenceType: signal.ReferenceType,
+			ReferenceID:   signal.ReferenceID,
+			ResolvedBy:    signal.ResolvedBy,
+			ResolvedAt:    *signal.ResolvedAt,
+		},
+	)
+	we.publisher.Publish(event)
+}
+
+func (we *WorkflowExecutor) projectIDForEvents() string {
+	if we.projectDB == nil || we.projectDB.ProjectDir() == "" {
+		return ""
+	}
+
+	projectID, err := project.ResolveProjectID(we.projectDB.ProjectDir())
+	if err != nil {
+		return ""
+	}
+	return projectID
+}

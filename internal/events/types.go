@@ -67,8 +67,10 @@ const (
 	EventDecisionResolved EventType = "decision_resolved"
 
 	// Recommendation inbox events.
-	EventRecommendationCreated EventType = "recommendation_created"
-	EventRecommendationDecided EventType = "recommendation_decided"
+	EventRecommendationCreated   EventType = "recommendation_created"
+	EventRecommendationDecided   EventType = "recommendation_decided"
+	EventAttentionSignalCreated  EventType = "attention_signal_created"
+	EventAttentionSignalResolved EventType = "attention_signal_resolved"
 
 	// Thread events (for Development OS chat interface)
 
@@ -269,6 +271,25 @@ type RecommendationCreatedData struct {
 	PromotedToID     string `json:"promoted_to_id"`
 	PromotedBy       string `json:"promoted_by"`
 	PromotedAt       string `json:"promoted_at"`
+}
+
+type AttentionSignalCreatedData struct {
+	SignalID      string `json:"signal_id"`
+	Kind          string `json:"kind"`
+	Status        string `json:"status"`
+	ReferenceType string `json:"reference_type"`
+	ReferenceID   string `json:"reference_id"`
+	Title         string `json:"title"`
+	Summary       string `json:"summary,omitempty"`
+}
+
+type AttentionSignalResolvedData struct {
+	SignalID      string    `json:"signal_id"`
+	Kind          string    `json:"kind"`
+	ReferenceType string    `json:"reference_type"`
+	ReferenceID   string    `json:"reference_id"`
+	ResolvedBy    string    `json:"resolved_by,omitempty"`
+	ResolvedAt    time.Time `json:"resolved_at"`
 }
 
 type RecommendationDecidedData struct {

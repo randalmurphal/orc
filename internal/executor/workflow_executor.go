@@ -18,6 +18,7 @@ import (
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/brief"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
@@ -724,6 +725,11 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		if err := we.backend.SaveTask(t); err != nil {
 			we.logger.Error("failed to save task status running", "task_id", t.Id, "error", err)
 		}
+		if we.isResuming {
+			if err := we.resolveAttentionSignalsForTask(t.Id, "resume"); err != nil {
+				we.logger.Error("failed to resolve attention signals on resume", "task_id", t.Id, "error", err)
+			}
+		}
 		// Publish task updated event for real-time UI updates
 		we.publishTaskUpdated(t)
 	}
@@ -932,6 +938,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				task.SetErrorProto(we.task.Execution, fmt.Sprintf("blocked by trigger: %s", triggerResult.BlockedReason))
 				if err := we.backend.SaveTask(t); err != nil {
 					we.logger.Warn("failed to save blocked task", "error", err)
+				}
+				if err := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusBlocked, triggerResult.BlockedReason); err != nil {
+					we.logger.Warn("failed to save blocked-task attention signal", "task_id", t.Id, "error", err)
 				}
 			}
 			return result, fmt.Errorf("blocked by before-phase trigger: %s", triggerResult.BlockedReason)
@@ -1193,6 +1202,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					if err := we.backend.SaveTask(t); err != nil {
 						we.logger.Error("failed to save blocked task", "error", err)
 					}
+					if err := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusBlocked, gateResult.Reason); err != nil {
+						we.logger.Warn("failed to save blocked-task attention signal", "task_id", t.Id, "error", err)
+					}
 				}
 				if we.task != nil {
 					errMsg := fmt.Sprintf("blocked at gate: %s (phase %s)", gateResult.Reason, tmpl.ID)
@@ -1440,6 +1452,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				if err := we.backend.SaveTask(t); err != nil {
 					we.logger.Warn("failed to save blocked task", "task", t.Id, "error", err)
 				}
+				if err := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusBlocked, completionErr.Error()); err != nil {
+					we.logger.Warn("failed to save blocked-task attention signal", "task_id", t.Id, "error", err)
+				}
 
 				// Run is completed but task is blocked
 				run.Status = string(workflow.RunStatusCompleted)
@@ -1493,6 +1508,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		t.CompletedAt = timestamppb.Now()
 		if err := we.backend.SaveTask(t); err != nil {
 			we.logger.Error("failed to save task status completed", "task_id", t.Id, "error", err)
+		}
+		if err := we.resolveAttentionSignalsForTask(t.Id, "executor"); err != nil {
+			we.logger.Error("failed to resolve attention signals on completion", "task_id", t.Id, "error", err)
 		}
 		// Publish task updated event for real-time UI updates
 		we.publishTaskUpdated(t)
