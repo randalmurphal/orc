@@ -279,6 +279,10 @@ See also:
 					return returnErr(fmt.Errorf("seed workflows: %w", err))
 				}
 
+				if err := ensureWorkflowCachesSynced(projectRoot, gdb, pdb); err != nil {
+					return returnErr(err)
+				}
+
 				// Verify workflow exists (in global DB)
 				wf, wfErr := gdb.GetWorkflow(workflowID)
 				if wfErr != nil {

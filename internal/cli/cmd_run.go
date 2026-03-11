@@ -174,6 +174,10 @@ func runRun(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("seed project workflows: %w", err)
 	}
 
+	if err := ensureWorkflowCachesSynced(projectRoot, gdb, pdb); err != nil {
+		return err
+	}
+
 	// Seed built-in agents and phase-agent associations
 	if _, err := workflow.SeedAgents(gdb); err != nil {
 		return fmt.Errorf("seed agents: %w", err)

@@ -900,28 +900,51 @@ Examples:
 		}
 		defer func() { _ = gdb.Close() }()
 
-		cache := workflow.NewCacheServiceFromOrcDir(orcDir, gdb)
+		pdb, err := db.OpenProject(projectRoot)
+		if err != nil {
+			return fmt.Errorf("open project database: %w", err)
+		}
+		defer func() { _ = pdb.Close() }()
+
+		globalCache := workflow.NewCacheServiceFromOrcDir(orcDir, gdb)
+		projectCache := workflow.NewCacheServiceFromOrcDir(orcDir, pdb)
 
 		force, _ := cmd.Flags().GetBool("force")
 
-		var result *workflow.SyncResult
+		var globalResult *workflow.SyncResult
 		if force {
-			result, err = cache.ForceSync()
+			globalResult, err = globalCache.ForceSync()
 		} else {
-			result, err = cache.SyncAll()
+			globalResult, err = globalCache.SyncAll()
 		}
 		if err != nil {
-			return fmt.Errorf("sync failed: %w", err)
+			return fmt.Errorf("sync global cache: %w", err)
+		}
+
+		var projectResult *workflow.SyncResult
+		if force {
+			projectResult, err = projectCache.ForceSync()
+		} else {
+			projectResult, err = projectCache.SyncAll()
+		}
+		if err != nil {
+			return fmt.Errorf("sync project cache: %w", err)
 		}
 
 		fmt.Printf("Sync complete:\n")
-		fmt.Printf("  Workflows: %d added, %d updated\n", result.WorkflowsAdded, result.WorkflowsUpdated)
-		fmt.Printf("  Phases: %d added, %d updated\n", result.PhasesAdded, result.PhasesUpdated)
+		fmt.Printf("  Global workflows: %d added, %d updated\n", globalResult.WorkflowsAdded, globalResult.WorkflowsUpdated)
+		fmt.Printf("  Global phases: %d added, %d updated\n", globalResult.PhasesAdded, globalResult.PhasesUpdated)
+		fmt.Printf("  Project workflows: %d added, %d updated\n", projectResult.WorkflowsAdded, projectResult.WorkflowsUpdated)
+		fmt.Printf("  Project phases: %d added, %d updated\n", projectResult.PhasesAdded, projectResult.PhasesUpdated)
 
-		if len(result.Errors) > 0 {
-			fmt.Printf("\nWarnings (%d):\n", len(result.Errors))
-			for _, e := range result.Errors {
-				fmt.Printf("  - %s\n", e)
+		totalErrors := len(globalResult.Errors) + len(projectResult.Errors)
+		if totalErrors > 0 {
+			fmt.Printf("\nWarnings (%d):\n", totalErrors)
+			for _, e := range globalResult.Errors {
+				fmt.Printf("  - global: %s\n", e)
+			}
+			for _, e := range projectResult.Errors {
+				fmt.Printf("  - project: %s\n", e)
 			}
 		}
 
