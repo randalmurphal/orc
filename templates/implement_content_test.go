@@ -126,6 +126,11 @@ func TestImplementPrompts_RequireBrowserValidationContract(t *testing.T) {
 				"conditional or bounded",
 				"failed to load",
 				"no data",
+				"computed/live",
+				"persisted/materialized state",
+				"rollout parity",
+				"every production transition",
+				"atomicity or explicit rollback",
 			} {
 				if !strings.Contains(text, required) {
 					t.Errorf("%s missing shared-path/failure-semantics guidance %q", file, required)

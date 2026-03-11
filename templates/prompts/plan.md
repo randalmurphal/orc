@@ -179,6 +179,7 @@ If blocked due to unclear requirements:
 9. **Event-driven and multi-project surfaces need explicit checks** — if a task touches live browser state or cross-project behavior, success criteria must cover external updates and project isolation, not just local clicks and counts.
 10. **Call out always-on cost explicitly** — if the change adds work on every phase, request, render, event tick, or task load, success criteria and verification must state why that cost is acceptable and how it stays bounded at scale.
 11. **Distinguish absence from load failure when behavior depends on it** — if optional context, summaries, or derived state affect decisions, the plan must say whether "no data" and "failed to load data" are different outcomes and how each should behave.
+12. **Replacing computed state with persisted state needs a transition plan** — if the task moves an operator view, summary, counter, status, or other derived behavior from computed/live reconstruction to stored/materialized state, the plan must cover rollout parity, every production transition that mutates that state, and atomicity or rollback expectations for multi-write operator actions.
 </critical_constraints>
 
 <context>
@@ -249,6 +250,11 @@ If the task touches events, dashboards, inboxes, live views, or multi-project su
 - Put those checks into `verification_plan.e2e` or the test list explicitly.
 - Treat this as event-driven behavior, not generic UI polish.
 
+If the task replaces computed/live reconstruction with persisted/materialized state:
+- Include at least one success criterion for rollout parity so pre-existing data and in-flight states still appear correctly before any backfill or rewrite completes.
+- Include at least one success criterion that inventories every production transition, RPC, background path, or failure path that must keep the new state synchronized.
+- Include at least one success criterion for atomicity or rollback when an operator action writes more than one thing and partial failure would leave the product lying.
+
 **Anti-patterns to avoid:**
 - "File exists" — test behavior, not existence
 - "Component renders" — test that clicking/interacting does the right thing
@@ -292,6 +298,13 @@ Set `requires_browser_qa` to `true` when the task appears likely to change a bro
 This is an implementation-time recommendation, not a waiver. The implement and review phases must make the final decision from the actual diff.
 
 Set `requires_human_gate` to `true` when the blast radius or failure mode warrants explicit human review, especially for money movement, auth, migrations, external integrations, or high/critical risk changes.
+
+If the task replaces computed/live behavior with persisted/materialized state, `operational_notes` must explicitly state one of:
+- rollout parity is preserved without migration,
+- a backfill/migration is required and how it is verified, or
+- rollout without parity is an explicit non-goal.
+
+Do not leave that decision implicit.
 
 `verification_plan` must contain real commands:
 - `build`: the exact build or compile check

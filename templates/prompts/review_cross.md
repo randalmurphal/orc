@@ -59,6 +59,9 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - Block obvious performance regressions on hot or scalable paths.
 - Treat new work on repeated/shared paths (every request, workflow phase, task load, page refresh, poll tick) as suspicious until the branch proves it is conditional or bounded.
 - Treat whole-project or whole-dataset scans added to repeated/shared paths as blocking unless the branch proves they are necessary and the cost is acceptable.
+- Treat replacing computed/live reconstruction with persisted/materialized state as suspicious until the branch proves rollout parity for pre-existing data and in-flight states.
+- Treat missing transition coverage as blocking when a new stored state can drift because normal production paths, retries, or failure paths do not keep it synchronized.
+- Treat multi-write operator actions as blocking if partial failure can leave the visible state inconsistent and the branch does not prove atomicity or explicit rollback.
 
 **3. Simplicity & Maintainability**
 - Is the solution more complex than the task requires?
@@ -96,6 +99,7 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - If the diff adds or changes events, subscriptions, dashboards, inboxes, or live views, verify project scoping survives publication, transport, and client handling.
 - A toast, log line, or event conversion function is not proof of live state correctness. The client must update the real state when the product expects it.
 - Treat stale operator state or cross-project event leakage as blocking correctness issues, not polish.
+- If the diff replaces computed/live behavior with persisted/materialized state, verify rollout parity, transition coverage, and atomicity or rollback before passing it.
 
 **8. Pattern Compliance**
 - Does the code follow existing codebase conventions?
@@ -160,9 +164,10 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 7. **Check browser validation** — if the implemented diff changes browser-visible behavior, verify the implementation output includes real browser-validation evidence rather than a planner guess
 8. **Check event-driven and project-scoped behavior** — if the diff adds live browser state or project-scoped behavior, verify external-mutation and isolation evidence
 9. **Check shared-path cost model** — if the diff adds work on a repeated/shared path, verify what triggers it, whether it is lazy/bounded, and whether tests would catch accidental eager behavior
-10. **Verify integration** — new code is reachable from production paths
-11. If you found small issues, fix and commit them
-12. Output your structured response
+10. **Check persisted-state replacement risks** — if computed/live behavior is replaced with stored/materialized state, verify rollout parity, every production transition that mutates the truth, and atomicity or rollback for multi-write operator actions
+11. **Verify integration** — new code is reachable from production paths
+12. If you found small issues, fix and commit them
+13. Output your structured response
 
 ## Success Criteria Verification (MANDATORY)
 

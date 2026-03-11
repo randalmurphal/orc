@@ -23,6 +23,11 @@ func TestPlanPrompt_RequiresEventDrivenAndProjectScopedChecks(t *testing.T) {
 		"always-on cost",
 		"failed to load data",
 		"no data",
+		"computed/live reconstruction",
+		"persisted/materialized state",
+		"rollout parity",
+		"production transition",
+		"atomicity or rollback",
 	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("plan.md missing planning guidance %q", required)

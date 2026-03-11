@@ -383,6 +383,9 @@ Execute all checks and include evidence for each in your completion output:
 9. **Behavioral parity check** — If you added a parallel/async/alternate path, verify ALL original behaviors are present.
 10. **Shared-path cost check** — If the diff adds work on a repeated/shared path, record what triggers it, why it is bounded or lazy, and what evidence proves that.
 11. **Failure-semantics check** — If the diff adds optional context, summaries, caches, or derived state, verify whether "no data" and "load failure" are intentionally the same or intentionally different, and record evidence for that behavior.
+12. **Rollout parity check** — If the diff replaces computed/live reconstruction with persisted/materialized state, verify rollout parity for pre-existing data and in-flight states before any backfill or migration completes.
+13. **Transition coverage check** — Inventory every production transition that mutates the new stored state, including operator actions, standard RPCs, retries, background paths, and failure paths.
+14. **Atomicity/rollback check** — If an operator action performs multiple writes, prove the action provides atomicity or explicit rollback so partial failure cannot leave the visible state inconsistent.
 
 **Only output completion JSON after all checks pass.** See Output Format for the exact schema.
 

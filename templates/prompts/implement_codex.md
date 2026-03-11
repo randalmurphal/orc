@@ -103,6 +103,9 @@ If blocked, still return the same top-level keys. Use `null` or `[]` for fields 
 10. If the browser-visible behavior must stay isolated to the selected project or tenant, set `project_scoped_surface=true` and validate that the behavior stays scoped correctly.
 11. If the diff adds work on a repeated/shared path (every request, workflow phase, task load, page refresh, poll tick), verify that the work is conditional or bounded rather than silently scaling with the whole project or dataset.
 12. If the diff adds optional context, summaries, caches, or derived state, verify that the code does not silently treat "failed to load" as "no data" unless the specification explicitly allows those outcomes to be equivalent.
+13. If the diff replaces computed/live reconstruction with persisted/materialized state, verify rollout parity for pre-existing data and in-flight states before claiming completion.
+14. For that same pattern, inventory every production transition that mutates the new stored state, including normal RPCs, retries, background paths, and failure paths; do not assume the code you just added is the only writer.
+15. If an operator action writes multiple records or state transitions, verify atomicity or explicit rollback. A partial failure that leaves the visible state lying is a failure, not a follow-up.
 
 ## Verification Status Rules
 
@@ -154,8 +157,11 @@ Do not stop at same-page happy paths when the surface depends on external update
 11. Verify each success criterion from the spec with concrete evidence.
 12. If the diff adds work on a repeated/shared path, record what triggers it, why it is bounded or lazy, and what verification proves that.
 13. If the diff adds optional context, summaries, caches, or derived state, verify whether "no data" and "load failure" are intentionally the same or intentionally different, and record evidence for that behavior.
-14. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
-15. Output completion JSON.
+14. If the diff replaces computed/live behavior with persisted/materialized state, verify rollout parity with pre-existing rows or states and record the evidence.
+15. Verify every production transition that must keep the new stored state synchronized, including task-control paths, operator actions, retries, and failure paths.
+16. If any operator action performs multiple writes, verify atomicity or explicit rollback and record what proves partial failure cannot leave user-visible state inconsistent.
+17. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
+18. Output completion JSON.
 
 {{#if TDD_TESTS_CONTENT}}
 If tests fail: fix your implementation, not the tests. If a test contradicts the spec, document as `AMEND-NNN`.
