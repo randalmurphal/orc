@@ -82,6 +82,9 @@ func ApplyResumeStateUpdatesProto(t *orcv1.Task, result *ResumeValidationResult,
 	task.InterruptPhaseProto(t.Execution, currentPhase)
 
 	if result.IsOrphaned {
+		if err := markOrphanedWorkflowRunsInterrupted(backend, t, currentPhase, result.OrphanReason); err != nil {
+			return err
+		}
 		reason, failureOutput := buildInterruptedResumeRetryContext(t, backend, currentPhase)
 		attempt := nextInterruptedResumeAttempt(t, currentPhase)
 		task.SetRetryState(t, currentPhase, currentPhase, reason, failureOutput, attempt)
@@ -99,6 +102,68 @@ func ApplyResumeStateUpdatesProto(t *orcv1.Task, result *ResumeValidationResult,
 	t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 	if err := backend.SaveTask(t); err != nil {
 		return fmt.Errorf("save task: %w", err)
+	}
+
+	return nil
+}
+
+func markOrphanedWorkflowRunsInterrupted(backend storage.Backend, t *orcv1.Task, currentPhase, orphanReason string) error {
+	if backend == nil || t == nil {
+		return nil
+	}
+
+	runs, err := backend.ListWorkflowRuns(db.WorkflowRunListOpts{
+		TaskID:  t.Id,
+		Status:  string(workflow.RunStatusRunning),
+		Limit:   0,
+		Offset:  0,
+	})
+	if err != nil {
+		return fmt.Errorf("list running workflow runs for orphaned task: %w", err)
+	}
+
+	if len(runs) == 0 {
+		return nil
+	}
+
+	now := time.Now()
+	runErr := fmt.Sprintf("executor interrupted unexpectedly: %s", orphanReason)
+	phaseErr := fmt.Sprintf("executor interrupted unexpectedly during %s: %s", currentPhase, orphanReason)
+
+	for _, run := range runs {
+		if run == nil {
+			continue
+		}
+
+		run.Status = string(workflow.RunStatusCancelled)
+		run.Error = runErr
+		run.CompletedAt = &now
+		if err := backend.SaveWorkflowRun(run); err != nil {
+			return fmt.Errorf("save interrupted workflow run %s: %w", run.ID, err)
+		}
+
+		if currentPhase == "" {
+			continue
+		}
+
+		phases, err := backend.GetWorkflowRunPhases(run.ID)
+		if err != nil {
+			return fmt.Errorf("load workflow run phases for %s: %w", run.ID, err)
+		}
+		for _, phase := range phases {
+			if phase == nil || phase.PhaseTemplateID != currentPhase {
+				continue
+			}
+			if phase.Status != "running" && phase.Status != "pending" {
+				continue
+			}
+			phase.Status = "failed"
+			phase.Error = phaseErr
+			phase.CompletedAt = &now
+			if err := backend.SaveWorkflowRunPhase(phase); err != nil {
+				return fmt.Errorf("save interrupted workflow run phase %s/%s: %w", run.ID, phase.PhaseTemplateID, err)
+			}
+		}
 	}
 
 	return nil

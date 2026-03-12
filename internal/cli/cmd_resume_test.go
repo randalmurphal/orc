@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // withResumeTestDir creates a temp directory with orc initialized and changes to it
@@ -289,6 +293,122 @@ func TestApplyResumeStateUpdatesProto_OrphanedTaskSetsRetryState(t *testing.T) {
 	}
 	if diagnostic.ExecutorPID != tk.ExecutorPid {
 		t.Fatalf("diagnostic pid = %d, want %d", diagnostic.ExecutorPID, tk.ExecutorPid)
+	}
+}
+
+func TestApplyResumeStateUpdatesProto_OrphanedTaskCancelsRunningWorkflowRuns(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	tk := task.NewProtoTask("TASK-ORPHAN-RUN", "orphaned task with running workflow")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	task.SetCurrentPhaseProto(tk, "implement")
+	task.EnsurePhaseProto(tk.Execution, "implement")
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	if err := backend.SaveWorkflow(&db.Workflow{
+		ID:        "small",
+		Name:      "small",
+		CreatedAt: time.Now(),
+	}); err != nil {
+		t.Fatalf("save workflow: %v", err)
+	}
+
+	taskID := tk.Id
+	startedAt := time.Now().Add(-5 * time.Minute)
+	runningRun := &db.WorkflowRun{
+		ID:           "RUN-ORPHAN-001",
+		WorkflowID:   "small",
+		ContextType:  "task",
+		TaskID:       &taskID,
+		Status:       string(workflow.RunStatusRunning),
+		CurrentPhase: "implement",
+		StartedAt:    &startedAt,
+		CreatedAt:    startedAt,
+		UpdatedAt:    startedAt,
+	}
+	if err := backend.SaveWorkflowRun(runningRun); err != nil {
+		t.Fatalf("save running workflow run: %v", err)
+	}
+
+	completedAt := time.Now().Add(-time.Minute)
+	completedRun := &db.WorkflowRun{
+		ID:           "RUN-COMPLETE-001",
+		WorkflowID:   "small",
+		ContextType:  "task",
+		TaskID:       &taskID,
+		Status:       string(workflow.RunStatusCompleted),
+		CurrentPhase: "docs",
+		StartedAt:    &startedAt,
+		CompletedAt:  &completedAt,
+		CreatedAt:    startedAt,
+		UpdatedAt:    completedAt,
+	}
+	if err := backend.SaveWorkflowRun(completedRun); err != nil {
+		t.Fatalf("save completed workflow run: %v", err)
+	}
+
+	runPhase := &db.WorkflowRunPhase{
+		WorkflowRunID:   runningRun.ID,
+		PhaseTemplateID: "implement",
+		Status:          "running",
+		Iterations:      1,
+		StartedAt:       &startedAt,
+	}
+	if err := backend.SaveWorkflowRunPhase(runPhase); err != nil {
+		t.Fatalf("save workflow run phase: %v", err)
+	}
+
+	result := &ResumeValidationResult{
+		IsOrphaned:          true,
+		OrphanReason:        "executor process not running",
+		RequiresStateUpdate: true,
+	}
+
+	if err := ApplyResumeStateUpdatesProto(tk, result, backend); err != nil {
+		t.Fatalf("apply resume state updates: %v", err)
+	}
+
+	updatedRun, err := backend.GetWorkflowRun(runningRun.ID)
+	if err != nil {
+		t.Fatalf("load running workflow run: %v", err)
+	}
+	if updatedRun.Status != string(workflow.RunStatusCancelled) {
+		t.Fatalf("running run status = %q, want %q", updatedRun.Status, workflow.RunStatusCancelled)
+	}
+	if updatedRun.CompletedAt == nil {
+		t.Fatal("expected cancelled run to have completed_at")
+	}
+	if !strings.Contains(updatedRun.Error, "executor interrupted unexpectedly") {
+		t.Fatalf("running run error = %q, want interruption context", updatedRun.Error)
+	}
+
+	updatedCompletedRun, err := backend.GetWorkflowRun(completedRun.ID)
+	if err != nil {
+		t.Fatalf("load completed workflow run: %v", err)
+	}
+	if updatedCompletedRun.Status != string(workflow.RunStatusCompleted) {
+		t.Fatalf("completed run status = %q, want %q", updatedCompletedRun.Status, workflow.RunStatusCompleted)
+	}
+
+	phases, err := backend.GetWorkflowRunPhases(runningRun.ID)
+	if err != nil {
+		t.Fatalf("load workflow run phases: %v", err)
+	}
+	if len(phases) != 1 {
+		t.Fatalf("phase count = %d, want 1", len(phases))
+	}
+	if phases[0].Status != "failed" {
+		t.Fatalf("phase status = %q, want failed", phases[0].Status)
+	}
+	if phases[0].CompletedAt == nil {
+		t.Fatal("expected phase completed_at to be set")
+	}
+	if !strings.Contains(phases[0].Error, "executor interrupted unexpectedly during implement") {
+		t.Fatalf("phase error = %q, want interruption context", phases[0].Error)
 	}
 }
 
