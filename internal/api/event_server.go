@@ -708,6 +708,18 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 			},
 		}
 
+	case events.EventThreadUpdated:
+		data, ok := threadUpdatedEventData(e.Data)
+		if !ok {
+			return nil
+		}
+		result.Payload = &orcv1.Event_ThreadUpdated{
+			ThreadUpdated: &orcv1.ThreadUpdatedEvent{
+				ThreadId:   data.ThreadID,
+				UpdateType: data.UpdateType,
+			},
+		}
+
 	default:
 		// Unknown event type, skip
 		return nil
@@ -817,6 +829,18 @@ func dbEventToProto(e *db.EventLog) *orcv1.Event {
 				PromotedToId:     data.PromotedToID,
 				PromotedBy:       data.PromotedBy,
 				PromotedAt:       recommendationEventTimestamp(data.PromotedAt),
+			},
+		}
+
+	case string(events.EventThreadUpdated):
+		data, ok := threadUpdatedEventData(e.Data)
+		if !ok {
+			return nil
+		}
+		result.Payload = &orcv1.Event_ThreadUpdated{
+			ThreadUpdated: &orcv1.ThreadUpdatedEvent{
+				ThreadId:   data.ThreadID,
+				UpdateType: data.UpdateType,
 			},
 		}
 
@@ -970,6 +994,21 @@ func recommendationDecidedEventData(data any) (events.RecommendationDecidedData,
 		var decoded events.RecommendationDecidedData
 		if err := decodeEventPayload(data, &decoded); err != nil {
 			return events.RecommendationDecidedData{}, false
+		}
+		return decoded, true
+	}
+}
+
+func threadUpdatedEventData(data any) (events.ThreadUpdatedData, bool) {
+	switch payload := data.(type) {
+	case events.ThreadUpdatedData:
+		return payload, true
+	case *events.ThreadUpdatedData:
+		return *payload, true
+	default:
+		var decoded events.ThreadUpdatedData
+		if err := decodeEventPayload(data, &decoded); err != nil {
+			return events.ThreadUpdatedData{}, false
 		}
 		return decoded, true
 	}

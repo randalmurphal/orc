@@ -23,8 +23,31 @@ vi.mock('@/lib/client', () => ({
 		sendMessage: vi.fn(),
 		getThread: vi.fn(),
 		promoteRecommendationDraft: vi.fn(),
-		promoteDecisionDraft: vi.fn(),
+	promoteDecisionDraft: vi.fn(),
 	},
+}));
+
+let eventHandler: ((event: {
+	projectId?: string;
+	payload: { case?: string; value?: { threadId?: string; updateType?: string } };
+}) => void) | undefined;
+
+vi.mock('@/hooks/useEvents', () => ({
+	useEvents: () => ({
+		status: 'connected',
+		subscribe: vi.fn(),
+		subscribeGlobal: vi.fn(),
+		disconnect: vi.fn(),
+		isConnected: vi.fn(() => true),
+		onEvent: vi.fn((handler: typeof eventHandler) => {
+			eventHandler = handler;
+			return () => {
+				if (eventHandler === handler) {
+					eventHandler = undefined;
+				}
+			};
+		}),
+	}),
 }));
 
 import { threadClient } from '@/lib/client';
@@ -79,6 +102,7 @@ function createMockThread(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	eventHandler = undefined;
 	vi.mocked(threadClient.getThread).mockResolvedValue({
 		thread: createMockThread(),
 	} as never);
@@ -685,6 +709,77 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 			expect((screen.getByLabelText('Decision initiative') as HTMLInputElement).value).toBe('INIT-002');
 		});
 	});
+
+	it('should refresh when a matching threadUpdated event arrives', async () => {
+		vi.mocked(threadClient.getThread)
+			.mockResolvedValueOnce({
+				thread: createMockThread({
+					links: [],
+				}),
+			} as never)
+			.mockResolvedValueOnce({
+				thread: createMockThread({
+					links: [
+						create(ThreadLinkSchema, {
+							id: BigInt(9),
+							threadId: 'thread-001',
+							linkType: 'file',
+							targetId: 'docs/notes.md',
+							title: 'notes.md',
+						}),
+					],
+				}),
+			} as never);
+
+		renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalledTimes(1);
+		});
+
+		eventHandler?.({
+			projectId: 'proj-001',
+			payload: {
+				case: 'threadUpdated',
+				value: {
+					threadId: 'thread-001',
+					updateType: 'link_added',
+				},
+			},
+		});
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalledTimes(2);
+			expect(screen.getByText('notes.md')).toBeInTheDocument();
+		});
+	});
+
+	it('should ignore threadUpdated events for other projects', async () => {
+		renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalledTimes(1);
+		});
+
+		eventHandler?.({
+			projectId: 'proj-002',
+			payload: {
+				case: 'threadUpdated',
+				value: {
+					threadId: 'thread-001',
+					updateType: 'link_added',
+				},
+			},
+		});
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalledTimes(1);
+		});
+	});
 });
 
 // =============================================================================
@@ -706,7 +801,7 @@ describe('DiscussionPanel error handling (SC-7)', () => {
 		fireEvent.click(screen.getByRole('button', { name: /send/i }));
 
 		await waitFor(() => {
-			expect(screen.getByText(/failed to send message/i)).toBeInTheDocument();
+			expect(screen.getByText(/failed to send message\. try again\. network error/i)).toBeInTheDocument();
 		});
 	});
 

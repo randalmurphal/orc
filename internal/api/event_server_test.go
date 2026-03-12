@@ -910,6 +910,26 @@ func TestInternalEventToProto_DecisionEventsFromTypedPayloads(t *testing.T) {
 	require.Equal(t, resolvedAt, resolved.GetDecisionResolved().ResolvedAt.AsTime())
 }
 
+func TestInternalEventToProto_ThreadUpdatedEvent(t *testing.T) {
+	t.Parallel()
+
+	result := internalEventToProto(events.NewProjectEvent(
+		events.EventThreadUpdated,
+		"proj-123",
+		"THR-001",
+		events.ThreadUpdatedData{
+			ThreadID:   "THR-001",
+			UpdateType: "link_added",
+		},
+	))
+	if result == nil {
+		t.Fatal("expected thread updated proto event")
+	}
+	require.Equal(t, "proj-123", result.GetProjectId())
+	require.Equal(t, "THR-001", result.GetThreadUpdated().ThreadId)
+	require.Equal(t, "link_added", result.GetThreadUpdated().UpdateType)
+}
+
 // TestDbEventToProto_UsesDatabaseID verifies that dbEventToProto uses the database
 // event ID instead of generating a new UUID. This prevents duplicate events from
 // appearing in the timeline when the same event is fetched multiple times.

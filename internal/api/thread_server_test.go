@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -1095,23 +1096,30 @@ func TestThreadServer_AddLinkAndPromoteRecommendationDraft(t *testing.T) {
 	mustCreateThreadServerFixtures(t, backend)
 
 	server := NewThreadServer(backend, publisher, slog.Default())
+	cache := NewProjectCache(1)
+	cache.entries["proj-001"] = &cacheEntry{db: backend.DB(), backend: backend}
+	cache.order = append(cache.order, "proj-001")
+	server.SetProjectCache(cache)
 
 	createResp, err := server.CreateThread(
 		context.Background(),
 		connect.NewRequest(&orcv1.CreateThreadRequest{
-			Title:  "Workspace thread",
-			TaskId: threadStringPtr("TASK-001"),
+			ProjectId: "proj-001",
+			Title:     "Workspace thread",
+			TaskId:    threadStringPtr("TASK-001"),
 		}),
 	)
 	if err != nil {
 		t.Fatalf("CreateThread: %v", err)
 	}
 	threadID := createResp.Msg.Thread.Id
+	eventCh := publisher.Subscribe(threadID)
 
 	_, err = server.AddLink(
 		context.Background(),
 		connect.NewRequest(&orcv1.AddThreadLinkRequest{
-			ThreadId: threadID,
+			ProjectId: "proj-001",
+			ThreadId:  threadID,
 			Link: &orcv1.ThreadLinkInput{
 				LinkType: "diff",
 				TargetId: "TASK-001:web/src/components/layout/DiscussionPanel.tsx",
@@ -1126,7 +1134,8 @@ func TestThreadServer_AddLinkAndPromoteRecommendationDraft(t *testing.T) {
 	createDraftResp, err := server.CreateRecommendationDraft(
 		context.Background(),
 		connect.NewRequest(&orcv1.CreateThreadRecommendationDraftRequest{
-			ThreadId: threadID,
+			ProjectId: "proj-001",
+			ThreadId:  threadID,
 			Draft: &orcv1.ThreadRecommendationDraft{
 				Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_FOLLOW_UP,
 				Title:          "Follow up on workspace promotion",
@@ -1146,6 +1155,7 @@ func TestThreadServer_AddLinkAndPromoteRecommendationDraft(t *testing.T) {
 	promoteResp, err := server.PromoteRecommendationDraft(
 		context.Background(),
 		connect.NewRequest(&orcv1.PromoteThreadRecommendationDraftRequest{
+			ProjectId:  "proj-001",
 			ThreadId:   threadID,
 			DraftId:    createDraftResp.Msg.Draft.Id,
 			PromotedBy: "operator",
@@ -1173,6 +1183,36 @@ func TestThreadServer_AddLinkAndPromoteRecommendationDraft(t *testing.T) {
 	}
 	if len(getResp.Msg.Thread.Links) != 3 {
 		t.Fatalf("expected task, diff, and recommendation links; got %d", len(getResp.Msg.Thread.Links))
+	}
+
+	var updateTypes []string
+	timeout := time.After(2 * time.Second)
+	for len(updateTypes) < 3 {
+		select {
+		case evt := <-eventCh:
+			if evt.Type != events.EventThreadUpdated {
+				continue
+			}
+			data, ok := evt.Data.(events.ThreadUpdatedData)
+			if !ok {
+				t.Fatalf("expected ThreadUpdatedData, got %T", evt.Data)
+			}
+			if evt.ProjectID != "proj-001" {
+				t.Fatalf("thread update project_id = %q, want proj-001", evt.ProjectID)
+			}
+			updateTypes = append(updateTypes, data.UpdateType)
+		case <-timeout:
+			t.Fatalf("timed out waiting for thread update events, got %v", updateTypes)
+		}
+	}
+
+	expectedTypes := []string{
+		"link_added",
+		"recommendation_draft_created",
+		"recommendation_draft_promoted",
+	}
+	if !reflect.DeepEqual(updateTypes, expectedTypes) {
+		t.Fatalf("thread update types = %v, want %v", updateTypes, expectedTypes)
 	}
 }
 

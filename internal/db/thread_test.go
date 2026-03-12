@@ -274,6 +274,27 @@ func TestThread_ListFilter(t *testing.T) {
 	if len(combined) != 2 {
 		t.Errorf("expected 2 active threads for TASK-001, got %d", len(combined))
 	}
+
+	initThread := &Thread{Title: "Initiative thread", InitiativeID: "INIT-001"}
+	if err := pdb.CreateThread(initThread); err != nil {
+		t.Fatalf("CreateThread initiative: %v", err)
+	}
+
+	initThreads, err := pdb.ListThreads(ThreadListOpts{InitiativeID: "INIT-001"})
+	if err != nil {
+		t.Fatalf("ListThreads(initiative_id): %v", err)
+	}
+	if len(initThreads) != 1 {
+		t.Fatalf("expected 1 initiative thread, got %d", len(initThreads))
+	}
+
+	limited, err := pdb.ListThreads(ThreadListOpts{Status: "active", Limit: 2})
+	if err != nil {
+		t.Fatalf("ListThreads(limit): %v", err)
+	}
+	if len(limited) != 2 {
+		t.Fatalf("expected 2 limited active threads, got %d", len(limited))
+	}
 }
 
 func TestThread_ListFilter_NoMatch(t *testing.T) {

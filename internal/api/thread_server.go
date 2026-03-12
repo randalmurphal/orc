@@ -213,7 +213,7 @@ func (s *threadServer) SendMessage(
 	}
 
 	// Publish user message event
-	s.publisher.Publish(events.NewEvent(events.EventThreadMessage, thread.ID, events.ThreadMessageData{
+	s.publisher.Publish(events.NewProjectEvent(events.EventThreadMessage, req.Msg.ProjectId, thread.ID, events.ThreadMessageData{
 		ThreadID:  thread.ID,
 		MessageID: userMsg.ID,
 		Role:      "user",
@@ -224,7 +224,7 @@ func (s *threadServer) SendMessage(
 	systemPrompt := s.buildSystemPrompt(backend, thread)
 
 	// Publish typing event before Claude invocation
-	s.publisher.Publish(events.NewEvent(events.EventThreadTyping, thread.ID, events.ThreadTypingData{
+	s.publisher.Publish(events.NewProjectEvent(events.EventThreadTyping, req.Msg.ProjectId, thread.ID, events.ThreadTypingData{
 		ThreadID: thread.ID,
 		IsTyping: true,
 	}))
@@ -240,7 +240,7 @@ func (s *threadServer) SendMessage(
 	result, err := te.ExecuteTurnWithoutSchema(ctx, prompt)
 
 	// Clear typing indicator regardless of success or failure
-	s.publisher.Publish(events.NewEvent(events.EventThreadTyping, thread.ID, events.ThreadTypingData{
+	s.publisher.Publish(events.NewProjectEvent(events.EventThreadTyping, req.Msg.ProjectId, thread.ID, events.ThreadTypingData{
 		ThreadID: thread.ID,
 		IsTyping: false,
 	}))
@@ -267,12 +267,13 @@ func (s *threadServer) SendMessage(
 	}
 
 	// Publish assistant message event
-	s.publisher.Publish(events.NewEvent(events.EventThreadMessage, thread.ID, events.ThreadMessageData{
+	s.publisher.Publish(events.NewProjectEvent(events.EventThreadMessage, req.Msg.ProjectId, thread.ID, events.ThreadMessageData{
 		ThreadID:  thread.ID,
 		MessageID: assistantMsg.ID,
 		Role:      "assistant",
 		Content:   assistantMsg.Content,
 	}))
+	s.publishThreadUpdated(req.Msg.ProjectId, thread.ID, "message_added")
 
 	return connect.NewResponse(&orcv1.SendThreadMessageResponse{
 		UserMessage:      threadMessageToProto(userMsg),
@@ -298,11 +299,12 @@ func (s *threadServer) ArchiveThread(
 	}
 
 	// Publish status change event
-	s.publisher.Publish(events.NewEvent(events.EventThreadStatus, req.Msg.ThreadId, events.ThreadStatusData{
+	s.publisher.Publish(events.NewProjectEvent(events.EventThreadStatus, req.Msg.ProjectId, req.Msg.ThreadId, events.ThreadStatusData{
 		ThreadID:  req.Msg.ThreadId,
 		OldStatus: "active",
 		NewStatus: "archived",
 	}))
+	s.publishThreadUpdated(req.Msg.ProjectId, req.Msg.ThreadId, "archived")
 
 	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
 	if err != nil {
@@ -361,6 +363,7 @@ func (s *threadServer) AddLink(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload thread: %w", err))
 	}
+	s.publishThreadUpdated(req.Msg.ProjectId, req.Msg.ThreadId, "link_added")
 	return connect.NewResponse(&orcv1.AddThreadLinkResponse{Thread: threadToProto(thread)}), nil
 }
 
@@ -389,6 +392,7 @@ func (s *threadServer) CreateRecommendationDraft(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload thread: %w", err))
 	}
+	s.publishThreadUpdated(req.Msg.ProjectId, req.Msg.ThreadId, "recommendation_draft_created")
 	return connect.NewResponse(&orcv1.CreateThreadRecommendationDraftResponse{
 		Draft:  threadRecommendationDraftToProto(draft),
 		Thread: threadToProto(thread),
@@ -420,6 +424,7 @@ func (s *threadServer) PromoteRecommendationDraft(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload thread: %w", err))
 	}
+	s.publishThreadUpdated(req.Msg.ProjectId, req.Msg.ThreadId, "recommendation_draft_promoted")
 	return connect.NewResponse(&orcv1.PromoteThreadRecommendationDraftResponse{
 		Draft:          threadRecommendationDraftToProto(draft),
 		Recommendation: recommendation,
@@ -454,6 +459,7 @@ func (s *threadServer) CreateDecisionDraft(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload thread: %w", err))
 	}
+	s.publishThreadUpdated(req.Msg.ProjectId, req.Msg.ThreadId, "decision_draft_created")
 	return connect.NewResponse(&orcv1.CreateThreadDecisionDraftResponse{
 		Draft:  threadDecisionDraftToProto(draft),
 		Thread: threadToProto(thread),
@@ -489,7 +495,9 @@ func (s *threadServer) buildSystemPrompt(backend storage.Backend, thread *db.Thr
 
 	if thread.TaskID != "" {
 		task, err := backend.LoadTask(thread.TaskID)
-		if err == nil && task != nil {
+		if err != nil {
+			s.logger.Warn("failed to load thread task context", "thread_id", thread.ID, "task_id", thread.TaskID, "error", err)
+		} else if task != nil {
 			parts = append(parts, fmt.Sprintf("\nTask: %s", task.Title))
 			if task.Description != nil && *task.Description != "" {
 				parts = append(parts, fmt.Sprintf("Task Description: %s", *task.Description))
@@ -499,14 +507,18 @@ func (s *threadServer) buildSystemPrompt(backend storage.Backend, thread *db.Thr
 
 	if thread.InitiativeID != "" {
 		initiative, err := backend.DB().GetInitiative(thread.InitiativeID)
-		if err == nil && initiative != nil {
+		if err != nil {
+			s.logger.Warn("failed to load thread initiative context", "thread_id", thread.ID, "initiative_id", thread.InitiativeID, "error", err)
+		} else if initiative != nil {
 			parts = append(parts, fmt.Sprintf("\nInitiative: %s", initiative.Title))
 			if initiative.Vision != "" {
 				parts = append(parts, fmt.Sprintf("Vision: %s", initiative.Vision))
 			}
 
 			decisions, decErr := backend.DB().GetInitiativeDecisions(thread.InitiativeID)
-			if decErr == nil && len(decisions) > 0 {
+			if decErr != nil {
+				s.logger.Warn("failed to load thread initiative decisions", "thread_id", thread.ID, "initiative_id", thread.InitiativeID, "error", decErr)
+			} else if len(decisions) > 0 {
 				parts = append(parts, "\nDecisions:")
 				for _, d := range decisions {
 					parts = append(parts, fmt.Sprintf("- %s", d.Decision))
@@ -515,52 +527,27 @@ func (s *threadServer) buildSystemPrompt(backend storage.Backend, thread *db.Thr
 		}
 	}
 
-	if len(thread.Links) > 0 {
+	if links := db.FormatThreadLinksForPrompt(thread.Links, 8); links != "" {
 		parts = append(parts, "\nLinked context:")
-		for _, link := range thread.Links {
-			label := link.TargetID
-			if strings.TrimSpace(link.Title) != "" {
-				label = link.Title
-			}
-			parts = append(parts, fmt.Sprintf("- %s: %s", link.LinkType, label))
-		}
+		parts = append(parts, links)
 	}
 
-	if len(thread.RecommendationDrafts) > 0 {
+	if drafts := db.FormatThreadRecommendationDraftsForPrompt(thread.RecommendationDrafts, 5); drafts != "" {
 		parts = append(parts, "\nRecommendation drafts:")
-		for _, draft := range thread.RecommendationDrafts {
-			parts = append(parts, fmt.Sprintf("- [%s] %s", draft.Status, draft.Title))
-			if strings.TrimSpace(draft.Summary) != "" {
-				parts = append(parts, fmt.Sprintf("  Summary: %s", draft.Summary))
-			}
-		}
+		parts = append(parts, drafts)
 	}
 
-	if len(thread.DecisionDrafts) > 0 {
+	if drafts := db.FormatThreadDecisionDraftsForPrompt(thread.DecisionDrafts, 5); drafts != "" {
 		parts = append(parts, "\nDecision drafts:")
-		for _, draft := range thread.DecisionDrafts {
-			parts = append(parts, fmt.Sprintf("- [%s] %s", draft.Status, draft.Decision))
-			if strings.TrimSpace(draft.Rationale) != "" {
-				parts = append(parts, fmt.Sprintf("  Rationale: %s", draft.Rationale))
-			}
-		}
+		parts = append(parts, drafts)
 	}
 
-	if thread.SessionID == "" && len(thread.Messages) > 0 {
+	if history := db.FormatThreadMessagesForPrompt(thread.Messages, 6); thread.SessionID == "" && history != "" {
 		parts = append(parts, "\nRecent thread history:")
-		for _, message := range recentThreadMessages(thread.Messages, 6) {
-			parts = append(parts, fmt.Sprintf("- %s: %s", message.Role, message.Content))
-		}
+		parts = append(parts, history)
 	}
 
 	return strings.Join(parts, "\n")
-}
-
-func recentThreadMessages(messages []db.ThreadMessage, limit int) []db.ThreadMessage {
-	if len(messages) <= limit {
-		return messages
-	}
-	return messages[len(messages)-limit:]
 }
 
 // threadToProto converts a db.Thread to the proto Thread message.
@@ -790,5 +777,15 @@ func (s *threadServer) publishThreadRecommendationCreated(projectID string, rec 
 		PromotedToID:     rec.PromotedToId,
 		PromotedBy:       rec.PromotedBy,
 		PromotedAt:       recommendationTimestampString(rec.PromotedAt),
+	}))
+}
+
+func (s *threadServer) publishThreadUpdated(projectID, threadID, updateType string) {
+	if s.publisher == nil || threadID == "" {
+		return
+	}
+	s.publisher.Publish(events.NewProjectEvent(events.EventThreadUpdated, projectID, threadID, events.ThreadUpdatedData{
+		ThreadID:   threadID,
+		UpdateType: updateType,
 	}))
 }

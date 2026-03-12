@@ -882,9 +882,17 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			we.failRun(run, t, fmt.Errorf("detect control-plane variable usage for phase %s: %w", tmpl.ID, err))
 			return result, err
 		}
+		threadUsage, err := we.phaseThreadVariableUsage(tmpl, phase)
+		if err != nil {
+			we.failRun(run, t, fmt.Errorf("detect thread variable usage for phase %s: %w", tmpl.ID, err))
+			return result, err
+		}
 
 		// Enrich context with phase-specific data (review findings, test results, etc.)
-		we.enrichContextForPhase(rctx, tmpl.ID, t)
+		if err := we.enrichContextForPhase(rctx, tmpl.ID, t, threadUsage); err != nil {
+			we.failRun(run, t, fmt.Errorf("populate phase context for phase %s: %w", tmpl.ID, err))
+			return result, err
+		}
 		if controlPlaneUsage.Any() {
 			if err := we.populateControlPlaneContext(rctx, tmpl.ID, t, controlPlaneUsage); err != nil {
 				we.failRun(run, t, fmt.Errorf("populate control-plane context for phase %s: %w", tmpl.ID, err))

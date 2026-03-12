@@ -13,6 +13,7 @@ import {
 	type ThreadRecommendationDraft,
 } from '@/gen/orc/v1/thread_pb';
 import { RecommendationKind } from '@/gen/orc/v1/recommendation_pb';
+import { useEvents } from '@/hooks/useEvents';
 import { threadClient } from '@/lib/client';
 import './DiscussionPanel.css';
 
@@ -30,6 +31,7 @@ const DEFAULT_LINK_TYPE = 'file';
 const DEFAULT_RECOMMENDATION_KIND = 'follow_up';
 
 export function DiscussionPanel({ threadId, projectId, messages: initialMessages }: DiscussionPanelProps) {
+	const { onEvent } = useEvents();
 	const stableMessages = initialMessages ?? EMPTY_MESSAGES;
 	const [messages, setMessages] = useState<ThreadMessage[]>(stableMessages);
 	const [links, setLinks] = useState<ThreadLink[]>(EMPTY_LINKS);
@@ -107,25 +109,28 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		setDecisionInitiativeId(thread?.initiativeId ?? '');
 	}, []);
 
+	const reloadThreadState = useCallback(async () => {
+		const response = await threadClient.getThread(
+			create(GetThreadRequestSchema, {
+				projectId,
+				threadId,
+			})
+		);
+		syncThreadState(response.thread);
+	}, [projectId, syncThreadState, threadId]);
+
 	useEffect(() => {
 		let cancelled = false;
 		const loadThread = async () => {
 			setLoadingThread(initialMessages === undefined);
 			try {
-				const response = await threadClient.getThread(
-					create(GetThreadRequestSchema, {
-						projectId,
-						threadId,
-					})
-				);
+				await reloadThreadState();
 				if (cancelled) {
 					return;
 				}
-				syncThreadState(response.thread);
-				setError(null);
-			} catch {
+			} catch (err) {
 				if (!cancelled) {
-					setError('Failed to load thread history. Try again.');
+					setError(withErrorDetails('Failed to load thread history. Try again.', err));
 				}
 			} finally {
 				if (!cancelled) {
@@ -138,7 +143,23 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		return () => {
 			cancelled = true;
 		};
-	}, [initialMessages, projectId, syncThreadState, threadId]);
+	}, [initialMessages, reloadThreadState]);
+
+	useEffect(() => onEvent((event) => {
+		if (event.projectId && event.projectId !== projectId) {
+			return;
+		}
+		if (event.payload.case !== 'threadUpdated') {
+			return;
+		}
+		if (event.payload.value.threadId !== threadId) {
+			return;
+		}
+
+		void reloadThreadState().catch((err) => {
+			setError(withErrorDetails('Failed to refresh thread state. Try again.', err));
+		});
+	}), [onEvent, projectId, reloadThreadState, threadId]);
 
 	// Scroll to bottom on new messages
 	useEffect(() => {
@@ -179,11 +200,11 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 				if (response.assistantMessage) newMessages.push(response.assistantMessage);
 				return newMessages;
 			});
-		} catch {
+		} catch (err) {
 			// Remove optimistic message and restore input
 			setMessages((prev) => prev.filter((m) => m !== optimisticMsg));
 			setInput(content);
-			setError('Failed to send message. Try again.');
+			setError(withErrorDetails('Failed to send message. Try again.', err));
 		} finally {
 			setSending(false);
 		}
@@ -202,8 +223,8 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 				})
 			);
 			syncThreadState(response.thread);
-		} catch {
-			setError('Failed to promote recommendation draft. Try again.');
+		} catch (err) {
+			setError(withErrorDetails('Failed to promote recommendation draft. Try again.', err));
 		} finally {
 			setPromotingDraftId(null);
 		}
@@ -232,8 +253,8 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 			syncThreadState(response.thread);
 			setLinkTargetId('');
 			setLinkTitle('');
-		} catch {
-			setError('Failed to add linked context. Try again.');
+		} catch (err) {
+			setError(withErrorDetails('Failed to add linked context. Try again.', err));
 		} finally {
 			setAddingLink(false);
 		}
@@ -278,8 +299,8 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 			setRecommendationSummary('');
 			setRecommendationAction('');
 			setRecommendationEvidence('');
-		} catch {
-			setError('Failed to create recommendation draft. Try again.');
+		} catch (err) {
+			setError(withErrorDetails('Failed to create recommendation draft. Try again.', err));
 		} finally {
 			setCreatingDraft(null);
 		}
@@ -321,8 +342,8 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 			syncThreadState(response.thread);
 			setDecisionText('');
 			setDecisionRationale('');
-		} catch {
-			setError('Failed to create decision draft. Try again.');
+		} catch (err) {
+			setError(withErrorDetails('Failed to create decision draft. Try again.', err));
 		} finally {
 			setCreatingDraft(null);
 		}
@@ -627,4 +648,11 @@ function linkTargetPlaceholder(linkType: string, threadTaskId: string, threadIni
 		default:
 			return 'path/to/file.tsx';
 	}
+}
+
+function withErrorDetails(prefix: string, err: unknown): string {
+	if (err instanceof Error && err.message) {
+		return `${prefix} ${err.message}`;
+	}
+	return prefix;
 }

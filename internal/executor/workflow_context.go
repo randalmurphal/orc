@@ -24,6 +24,12 @@ import (
 	"github.com/randalmurphal/orc/internal/variable"
 )
 
+const (
+	promptContextThreadMessageLimit = 6
+	promptContextThreadLinkLimit    = 8
+	promptContextThreadDraftLimit   = 5
+)
+
 // buildContextData creates the context data JSON for a run.
 func (we *WorkflowExecutor) buildContextData(opts WorkflowRunOptions) string {
 	data := map[string]any{
@@ -292,9 +298,15 @@ func (we *WorkflowExecutor) loadProjectDetectionContext(rctx *variable.Resolutio
 
 // enrichContextForPhase adds phase-specific context to the resolution context.
 // Call this before executing each phase to load review findings, artifacts, etc.
-func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionContext, phaseID string, t *orcv1.Task) {
+func (we *WorkflowExecutor) enrichContextForPhase(
+	rctx *variable.ResolutionContext,
+	phaseID string,
+	t *orcv1.Task,
+	threadUsage threadVariableUsage,
+) error {
 	if t == nil {
-		return
+		clearThreadContext(rctx)
+		return nil
 	}
 
 	// Load structured retry fields from task metadata
@@ -321,6 +333,126 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 	if t.IsAutomation {
 		we.loadAutomationContextProto(rctx, t)
 	}
+
+	if threadUsage.Any() {
+		if err := we.populateThreadContext(rctx, t); err != nil {
+			return err
+		}
+	} else {
+		clearThreadContext(rctx)
+	}
+
+	return nil
+}
+
+func clearThreadContext(rctx *variable.ResolutionContext) {
+	rctx.ThreadID = ""
+	rctx.ThreadTitle = ""
+	rctx.ThreadContext = ""
+	rctx.ThreadHistory = ""
+	rctx.ThreadLinkedContext = ""
+	rctx.ThreadRecommendationDrafts = ""
+	rctx.ThreadDecisionDrafts = ""
+}
+
+func (we *WorkflowExecutor) populateThreadContext(rctx *variable.ResolutionContext, t *orcv1.Task) error {
+	clearThreadContext(rctx)
+
+	thread, err := we.loadPromptContextThread(t)
+	if err != nil {
+		return err
+	}
+	if thread == nil {
+		return nil
+	}
+
+	rctx.ThreadID = thread.ID
+	rctx.ThreadTitle = thread.Title
+	rctx.ThreadHistory = db.FormatThreadMessagesForPrompt(thread.Messages, promptContextThreadMessageLimit)
+	rctx.ThreadLinkedContext = db.FormatThreadLinksForPrompt(thread.Links, promptContextThreadLinkLimit)
+	rctx.ThreadRecommendationDrafts = db.FormatThreadRecommendationDraftsForPrompt(thread.RecommendationDrafts, promptContextThreadDraftLimit)
+	rctx.ThreadDecisionDrafts = db.FormatThreadDecisionDraftsForPrompt(thread.DecisionDrafts, promptContextThreadDraftLimit)
+	rctx.ThreadContext = joinPromptSections(
+		sectionIfPresent("Thread", fmt.Sprintf("- %s (%s)", thread.Title, thread.ID)),
+		sectionIfPresent("Linked context", rctx.ThreadLinkedContext),
+		sectionIfPresent("Recommendation drafts", rctx.ThreadRecommendationDrafts),
+		sectionIfPresent("Decision drafts", rctx.ThreadDecisionDrafts),
+		sectionIfPresent("Recent thread history", rctx.ThreadHistory),
+	)
+	return nil
+}
+
+func (we *WorkflowExecutor) loadPromptContextThread(t *orcv1.Task) (*db.Thread, error) {
+	candidates := make([]db.Thread, 0, 2)
+
+	if t.Id != "" {
+		threads, err := we.backend.DB().ListThreads(db.ThreadListOpts{
+			TaskID: t.Id,
+			Limit:  1,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("load task discussion threads for %s: %w", t.Id, err)
+		}
+		candidates = append(candidates, threads...)
+	}
+
+	if initiativeID := task.GetInitiativeIDProto(t); initiativeID != "" {
+		threads, err := we.backend.DB().ListThreads(db.ThreadListOpts{
+			InitiativeID: initiativeID,
+			Limit:        1,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("load initiative discussion threads for %s: %w", initiativeID, err)
+		}
+		for _, thread := range threads {
+			if !threadSliceContainsID(candidates, thread.ID) {
+				candidates = append(candidates, thread)
+			}
+		}
+	}
+
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].UpdatedAt.After(candidates[j].UpdatedAt)
+	})
+
+	thread, err := we.backend.DB().GetThread(candidates[0].ID)
+	if err != nil {
+		return nil, fmt.Errorf("load discussion thread %s: %w", candidates[0].ID, err)
+	}
+	return thread, nil
+}
+
+func threadSliceContainsID(threads []db.Thread, id string) bool {
+	for _, thread := range threads {
+		if thread.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func sectionIfPresent(title, content string) string {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return ""
+	}
+	return fmt.Sprintf("## %s\n%s", title, content)
+}
+
+func joinPromptSections(sections ...string) string {
+	parts := make([]string, 0, len(sections))
+	for _, section := range sections {
+		section = strings.TrimSpace(section)
+		if section == "" {
+			continue
+		}
+		parts = append(parts, section)
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 func (we *WorkflowExecutor) populateControlPlaneContext(

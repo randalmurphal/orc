@@ -105,8 +105,10 @@ type ThreadDecisionDraft struct {
 
 // ThreadListOpts controls filtering for ListThreads.
 type ThreadListOpts struct {
-	Status string
-	TaskID string
+	Status       string
+	TaskID       string
+	InitiativeID string
+	Limit        int
 }
 
 // GetNextThreadID generates the next sequential thread ID (THR-001, THR-002, ...).
@@ -306,7 +308,7 @@ func (p *ProjectDB) GetThreadDecisionDrafts(threadID string) ([]ThreadDecisionDr
 // ListThreads returns threads matching the given filters.
 func (p *ProjectDB) ListThreads(opts ThreadListOpts) ([]Thread, error) {
 	query := threadSelectQuery(p.Dialect(), true)
-	args := make([]any, 0, 2)
+	args := make([]any, 0, 4)
 	argIndex := 1
 
 	if opts.Status != "" {
@@ -317,8 +319,18 @@ func (p *ProjectDB) ListThreads(opts ThreadListOpts) ([]Thread, error) {
 	if opts.TaskID != "" {
 		query += fmt.Sprintf(" AND task_id = %s", dialectPlaceholder(p.Dialect(), argIndex))
 		args = append(args, opts.TaskID)
+		argIndex++
+	}
+	if opts.InitiativeID != "" {
+		query += fmt.Sprintf(" AND initiative_id = %s", dialectPlaceholder(p.Dialect(), argIndex))
+		args = append(args, opts.InitiativeID)
+		argIndex++
 	}
 	query += " ORDER BY updated_at DESC"
+	if opts.Limit > 0 {
+		query += fmt.Sprintf(" LIMIT %s", dialectPlaceholder(p.Dialect(), argIndex))
+		args = append(args, opts.Limit)
+	}
 
 	rows, err := p.Query(query, args...)
 	if err != nil {

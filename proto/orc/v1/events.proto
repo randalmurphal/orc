@@ -214,6 +214,11 @@ message RecommendationDecidedEvent {
   google.protobuf.Timestamp promoted_at = 11;
 }
 
+message ThreadUpdatedEvent {
+  string thread_id = 1;
+  string update_type = 2;
+}
+
 // =============================================================================
 // MAIN EVENT MESSAGE
 // =============================================================================
@@ -250,6 +255,7 @@ message Event {
     SessionMetricsEvent session_metrics = 26;
     RecommendationCreatedEvent recommendation_created = 27;
     RecommendationDecidedEvent recommendation_decided = 28;
+    ThreadUpdatedEvent thread_updated = 29;
   }
 }
 

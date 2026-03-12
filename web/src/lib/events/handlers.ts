@@ -432,6 +432,10 @@ export function handleEvent(event: Event): void {
 			break;
 		}
 
+		case 'threadUpdated': {
+			break;
+		}
+
 		case 'heartbeat': {
 			// Connection health check - no action needed
 			break;
