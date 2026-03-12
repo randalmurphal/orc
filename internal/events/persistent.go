@@ -170,6 +170,10 @@ func (p *PersistentPublisher) eventToLog(e Event) *db.EventLog {
 	switch e.Type {
 	case EventThreadMessage, EventThreadTyping, EventThreadStatus, EventThreadUpdated:
 		return nil
+	case EventRecommendationCreated, EventRecommendationDecided:
+		if e.TaskID == "" {
+			return nil
+		}
 	}
 
 	// Extract phase/iteration from typed event data

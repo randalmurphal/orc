@@ -158,6 +158,50 @@ func TestPersistentPublisher_SkipsThreadEvents(t *testing.T) {
 	}
 }
 
+func TestPersistentPublisher_SkipsThreadOnlyRecommendationEvents(t *testing.T) {
+	backend, err := storage.NewInMemoryBackend()
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	logger := slog.Default()
+	pub := NewPersistentPublisher(backend, "test", logger)
+	defer pub.Close()
+
+	ch := pub.Subscribe(GlobalTaskID)
+
+	event := NewProjectEvent(EventRecommendationCreated, "proj-001", "", RecommendationCreatedData{
+		RecommendationID: "REC-001",
+		Kind:             "follow_up",
+		Status:           "pending",
+		Title:            "Thread-only recommendation",
+		SourceThreadID:   "THR-001",
+	})
+	pub.Publish(event)
+	pub.flush()
+
+	select {
+	case received := <-ch:
+		if received.Type != EventRecommendationCreated {
+			t.Fatalf("expected EventRecommendationCreated, got %s", received.Type)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timeout waiting for recommendation event broadcast")
+	}
+
+	results, err := backend.QueryEvents(db.QueryEventsOptions{
+		TaskID: "",
+		Limit:  10,
+	})
+	if err != nil {
+		t.Fatalf("failed to query events: %v", err)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected thread-only recommendation events to skip persistence, got %d rows", len(results))
+	}
+}
+
 // TestPersistentPublisher_BatchFlush verifies buffer flushes at threshold.
 func TestPersistentPublisher_BatchFlush(t *testing.T) {
 	backend := setupTestBackend(t, "TASK-001")
