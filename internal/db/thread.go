@@ -431,7 +431,10 @@ func (p *ProjectDB) CreateThreadDecisionDraft(draft *ThreadDecisionDraft) error 
 }
 
 // PromoteThreadRecommendationDraft promotes a thread draft into a persisted recommendation.
-func (p *ProjectDB) PromoteThreadRecommendationDraft(ctx context.Context, draftID string, promotedBy string) (*ThreadRecommendationDraft, *Recommendation, error) {
+func (p *ProjectDB) PromoteThreadRecommendationDraft(ctx context.Context, threadID string, draftID string, promotedBy string) (*ThreadRecommendationDraft, *Recommendation, error) {
+	if strings.TrimSpace(threadID) == "" {
+		return nil, nil, fmt.Errorf("thread id is required")
+	}
 	if strings.TrimSpace(draftID) == "" {
 		return nil, nil, fmt.Errorf("draft id is required")
 	}
@@ -450,6 +453,9 @@ func (p *ProjectDB) PromoteThreadRecommendationDraft(ctx context.Context, draftI
 		draft, err := getThreadRecommendationDraftTx(tx, draftID)
 		if err != nil {
 			return err
+		}
+		if draft.ThreadID != threadID {
+			return fmt.Errorf("recommendation draft %s does not belong to thread %s", draftID, threadID)
 		}
 		if draft.Status == ThreadDraftStatusPromoted {
 			return fmt.Errorf("recommendation draft %s already promoted", draftID)
@@ -530,71 +536,6 @@ func (p *ProjectDB) PromoteThreadRecommendationDraft(ctx context.Context, draftI
 		return nil, nil, err
 	}
 	return promotedDraft, promotedRecommendation, nil
-}
-
-// PromoteThreadDecisionDraft promotes a decision draft into an initiative decision.
-func (p *ProjectDB) PromoteThreadDecisionDraft(ctx context.Context, draftID string, promotedBy string) (*ThreadDecisionDraft, *InitiativeDecision, error) {
-	if strings.TrimSpace(draftID) == "" {
-		return nil, nil, fmt.Errorf("draft id is required")
-	}
-	if strings.TrimSpace(promotedBy) == "" {
-		return nil, nil, fmt.Errorf("promoted_by is required")
-	}
-
-	var promotedDraft *ThreadDecisionDraft
-	var promotedDecision *InitiativeDecision
-	err := p.RunInTx(ctx, func(tx *TxOps) error {
-		draft, err := getThreadDecisionDraftTx(tx, draftID)
-		if err != nil {
-			return err
-		}
-		if draft.Status == ThreadDraftStatusPromoted {
-			return fmt.Errorf("decision draft %s already promoted", draftID)
-		}
-
-		thread, err := getThreadTx(tx, draft.ThreadID)
-		if err != nil {
-			return err
-		}
-
-		initiativeID := draft.InitiativeID
-		if initiativeID == "" {
-			initiativeID = thread.InitiativeID
-		}
-		if initiativeID == "" {
-			return fmt.Errorf("thread decision draft %s has no initiative", draftID)
-		}
-
-		now := time.Now().UTC()
-		decision := &InitiativeDecision{
-			ID:           fmt.Sprintf("DEC-%s-%d", draft.ThreadID, now.UnixMilli()),
-			InitiativeID: initiativeID,
-			Decision:     draft.Decision,
-			Rationale:    draft.Rationale,
-			DecidedBy:    promotedBy,
-			DecidedAt:    now,
-		}
-		if err := AddInitiativeDecisionTx(tx, decision); err != nil {
-			return err
-		}
-		if err := markThreadDecisionDraftPromotedTx(tx, draft.ID, decision.ID, promotedBy, now); err != nil {
-			return err
-		}
-		if err := touchThreadTx(tx, draft.ThreadID, now); err != nil {
-			return err
-		}
-
-		promotedDraft, err = getThreadDecisionDraftTx(tx, draft.ID)
-		if err != nil {
-			return err
-		}
-		promotedDecision = decision
-		return nil
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	return promotedDraft, promotedDecision, nil
 }
 
 // ArchiveThread sets a thread's status to archived.
@@ -724,14 +665,6 @@ func markThreadRecommendationDraftPromotedTx(tx *TxOps, draftID string, recommen
 	return nil
 }
 
-func markThreadDecisionDraftPromotedTx(tx *TxOps, draftID string, decisionID string, promotedBy string, promotedAt time.Time) error {
-	_, err := tx.Exec(threadDecisionDraftPromoteQuery(tx.Dialect()), decisionID, promotedBy, promotedAt, promotedAt, draftID)
-	if err != nil {
-		return fmt.Errorf("promote thread decision draft %s: %w", draftID, err)
-	}
-	return nil
-}
-
 func touchThreadTx(tx *TxOps, threadID string, updatedAt time.Time) error {
 	_, err := tx.Exec(threadTouchQuery(tx.Dialect()), updatedAt, threadID)
 	if err != nil {
@@ -769,18 +702,6 @@ func getThreadRecommendationDraftTx(tx *TxOps, draftID string) (*ThreadRecommend
 	draft, err := scanThreadRecommendationDraft(row)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("thread recommendation draft %s not found", draftID)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return draft, nil
-}
-
-func getThreadDecisionDraftTx(tx *TxOps, draftID string) (*ThreadDecisionDraft, error) {
-	row := tx.QueryRow(threadDecisionDraftByIDQuery(tx.Dialect()), draftID)
-	draft, err := scanThreadDecisionDraft(row)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("thread decision draft %s not found", draftID)
 	}
 	if err != nil {
 		return nil, err
@@ -1211,25 +1132,6 @@ func threadDecisionDraftInsertQuery(dialect driver.Dialect) string {
 		)
 		VALUES (` + placeholders(dialect, 1, 11) + `)
 	`
-}
-
-func threadDecisionDraftByIDQuery(dialect driver.Dialect) string {
-	return `
-		SELECT id, thread_id, initiative_id, decision, rationale, status,
-		       promoted_decision_id, promoted_by, promoted_at, created_at, updated_at
-		FROM thread_decision_drafts
-		WHERE id = ` + dialectPlaceholder(dialect, 1)
-}
-
-func threadDecisionDraftPromoteQuery(dialect driver.Dialect) string {
-	return `
-		UPDATE thread_decision_drafts
-		SET status = 'promoted',
-		    promoted_decision_id = ` + dialectPlaceholder(dialect, 1) + `,
-		    promoted_by = ` + dialectPlaceholder(dialect, 2) + `,
-		    promoted_at = ` + dialectPlaceholder(dialect, 3) + `,
-		    updated_at = ` + dialectPlaceholder(dialect, 4) + `
-		WHERE id = ` + dialectPlaceholder(dialect, 5)
 }
 
 func latestWorkflowRunIDForTaskQuery(dialect driver.Dialect) string {

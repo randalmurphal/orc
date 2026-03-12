@@ -624,7 +624,7 @@ func TestThread_PromoteRecommendationDraft(t *testing.T) {
 		t.Fatalf("CreateThreadRecommendationDraft: %v", err)
 	}
 
-	promotedDraft, rec, err := pdb.PromoteThreadRecommendationDraft(context.Background(), draft.ID, "operator")
+	promotedDraft, rec, err := pdb.PromoteThreadRecommendationDraft(context.Background(), thread.ID, draft.ID, "operator")
 	if err != nil {
 		t.Fatalf("PromoteThreadRecommendationDraft: %v", err)
 	}
@@ -666,7 +666,43 @@ func TestThread_PromoteRecommendationDraft(t *testing.T) {
 	}
 }
 
-func TestThread_PromoteDecisionDraft(t *testing.T) {
+func TestThread_PromoteRecommendationDraft_RejectsMismatchedThread(t *testing.T) {
+	t.Parallel()
+	pdb := NewTestProjectDB(t)
+
+	mustCreateThreadFixtures(t, pdb)
+
+	threadA := &Thread{Title: "Thread A", TaskID: "TASK-001"}
+	threadB := &Thread{Title: "Thread B", TaskID: "TASK-001"}
+	if err := pdb.CreateThread(threadA); err != nil {
+		t.Fatalf("CreateThread(threadA): %v", err)
+	}
+	if err := pdb.CreateThread(threadB); err != nil {
+		t.Fatalf("CreateThread(threadB): %v", err)
+	}
+
+	draft := &ThreadRecommendationDraft{
+		ThreadID:       threadA.ID,
+		Kind:           RecommendationKindFollowUp,
+		Title:          "Thread-scoped promotion",
+		Summary:        "Promotion should fail when the thread ID does not match.",
+		ProposedAction: "Validate thread ownership before mutating recommendation state.",
+		Evidence:       "A mismatched request can otherwise mutate the wrong thread.",
+	}
+	if err := pdb.CreateThreadRecommendationDraft(draft); err != nil {
+		t.Fatalf("CreateThreadRecommendationDraft: %v", err)
+	}
+
+	_, _, err := pdb.PromoteThreadRecommendationDraft(context.Background(), threadB.ID, draft.ID, "operator")
+	if err == nil {
+		t.Fatal("expected mismatched thread promotion to fail")
+	}
+	if !strings.Contains(err.Error(), "does not belong to thread") {
+		t.Fatalf("expected ownership error, got %v", err)
+	}
+}
+
+func TestThread_CreateDecisionDraft_DoesNotCreateInitiativeDecision(t *testing.T) {
 	t.Parallel()
 	pdb := NewTestProjectDB(t)
 
@@ -689,26 +725,23 @@ func TestThread_PromoteDecisionDraft(t *testing.T) {
 		t.Fatalf("CreateThreadDecisionDraft: %v", err)
 	}
 
-	promotedDraft, decision, err := pdb.PromoteThreadDecisionDraft(context.Background(), draft.ID, "operator")
+	got, err := pdb.GetThread(thread.ID)
 	if err != nil {
-		t.Fatalf("PromoteThreadDecisionDraft: %v", err)
+		t.Fatalf("GetThread: %v", err)
 	}
-	if promotedDraft.Status != ThreadDraftStatusPromoted {
-		t.Fatalf("expected promoted status, got %s", promotedDraft.Status)
+	if len(got.DecisionDrafts) != 1 {
+		t.Fatalf("expected 1 persisted decision draft, got %d", len(got.DecisionDrafts))
 	}
-	if decision.InitiativeID != "INIT-001" {
-		t.Fatalf("expected initiative INIT-001, got %s", decision.InitiativeID)
+	if got.DecisionDrafts[0].Status != ThreadDraftStatusDraft {
+		t.Fatalf("expected decision draft to remain in draft status, got %s", got.DecisionDrafts[0].Status)
 	}
 
 	decisions, err := pdb.GetInitiativeDecisions("INIT-001")
 	if err != nil {
 		t.Fatalf("GetInitiativeDecisions: %v", err)
 	}
-	if len(decisions) != 1 {
-		t.Fatalf("expected 1 stored initiative decision, got %d", len(decisions))
-	}
-	if decisions[0].Decision != "Keep recommendations human-gated" {
-		t.Fatalf("expected decision text to persist, got %q", decisions[0].Decision)
+	if len(decisions) != 0 {
+		t.Fatalf("expected no initiative decisions from a thread draft, got %d", len(decisions))
 	}
 }
 

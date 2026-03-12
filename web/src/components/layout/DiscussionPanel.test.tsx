@@ -606,6 +606,85 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 			expect(screen.getByText('Keep thread context persisted')).toBeInTheDocument();
 		});
 	});
+
+	it('should keep decision drafts in draft-only state', async () => {
+		vi.mocked(threadClient.getThread).mockResolvedValue({
+			thread: createMockThread({
+				decisionDrafts: [
+					create(ThreadDecisionDraftSchema, {
+						id: 'TDD-003',
+						threadId: 'thread-001',
+						initiativeId: 'INIT-001',
+						decision: 'Keep recommendations human-gated',
+						rationale: 'Decision drafts should not write initiative history directly.',
+						status: 'draft',
+					}),
+				],
+			}),
+		} as never);
+
+		renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText('Keep recommendations human-gated')).toBeInTheDocument();
+		});
+
+		expect(screen.queryByRole('button', { name: /promote decision/i })).not.toBeInTheDocument();
+		expect(screen.getByText(/decision drafts stay in discussion until a human accepts them/i)).toBeInTheDocument();
+	});
+
+	it('should reset thread-local state when switching threads', async () => {
+		let resolveSecondThread: ((value: unknown) => void) | undefined;
+		vi.mocked(threadClient.getThread)
+			.mockResolvedValueOnce({
+				thread: createMockThread({
+					id: 'thread-001',
+					initiativeId: 'INIT-001',
+					messages: [
+						createMockMessage({ id: BigInt(1), content: 'Thread one message' }),
+					],
+				}),
+			} as never)
+			.mockReturnValueOnce(new Promise((resolve) => {
+				resolveSecondThread = resolve;
+			}) as never);
+
+		const { rerender } = renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText('Thread one message')).toBeInTheDocument();
+		});
+
+		fireEvent.change(screen.getByLabelText('Decision initiative'), {
+			target: { value: 'CUSTOM-INIT' },
+		});
+
+		rerender(
+			<DiscussionPanel threadId="thread-002" projectId="proj-001" />
+		);
+
+		expect(screen.queryByText('Thread one message')).not.toBeInTheDocument();
+		expect(screen.getByText(/loading thread history/i)).toBeInTheDocument();
+
+		resolveSecondThread?.({
+			thread: createMockThread({
+				id: 'thread-002',
+				initiativeId: 'INIT-002',
+				messages: [
+					createMockMessage({ id: BigInt(2), threadId: 'thread-002', content: 'Thread two message' }),
+				],
+			}),
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText('Thread two message')).toBeInTheDocument();
+			expect((screen.getByLabelText('Decision initiative') as HTMLInputElement).value).toBe('INIT-002');
+		});
+	});
 });
 
 // =============================================================================

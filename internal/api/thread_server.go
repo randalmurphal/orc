@@ -186,7 +186,14 @@ func (s *threadServer) SendMessage(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
 	}
 
-	// Verify thread exists
+	// Acquire per-thread lock to serialize concurrent SendMessage calls
+	lockVal, _ := s.threadLocks.LoadOrStore(req.Msg.ThreadId, &sync.Mutex{})
+	mu := lockVal.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Reload the thread while holding the lock so session continuity and linked
+	// context reflect the latest persisted state.
 	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get thread: %w", err))
@@ -194,12 +201,6 @@ func (s *threadServer) SendMessage(
 	if thread == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("thread %s not found", req.Msg.ThreadId))
 	}
-
-	// Acquire per-thread lock to serialize concurrent SendMessage calls
-	lockVal, _ := s.threadLocks.LoadOrStore(req.Msg.ThreadId, &sync.Mutex{})
-	mu := lockVal.(*sync.Mutex)
-	mu.Lock()
-	defer mu.Unlock()
 
 	// Store user message
 	userMsg := &db.ThreadMessage{
@@ -404,7 +405,7 @@ func (s *threadServer) PromoteRecommendationDraft(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
 	}
 
-	draft, rec, err := backend.DB().PromoteThreadRecommendationDraft(ctx, req.Msg.DraftId, req.Msg.PromotedBy)
+	draft, rec, err := backend.DB().PromoteThreadRecommendationDraft(ctx, req.Msg.ThreadId, req.Msg.DraftId, req.Msg.PromotedBy)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("promote recommendation draft: %w", err))
 	}
@@ -464,29 +465,10 @@ func (s *threadServer) PromoteDecisionDraft(
 	ctx context.Context,
 	req *connect.Request[orcv1.PromoteThreadDecisionDraftRequest],
 ) (*connect.Response[orcv1.PromoteThreadDecisionDraftResponse], error) {
-	backend, err := s.getBackend(req.Msg.ProjectId)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
-	}
-
-	draft, decision, err := backend.DB().PromoteThreadDecisionDraft(ctx, req.Msg.DraftId, req.Msg.PromotedBy)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("promote decision draft: %w", err))
-	}
-
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventInitiativeUpdated, decision.InitiativeID, decision))
-	}
-
-	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload thread: %w", err))
-	}
-	return connect.NewResponse(&orcv1.PromoteThreadDecisionDraftResponse{
-		Draft:      threadDecisionDraftToProto(draft),
-		DecisionId: decision.ID,
-		Thread:     threadToProto(thread),
-	}), nil
+	return nil, connect.NewError(
+		connect.CodeFailedPrecondition,
+		fmt.Errorf("decision drafts cannot be promoted directly; use the human acceptance flow"),
+	)
 }
 
 // RecordDecision records a decision from a thread discussion to its linked initiative.
@@ -494,44 +476,10 @@ func (s *threadServer) RecordDecision(
 	ctx context.Context,
 	req *connect.Request[orcv1.RecordThreadDecisionRequest],
 ) (*connect.Response[orcv1.RecordThreadDecisionResponse], error) {
-	backend, err := s.getBackend(req.Msg.ProjectId)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
-	}
-
-	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get thread: %w", err))
-	}
-	if thread == nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("thread %s not found", req.Msg.ThreadId))
-	}
-
-	if thread.InitiativeID == "" {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("thread %s has no linked initiative", thread.ID))
-	}
-
-	decision := &db.ThreadDecisionDraft{
-		ThreadID:     thread.ID,
-		InitiativeID: thread.InitiativeID,
-		Decision:     req.Msg.Decision,
-		Rationale:    req.Msg.Rationale,
-	}
-	if err := backend.DB().CreateThreadDecisionDraft(decision); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("create decision draft: %w", err))
-	}
-
-	promotedDraft, promotedDecision, err := backend.DB().PromoteThreadDecisionDraft(ctx, decision.ID, "thread:"+thread.ID)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("record decision: %w", err))
-	}
-	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventInitiativeUpdated, promotedDecision.InitiativeID, promotedDecision))
-	}
-
-	return connect.NewResponse(&orcv1.RecordThreadDecisionResponse{
-		DecisionId: promotedDraft.PromotedDecisionID,
-	}), nil
+	return nil, connect.NewError(
+		connect.CodeFailedPrecondition,
+		fmt.Errorf("thread decisions must stay as drafts until a human accepts them"),
+	)
 }
 
 // buildSystemPrompt constructs context-rich system prompt for Claude.
@@ -567,7 +515,52 @@ func (s *threadServer) buildSystemPrompt(backend storage.Backend, thread *db.Thr
 		}
 	}
 
+	if len(thread.Links) > 0 {
+		parts = append(parts, "\nLinked context:")
+		for _, link := range thread.Links {
+			label := link.TargetID
+			if strings.TrimSpace(link.Title) != "" {
+				label = link.Title
+			}
+			parts = append(parts, fmt.Sprintf("- %s: %s", link.LinkType, label))
+		}
+	}
+
+	if len(thread.RecommendationDrafts) > 0 {
+		parts = append(parts, "\nRecommendation drafts:")
+		for _, draft := range thread.RecommendationDrafts {
+			parts = append(parts, fmt.Sprintf("- [%s] %s", draft.Status, draft.Title))
+			if strings.TrimSpace(draft.Summary) != "" {
+				parts = append(parts, fmt.Sprintf("  Summary: %s", draft.Summary))
+			}
+		}
+	}
+
+	if len(thread.DecisionDrafts) > 0 {
+		parts = append(parts, "\nDecision drafts:")
+		for _, draft := range thread.DecisionDrafts {
+			parts = append(parts, fmt.Sprintf("- [%s] %s", draft.Status, draft.Decision))
+			if strings.TrimSpace(draft.Rationale) != "" {
+				parts = append(parts, fmt.Sprintf("  Rationale: %s", draft.Rationale))
+			}
+		}
+	}
+
+	if thread.SessionID == "" && len(thread.Messages) > 0 {
+		parts = append(parts, "\nRecent thread history:")
+		for _, message := range recentThreadMessages(thread.Messages, 6) {
+			parts = append(parts, fmt.Sprintf("- %s: %s", message.Role, message.Content))
+		}
+	}
+
 	return strings.Join(parts, "\n")
+}
+
+func recentThreadMessages(messages []db.ThreadMessage, limit int) []db.ThreadMessage {
+	if len(messages) <= limit {
+		return messages
+	}
+	return messages[len(messages)-limit:]
 }
 
 // threadToProto converts a db.Thread to the proto Thread message.

@@ -5,7 +5,6 @@ import {
 	CreateThreadDecisionDraftRequestSchema,
 	CreateThreadRecommendationDraftRequestSchema,
 	GetThreadRequestSchema,
-	PromoteThreadDecisionDraftRequestSchema,
 	PromoteThreadRecommendationDraftRequestSchema,
 	SendThreadMessageRequestSchema,
 	type ThreadDecisionDraft,
@@ -58,7 +57,33 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 	const [error, setError] = useState<string | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
-	// Sync initial messages when prop changes (stable reference prevents loops)
+	useEffect(() => {
+		setMessages(initialMessages ?? EMPTY_MESSAGES);
+		setLinks(EMPTY_LINKS);
+		setRecommendationDrafts(EMPTY_RECOMMENDATION_DRAFTS);
+		setDecisionDrafts(EMPTY_DECISION_DRAFTS);
+		setThreadTaskId('');
+		setThreadInitiativeId('');
+		setInput('');
+		setLinkType(DEFAULT_LINK_TYPE);
+		setLinkTargetId('');
+		setLinkTitle('');
+		setRecommendationKind(DEFAULT_RECOMMENDATION_KIND);
+		setRecommendationTitle('');
+		setRecommendationSummary('');
+		setRecommendationAction('');
+		setRecommendationEvidence('');
+		setDecisionInitiativeId('');
+		setDecisionText('');
+		setDecisionRationale('');
+		setSending(false);
+		setAddingLink(false);
+		setCreatingDraft(null);
+		setLoadingThread(true);
+		setPromotingDraftId(null);
+		setError(null);
+	}, [initialMessages, projectId, threadId]);
+
 	useEffect(() => {
 		setMessages(stableMessages);
 	}, [stableMessages]);
@@ -79,7 +104,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		setDecisionDrafts(thread?.decisionDrafts ?? EMPTY_DECISION_DRAFTS);
 		setThreadTaskId(thread?.taskId ?? '');
 		setThreadInitiativeId(thread?.initiativeId ?? '');
-		setDecisionInitiativeId((currentValue) => currentValue || thread?.initiativeId || '');
+		setDecisionInitiativeId(thread?.initiativeId ?? '');
 	}, []);
 
 	useEffect(() => {
@@ -179,26 +204,6 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 			syncThreadState(response.thread);
 		} catch {
 			setError('Failed to promote recommendation draft. Try again.');
-		} finally {
-			setPromotingDraftId(null);
-		}
-	}, [projectId, syncThreadState, threadId]);
-
-	const promoteDecisionDraft = useCallback(async (draftId: string) => {
-		setPromotingDraftId(draftId);
-		setError(null);
-		try {
-			const response = await threadClient.promoteDecisionDraft(
-				create(PromoteThreadDecisionDraftRequestSchema, {
-					projectId,
-					threadId,
-					draftId,
-					promotedBy: 'operator',
-				})
-			);
-			syncThreadState(response.thread);
-		} catch {
-			setError('Failed to promote decision draft. Try again.');
 		} finally {
 			setPromotingDraftId(null);
 		}
@@ -390,13 +395,9 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 										</div>
 										<h3>{draft.decision}</h3>
 										{draft.rationale && <p>{draft.rationale}</p>}
-										<button
-											type="button"
-											onClick={() => promoteDecisionDraft(draft.id)}
-											disabled={promotingDraftId === draft.id || draft.status !== 'draft'}
-										>
-											Promote Decision
-										</button>
+										<p className="discussion-panel__draft-detail">
+											<strong>Next step</strong> Decision drafts stay in discussion until a human accepts them.
+										</p>
 									</article>
 								))}
 							</div>

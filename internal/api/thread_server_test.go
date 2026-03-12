@@ -563,6 +563,97 @@ func TestThreadServer_SystemPrompt_NoLinks(t *testing.T) {
 	}
 }
 
+func TestThreadServer_SystemPrompt_IncludesPersistedThreadContext(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+	publisher := events.NewMemoryPublisher()
+	defer publisher.Close()
+
+	mustCreateThreadServerFixtures(t, backend)
+	if err := backend.DB().SaveInitiative(&db.Initiative{
+		ID:     "INIT-001",
+		Title:  "Operator Control Plane",
+		Status: "active",
+	}); err != nil {
+		t.Fatalf("SaveInitiative: %v", err)
+	}
+
+	thread := &db.Thread{
+		Title:        "Workspace context",
+		TaskID:       "TASK-001",
+		InitiativeID: "INIT-001",
+		Links: []db.ThreadLink{
+			{
+				LinkType: db.ThreadLinkTypeDiff,
+				TargetID: "TASK-001:web/src/components/layout/DiscussionPanel.tsx",
+				Title:    "DiscussionPanel diff",
+			},
+		},
+	}
+	if err := backend.DB().CreateThread(thread); err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+	if err := backend.DB().AddThreadMessage(&db.ThreadMessage{
+		ThreadID: thread.ID,
+		Role:     "user",
+		Content:  "Remember the prior discussion.",
+	}); err != nil {
+		t.Fatalf("AddThreadMessage: %v", err)
+	}
+	if err := backend.DB().CreateThreadRecommendationDraft(&db.ThreadRecommendationDraft{
+		ThreadID:       thread.ID,
+		Kind:           db.RecommendationKindFollowUp,
+		Title:          "Add promotion coverage",
+		Summary:        "The promotion path needs an API regression test.",
+		ProposedAction: "Add a thread promotion regression test.",
+		Evidence:       "No current test covers this flow.",
+	}); err != nil {
+		t.Fatalf("CreateThreadRecommendationDraft: %v", err)
+	}
+	if err := backend.DB().CreateThreadDecisionDraft(&db.ThreadDecisionDraft{
+		ThreadID:     thread.ID,
+		InitiativeID: "INIT-001",
+		Decision:     "Keep thread context persisted",
+		Rationale:    "Reopening a thread should preserve the real workspace state.",
+	}); err != nil {
+		t.Fatalf("CreateThreadDecisionDraft: %v", err)
+	}
+
+	mock := executor.NewMockTurnExecutor("Context captured")
+	server := NewThreadServer(backend, publisher, slog.Default())
+	server.SetTurnExecutorFactory(func(sessionID string) executor.TurnExecutor {
+		return mock
+	})
+
+	_, err := server.SendMessage(
+		context.Background(),
+		connect.NewRequest(&orcv1.SendThreadMessageRequest{
+			ThreadId: thread.ID,
+			Content:  "What still matters here?",
+		}),
+	)
+	if err != nil {
+		t.Fatalf("SendMessage: %v", err)
+	}
+
+	if len(mock.Prompts) != 1 {
+		t.Fatalf("expected 1 prompt, got %d", len(mock.Prompts))
+	}
+	prompt := mock.Prompts[0]
+	if !strings.Contains(prompt, "Linked context:") || !strings.Contains(prompt, "DiscussionPanel diff") {
+		t.Fatalf("expected prompt to include linked context, got %q", prompt)
+	}
+	if !strings.Contains(prompt, "Recommendation drafts:") || !strings.Contains(prompt, "Add promotion coverage") {
+		t.Fatalf("expected prompt to include recommendation drafts, got %q", prompt)
+	}
+	if !strings.Contains(prompt, "Decision drafts:") || !strings.Contains(prompt, "Keep thread context persisted") {
+		t.Fatalf("expected prompt to include decision drafts, got %q", prompt)
+	}
+	if !strings.Contains(prompt, "Recent thread history:") || !strings.Contains(prompt, "Remember the prior discussion.") {
+		t.Fatalf("expected prompt to include recent thread history, got %q", prompt)
+	}
+}
+
 // ============================================================================
 // SC-10: thread_message events are published on message add
 // ============================================================================
@@ -881,7 +972,7 @@ func TestThreadServer_Archive_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
-// SC-12: RecordDecision writes to initiative_decisions
+// SC-12: RecordDecision rejects direct promotion and preserves draft-only flow
 // ============================================================================
 
 func TestThreadServer_RecordDecision(t *testing.T) {
@@ -915,7 +1006,7 @@ func TestThreadServer_RecordDecision(t *testing.T) {
 	}
 	threadID := createResp.Msg.Thread.Id
 
-	// Record a decision
+	// RecordDecision should be rejected because thread decisions stay as drafts.
 	_, err = server.RecordDecision(
 		context.Background(),
 		connect.NewRequest(&orcv1.RecordThreadDecisionRequest{
@@ -925,64 +1016,73 @@ func TestThreadServer_RecordDecision(t *testing.T) {
 		}),
 	)
 	if err != nil {
-		t.Fatalf("RecordDecision: %v", err)
+		connectErr := new(connect.Error)
+		if !threadErrorAs(err, &connectErr) || connectErr.Code() != connect.CodeFailedPrecondition {
+			t.Fatalf("expected FailedPrecondition, got %v", err)
+		}
 	}
 
-	// Verify decision is in the initiative_decisions table
 	decisions, err := backend.DB().GetInitiativeDecisions("INIT-001")
 	if err != nil {
 		t.Fatalf("GetInitiativeDecisions: %v", err)
 	}
-	if len(decisions) != 1 {
-		t.Fatalf("expected 1 decision, got %d", len(decisions))
-	}
-	if decisions[0].Decision != "Use JWT auth" {
-		t.Errorf("expected decision 'Use JWT auth', got %q", decisions[0].Decision)
-	}
-	if decisions[0].Rationale != "Industry standard for stateless auth" {
-		t.Errorf("expected rationale 'Industry standard for stateless auth', got %q",
-			decisions[0].Rationale)
+	if len(decisions) != 0 {
+		t.Fatalf("expected no initiative decisions, got %d", len(decisions))
 	}
 }
 
 // ============================================================================
-// SC-13: RecordDecision errors if thread has no linked initiative
+// SC-13: PromoteDecisionDraft rejects direct promotion
 // ============================================================================
 
-func TestThreadServer_RecordDecision_NoInitiative(t *testing.T) {
+func TestThreadServer_PromoteDecisionDraft_Rejected(t *testing.T) {
 	t.Parallel()
 	backend := storage.NewTestBackend(t)
 	publisher := events.NewMemoryPublisher()
 	defer publisher.Close()
 
+	if err := backend.DB().SaveInitiative(&db.Initiative{
+		ID:     "INIT-001",
+		Title:  "Control Plane",
+		Status: "active",
+	}); err != nil {
+		t.Fatalf("SaveInitiative: %v", err)
+	}
+
 	server := NewThreadServer(backend, publisher, slog.Default())
 
-	// Create thread WITHOUT initiative link
-	createResp, err := server.CreateThread(
+	thread := &db.Thread{
+		Title:        "Decision draft thread",
+		InitiativeID: "INIT-001",
+	}
+	if err := backend.DB().CreateThread(thread); err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+	draft := &db.ThreadDecisionDraft{
+		ThreadID:     thread.ID,
+		InitiativeID: "INIT-001",
+		Decision:     "Keep recommendations human-gated",
+		Rationale:    "Thread drafts should not create initiative history by themselves.",
+	}
+	if err := backend.DB().CreateThreadDecisionDraft(draft); err != nil {
+		t.Fatalf("CreateThreadDecisionDraft: %v", err)
+	}
+
+	_, err := server.PromoteDecisionDraft(
 		context.Background(),
-		connect.NewRequest(&orcv1.CreateThreadRequest{
-			Title: "No initiative thread",
+		connect.NewRequest(&orcv1.PromoteThreadDecisionDraftRequest{
+			ThreadId:   thread.ID,
+			DraftId:    draft.ID,
+			PromotedBy: "operator",
 		}),
 	)
 	if err != nil {
-		t.Fatalf("CreateThread: %v", err)
-	}
-
-	_, err = server.RecordDecision(
-		context.Background(),
-		connect.NewRequest(&orcv1.RecordThreadDecisionRequest{
-			ThreadId:  createResp.Msg.Thread.Id,
-			Decision:  "Some decision",
-			Rationale: "Some reason",
-		}),
-	)
-	if err == nil {
-		t.Fatal("expected error when thread has no initiative, got nil")
-	}
-
-	connectErr := new(connect.Error)
-	if !threadErrorAs(err, &connectErr) || connectErr.Code() != connect.CodeFailedPrecondition {
-		t.Errorf("expected FailedPrecondition error, got: %v", err)
+		connectErr := new(connect.Error)
+		if !threadErrorAs(err, &connectErr) || connectErr.Code() != connect.CodeFailedPrecondition {
+			t.Fatalf("expected FailedPrecondition error, got: %v", err)
+		}
+	} else {
+		t.Fatal("expected direct decision promotion to be rejected")
 	}
 }
 
@@ -1076,6 +1176,62 @@ func TestThreadServer_AddLinkAndPromoteRecommendationDraft(t *testing.T) {
 	}
 }
 
+func TestThreadServer_PromoteRecommendationDraft_RejectsMismatchedThread(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+	publisher := events.NewMemoryPublisher()
+	defer publisher.Close()
+
+	mustCreateThreadServerFixtures(t, backend)
+	server := NewThreadServer(backend, publisher, slog.Default())
+
+	threadA := &db.Thread{Title: "Thread A", TaskID: "TASK-001"}
+	threadB := &db.Thread{Title: "Thread B", TaskID: "TASK-001"}
+	if err := backend.DB().CreateThread(threadA); err != nil {
+		t.Fatalf("CreateThread(threadA): %v", err)
+	}
+	if err := backend.DB().CreateThread(threadB); err != nil {
+		t.Fatalf("CreateThread(threadB): %v", err)
+	}
+
+	draft := &db.ThreadRecommendationDraft{
+		ThreadID:       threadA.ID,
+		Kind:           db.RecommendationKindFollowUp,
+		Title:          "Thread A draft",
+		Summary:        "Should stay attached to thread A.",
+		ProposedAction: "Promote only from the owning thread.",
+		Evidence:       "A mismatched request should fail loudly.",
+	}
+	if err := backend.DB().CreateThreadRecommendationDraft(draft); err != nil {
+		t.Fatalf("CreateThreadRecommendationDraft: %v", err)
+	}
+
+	_, err := server.PromoteRecommendationDraft(
+		context.Background(),
+		connect.NewRequest(&orcv1.PromoteThreadRecommendationDraftRequest{
+			ThreadId:   threadB.ID,
+			DraftId:    draft.ID,
+			PromotedBy: "operator",
+		}),
+	)
+	if err == nil {
+		t.Fatal("expected mismatched thread/draft promotion to fail")
+	}
+
+	connectErr := new(connect.Error)
+	if !threadErrorAs(err, &connectErr) || connectErr.Code() != connect.CodeInvalidArgument {
+		t.Fatalf("expected InvalidArgument error, got: %v", err)
+	}
+
+	recommendations, loadErr := backend.LoadAllRecommendations()
+	if loadErr != nil {
+		t.Fatalf("LoadAllRecommendations: %v", loadErr)
+	}
+	if len(recommendations) != 0 {
+		t.Fatalf("expected no promoted recommendations, got %d", len(recommendations))
+	}
+}
+
 func mustCreateThreadServerFixtures(t *testing.T, backend *storage.DatabaseBackend) {
 	t.Helper()
 
@@ -1163,6 +1319,65 @@ func TestThreadServer_ConcurrentSend(t *testing.T) {
 	}
 	if successCount == 0 {
 		t.Error("expected at least one concurrent SendMessage to succeed")
+	}
+}
+
+func TestThreadServer_ConcurrentSend_UsesFreshSessionState(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+	publisher := events.NewMemoryPublisher()
+	defer publisher.Close()
+
+	var sessionIDsReceived []string
+	mock := executor.NewMockTurnExecutor("Response")
+	mock.Delay = 50 * time.Millisecond
+
+	server := NewThreadServer(backend, publisher, slog.Default())
+	server.SetTurnExecutorFactory(func(sessionID string) executor.TurnExecutor {
+		sessionIDsReceived = append(sessionIDsReceived, sessionID)
+		if sessionID != "" {
+			mock.UpdateSessionID(sessionID)
+		}
+		return mock
+	})
+
+	createResp, err := server.CreateThread(
+		context.Background(),
+		connect.NewRequest(&orcv1.CreateThreadRequest{Title: "Concurrent session test"}),
+	)
+	if err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+	threadID := createResp.Msg.Thread.Id
+
+	errCh := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		go func(n int) {
+			_, sendErr := server.SendMessage(
+				context.Background(),
+				connect.NewRequest(&orcv1.SendThreadMessageRequest{
+					ThreadId: threadID,
+					Content:  fmt.Sprintf("Message %d", n),
+				}),
+			)
+			errCh <- sendErr
+		}(i)
+	}
+
+	for i := 0; i < 2; i++ {
+		if sendErr := <-errCh; sendErr != nil {
+			t.Fatalf("SendMessage[%d]: %v", i, sendErr)
+		}
+	}
+
+	if len(sessionIDsReceived) != 2 {
+		t.Fatalf("expected 2 factory calls, got %d", len(sessionIDsReceived))
+	}
+	if sessionIDsReceived[0] != "" {
+		t.Fatalf("expected first send to start a new session, got %q", sessionIDsReceived[0])
+	}
+	if sessionIDsReceived[1] == "" {
+		t.Fatal("expected second send to observe the session ID written by the first send")
 	}
 }
 

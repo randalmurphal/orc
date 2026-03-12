@@ -4,9 +4,9 @@
 // production code paths. Unlike unit tests (thread_server_test.go) which
 // call server methods directly, these tests exercise:
 //
-//   1. registerConnectHandlers() includes ThreadService registration
-//   2. Proto generation produces orcv1connect handler/client functions
-//   3. Full HTTP round-trip works (Connect protocol serialization)
+//  1. registerConnectHandlers() includes ThreadService registration
+//  2. Proto generation produces orcv1connect handler/client functions
+//  3. Full HTTP round-trip works (Connect protocol serialization)
 //
 // WIRING POINTS TESTED:
 //   - server_connect.go:registerConnectHandlers() → NewThreadServer + mux.Handle
@@ -14,9 +14,9 @@
 //   - gen/proto/orc/v1/thread.pb.go → proto message types over HTTP
 //
 // These tests will FAIL TO COMPILE until:
-//   1. thread.proto is created and proto is regenerated
-//   2. NewThreadServer is implemented in thread_server.go
-//   3. ThreadService is registered in registerConnectHandlers()
+//  1. thread.proto is created and proto is regenerated
+//  2. NewThreadServer is implemented in thread_server.go
+//  3. ThreadService is registered in registerConnectHandlers()
 package api
 
 import (
@@ -147,8 +147,8 @@ func TestThreadService_CRUD_ViaHTTP(t *testing.T) {
 
 	// --- CreateThread ---
 	createResp, err := client.CreateThread(ctx, connect.NewRequest(&orcv1.CreateThreadRequest{
-		Title:    "HTTP round-trip test",
-		TaskId:   threadIntegrationStringPtr("TASK-001"),
+		Title:       "HTTP round-trip test",
+		TaskId:      threadIntegrationStringPtr("TASK-001"),
 		FileContext: threadIntegrationStringPtr(`["main.go"]`),
 	}))
 	if err != nil {
@@ -312,12 +312,12 @@ func TestThreadService_SendMessage_ViaHTTP(t *testing.T) {
 }
 
 // ============================================================================
-// Integration: RecordDecision HTTP round-trip
+// Integration: RecordDecision rejects direct promotion over HTTP
 // ============================================================================
 
-// TestThreadService_RecordDecision_ViaHTTP verifies that RecordDecision
-// works through the HTTP layer and actually writes to the initiative_decisions
-// table via the production storage path.
+// TestThreadService_RecordDecision_ViaHTTP verifies that RecordDecision is
+// rejected through the HTTP layer so thread drafts cannot bypass the explicit
+// human acceptance flow.
 func TestThreadService_RecordDecision_ViaHTTP(t *testing.T) {
 	t.Parallel()
 
@@ -357,26 +357,29 @@ func TestThreadService_RecordDecision_ViaHTTP(t *testing.T) {
 	}
 	threadID := createResp.Msg.Thread.Id
 
-	// Record decision through HTTP
+	// RecordDecision should be rejected through HTTP as well.
 	_, err = client.RecordDecision(ctx, connect.NewRequest(&orcv1.RecordThreadDecisionRequest{
 		ThreadId:  threadID,
 		Decision:  "Use JWT tokens",
 		Rationale: "Industry standard for stateless auth",
 	}))
-	if err != nil {
-		t.Fatalf("RecordDecision via HTTP: %v", err)
+	if err == nil {
+		t.Fatal("expected RecordDecision via HTTP to fail")
+	}
+	connectErr, ok := err.(*connect.Error)
+	if !ok {
+		t.Fatalf("expected *connect.Error, got %T: %v", err, err)
+	}
+	if connectErr.Code() != connect.CodeFailedPrecondition {
+		t.Fatalf("expected FailedPrecondition, got %v", connectErr.Code())
 	}
 
-	// Verify decision is persisted in the initiative_decisions table
 	decisions, err := backend.DB().GetInitiativeDecisions("INIT-001")
 	if err != nil {
 		t.Fatalf("GetInitiativeDecisions: %v", err)
 	}
-	if len(decisions) != 1 {
-		t.Fatalf("expected 1 decision, got %d", len(decisions))
-	}
-	if decisions[0].Decision != "Use JWT tokens" {
-		t.Errorf("expected decision 'Use JWT tokens', got %q", decisions[0].Decision)
+	if len(decisions) != 0 {
+		t.Fatalf("expected 0 decisions, got %d", len(decisions))
 	}
 }
 
@@ -385,8 +388,8 @@ func TestThreadService_RecordDecision_ViaHTTP(t *testing.T) {
 // ============================================================================
 
 // TestThreadService_RecordDecision_NoInitiative_ViaHTTP verifies that
-// RecordDecision returns FailedPrecondition when the thread has no linked
-// initiative, even when called through the HTTP transport layer.
+// RecordDecision still returns FailedPrecondition through the HTTP transport
+// layer when a caller tries to use it directly.
 func TestThreadService_RecordDecision_NoInitiative_ViaHTTP(t *testing.T) {
 	t.Parallel()
 
