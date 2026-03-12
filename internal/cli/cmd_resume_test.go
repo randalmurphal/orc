@@ -204,6 +204,112 @@ func TestValidateTaskResumable_ForceRunning(t *testing.T) {
 	}
 }
 
+func TestApplyResumeStateUpdatesProto_OrphanedTaskSetsRetryState(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	tk := task.NewProtoTask("TASK-ORPHAN-RESUME", "orphaned task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	task.SetCurrentPhaseProto(tk, "implement_codex")
+	task.EnsurePhaseProto(tk.Execution, "implement_codex")
+	sessionID := "codex-session-123"
+	tk.Execution.Phases["implement_codex"].SessionId = &sessionID
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	if err := backend.AddTranscript(&storage.Transcript{
+		TaskID:    tk.Id,
+		Phase:     "implement_codex",
+		SessionID: sessionID,
+		Type:      "tool_result",
+		Role:      "tool",
+		Content:   "golangci-lint run\nstatus: failed, exit_code: 1\ninternal/api/thread_server.go:42 missing event publish",
+	}); err != nil {
+		t.Fatalf("add transcript: %v", err)
+	}
+
+	result := &ResumeValidationResult{
+		IsOrphaned:          true,
+		OrphanReason:        "executor process not running",
+		RequiresStateUpdate: true,
+	}
+
+	if err := ApplyResumeStateUpdatesProto(tk, result, backend); err != nil {
+		t.Fatalf("apply resume state updates: %v", err)
+	}
+
+	phase := tk.Execution.Phases["implement_codex"]
+	if phase == nil || phase.InterruptedAt == nil {
+		t.Fatal("expected interrupted timestamp on current phase in memory")
+	}
+
+	loaded, err := backend.LoadTask(tk.Id)
+	if err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+
+	if loaded.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
+		t.Fatalf("status = %v, want blocked", loaded.Status)
+	}
+
+	rs := task.GetRetryState(loaded)
+	if rs == nil {
+		t.Fatal("expected retry state for orphaned resume")
+	}
+	if rs.FromPhase != "implement_codex" || rs.ToPhase != "implement_codex" {
+		t.Fatalf("unexpected retry phases: from=%q to=%q", rs.FromPhase, rs.ToPhase)
+	}
+	if rs.Attempt != 1 {
+		t.Fatalf("retry attempt = %d, want 1", rs.Attempt)
+	}
+	if !contains([]string{rs.Reason}, "Unexpected executor/provider interruption") {
+		t.Fatalf("retry reason missing interruption context: %q", rs.Reason)
+	}
+	if !contains([]string{rs.Reason}, "git status") {
+		t.Fatalf("retry reason missing worktree guidance: %q", rs.Reason)
+	}
+	if !contains([]string{rs.Reason}, "Last tool result") {
+		t.Fatalf("retry reason missing transcript summary: %q", rs.Reason)
+	}
+	if !contains([]string{rs.FailureOutput}, "thread_server.go") {
+		t.Fatalf("failure output missing transcript evidence: %q", rs.FailureOutput)
+	}
+}
+
+func TestApplyResumeStateUpdatesProto_ForceResumeKeepsNormalResumeSemantics(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	tk := task.NewProtoTask("TASK-FORCE-RESUME", "force resume task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	task.SetCurrentPhaseProto(tk, "implement_codex")
+	task.EnsurePhaseProto(tk.Execution, "implement_codex")
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	result := &ResumeValidationResult{
+		IsOrphaned:          false,
+		RequiresStateUpdate: true,
+	}
+
+	if err := ApplyResumeStateUpdatesProto(tk, result, backend); err != nil {
+		t.Fatalf("apply resume state updates: %v", err)
+	}
+
+	loaded, err := backend.LoadTask(tk.Id)
+	if err != nil {
+		t.Fatalf("load task: %v", err)
+	}
+
+	if rs := task.GetRetryState(loaded); rs != nil {
+		t.Fatalf("force resume should not create retry state, got %+v", rs)
+	}
+}
+
 func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 	// Create main project structure
 	tmpDir := t.TempDir()

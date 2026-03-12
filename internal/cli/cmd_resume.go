@@ -75,9 +75,17 @@ func ApplyResumeStateUpdatesProto(t *orcv1.Task, result *ResumeValidationResult,
 		return nil
 	}
 
+	currentPhase := task.GetCurrentPhaseProto(t)
+
 	// Mark current phase as interrupted so it will be retried
 	task.EnsureExecutionProto(t)
-	task.InterruptPhaseProto(t.Execution, task.GetCurrentPhaseProto(t))
+	task.InterruptPhaseProto(t.Execution, currentPhase)
+
+	if result.IsOrphaned {
+		reason, failureOutput := buildInterruptedResumeRetryContext(t, backend, currentPhase)
+		attempt := nextInterruptedResumeAttempt(t, currentPhase)
+		task.SetRetryState(t, currentPhase, currentPhase, reason, failureOutput, attempt)
+	}
 
 	t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 	if err := backend.SaveTask(t); err != nil {
@@ -85,6 +93,125 @@ func ApplyResumeStateUpdatesProto(t *orcv1.Task, result *ResumeValidationResult,
 	}
 
 	return nil
+}
+
+func nextInterruptedResumeAttempt(t *orcv1.Task, phaseID string) int32 {
+	if phaseID == "" {
+		return 1
+	}
+
+	rs := task.GetRetryState(t)
+	if rs == nil {
+		return 1
+	}
+	if rs.ToPhase != phaseID {
+		return 1
+	}
+	if rs.Attempt < 1 {
+		return 1
+	}
+	return rs.Attempt + 1
+}
+
+func buildInterruptedResumeRetryContext(t *orcv1.Task, backend storage.Backend, phaseID string) (string, string) {
+	reason := "Unexpected executor/provider interruption while this phase was still running. Start a fresh session from the current branch/worktree state, inspect `git status` and the current diff first, then continue from the work already on disk instead of starting over."
+	if t == nil || backend == nil || phaseID == "" {
+		return reason, ""
+	}
+
+	summary, failureOutput := summarizeInterruptedPhaseActivity(t, backend, phaseID)
+	if summary == "" {
+		return reason, failureOutput
+	}
+
+	return reason + "\nLast recorded activity: " + summary, failureOutput
+}
+
+func summarizeInterruptedPhaseActivity(t *orcv1.Task, backend storage.Backend, phaseID string) (string, string) {
+	transcripts, err := backend.GetTranscripts(t.Id)
+	if err != nil || len(transcripts) == 0 {
+		return "", ""
+	}
+
+	sessionID := currentPhaseSessionID(t, phaseID)
+	var candidates []storage.Transcript
+	for _, transcript := range transcripts {
+		if transcript.Phase != phaseID {
+			continue
+		}
+		if sessionID != "" && transcript.SessionID != sessionID {
+			continue
+		}
+		candidates = append(candidates, transcript)
+	}
+	if len(candidates) == 0 && sessionID != "" {
+		for _, transcript := range transcripts {
+			if transcript.Phase == phaseID {
+				candidates = append(candidates, transcript)
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		return "", ""
+	}
+
+	var (
+		summaryParts []string
+		outputParts  []string
+	)
+	for i := len(candidates) - 1; i >= 0; i-- {
+		entry := formatInterruptedTranscriptEntry(candidates[i])
+		if entry == "" {
+			continue
+		}
+		if len(summaryParts) < 2 {
+			summaryParts = append(summaryParts, entry)
+		}
+		if len(outputParts) < 3 {
+			outputParts = append(outputParts, entry)
+		}
+		if len(summaryParts) >= 2 && len(outputParts) >= 3 {
+			break
+		}
+	}
+
+	return strings.Join(summaryParts, " | "), strings.Join(outputParts, "\n\n")
+}
+
+func currentPhaseSessionID(t *orcv1.Task, phaseID string) string {
+	if t == nil || t.Execution == nil || t.Execution.Phases == nil {
+		return ""
+	}
+	phaseState := t.Execution.Phases[phaseID]
+	if phaseState == nil || phaseState.SessionId == nil {
+		return ""
+	}
+	return *phaseState.SessionId
+}
+
+func formatInterruptedTranscriptEntry(transcript storage.Transcript) string {
+	content := strings.TrimSpace(transcript.Content)
+	if content == "" {
+		return ""
+	}
+	content = strings.Join(strings.Fields(content), " ")
+	if len(content) > 600 {
+		content = content[:600] + "...[truncated]"
+	}
+
+	switch transcript.Type {
+	case "tool_result":
+		return "Last tool result: " + content
+	case "assistant":
+		return "Last assistant output: " + content
+	case "user":
+		return "Last prompt: " + content
+	default:
+		if transcript.Role != "" {
+			return transcript.Role + ": " + content
+		}
+		return content
+	}
 }
 
 func newResumeCmd() *cobra.Command {
