@@ -11,7 +11,7 @@ When `status` is `complete`, include every top-level field shown below:
 - Use `[]` for empty arrays
 - Use `""` when a string field is not applicable
 - Set `requires_human_gate` and `requires_browser_qa` explicitly to `true` or `false`
-- Do not omit `quality_checklist`, `invariants`, `risk_assessment`, `operational_notes`, or `verification_plan`
+- Do not omit `quality_checklist`, `invariants`, `risk_assessment`, `operational_notes`, `verification_plan`, `canonical_associations`, `provenance_variants`, or `ui_invalidation_paths`
 
 ```json
 {
@@ -58,7 +58,32 @@ When `status` is `complete`, include every top-level field shown below:
       "go test ./cmd/orc/... -run TestCheckoutFlow"
     ],
     "e2e": ""
-  }
+  },
+  "canonical_associations": [
+    {
+      "name": "recommendation thread linkage",
+      "source_of_truth": "thread_links",
+      "writer_paths": ["CreateThread", "AddLink", "PromoteRecommendationDraft"],
+      "reader_paths": ["ListThreads", "GetThread", "threadToProto", "prompt-context loaders"],
+      "mirrors": ["threads.task_id", "threads.initiative_id"]
+    }
+  ],
+  "provenance_variants": [
+    {
+      "path": "thread recommendation promotion",
+      "valid_variants": ["task+run+thread", "task+thread without run", "thread-only"],
+      "notes": "Name which variants are valid and which ones must be rejected."
+    }
+  ],
+  "ui_invalidation_paths": [
+    {
+      "surface": "discussion workspace",
+      "update_sources": ["sendMessage RPC", "threadUpdated event"],
+      "reset_triggers": ["thread switch", "project switch"],
+      "stale_response_handling": "Late RPC responses must not overwrite fresher event-driven state.",
+      "project_scope_key": "project_id + thread_id"
+    }
+  ]
 }
 ```
 
@@ -99,6 +124,7 @@ Rules:
 10. Distinguish "no data" from "failed to load data" whenever behavior depends on that difference.
 11. Omit speculation. If the code does not prove a claim, either inspect more or state the assumption explicitly.
 12. The plan should help implementation finish the exact requested scope with high confidence, not redesign the system.
+13. Emit concrete inventories, not vague assurances. For linked artifacts, prompt context, or live browser state, fill `canonical_associations`, `provenance_variants`, and `ui_invalidation_paths` with actual paths from inspected code. Use `[]` only when truly not applicable.
 </critical_constraints>
 
 <context>
@@ -149,4 +175,9 @@ Before you finalize, ask yourself:
 - What alternate writers, mirrored tables, or project-scoped cache keys would let stale or cross-project state slip through?
 - What provenance combinations and RPC-vs-event races could make the feature look correct on the happy path but fail in real usage?
 - What tests would actually catch those mistakes?
+
+When the task touches typed links, promotion flows, prompt context, or live browser state:
+- `canonical_associations` must name the actual writers, readers, source of truth, and mirrored representations.
+- `provenance_variants` must name the supported task/run/thread/initiative combinations, including valid cases where some provenance is intentionally absent.
+- `ui_invalidation_paths` must name the browser surfaces, update sources, reset triggers, stale-response rule, and project or tenant key.
 </instructions>

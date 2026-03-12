@@ -71,7 +71,32 @@ When complete, output JSON:
       "reason": "This task changes browser-visible behavior, including rendered UI state and interactions.",
       "evidence": "Used Playwright/browser tools to exercise the changed flow and verify the expected UI behavior.",
       "artifacts": []
-    }
+    },
+    "canonical_associations": [
+      {
+        "name": "recommendation thread linkage",
+        "source_of_truth": "thread_links",
+        "verified_writer_paths": ["CreateThread", "AddLink", "PromoteRecommendationDraft"],
+        "verified_reader_paths": ["ListThreads", "GetThread", "threadToProto", "prompt-context loaders"],
+        "parity_evidence": "Verified typed links and mirrored legacy readers stay in sync or were removed."
+      }
+    ],
+    "provenance_variants": [
+      {
+        "path": "thread recommendation promotion",
+        "verified_variants": ["task+run+thread", "task+thread without run", "thread-only"],
+        "evidence": "Verified each supported provenance combination through tests or direct codepath checks."
+      }
+    ],
+    "ui_invalidation_paths": [
+      {
+        "surface": "discussion workspace",
+        "update_sources": ["sendMessage RPC", "threadUpdated event"],
+        "reset_triggers": ["thread switch", "project switch"],
+        "stale_response_handling": "Late RPC responses are ignored once a fresher reload wins.",
+        "evidence": "Validated the race with browser/tests and confirmed stale responses do not overwrite current state."
+      }
+    ]
   },
   "pre_existing_issues": []
 }
@@ -112,8 +137,9 @@ If blocked, still return the same top-level keys. Use `null` or `[]` for fields 
 19. If the feature duplicates state across source rows, mirrored tables, caches, events, or browser-visible summaries, verify distributed state parity and name the source of truth in your evidence.
 20. If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant explicitly. Do not assume the full-provenance happy path is the only valid case.
 21. If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling and duplicate suppression explicitly.
-22. Prefer the smallest set of production paths needed to prove the task. After you inventory the relevant writers and readers, start editing.
-23. Prefer existing repo verification commands, fixtures, and browser flows over ad hoc temp harnesses. Only build a custom harness when the normal path cannot prove the behavior, and explain why in the evidence.
+22. Fill `verification.canonical_associations`, `verification.provenance_variants`, and `verification.ui_invalidation_paths` with the exact paths you audited. Use `[]` only when a category is truly not applicable.
+23. Prefer the smallest set of production paths needed to prove the task. After you inventory the relevant writers and readers, start editing.
+24. Prefer existing repo verification commands, fixtures, and browser flows over ad hoc temp harnesses. Only build a custom harness when the normal path cannot prove the behavior, and explain why in the evidence.
 
 ## Verification Status Rules
 
@@ -174,9 +200,12 @@ Do not stop at same-page happy paths when the surface depends on external update
 20. If state is duplicated across DB rows, mirrored tables, caches, events, and browser-visible summaries, verify distributed state parity and record the source of truth.
 21. If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant and record which ones are valid, including cases where run provenance is intentionally absent.
 22. If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling and duplicate suppression with a real race scenario.
-23. Prefer existing repo/browser validation flows over ad hoc temp environments. Build a custom harness only if the normal path cannot prove the behavior, and say why.
-24. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
-25. Output completion JSON.
+23. Populate `verification.canonical_associations` with the exact writers, readers, mirrors, and source of truth you verified.
+24. Populate `verification.provenance_variants` with every supported task/run/thread/initiative combination you verified, including valid cases where some provenance is intentionally absent.
+25. Populate `verification.ui_invalidation_paths` with every browser-local surface where RPC responses, events, or project/thread switches can invalidate or overwrite local state.
+26. Prefer existing repo/browser validation flows over ad hoc temp environments. Build a custom harness only if the normal path cannot prove the behavior, and say why.
+27. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
+28. Output completion JSON.
 
 {{#if TDD_TESTS_CONTENT}}
 If tests fail: fix your implementation, not the tests. If a test contradicts the spec, document as `AMEND-NNN`.

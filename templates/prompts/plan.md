@@ -9,7 +9,7 @@ When `status` is `complete`, include every top-level field shown below:
 - Use `[]` for empty arrays
 - Use `""` when a string field is not applicable
 - Set `requires_human_gate` and `requires_browser_qa` explicitly to `true` or `false`
-- Do not omit `quality_checklist`, `invariants`, `risk_assessment`, `operational_notes`, or `verification_plan`
+- Do not omit `quality_checklist`, `invariants`, `risk_assessment`, `operational_notes`, `verification_plan`, `canonical_associations`, `provenance_variants`, or `ui_invalidation_paths`
 
 ```json
 {
@@ -56,7 +56,32 @@ When `status` is `complete`, include every top-level field shown below:
       "go test ./cmd/orc/... -run TestCheckoutFlow"
     ],
     "e2e": ""
-  }
+  },
+  "canonical_associations": [
+    {
+      "name": "recommendation thread linkage",
+      "source_of_truth": "thread_links",
+      "writer_paths": ["CreateThread", "AddLink", "PromoteRecommendationDraft"],
+      "reader_paths": ["ListThreads", "GetThread", "threadToProto", "prompt-context loaders"],
+      "mirrors": ["threads.task_id", "threads.initiative_id"]
+    }
+  ],
+  "provenance_variants": [
+    {
+      "path": "thread recommendation promotion",
+      "valid_variants": ["task+run+thread", "task+thread without run", "thread-only"],
+      "notes": "Name which variants are valid and which ones must be rejected."
+    }
+  ],
+  "ui_invalidation_paths": [
+    {
+      "surface": "discussion workspace",
+      "update_sources": ["sendMessage RPC", "threadUpdated event"],
+      "reset_triggers": ["thread switch", "project switch"],
+      "stale_response_handling": "Late RPC responses must not overwrite fresher event-driven state.",
+      "project_scope_key": "project_id + thread_id"
+    }
+  ]
 }
 ```
 
@@ -186,6 +211,7 @@ If blocked due to unclear requirements:
 16. **State the source of truth and distributed state parity** — when data is duplicated across DB rows, caches, events, or browser-visible summaries, the plan must name the source of truth and require parity checks across every duplicated representation.
 17. **Inventory provenance variants explicitly** — if the task promotes drafts, creates artifacts from discussion, or links objects across task/run/thread/initiative context, the plan must name which provenance combinations are valid on each path, including cases where some metadata is intentionally absent.
 18. **Name async race behavior for live UI state** — if browser-local state can be updated by both RPC responses and event-driven reloads, success criteria must say how stale responses are ignored, deduped, or made authoritative.
+19. **Emit concrete inventories, not vague assurances** — for linked artifacts, prompt-context enrichment, or live browser state, fill `canonical_associations`, `provenance_variants`, and `ui_invalidation_paths` with actual paths from inspected code. Name the actual writers and readers, the supported task/run/thread/initiative combinations, and the browser surfaces with their stale-response rule. Use `[]` only when truly not applicable.
 </critical_constraints>
 
 <context>
@@ -298,6 +324,9 @@ Fill in these top-level JSON fields with concrete values:
 - `risk_assessment`
 - `operational_notes`
 - `verification_plan`
+- `canonical_associations`
+- `provenance_variants`
+- `ui_invalidation_paths`
 
 Risk tags must be specific. Use tags such as:
 - `payments`

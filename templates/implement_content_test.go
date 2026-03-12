@@ -196,3 +196,35 @@ func TestImplementTemplate_BehavioralParityChecklistCoversMirrorsCachesAndDistri
 		}
 	}
 }
+
+func TestImplementPrompts_RequireConcreteInventories(t *testing.T) {
+	t.Parallel()
+
+	files := []string{"prompts/implement.md", "prompts/implement_codex.md"}
+	for _, file := range files {
+		file := file
+		t.Run(file, func(t *testing.T) {
+			t.Parallel()
+
+			content, err := Prompts.ReadFile(file)
+			if err != nil {
+				t.Fatalf("failed to read %s: %v", file, err)
+			}
+
+			text := string(content)
+			for _, required := range []string{
+				"verification.canonical_associations",
+				"verification.provenance_variants",
+				"verification.ui_invalidation_paths",
+				"exact writers",
+				"supported task/run/thread/initiative combination",
+				"browser-local surface",
+				"project/thread switch",
+			} {
+				if !strings.Contains(text, required) {
+					t.Errorf("%s missing concrete inventory guidance %q", file, required)
+				}
+			}
+		})
+	}
+}

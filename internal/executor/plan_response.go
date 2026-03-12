@@ -84,6 +84,46 @@ const PlanCompletionSchema = `{
 				},
 				"e2e": {"type": "string"}
 			}
+		},
+		"canonical_associations": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"},
+					"source_of_truth": {"type": "string"},
+					"writer_paths": {"type": "array", "items": {"type": "string"}},
+					"reader_paths": {"type": "array", "items": {"type": "string"}},
+					"mirrors": {"type": "array", "items": {"type": "string"}}
+				},
+				"required": ["name", "source_of_truth", "writer_paths", "reader_paths", "mirrors"]
+			}
+		},
+		"provenance_variants": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"path": {"type": "string"},
+					"valid_variants": {"type": "array", "items": {"type": "string"}},
+					"notes": {"type": "string"}
+				},
+				"required": ["path", "valid_variants", "notes"]
+			}
+		},
+		"ui_invalidation_paths": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"surface": {"type": "string"},
+					"update_sources": {"type": "array", "items": {"type": "string"}},
+					"reset_triggers": {"type": "array", "items": {"type": "string"}},
+					"stale_response_handling": {"type": "string"},
+					"project_scope_key": {"type": "string"}
+				},
+				"required": ["surface", "update_sources", "reset_triggers", "stale_response_handling", "project_scope_key"]
+			}
 		}
 	},
 	"required": ["status"]
@@ -118,18 +158,43 @@ type PlanVerificationPlan struct {
 	E2E   string   `json:"e2e,omitempty"`
 }
 
+type PlanCanonicalAssociation struct {
+	Name          string   `json:"name"`
+	SourceOfTruth string   `json:"source_of_truth,omitempty"`
+	WriterPaths   []string `json:"writer_paths,omitempty"`
+	ReaderPaths   []string `json:"reader_paths,omitempty"`
+	Mirrors       []string `json:"mirrors,omitempty"`
+}
+
+type PlanProvenanceVariant struct {
+	Path          string   `json:"path"`
+	ValidVariants []string `json:"valid_variants,omitempty"`
+	Notes         string   `json:"notes,omitempty"`
+}
+
+type PlanUIInvalidationPath struct {
+	Surface               string   `json:"surface"`
+	UpdateSources         []string `json:"update_sources,omitempty"`
+	ResetTriggers         []string `json:"reset_triggers,omitempty"`
+	StaleResponseHandling string   `json:"stale_response_handling,omitempty"`
+	ProjectScopeKey       string   `json:"project_scope_key,omitempty"`
+}
+
 // PlanResponse extends the standard content-producing response with policy
 // signals consumed by downstream phases and gates.
 type PlanResponse struct {
-	Status           string                     `json:"status"`
-	Reason           string                     `json:"reason,omitempty"`
-	Summary          string                     `json:"summary,omitempty"`
-	Content          string                     `json:"content,omitempty"`
-	QualityChecklist []PlanQualityChecklistItem `json:"quality_checklist,omitempty"`
-	Invariants       []string                   `json:"invariants,omitempty"`
-	RiskAssessment   *PlanRiskAssessment        `json:"risk_assessment,omitempty"`
-	OperationalNotes *PlanOperationalNotes      `json:"operational_notes,omitempty"`
-	VerificationPlan *PlanVerificationPlan      `json:"verification_plan,omitempty"`
+	Status                string                     `json:"status"`
+	Reason                string                     `json:"reason,omitempty"`
+	Summary               string                     `json:"summary,omitempty"`
+	Content               string                     `json:"content,omitempty"`
+	QualityChecklist      []PlanQualityChecklistItem `json:"quality_checklist,omitempty"`
+	Invariants            []string                   `json:"invariants,omitempty"`
+	RiskAssessment        *PlanRiskAssessment        `json:"risk_assessment,omitempty"`
+	OperationalNotes      *PlanOperationalNotes      `json:"operational_notes,omitempty"`
+	VerificationPlan      *PlanVerificationPlan      `json:"verification_plan,omitempty"`
+	CanonicalAssociations []PlanCanonicalAssociation `json:"canonical_associations,omitempty"`
+	ProvenanceVariants    []PlanProvenanceVariant    `json:"provenance_variants,omitempty"`
+	UIInvalidationPaths   []PlanUIInvalidationPath   `json:"ui_invalidation_paths,omitempty"`
 }
 
 func ParsePlanResponse(content string) (*PlanResponse, error) {
@@ -166,6 +231,39 @@ func ParsePlanResponse(content string) (*PlanResponse, error) {
 	}
 	if resp.VerificationPlan != nil && resp.VerificationPlan.Tests == nil {
 		resp.VerificationPlan.Tests = []string{}
+	}
+	if resp.CanonicalAssociations == nil {
+		resp.CanonicalAssociations = []PlanCanonicalAssociation{}
+	}
+	for i := range resp.CanonicalAssociations {
+		if resp.CanonicalAssociations[i].WriterPaths == nil {
+			resp.CanonicalAssociations[i].WriterPaths = []string{}
+		}
+		if resp.CanonicalAssociations[i].ReaderPaths == nil {
+			resp.CanonicalAssociations[i].ReaderPaths = []string{}
+		}
+		if resp.CanonicalAssociations[i].Mirrors == nil {
+			resp.CanonicalAssociations[i].Mirrors = []string{}
+		}
+	}
+	if resp.ProvenanceVariants == nil {
+		resp.ProvenanceVariants = []PlanProvenanceVariant{}
+	}
+	for i := range resp.ProvenanceVariants {
+		if resp.ProvenanceVariants[i].ValidVariants == nil {
+			resp.ProvenanceVariants[i].ValidVariants = []string{}
+		}
+	}
+	if resp.UIInvalidationPaths == nil {
+		resp.UIInvalidationPaths = []PlanUIInvalidationPath{}
+	}
+	for i := range resp.UIInvalidationPaths {
+		if resp.UIInvalidationPaths[i].UpdateSources == nil {
+			resp.UIInvalidationPaths[i].UpdateSources = []string{}
+		}
+		if resp.UIInvalidationPaths[i].ResetTriggers == nil {
+			resp.UIInvalidationPaths[i].ResetTriggers = []string{}
+		}
 	}
 
 	return &resp, nil

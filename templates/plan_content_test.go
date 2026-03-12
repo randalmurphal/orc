@@ -60,3 +60,27 @@ func TestPlanPrompt_RequiresAlternateWritersScopedCachesAndStateParity(t *testin
 		}
 	}
 }
+
+func TestPlanPrompt_RequiresConcreteInventories(t *testing.T) {
+	t.Parallel()
+
+	content, err := Prompts.ReadFile("prompts/plan.md")
+	if err != nil {
+		t.Fatalf("failed to read plan.md: %v", err)
+	}
+
+	text := string(content)
+	for _, required := range []string{
+		"canonical_associations",
+		"provenance_variants",
+		"ui_invalidation_paths",
+		"actual writers",
+		"supported task/run/thread/initiative combinations",
+		"browser surfaces",
+		"stale-response rule",
+	} {
+		if !strings.Contains(text, required) {
+			t.Errorf("plan.md missing concrete inventory guidance %q", required)
+		}
+	}
+}

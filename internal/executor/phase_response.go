@@ -226,6 +226,49 @@ const ImplementCompletionSchema = `{
 						}
 					},
 					"required": ["browser_surface_change", "required", "performed", "live_update_surface", "external_mutation_validated", "project_scoped_surface", "project_isolation_validated", "reason", "evidence", "artifacts"]
+				},
+				"canonical_associations": {
+					"type": "array",
+					"description": "Required inventory of canonical relationships, mirrored state, readers, and writers audited during implementation.",
+					"items": {
+						"type": "object",
+						"properties": {
+							"name": {"type": "string"},
+							"source_of_truth": {"type": "string"},
+							"verified_writer_paths": {"type": "array", "items": {"type": "string"}},
+							"verified_reader_paths": {"type": "array", "items": {"type": "string"}},
+							"parity_evidence": {"type": "string"}
+						},
+						"required": ["name", "source_of_truth", "verified_writer_paths", "verified_reader_paths", "parity_evidence"]
+					}
+				},
+				"provenance_variants": {
+					"type": "array",
+					"description": "Required inventory of task/run/thread/initiative provenance combinations verified during implementation.",
+					"items": {
+						"type": "object",
+						"properties": {
+							"path": {"type": "string"},
+							"verified_variants": {"type": "array", "items": {"type": "string"}},
+							"evidence": {"type": "string"}
+						},
+						"required": ["path", "verified_variants", "evidence"]
+					}
+				},
+				"ui_invalidation_paths": {
+					"type": "array",
+					"description": "Required inventory of browser-local state invalidation and stale-response handling that was verified.",
+					"items": {
+						"type": "object",
+						"properties": {
+							"surface": {"type": "string"},
+							"update_sources": {"type": "array", "items": {"type": "string"}},
+							"reset_triggers": {"type": "array", "items": {"type": "string"}},
+							"stale_response_handling": {"type": "string"},
+							"evidence": {"type": "string"}
+						},
+						"required": ["surface", "update_sources", "reset_triggers", "stale_response_handling", "evidence"]
+					}
 				}
 			}
 		},
@@ -439,12 +482,15 @@ type PhaseResponse struct {
 
 // ImplementVerification represents the verification evidence for implement phase completion.
 type ImplementVerification struct {
-	Tests             *VerificationStatus      `json:"tests,omitempty"`
-	SuccessCriteria   []SuccessCriterionResult `json:"success_criteria,omitempty"`
-	Build             *VerificationStatus      `json:"build,omitempty"`
-	Linting           *VerificationStatus      `json:"linting,omitempty"`
-	Wiring            *WiringVerification      `json:"wiring,omitempty"`
-	BrowserValidation *BrowserValidation       `json:"browser_validation,omitempty"`
+	Tests                 *VerificationStatus          `json:"tests,omitempty"`
+	SuccessCriteria       []SuccessCriterionResult     `json:"success_criteria,omitempty"`
+	Build                 *VerificationStatus          `json:"build,omitempty"`
+	Linting               *VerificationStatus          `json:"linting,omitempty"`
+	Wiring                *WiringVerification          `json:"wiring,omitempty"`
+	BrowserValidation     *BrowserValidation           `json:"browser_validation,omitempty"`
+	CanonicalAssociations []AssociationVerification    `json:"canonical_associations,omitempty"`
+	ProvenanceVariants    []ProvenanceVerification     `json:"provenance_variants,omitempty"`
+	UIInvalidationPaths   []UIInvalidationVerification `json:"ui_invalidation_paths,omitempty"`
 }
 
 // VerificationStatus represents a single verification check result.
@@ -486,6 +532,28 @@ type BrowserValidation struct {
 	Reason                    string   `json:"reason"`
 	Evidence                  string   `json:"evidence"`
 	Artifacts                 []string `json:"artifacts,omitempty"`
+}
+
+type AssociationVerification struct {
+	Name                string   `json:"name"`
+	SourceOfTruth       string   `json:"source_of_truth,omitempty"`
+	VerifiedWriterPaths []string `json:"verified_writer_paths,omitempty"`
+	VerifiedReaderPaths []string `json:"verified_reader_paths,omitempty"`
+	ParityEvidence      string   `json:"parity_evidence,omitempty"`
+}
+
+type ProvenanceVerification struct {
+	Path             string   `json:"path"`
+	VerifiedVariants []string `json:"verified_variants,omitempty"`
+	Evidence         string   `json:"evidence,omitempty"`
+}
+
+type UIInvalidationVerification struct {
+	Surface               string   `json:"surface"`
+	UpdateSources         []string `json:"update_sources,omitempty"`
+	ResetTriggers         []string `json:"reset_triggers,omitempty"`
+	StaleResponseHandling string   `json:"stale_response_handling,omitempty"`
+	Evidence              string   `json:"evidence,omitempty"`
 }
 
 // ImplementResponse extends PhaseResponse with verification evidence.
@@ -553,6 +621,15 @@ func ValidateImplementCompletion(content string) error {
 	if resp.Verification.BrowserValidation == nil {
 		failures = append(failures, "browser validation verdict missing")
 	}
+	if resp.Verification.CanonicalAssociations == nil {
+		failures = append(failures, "canonical association inventory missing")
+	}
+	if resp.Verification.ProvenanceVariants == nil {
+		failures = append(failures, "provenance variant inventory missing")
+	}
+	if resp.Verification.UIInvalidationPaths == nil {
+		failures = append(failures, "UI invalidation inventory missing")
+	}
 
 	// Check tests passed
 	if resp.Verification.Tests != nil && resp.Verification.Tests.Status == "FAIL" {
@@ -600,6 +677,9 @@ func ValidateImplementCompletion(content string) error {
 		}
 		if browserValidation.ProjectScopedSurface && !browserValidation.ProjectIsolationValidated {
 			failures = append(failures, "project-scoped browser surface requires project isolation validation")
+		}
+		if browserValidation.LiveUpdateSurface && len(resp.Verification.UIInvalidationPaths) == 0 {
+			failures = append(failures, "UI invalidation inventory required for live-update browser surface")
 		}
 	}
 

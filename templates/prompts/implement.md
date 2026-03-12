@@ -51,7 +51,7 @@ Example:
 
 ## Completion Output Format
 
-ONLY after ALL verifications PASS, output JSON with `status`, `summary`, and `verification` fields containing `tests`, `success_criteria`, `build`, `linting`, `wiring`, and `browser_validation`. See `<example_good_completion>` below for exact schema.
+ONLY after ALL verifications PASS, output JSON with `status`, `summary`, and `verification` fields containing `tests`, `success_criteria`, `build`, `linting`, `wiring`, `browser_validation`, `canonical_associations`, `provenance_variants`, and `ui_invalidation_paths`. See `<example_good_completion>` below for exact schema.
 
 **Wiring verification evidence format:**
 ```json
@@ -84,6 +84,36 @@ If `browser_surface_change` is `true`, then `required` MUST also be `true`.
 If `required` is `true`, then `performed` MUST be `true` and `evidence` cannot be empty.
 If `live_update_surface` is `true`, then `external_mutation_validated` MUST also be `true`.
 If `project_scoped_surface` is `true`, then `project_isolation_validated` MUST also be `true`.
+
+**Inventory evidence format:**
+```json
+"canonical_associations": [
+  {
+    "name": "recommendation thread linkage",
+    "source_of_truth": "thread_links",
+    "verified_writer_paths": ["CreateThread", "AddLink", "PromoteRecommendationDraft"],
+    "verified_reader_paths": ["ListThreads", "GetThread", "threadToProto", "prompt-context loaders"],
+    "parity_evidence": "Verified typed links and mirrored readers stay in sync."
+  }
+],
+"provenance_variants": [
+  {
+    "path": "thread recommendation promotion",
+    "verified_variants": ["task+run+thread", "task+thread without run", "thread-only"],
+    "evidence": "Verified each supported provenance combination."
+  }
+],
+"ui_invalidation_paths": [
+  {
+    "surface": "discussion workspace",
+    "update_sources": ["sendMessage RPC", "threadUpdated event"],
+    "reset_triggers": ["thread switch", "project switch"],
+    "stale_response_handling": "Late RPC responses are ignored once a fresher reload wins.",
+    "evidence": "Validated stale-response handling and duplicate suppression."
+  }
+]
+```
+Use `[]` only when a category is truly not applicable.
 
 **CRITICAL:** The `verification` field is MANDATORY. Completion without verification evidence will be REJECTED.
 
@@ -396,7 +426,10 @@ Execute all checks and include evidence for each in your completion output:
 18. **Distributed state parity check** — If the feature duplicates state across DB rows, mirrored tables, caches, events, or browser-visible summaries, identify the source of truth and prove distributed state parity across the copies.
 19. **Provenance variant check** — If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant explicitly. Do not assume the full-provenance happy path is the only valid case.
 20. **RPC-vs-event race check** — If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling and duplicate suppression explicitly.
-21. **Bounded discovery check** — Use the smallest set of production paths and existing repo verification flows needed to prove the task. Do not build ad hoc harnesses unless the normal path cannot validate the behavior.
+21. **Canonical association inventory** — Fill `verification.canonical_associations` with the exact writers, readers, mirrors, and source of truth you verified.
+22. **Provenance inventory** — Fill `verification.provenance_variants` with every supported task/run/thread/initiative combination you verified, including valid cases where some provenance is intentionally absent.
+23. **UI invalidation inventory** — Fill `verification.ui_invalidation_paths` with every browser-local surface where RPC responses, events, or project/thread switches can invalidate or overwrite local state.
+24. **Bounded discovery check** — Use the smallest set of production paths and existing repo verification flows needed to prove the task. Do not build ad hoc harnesses unless the normal path cannot validate the behavior.
 
 **Only output completion JSON after all checks pass.** See Output Format for the exact schema.
 

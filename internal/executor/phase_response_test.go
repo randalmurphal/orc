@@ -1,9 +1,40 @@
 package executor
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
+
+func withRequiredImplementationInventories(t *testing.T, content string) string {
+	t.Helper()
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(content), &payload); err != nil {
+		t.Fatalf("failed to parse test JSON: %v", err)
+	}
+
+	verification, ok := payload["verification"].(map[string]any)
+	if !ok {
+		return content
+	}
+
+	if _, exists := verification["canonical_associations"]; !exists {
+		verification["canonical_associations"] = []map[string]any{}
+	}
+	if _, exists := verification["provenance_variants"]; !exists {
+		verification["provenance_variants"] = []map[string]any{}
+	}
+	if _, exists := verification["ui_invalidation_paths"]; !exists {
+		verification["ui_invalidation_paths"] = []map[string]any{}
+	}
+
+	updated, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal test JSON: %v", err)
+	}
+	return string(updated)
+}
 
 func TestParsePhaseResponse(t *testing.T) {
 	t.Parallel()
@@ -820,7 +851,12 @@ func TestValidateImplementCompletion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateImplementCompletion(tt.content)
+			content := tt.content
+			if strings.Contains(tt.content, `"verification"`) {
+				content = withRequiredImplementationInventories(t, tt.content)
+			}
+
+			err := ValidateImplementCompletion(content)
 
 			if tt.wantErr {
 				if err == nil {
@@ -868,5 +904,41 @@ func TestImplementCompletionSchema_RequiresEventDrivenBrowserFields(t *testing.T
 		if !strings.Contains(ImplementCompletionSchema, required) {
 			t.Errorf("ImplementCompletionSchema missing %s", required)
 		}
+	}
+}
+
+func TestValidateImplementCompletion_RequiresInventoryFields(t *testing.T) {
+	t.Parallel()
+
+	content := `{
+		"status": "complete",
+		"summary": "Implemented feature",
+		"verification": {
+			"tests": {"status": "PASS"},
+			"success_criteria": [{"id": "SC-1", "status": "PASS"}],
+			"build": {"status": "PASS"},
+			"linting": {"status": "PASS"},
+			"wiring": {"status": "PASS"},
+			"browser_validation": {
+				"browser_surface_change": false,
+				"required": false,
+				"performed": false,
+				"live_update_surface": false,
+				"external_mutation_validated": false,
+				"project_scoped_surface": false,
+				"project_isolation_validated": false,
+				"reason": "No browser-visible behavior changed.",
+				"evidence": "Not applicable.",
+				"artifacts": []
+			}
+		}
+	}`
+
+	err := ValidateImplementCompletion(content)
+	if err == nil {
+		t.Fatal("expected missing inventory validation error, got nil")
+	}
+	if !strings.Contains(err.Error(), "canonical association inventory missing") {
+		t.Fatalf("expected canonical association inventory error, got %v", err)
 	}
 }
