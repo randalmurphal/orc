@@ -57,7 +57,7 @@ func TestCheckResumeSession_ResumesNormalPendingPhase(t *testing.T) {
 	}
 }
 
-func TestCheckResumeSession_SkipsBlockedReviewPhase(t *testing.T) {
+func TestCheckResumeSession_SkipsReviewPhaseWhenBlocked(t *testing.T) {
 	t.Parallel()
 
 	tsk := task.NewProtoTask("TASK-BLOCKED-REVIEW", "blocked review should restart fresh")
@@ -74,7 +74,31 @@ func TestCheckResumeSession_SkipsBlockedReviewPhase(t *testing.T) {
 
 	gotSessionID, shouldResume := checkResumeSession(we, "review_cross")
 	if shouldResume {
-		t.Fatal("blocked review phase should restart fresh, not resume stale session")
+		t.Fatal("review phase should restart fresh, not resume stale session")
+	}
+	if gotSessionID != "" {
+		t.Fatalf("sessionID = %q, want empty", gotSessionID)
+	}
+}
+
+func TestCheckResumeSession_SkipsReviewPhaseWhenInterrupted(t *testing.T) {
+	t.Parallel()
+
+	tsk := task.NewProtoTask("TASK-INTERRUPTED-REVIEW", "interrupted review should restart fresh")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	task.EnsurePhaseProto(tsk.Execution, "review_cross")
+	tsk.Execution.Phases["review_cross"].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
+	sessionID := "codex-review-session-456"
+	tsk.Execution.Phases["review_cross"].SessionId = &sessionID
+
+	we := &WorkflowExecutor{
+		task:       tsk,
+		isResuming: true,
+	}
+
+	gotSessionID, shouldResume := checkResumeSession(we, "review_cross")
+	if shouldResume {
+		t.Fatal("interrupted review phase should restart fresh, not resume stale session")
 	}
 	if gotSessionID != "" {
 		t.Fatalf("sessionID = %q, want empty", gotSessionID)
