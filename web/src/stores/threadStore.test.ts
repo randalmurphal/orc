@@ -40,6 +40,30 @@ function createMockThread(overrides: Record<string, unknown> = {}) {
 	});
 }
 
+function createDeferred<T>() {
+	let resolvePromise: ((value: T | PromiseLike<T>) => void) | undefined;
+	let rejectPromise: ((reason?: unknown) => void) | undefined;
+	const promise = new Promise<T>((resolve, reject) => {
+		resolvePromise = resolve;
+		rejectPromise = reject;
+	});
+	return {
+		promise,
+		resolve(value: T) {
+			if (resolvePromise === undefined) {
+				throw new Error('Deferred promise resolved before initialization');
+			}
+			resolvePromise(value);
+		},
+		reject(reason?: unknown) {
+			if (rejectPromise === undefined) {
+				throw new Error('Deferred promise rejected before initialization');
+			}
+			rejectPromise(reason);
+		},
+	};
+}
+
 // =============================================================================
 // TESTS
 // =============================================================================
@@ -146,6 +170,31 @@ describe('threadStore', () => {
 			const state = useThreadStore.getState();
 			expect(state.threads).toHaveLength(1);
 			expect(state.threads[0].id).toBe('new-thread');
+		});
+
+		it('should ignore stale responses after switching projects', async () => {
+			const firstLoad = createDeferred<{ threads: ReturnType<typeof createMockThread>[] }>();
+			const secondLoad = createDeferred<{ threads: ReturnType<typeof createMockThread>[] }>();
+
+			vi.mocked(threadClient.listThreads)
+				.mockReturnValueOnce(firstLoad.promise as never)
+				.mockReturnValueOnce(secondLoad.promise as never);
+
+			const firstPromise = useThreadStore.getState().loadThreads('proj-001');
+			useThreadStore.getState().reset();
+			const secondPromise = useThreadStore.getState().loadThreads('proj-002');
+
+			secondLoad.resolve({
+				threads: [createMockThread({ id: 'thread-b', title: 'Project B thread' })],
+			});
+			await secondPromise;
+			expect(useThreadStore.getState().threads[0]?.id).toBe('thread-b');
+
+			firstLoad.resolve({
+				threads: [createMockThread({ id: 'thread-a', title: 'Project A thread' })],
+			});
+			await firstPromise;
+			expect(useThreadStore.getState().threads[0]?.id).toBe('thread-b');
 		});
 	});
 

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
 import { AppShell } from './AppShell';
+import { EventProvider } from '@/hooks';
 import { TooltipProvider } from '@/components/ui';
 import { useProjectStore, useSessionStore } from '@/stores';
 import { useThreadStore } from '@/stores/threadStore';
@@ -55,7 +56,9 @@ function TestWrapper({
 	return (
 		<MemoryRouter initialEntries={initialEntries}>
 			<TooltipProvider delayDuration={0}>
-				{children}
+				<EventProvider autoConnect={false}>
+					{children}
+				</EventProvider>
 			</TooltipProvider>
 		</MemoryRouter>
 	);

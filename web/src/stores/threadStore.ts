@@ -5,6 +5,17 @@ import { ListThreadsRequestSchema, CreateThreadRequestSchema } from '@/gen/orc/v
 import { create as createMsg } from '@bufbuild/protobuf';
 import { threadClient } from '@/lib/client';
 
+let latestThreadLoadRequestId = 0;
+
+function beginThreadLoadRequest() {
+	latestThreadLoadRequestId += 1;
+	return latestThreadLoadRequestId;
+}
+
+function isCurrentThreadLoadRequest(requestId: number) {
+	return requestId === latestThreadLoadRequestId;
+}
+
 interface ThreadStore {
 	// State
 	threads: Thread[];
@@ -40,13 +51,20 @@ export const useThreadStore = create<ThreadStore>()(
 		},
 
 		loadThreads: async (projectId: string) => {
+			const requestId = beginThreadLoadRequest();
 			set({ loading: true, error: null });
 			try {
 				const response = await threadClient.listThreads(
 					createMsg(ListThreadsRequestSchema, { projectId })
 				);
+				if (!isCurrentThreadLoadRequest(requestId)) {
+					return;
+				}
 				set({ threads: response.threads, loading: false });
 			} catch {
+				if (!isCurrentThreadLoadRequest(requestId)) {
+					return;
+				}
 				set({ threads: [], error: 'Failed to load threads', loading: false });
 			}
 		},
@@ -75,7 +93,10 @@ export const useThreadStore = create<ThreadStore>()(
 			set({ selectedThreadId: threadId });
 		},
 
-		reset: () => set(initialState),
+		reset: () => {
+			beginThreadLoadRequest();
+			set(initialState);
+		},
 	}))
 );
 
