@@ -739,6 +739,52 @@ func TestThread_PromoteRecommendationDraft_AllowsGenericThread(t *testing.T) {
 	}
 }
 
+func TestThread_PromoteRecommendationDraft_AllowsTaskThreadWithoutWorkflowRun(t *testing.T) {
+	t.Parallel()
+	pdb := NewTestProjectDB(t)
+
+	if err := pdb.SaveWorkflow(&Workflow{ID: "wf", Name: "wf"}); err != nil {
+		t.Fatalf("SaveWorkflow: %v", err)
+	}
+	if err := pdb.SaveTask(&Task{ID: "TASK-001", Title: "task", WorkflowID: "wf", Status: "planned"}); err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+
+	thread := &Thread{Title: "Task thread without run", TaskID: "TASK-001"}
+	if err := pdb.CreateThread(thread); err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+
+	draft := &ThreadRecommendationDraft{
+		ThreadID:       thread.ID,
+		Kind:           RecommendationKindFollowUp,
+		Title:          "Promote without workflow run",
+		Summary:        "Task-linked threads should still promote when no run exists.",
+		ProposedAction: "Allow task provenance without requiring a workflow run.",
+		Evidence:       "Thread was created manually for a task that has not run yet.",
+	}
+	if err := pdb.CreateThreadRecommendationDraft(draft); err != nil {
+		t.Fatalf("CreateThreadRecommendationDraft: %v", err)
+	}
+
+	promotedDraft, rec, err := pdb.PromoteThreadRecommendationDraft(context.Background(), thread.ID, draft.ID, "operator")
+	if err != nil {
+		t.Fatalf("PromoteThreadRecommendationDraft: %v", err)
+	}
+	if promotedDraft.Status != ThreadDraftStatusPromoted {
+		t.Fatalf("expected promoted status, got %s", promotedDraft.Status)
+	}
+	if rec.SourceTaskID != "TASK-001" {
+		t.Fatalf("expected source task TASK-001, got %q", rec.SourceTaskID)
+	}
+	if rec.SourceRunID != "" {
+		t.Fatalf("expected empty source run, got %q", rec.SourceRunID)
+	}
+	if rec.SourceThreadID != thread.ID {
+		t.Fatalf("expected source thread %s, got %s", thread.ID, rec.SourceThreadID)
+	}
+}
+
 func TestThread_PromoteRecommendationDraft_RejectsMismatchedThread(t *testing.T) {
 	t.Parallel()
 	pdb := NewTestProjectDB(t)

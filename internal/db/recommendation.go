@@ -372,13 +372,8 @@ func validateRecommendationForCreate(rec *Recommendation) error {
 	if !hasTaskProvenance && !hasThreadProvenance {
 		return fmt.Errorf("recommendation provenance requires source_thread_id or source_task_id/source_run_id")
 	}
-	if hasTaskProvenance {
-		if rec.SourceTaskID == "" {
-			return fmt.Errorf("recommendation source_task_id is required when source_run_id is set")
-		}
-		if rec.SourceRunID == "" {
-			return fmt.Errorf("recommendation source_run_id is required when source_task_id is set")
-		}
+	if rec.SourceRunID != "" && rec.SourceTaskID == "" {
+		return fmt.Errorf("recommendation source_task_id is required when source_run_id is set")
 	}
 	if rec.DedupeKey == "" {
 		return fmt.Errorf("recommendation dedupe_key is required")

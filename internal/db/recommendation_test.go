@@ -75,6 +75,31 @@ func TestRecommendationCreate_AllowsThreadOnlyProvenance(t *testing.T) {
 	require.Equal(t, thread.ID, loaded.SourceThreadID)
 }
 
+func TestRecommendationCreate_AllowsTaskWithoutRunProvenance(t *testing.T) {
+	t.Parallel()
+
+	pdb := newRecommendationTestDB(t)
+
+	require.NoError(t, pdb.SaveWorkflow(&Workflow{ID: "wf", Name: "wf"}))
+	require.NoError(t, pdb.SaveTask(&Task{ID: "TASK-001", Title: "task", WorkflowID: "wf", Status: "planned"}))
+
+	rec := &Recommendation{
+		Kind:           RecommendationKindFollowUp,
+		Status:         RecommendationStatusPending,
+		Title:          "Follow up on task thread",
+		Summary:        "Task-linked threads without runs still need valid provenance.",
+		ProposedAction: "Allow task provenance without requiring a workflow run.",
+		Evidence:       "A manual thread linked to a task has no source run yet.",
+		SourceTaskID:   "TASK-001",
+		SourceThreadID: "THR-001",
+		DedupeKey:      "follow-up:task-thread:no-run",
+	}
+
+	require.NoError(t, pdb.CreateRecommendation(rec))
+	require.Equal(t, "TASK-001", rec.SourceTaskID)
+	require.Empty(t, rec.SourceRunID)
+}
+
 func TestRecommendationTransition(t *testing.T) {
 	t.Parallel()
 

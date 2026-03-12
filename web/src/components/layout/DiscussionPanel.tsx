@@ -224,10 +224,10 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 			// Replace optimistic message with real ones
 			setMessages((prev) => {
 				const withoutOptimistic = prev.filter((m) => m !== optimisticMsg);
-				const newMessages = [...withoutOptimistic];
-				if (response.userMessage) newMessages.push(response.userMessage);
-				if (response.assistantMessage) newMessages.push(response.assistantMessage);
-				return newMessages;
+				return appendUniqueMessages(withoutOptimistic, [
+					response.userMessage,
+					response.assistantMessage,
+				]);
 			});
 		} catch (err) {
 			// Remove optimistic message and restore input
@@ -675,4 +675,28 @@ function withErrorDetails(prefix: string, err: unknown): string {
 
 function threadRequestKey(projectId: string, threadId: string): string {
 	return `${projectId}:${threadId}`;
+}
+
+function appendUniqueMessages(existing: ThreadMessage[], additions: Array<ThreadMessage | undefined>): ThreadMessage[] {
+	const seen = new Set(existing.map(messageKey));
+	const next = [...existing];
+	for (const message of additions) {
+		if (!message) {
+			continue;
+		}
+		const key = messageKey(message);
+		if (seen.has(key)) {
+			continue;
+		}
+		seen.add(key);
+		next.push(message);
+	}
+	return next;
+}
+
+function messageKey(message: ThreadMessage): string {
+	if (message.id !== undefined && message.id !== null) {
+		return `id:${String(message.id)}`;
+	}
+	return `${message.role}:${message.content}`;
 }
