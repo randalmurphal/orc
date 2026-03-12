@@ -9,30 +9,33 @@
 //   - Sequential fallback for linear dependencies
 //
 // Coverage mapping:
-//   SC-1:  TestParallelExecution_DiamondPattern
-//   SC-2:  TestComputeExecutionLevels_*
-//   SC-3:  (code inspection: grep for errgroup.WithContext)
-//   SC-4:  TestParallelExecution_DependentWaitsForPredecessors
-//   SC-5:  TestParallelExecution_FailureCancelsSiblings
-//   SC-6:  TestParallelExecution_FirstErrorReported
-//   SC-7:  TestParallelExecution_NextLevelNotStartedOnFailure
-//   SC-8:  TestSafeVars_Concurrent
-//   SC-9:  (code inspection: rctx cloning per goroutine)
-//   SC-10: TestParallelExecution_LinearChainSequential
-//   SC-11: TestParallelExecution_NoDepsPreservesSequence
-//   SC-12: (run tests with -race flag: go test -race ./internal/executor/...)
+//
+//	SC-1:  TestParallelExecution_DiamondPattern
+//	SC-2:  TestComputeExecutionLevels_*
+//	SC-3:  (code inspection: grep for errgroup.WithContext)
+//	SC-4:  TestParallelExecution_DependentWaitsForPredecessors
+//	SC-5:  TestParallelExecution_FailureCancelsSiblings
+//	SC-6:  TestParallelExecution_FirstErrorReported
+//	SC-7:  TestParallelExecution_NextLevelNotStartedOnFailure
+//	SC-8:  TestSafeVars_Concurrent
+//	SC-9:  (code inspection: rctx cloning per goroutine)
+//	SC-10: TestParallelExecution_LinearChainSequential
+//	SC-11: TestParallelExecution_NoDepsPreservesSequence
+//	SC-12: (run tests with -race flag: go test -race ./internal/executor/...)
 //
 // Failure modes:
-//   TestParallelExecution_PanicRecovery
-//   TestParallelExecution_ContextCancel
-//   TestSafeVars_Concurrent (race detector)
-//   TestParallelExecution_AllFail
+//
+//	TestParallelExecution_PanicRecovery
+//	TestParallelExecution_ContextCancel
+//	TestSafeVars_Concurrent (race detector)
+//	TestParallelExecution_AllFail
 //
 // Edge cases:
-//   TestParallelExecution_SinglePhaseLevel
-//   TestParallelExecution_Linear
-//   TestParallelExecution_WithLoop
-//   TestParallelExecution_ResumePartial
+//
+//	TestParallelExecution_SinglePhaseLevel
+//	TestParallelExecution_Linear
+//	TestParallelExecution_WithLoop
+//	TestParallelExecution_ResumePartial
 package executor
 
 import (
@@ -715,6 +718,24 @@ func TestParallelExecution_PanicRecovery(t *testing.T) {
 	// Should get an error, not a panic
 	if err == nil {
 		t.Fatal("expected error from panic recovery, got nil")
+	}
+
+	loadedTask, loadErr := backend.LoadTask(tsk.Id)
+	if loadErr != nil {
+		t.Fatalf("load task: %v", loadErr)
+	}
+	diagnostic := task.GetExecutorDiagnosticProto(loadedTask)
+	if diagnostic == nil {
+		t.Fatal("expected executor diagnostic after panic recovery")
+	}
+	if diagnostic.Kind != "panic" {
+		t.Fatalf("diagnostic kind = %q, want panic", diagnostic.Kind)
+	}
+	if diagnostic.Phase == "" {
+		t.Fatal("expected diagnostic phase to be set")
+	}
+	if diagnostic.Detail == "" {
+		t.Fatal("expected panic stack detail to be recorded")
 	}
 }
 

@@ -85,6 +85,15 @@ func ApplyResumeStateUpdatesProto(t *orcv1.Task, result *ResumeValidationResult,
 		reason, failureOutput := buildInterruptedResumeRetryContext(t, backend, currentPhase)
 		attempt := nextInterruptedResumeAttempt(t, currentPhase)
 		task.SetRetryState(t, currentPhase, currentPhase, reason, failureOutput, attempt)
+		task.SetExecutorDiagnosticProto(t, task.ExecutorDiagnostic{
+			Kind:          "orphaned_executor",
+			Phase:         currentPhase,
+			Reason:        result.OrphanReason,
+			Detail:        truncateDiagnosticDetail(failureOutput, 16*1024),
+			ExecutorPID:   t.ExecutorPid,
+			DetectedAt:    time.Now().Format(time.RFC3339),
+			LastHeartbeat: formatDiagnosticHeartbeat(t),
+		})
 	}
 
 	t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
@@ -93,6 +102,20 @@ func ApplyResumeStateUpdatesProto(t *orcv1.Task, result *ResumeValidationResult,
 	}
 
 	return nil
+}
+
+func formatDiagnosticHeartbeat(t *orcv1.Task) string {
+	if t == nil || t.LastHeartbeat == nil {
+		return ""
+	}
+	return t.LastHeartbeat.AsTime().Format(time.RFC3339)
+}
+
+func truncateDiagnosticDetail(detail string, maxLen int) string {
+	if maxLen <= 0 || len(detail) <= maxLen {
+		return detail
+	}
+	return detail[:maxLen] + "\n...[truncated]"
 }
 
 func nextInterruptedResumeAttempt(t *orcv1.Task, phaseID string) int32 {

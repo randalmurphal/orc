@@ -276,6 +276,20 @@ func TestApplyResumeStateUpdatesProto_OrphanedTaskSetsRetryState(t *testing.T) {
 	if !contains([]string{rs.FailureOutput}, "thread_server.go") {
 		t.Fatalf("failure output missing transcript evidence: %q", rs.FailureOutput)
 	}
+
+	diagnostic := task.GetExecutorDiagnosticProto(loaded)
+	if diagnostic == nil {
+		t.Fatal("expected executor diagnostic for orphaned resume")
+	}
+	if diagnostic.Kind != "orphaned_executor" {
+		t.Fatalf("diagnostic kind = %q, want orphaned_executor", diagnostic.Kind)
+	}
+	if diagnostic.Phase != "implement_codex" {
+		t.Fatalf("diagnostic phase = %q, want implement_codex", diagnostic.Phase)
+	}
+	if diagnostic.ExecutorPID != tk.ExecutorPid {
+		t.Fatalf("diagnostic pid = %d, want %d", diagnostic.ExecutorPID, tk.ExecutorPid)
+	}
 }
 
 func TestApplyResumeStateUpdatesProto_ForceResumeKeepsNormalResumeSemantics(t *testing.T) {

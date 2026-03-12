@@ -210,6 +210,48 @@ func TestStatusCommand_InitiativeShorthand(t *testing.T) {
 	}
 }
 
+func TestStatusCommand_OrphanedTaskShowsDiagnosticSummary(t *testing.T) {
+	tmpDir := withStatusTestDir(t)
+
+	backend := createStatusTestBackend(t, tmpDir)
+
+	tk := task.NewProtoTask("TASK-ORPHAN", "Orphaned task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tk.ExecutorPid = 999999
+	task.SetCurrentPhaseProto(tk, "implement_codex")
+	task.SetExecutorDiagnosticProto(tk, task.ExecutorDiagnostic{
+		Kind:          "orphaned_executor",
+		Phase:         "implement_codex",
+		Reason:        "executor process not running",
+		Detail:        "Last tool result: golangci-lint run failed in thread_server.go",
+		LastHeartbeat: "2026-03-12T09:51:30-05:00",
+	})
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	_ = backend.Close()
+
+	cmd := newStatusCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute command: %v", err)
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "TASK-ORPHAN") {
+		t.Fatal("output should contain orphaned task")
+	}
+	if !strings.Contains(output, "phase=implement_codex") {
+		t.Fatalf("output should include orphaned phase detail, got:\n%s", output)
+	}
+	if !strings.Contains(output, "detail=Last tool result") {
+		t.Fatalf("output should include orphaned diagnostic detail, got:\n%s", output)
+	}
+}
+
 // TestStatusCommand_EmptyInitiativeFilter tests SC-3: Helpful message when
 // initiative exists but has no tasks
 func TestStatusCommand_EmptyInitiativeFilter(t *testing.T) {

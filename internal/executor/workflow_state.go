@@ -17,6 +17,13 @@ import (
 	"github.com/randalmurphal/orc/internal/workflow"
 )
 
+func truncateDiagnosticDetail(detail string, maxLen int) string {
+	if maxLen <= 0 || len(detail) <= maxLen {
+		return detail
+	}
+	return detail[:maxLen] + "\n...[truncated]"
+}
+
 // finalizeBlockedRun marks the task blocked, terminalizes the workflow run, and
 // releases the executor claim. This is the fail-closed path for blocked work.
 func (we *WorkflowExecutor) finalizeBlockedRun(run *db.WorkflowRun, t *orcv1.Task, reason, blockedReason string) {

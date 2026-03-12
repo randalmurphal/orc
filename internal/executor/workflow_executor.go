@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -413,9 +414,11 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	var t *orcv1.Task
 	defer func() {
 		if r := recover(); r != nil {
+			stack := string(debug.Stack())
 			panicErr := fmt.Errorf("executor panic: %v", r)
 			we.logger.Error("panic recovered in Run()",
 				"panic", r,
+				"stack", stack,
 				"workflow", workflowID,
 				"task", func() string {
 					if t != nil {
@@ -424,6 +427,17 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					return ""
 				}(),
 			)
+			if t != nil {
+				task.SetExecutorDiagnosticProto(t, task.ExecutorDiagnostic{
+					Kind:        "panic",
+					Phase:       task.GetCurrentPhaseProto(t),
+					Reason:      panicErr.Error(),
+					Detail:      truncateDiagnosticDetail(stack, 32*1024),
+					ExecutorPID: int32(os.Getpid()),
+					DetectedAt:  time.Now().Format(time.RFC3339),
+				})
+			}
+
 			// Record failure to DB if we have enough state
 			if run != nil {
 				we.failRun(run, t, panicErr)

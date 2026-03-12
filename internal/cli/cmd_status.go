@@ -282,6 +282,12 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 				reason = "unknown"
 			}
 			_, _ = fmt.Fprintf(w, "  %s\t%s\t(%s)\n", t.Id, truncate(t.Title, 35), reason)
+			if diagnostic := task.GetExecutorDiagnosticProto(t); diagnostic != nil {
+				extra := orphanedDiagnosticSummary(diagnostic)
+				if extra != "" {
+					_, _ = fmt.Fprintf(out, "      %s\n", extra)
+				}
+			}
 		}
 		_ = w.Flush()
 		_, _ = fmt.Fprintln(out, "  Use 'orc resume <task-id>' to continue these tasks")
@@ -475,6 +481,26 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 	_, _ = fmt.Fprintf(out, "─── %d tasks (%s) ───\n", total, strings.Join(summaryParts, ", "))
 
 	return nil
+}
+
+func orphanedDiagnosticSummary(diagnostic *task.ExecutorDiagnostic) string {
+	if diagnostic == nil {
+		return ""
+	}
+
+	parts := make([]string, 0, 3)
+	if diagnostic.Phase != "" {
+		parts = append(parts, "phase="+diagnostic.Phase)
+	}
+	if diagnostic.LastHeartbeat != "" {
+		parts = append(parts, "last_heartbeat="+diagnostic.LastHeartbeat)
+	}
+	if diagnostic.Detail != "" {
+		detail := strings.ReplaceAll(diagnostic.Detail, "\n", " ")
+		detail = truncate(detail, 120)
+		parts = append(parts, "detail="+detail)
+	}
+	return strings.Join(parts, " | ")
 }
 
 // formatBlockerList formats a list of blocker IDs for display

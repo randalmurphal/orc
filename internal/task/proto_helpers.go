@@ -602,6 +602,7 @@ func MarkStartedProto(t *orcv1.Task) {
 	t.StartedAt = now
 	t.UpdatedAt = now
 	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	ClearExecutorDiagnosticProto(t)
 }
 
 // MarkCompletedProto marks the task as completed with the current timestamp.
@@ -644,6 +645,7 @@ func ResetTaskForFreshRunProto(t *orcv1.Task) {
 
 	clearRunMetadataProto(t)
 	ClearRetryState(t)
+	ClearExecutorDiagnosticProto(t)
 	EnsureMetadataProto(t)
 	t.Metadata[freshResetMarkerKey] = "true"
 	UpdateTimestampProto(t)
