@@ -244,6 +244,26 @@ describe('threadStore', () => {
 			// Error should be accessible for UI to display toast
 			expect(useThreadStore.getState().error).toBeTruthy();
 		});
+
+		it('should ignore stale create results after switching projects', async () => {
+			const createDeferredResponse = createDeferred<{ thread?: ReturnType<typeof createMockThread> }>();
+
+			vi.mocked(threadClient.createThread).mockReturnValue(createDeferredResponse.promise as never);
+
+			const createPromise = useThreadStore.getState().createThread('proj-001', 'Project A thread');
+			useThreadStore.getState().reset();
+
+			createDeferredResponse.resolve({
+				thread: createMockThread({ id: 'thread-a', title: 'Project A thread' }),
+			});
+
+			const result = await createPromise;
+			const state = useThreadStore.getState();
+			expect(result).toBeNull();
+			expect(state.threads).toEqual([]);
+			expect(state.selectedThreadId).toBeNull();
+			expect(state.error).toBeNull();
+		});
 	});
 
 	describe('selectThread (SC-3)', () => {

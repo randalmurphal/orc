@@ -70,10 +70,14 @@ export const useThreadStore = create<ThreadStore>()(
 		},
 
 		createThread: async (projectId: string, title: string) => {
+			const requestId = beginThreadLoadRequest();
 			try {
 				const response = await threadClient.createThread(
 					createMsg(CreateThreadRequestSchema, { projectId, title })
 				);
+				if (!isCurrentThreadLoadRequest(requestId)) {
+					return null;
+				}
 				const thread = response.thread;
 				if (thread) {
 					set((state) => ({
@@ -84,6 +88,9 @@ export const useThreadStore = create<ThreadStore>()(
 				}
 				return null;
 			} catch {
+				if (!isCurrentThreadLoadRequest(requestId)) {
+					return null;
+				}
 				set({ error: 'Failed to create thread' });
 				return null;
 			}

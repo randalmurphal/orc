@@ -126,6 +126,24 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		setDecisionInitiativeId(thread?.initiativeId ?? '');
 	}, []);
 
+	const applyThreadMutationState = useCallback((
+		request: { requestId: number; threadKey: string },
+		thread?: {
+			taskId?: string;
+			initiativeId?: string;
+			messages?: ThreadMessage[];
+			links?: ThreadLink[];
+			recommendationDrafts?: ThreadRecommendationDraft[];
+			decisionDrafts?: ThreadDecisionDraft[];
+		}
+	) => {
+		if (!isCurrentThreadRequest(request.requestId, request.threadKey)) {
+			return false;
+		}
+		syncThreadState(thread);
+		return true;
+	}, [isCurrentThreadRequest, syncThreadState]);
+
 	const reloadThreadState = useCallback(async () => {
 		const request = beginThreadRequest();
 		try {
@@ -240,6 +258,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 	}, [input, sending, threadId, projectId]);
 
 	const promoteRecommendationDraft = useCallback(async (draftId: string) => {
+		const request = beginThreadRequest();
 		setPromotingDraftId(draftId);
 		setError(null);
 		try {
@@ -251,13 +270,17 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 					promotedBy: 'operator',
 				})
 			);
-			syncThreadState(response.thread);
+			applyThreadMutationState(request, response.thread);
 		} catch (err) {
-			setError(withErrorDetails('Failed to promote recommendation draft. Try again.', err));
+			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				setError(withErrorDetails('Failed to promote recommendation draft. Try again.', err));
+			}
 		} finally {
-			setPromotingDraftId(null);
+			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				setPromotingDraftId(null);
+			}
 		}
-	}, [projectId, syncThreadState, threadId]);
+	}, [applyThreadMutationState, beginThreadRequest, isCurrentThreadRequest, projectId, threadId]);
 
 	const addLink = useCallback(async () => {
 		const targetId = linkTargetId.trim();
@@ -265,6 +288,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 			return;
 		}
 
+		const request = beginThreadRequest();
 		setAddingLink(true);
 		setError(null);
 		try {
@@ -279,15 +303,20 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 					},
 				})
 			);
-			syncThreadState(response.thread);
-			setLinkTargetId('');
-			setLinkTitle('');
+			if (applyThreadMutationState(request, response.thread)) {
+				setLinkTargetId('');
+				setLinkTitle('');
+			}
 		} catch (err) {
-			setError(withErrorDetails('Failed to add linked context. Try again.', err));
+			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				setError(withErrorDetails('Failed to add linked context. Try again.', err));
+			}
 		} finally {
-			setAddingLink(false);
+			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				setAddingLink(false);
+			}
 		}
-	}, [addingLink, linkTargetId, linkTitle, linkType, projectId, syncThreadState, threadId]);
+	}, [addingLink, applyThreadMutationState, beginThreadRequest, isCurrentThreadRequest, linkTargetId, linkTitle, linkType, projectId, threadId]);
 
 	const createRecommendationDraft = useCallback(async () => {
 		if (creatingDraft !== null) {
@@ -306,6 +335,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 			return;
 		}
 
+		const request = beginThreadRequest();
 		setCreatingDraft('recommendation');
 		setError(null);
 		try {
@@ -322,26 +352,33 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 					},
 				})
 			);
-			syncThreadState(response.thread);
-			setRecommendationKind(DEFAULT_RECOMMENDATION_KIND);
-			setRecommendationTitle('');
-			setRecommendationSummary('');
-			setRecommendationAction('');
-			setRecommendationEvidence('');
+			if (applyThreadMutationState(request, response.thread)) {
+				setRecommendationKind(DEFAULT_RECOMMENDATION_KIND);
+				setRecommendationTitle('');
+				setRecommendationSummary('');
+				setRecommendationAction('');
+				setRecommendationEvidence('');
+			}
 		} catch (err) {
-			setError(withErrorDetails('Failed to create recommendation draft. Try again.', err));
+			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				setError(withErrorDetails('Failed to create recommendation draft. Try again.', err));
+			}
 		} finally {
-			setCreatingDraft(null);
+			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				setCreatingDraft(null);
+			}
 		}
 	}, [
 		creatingDraft,
+		applyThreadMutationState,
+		beginThreadRequest,
+		isCurrentThreadRequest,
 		projectId,
 		recommendationAction,
 		recommendationEvidence,
 		recommendationKind,
 		recommendationSummary,
 		recommendationTitle,
-		syncThreadState,
 		threadId,
 	]);
 
@@ -354,6 +391,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 			return;
 		}
 
+		const request = beginThreadRequest();
 		setCreatingDraft('decision');
 		setError(null);
 		try {
@@ -368,15 +406,20 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 					},
 				})
 			);
-			syncThreadState(response.thread);
-			setDecisionText('');
-			setDecisionRationale('');
+			if (applyThreadMutationState(request, response.thread)) {
+				setDecisionText('');
+				setDecisionRationale('');
+			}
 		} catch (err) {
-			setError(withErrorDetails('Failed to create decision draft. Try again.', err));
+			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				setError(withErrorDetails('Failed to create decision draft. Try again.', err));
+			}
 		} finally {
-			setCreatingDraft(null);
+			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				setCreatingDraft(null);
+			}
 		}
-	}, [creatingDraft, decisionInitiativeId, decisionRationale, decisionText, projectId, syncThreadState, threadId]);
+	}, [applyThreadMutationState, beginThreadRequest, creatingDraft, decisionInitiativeId, decisionRationale, decisionText, isCurrentThreadRequest, projectId, threadId]);
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
 		if (e.key === 'Enter' && !e.shiftKey) {

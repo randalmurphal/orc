@@ -383,8 +383,6 @@ func (we *WorkflowExecutor) populateThreadContext(rctx *variable.ResolutionConte
 }
 
 func (we *WorkflowExecutor) loadPromptContextThread(t *orcv1.Task) (*db.Thread, error) {
-	candidates := make([]db.Thread, 0, 2)
-
 	if t.Id != "" {
 		threads, err := we.backend.DB().ListThreads(db.ThreadListOpts{
 			TaskID: t.Id,
@@ -393,7 +391,13 @@ func (we *WorkflowExecutor) loadPromptContextThread(t *orcv1.Task) (*db.Thread, 
 		if err != nil {
 			return nil, fmt.Errorf("load task discussion threads for %s: %w", t.Id, err)
 		}
-		candidates = append(candidates, threads...)
+		if len(threads) > 0 {
+			thread, err := we.backend.DB().GetThread(threads[0].ID)
+			if err != nil {
+				return nil, fmt.Errorf("load discussion thread %s: %w", threads[0].ID, err)
+			}
+			return thread, nil
+		}
 	}
 
 	if initiativeID := task.GetInitiativeIDProto(t); initiativeID != "" {
@@ -404,35 +408,16 @@ func (we *WorkflowExecutor) loadPromptContextThread(t *orcv1.Task) (*db.Thread, 
 		if err != nil {
 			return nil, fmt.Errorf("load initiative discussion threads for %s: %w", initiativeID, err)
 		}
-		for _, thread := range threads {
-			if !threadSliceContainsID(candidates, thread.ID) {
-				candidates = append(candidates, thread)
+		if len(threads) > 0 {
+			thread, err := we.backend.DB().GetThread(threads[0].ID)
+			if err != nil {
+				return nil, fmt.Errorf("load discussion thread %s: %w", threads[0].ID, err)
 			}
+			return thread, nil
 		}
 	}
 
-	if len(candidates) == 0 {
-		return nil, nil
-	}
-
-	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].UpdatedAt.After(candidates[j].UpdatedAt)
-	})
-
-	thread, err := we.backend.DB().GetThread(candidates[0].ID)
-	if err != nil {
-		return nil, fmt.Errorf("load discussion thread %s: %w", candidates[0].ID, err)
-	}
-	return thread, nil
-}
-
-func threadSliceContainsID(threads []db.Thread, id string) bool {
-	for _, thread := range threads {
-		if thread.ID == id {
-			return true
-		}
-	}
-	return false
+	return nil, nil
 }
 
 func sectionIfPresent(title, content string) string {

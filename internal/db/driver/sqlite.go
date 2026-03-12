@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -212,20 +213,31 @@ func (d *SQLiteDriver) applyMigrationInTx(ctx context.Context, name, content str
 // Required for migrations that restructure tables with FK references.
 // Follows SQLite's recommended pattern: disable FKs, run DDL, re-enable, verify integrity.
 func (d *SQLiteDriver) applyMigrationWithFKDisabled(ctx context.Context, name, content string, version int) error {
+	conn, err := d.db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire connection for %s: %w", name, err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	preViolations, err := collectForeignKeyViolations(ctx, conn)
+	if err != nil {
+		return fmt.Errorf("check foreign keys before %s: %w", name, err)
+	}
+
 	// Disable foreign key enforcement (must be outside transaction)
-	if _, err := d.db.ExecContext(ctx, "PRAGMA foreign_keys = OFF"); err != nil {
+	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = OFF"); err != nil {
 		return fmt.Errorf("disable foreign keys for %s: %w", name, err)
 	}
 
 	// Re-enable FKs after migration (unless permanently disabled)
 	if !d.noFK {
 		defer func() {
-			_, _ = d.db.ExecContext(ctx, "PRAGMA foreign_keys = ON")
+			_, _ = conn.ExecContext(ctx, "PRAGMA foreign_keys = ON")
 		}()
 	}
 
 	// Run migration in transaction for atomicity
-	tx, err := d.db.BeginTx(ctx, nil)
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
@@ -248,14 +260,31 @@ func (d *SQLiteDriver) applyMigrationWithFKDisabled(ctx context.Context, name, c
 	if d.noFK {
 		return nil
 	}
-	if _, err := d.db.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
+	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
 		return fmt.Errorf("re-enable foreign keys after %s: %w", name, err)
 	}
 
-	// Check for FK violations introduced by the migration
-	rows, err := d.db.QueryContext(ctx, "PRAGMA foreign_key_check")
+	postViolations, err := collectForeignKeyViolations(ctx, conn)
 	if err != nil {
 		return fmt.Errorf("check foreign keys after %s: %w", name, err)
+	}
+
+	newViolations := difference(postViolations, preViolations)
+	if len(newViolations) > 0 {
+		return fmt.Errorf("migration %s introduced FK violations: %v", name, newViolations)
+	}
+
+	return nil
+}
+
+type foreignKeyChecker interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+
+func collectForeignKeyViolations(ctx context.Context, checker foreignKeyChecker) ([]string, error) {
+	rows, err := checker.QueryContext(ctx, "PRAGMA foreign_key_check")
+	if err != nil {
+		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
 
@@ -264,15 +293,32 @@ func (d *SQLiteDriver) applyMigrationWithFKDisabled(ctx context.Context, name, c
 		var table, rowid, parent string
 		var fkid int
 		if err := rows.Scan(&table, &rowid, &parent, &fkid); err != nil {
-			return fmt.Errorf("scan FK violation: %w", err)
+			return nil, fmt.Errorf("scan FK violation: %w", err)
 		}
-		violations = append(violations, fmt.Sprintf("%s.rowid=%s->%s", table, rowid, parent))
+		violations = append(violations, fmt.Sprintf("%s.rowid=%s->%s#fk%d", table, rowid, parent, fkid))
 	}
-	if len(violations) > 0 {
-		return fmt.Errorf("migration %s introduced FK violations: %v", name, violations)
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate FK violations: %w", err)
 	}
 
-	return nil
+	slices.Sort(violations)
+	return violations, nil
+}
+
+func difference(items, baseline []string) []string {
+	baselineSet := make(map[string]struct{}, len(baseline))
+	for _, item := range baseline {
+		baselineSet[item] = struct{}{}
+	}
+
+	diff := make([]string, 0, len(items))
+	for _, item := range items {
+		if _, ok := baselineSet[item]; ok {
+			continue
+		}
+		diff = append(diff, item)
+	}
+	return diff
 }
 
 // Dialect returns the SQLite dialect identifier.

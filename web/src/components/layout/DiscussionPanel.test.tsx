@@ -548,6 +548,80 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 		});
 	});
 
+	it('should ignore stale mutation results after a fresher threadUpdated reload', async () => {
+		const staleAddLink = createDeferred<{ thread?: ReturnType<typeof createMockThread> }>();
+
+		vi.mocked(threadClient.getThread)
+			.mockResolvedValueOnce({ thread: createMockThread() } as never)
+			.mockResolvedValueOnce({
+				thread: createMockThread({
+					links: [
+						create(ThreadLinkSchema, {
+							id: BigInt(9),
+							threadId: 'thread-001',
+							linkType: 'file',
+							targetId: 'fresh.tsx',
+							title: 'Fresh link',
+						}),
+					],
+				}),
+			} as never);
+		vi.mocked(threadClient.addLink).mockReturnValue(staleAddLink.promise as never);
+
+		renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalledTimes(1);
+		});
+
+		fireEvent.change(screen.getByLabelText('Link target'), {
+			target: { value: 'stale.tsx' },
+		});
+		fireEvent.change(screen.getByLabelText('Link title'), {
+			target: { value: 'Stale link' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: /add link/i }));
+
+		await act(async () => {
+			eventHandler?.({
+				projectId: 'proj-001',
+				payload: {
+					case: 'threadUpdated',
+					value: {
+						threadId: 'thread-001',
+						updateType: 'link_added',
+					},
+				},
+			});
+		});
+
+		await screen.findByText('Fresh link');
+
+		await act(async () => {
+			staleAddLink.resolve({
+				thread: createMockThread({
+					links: [
+						create(ThreadLinkSchema, {
+							id: BigInt(2),
+							threadId: 'thread-001',
+							linkType: 'file',
+							targetId: 'stale.tsx',
+							title: 'Stale link',
+						}),
+					],
+				}),
+			});
+			await Promise.resolve();
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText('Fresh link')).toBeInTheDocument();
+			expect(screen.queryByText('Stale link')).not.toBeInTheDocument();
+		});
+	});
+
 	it('should create a recommendation draft from the workspace', async () => {
 		vi.mocked(threadClient.getThread).mockResolvedValue({
 			thread: createMockThread(),

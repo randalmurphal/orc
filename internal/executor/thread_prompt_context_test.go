@@ -122,6 +122,91 @@ func TestEnrichContextForPhase_LoadsThreadPromptContext(t *testing.T) {
 	}
 }
 
+func TestEnrichContextForPhase_PrefersTaskThreadOverNewerInitiativeThread(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	if err := backend.DB().SaveInitiative(&db.Initiative{
+		ID:     "INIT-002",
+		Title:  "Operator Control Plane",
+		Status: "active",
+	}); err != nil {
+		t.Fatalf("SaveInitiative: %v", err)
+	}
+
+	taskItem := task.NewProtoTask("TASK-THREAD-002", "task thread should win")
+	task.SetInitiativeProto(taskItem, "INIT-002")
+	if err := backend.SaveTask(taskItem); err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+
+	taskThread := &db.Thread{
+		Title:        "Task thread",
+		TaskID:       taskItem.Id,
+		InitiativeID: "INIT-002",
+	}
+	if err := backend.DB().CreateThread(taskThread); err != nil {
+		t.Fatalf("CreateThread(task): %v", err)
+	}
+	if err := backend.DB().AddThreadMessage(&db.ThreadMessage{
+		ThreadID: taskThread.ID,
+		Role:     "assistant",
+		Content:  "Use task-specific context.",
+	}); err != nil {
+		t.Fatalf("AddThreadMessage(task): %v", err)
+	}
+
+	otherTask := task.NewProtoTask("TASK-THREAD-003", "other task")
+	task.SetInitiativeProto(otherTask, "INIT-002")
+	if err := backend.SaveTask(otherTask); err != nil {
+		t.Fatalf("SaveTask(other): %v", err)
+	}
+
+	initThread := &db.Thread{
+		Title:        "Initiative thread",
+		TaskID:       otherTask.Id,
+		InitiativeID: "INIT-002",
+	}
+	if err := backend.DB().CreateThread(initThread); err != nil {
+		t.Fatalf("CreateThread(initiative): %v", err)
+	}
+	if err := backend.DB().AddThreadMessage(&db.ThreadMessage{
+		ThreadID: initThread.ID,
+		Role:     "assistant",
+		Content:  "Newer initiative-wide discussion.",
+	}); err != nil {
+		t.Fatalf("AddThreadMessage(initiative): %v", err)
+	}
+	if _, err := backend.DB().Exec(`UPDATE threads SET updated_at = datetime('now', '+1 minute') WHERE id = ?`, initThread.ID); err != nil {
+		t.Fatalf("update initiative thread timestamp: %v", err)
+	}
+
+	we := NewWorkflowExecutor(
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+	)
+	rctx := &variable.ResolutionContext{}
+
+	err := we.enrichContextForPhase(rctx, "implement", taskItem, threadVariableUsage{
+		ThreadID:      true,
+		ThreadHistory: true,
+	})
+	if err != nil {
+		t.Fatalf("enrichContextForPhase() error = %v", err)
+	}
+
+	if rctx.ThreadID != taskThread.ID {
+		t.Fatalf("ThreadID = %q, want task thread %q", rctx.ThreadID, taskThread.ID)
+	}
+	if !strings.Contains(rctx.ThreadHistory, "Use task-specific context.") {
+		t.Fatalf("ThreadHistory = %q, want task thread history", rctx.ThreadHistory)
+	}
+	if strings.Contains(rctx.ThreadHistory, "Newer initiative-wide discussion.") {
+		t.Fatalf("ThreadHistory = %q, should not contain initiative-only thread history", rctx.ThreadHistory)
+	}
+}
+
 func TestEnrichContextForPhase_SkipsThreadLoadingWhenUnused(t *testing.T) {
 	t.Parallel()
 
