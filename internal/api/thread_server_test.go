@@ -1216,6 +1216,79 @@ func TestThreadServer_AddLinkAndPromoteRecommendationDraft(t *testing.T) {
 	}
 }
 
+func TestThreadServer_PromoteRecommendationDraft_FromGenericThread(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+	publisher := events.NewMemoryPublisher()
+	defer publisher.Close()
+
+	mustCreateThreadServerFixtures(t, backend)
+
+	server := NewThreadServer(backend, publisher, slog.Default())
+	cache := NewProjectCache(1)
+	cache.entries["proj-001"] = &cacheEntry{db: backend.DB(), backend: backend}
+	cache.order = append(cache.order, "proj-001")
+	server.SetProjectCache(cache)
+
+	createResp, err := server.CreateThread(
+		context.Background(),
+		connect.NewRequest(&orcv1.CreateThreadRequest{
+			ProjectId: "proj-001",
+			Title:     "Default workspace thread",
+		}),
+	)
+	if err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+	threadID := createResp.Msg.Thread.Id
+
+	createDraftResp, err := server.CreateRecommendationDraft(
+		context.Background(),
+		connect.NewRequest(&orcv1.CreateThreadRecommendationDraftRequest{
+			ProjectId: "proj-001",
+			ThreadId:  threadID,
+			Draft: &orcv1.ThreadRecommendationDraft{
+				Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_FOLLOW_UP,
+				Title:          "Promote from generic thread",
+				Summary:        "Default threads should not need task provenance.",
+				ProposedAction: "Persist thread-only recommendations.",
+				Evidence:       "The thread came from the sidebar create flow.",
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("CreateRecommendationDraft: %v", err)
+	}
+
+	promoteResp, err := server.PromoteRecommendationDraft(
+		context.Background(),
+		connect.NewRequest(&orcv1.PromoteThreadRecommendationDraftRequest{
+			ProjectId:  "proj-001",
+			ThreadId:   threadID,
+			DraftId:    createDraftResp.Msg.Draft.Id,
+			PromotedBy: "operator",
+		}),
+	)
+	if err != nil {
+		t.Fatalf("PromoteRecommendationDraft: %v", err)
+	}
+	if promoteResp.Msg.Recommendation == nil {
+		t.Fatal("expected created recommendation")
+	}
+	if promoteResp.Msg.Recommendation.SourceThreadId != threadID {
+		t.Fatalf("expected source thread %s, got %s", threadID, promoteResp.Msg.Recommendation.SourceThreadId)
+	}
+	if promoteResp.Msg.Recommendation.SourceTaskId != "" {
+		t.Fatalf("expected empty source task, got %s", promoteResp.Msg.Recommendation.SourceTaskId)
+	}
+	if promoteResp.Msg.Recommendation.SourceRunId != "" {
+		t.Fatalf("expected empty source run, got %s", promoteResp.Msg.Recommendation.SourceRunId)
+	}
+	if len(promoteResp.Msg.Thread.Links) != 1 {
+		t.Fatalf("expected only recommendation link, got %d", len(promoteResp.Msg.Thread.Links))
+	}
+}
+
 func TestThreadServer_PromoteRecommendationDraft_RejectsMismatchedThread(t *testing.T) {
 	t.Parallel()
 	backend := storage.NewTestBackend(t)

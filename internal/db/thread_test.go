@@ -687,6 +687,58 @@ func TestThread_PromoteRecommendationDraft(t *testing.T) {
 	}
 }
 
+func TestThread_PromoteRecommendationDraft_AllowsGenericThread(t *testing.T) {
+	t.Parallel()
+	pdb := NewTestProjectDB(t)
+
+	mustCreateThreadFixtures(t, pdb)
+
+	thread := &Thread{Title: "Generic promotion thread"}
+	if err := pdb.CreateThread(thread); err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+
+	draft := &ThreadRecommendationDraft{
+		ThreadID:       thread.ID,
+		Kind:           RecommendationKindFollowUp,
+		Title:          "Promote from default thread",
+		Summary:        "Sidebar-created threads should still produce inbox items.",
+		ProposedAction: "Allow thread-only recommendation provenance.",
+		Evidence:       "No task or workflow run exists for this thread.",
+	}
+	if err := pdb.CreateThreadRecommendationDraft(draft); err != nil {
+		t.Fatalf("CreateThreadRecommendationDraft: %v", err)
+	}
+
+	promotedDraft, rec, err := pdb.PromoteThreadRecommendationDraft(context.Background(), thread.ID, draft.ID, "operator")
+	if err != nil {
+		t.Fatalf("PromoteThreadRecommendationDraft: %v", err)
+	}
+	if promotedDraft.Status != ThreadDraftStatusPromoted {
+		t.Fatalf("expected promoted status, got %s", promotedDraft.Status)
+	}
+	if rec.SourceThreadID != thread.ID {
+		t.Fatalf("expected source thread %s, got %s", thread.ID, rec.SourceThreadID)
+	}
+	if rec.SourceTaskID != "" {
+		t.Fatalf("expected empty source task, got %s", rec.SourceTaskID)
+	}
+	if rec.SourceRunID != "" {
+		t.Fatalf("expected empty source run, got %s", rec.SourceRunID)
+	}
+
+	got, err := pdb.GetThread(thread.ID)
+	if err != nil {
+		t.Fatalf("GetThread: %v", err)
+	}
+	if len(got.Links) != 1 {
+		t.Fatalf("expected only promoted recommendation link, got %d", len(got.Links))
+	}
+	if got.Links[0].LinkType != ThreadLinkTypeRecommendation {
+		t.Fatalf("expected recommendation link, got %s", got.Links[0].LinkType)
+	}
+}
+
 func TestThread_PromoteRecommendationDraft_RejectsMismatchedThread(t *testing.T) {
 	t.Parallel()
 	pdb := NewTestProjectDB(t)

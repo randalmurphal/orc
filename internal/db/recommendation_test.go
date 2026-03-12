@@ -42,6 +42,39 @@ func TestRecommendationCRUD(t *testing.T) {
 	require.Nil(t, deleted)
 }
 
+func TestRecommendationCreate_AllowsThreadOnlyProvenance(t *testing.T) {
+	t.Parallel()
+
+	pdb := newRecommendationTestDB(t)
+
+	thread := &Thread{Title: "Generic discussion"}
+	require.NoError(t, pdb.CreateThread(thread))
+
+	rec := &Recommendation{
+		Kind:           RecommendationKindFollowUp,
+		Status:         RecommendationStatusPending,
+		Title:          "Follow up on generic thread",
+		Summary:        "Project-scoped threads still need promotable recommendations.",
+		ProposedAction: "Keep thread-only provenance when no task/run exists.",
+		Evidence:       "Sidebar-created threads do not carry execution provenance.",
+		SourceThreadID: thread.ID,
+		DedupeKey:      "follow-up:generic-thread:promotion",
+	}
+
+	require.NoError(t, pdb.CreateRecommendation(rec))
+	require.NotEmpty(t, rec.ID)
+	require.Empty(t, rec.SourceTaskID)
+	require.Empty(t, rec.SourceRunID)
+	require.Equal(t, thread.ID, rec.SourceThreadID)
+
+	loaded, err := pdb.GetRecommendation(rec.ID)
+	require.NoError(t, err)
+	require.NotNil(t, loaded)
+	require.Empty(t, loaded.SourceTaskID)
+	require.Empty(t, loaded.SourceRunID)
+	require.Equal(t, thread.ID, loaded.SourceThreadID)
+}
+
 func TestRecommendationTransition(t *testing.T) {
 	t.Parallel()
 

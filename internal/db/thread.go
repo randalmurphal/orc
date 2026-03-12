@@ -482,19 +482,12 @@ func (p *ProjectDB) PromoteThreadRecommendationDraft(ctx context.Context, thread
 		if sourceTaskID == "" {
 			sourceTaskID = thread.TaskID
 		}
-		if sourceTaskID == "" {
-			return fmt.Errorf("thread recommendation draft %s has no source task", draftID)
-		}
-
 		sourceRunID := draft.SourceRunID
-		if sourceRunID == "" {
+		if sourceRunID == "" && sourceTaskID != "" {
 			sourceRunID, err = latestWorkflowRunIDForTaskTx(tx, sourceTaskID)
 			if err != nil {
 				return err
 			}
-		}
-		if sourceRunID == "" {
-			return fmt.Errorf("thread recommendation draft %s has no source run", draftID)
 		}
 
 		recommendation := &Recommendation{
