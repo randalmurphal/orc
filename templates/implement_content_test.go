@@ -162,6 +162,9 @@ func TestImplementPrompts_RequireAlternateWriterAndStateParityChecks(t *testing.
 				"local-ID-only",
 				"source of truth",
 				"distributed state parity",
+				"provenance variant",
+				"event-driven reload",
+				"stale-response",
 			} {
 				if !strings.Contains(text, required) {
 					t.Errorf("%s missing thoroughness guidance %q", file, required)
@@ -183,6 +186,9 @@ func TestImplementTemplate_BehavioralParityChecklistCoversMirrorsCachesAndDistri
 		"Mirrored linkage or join-table updates",
 		"Project-scoped cache key parity",
 		"Distributed state parity",
+		"provenance variant",
+		"stale-response",
+		"RPC-vs-event race check",
 	}
 	for _, needle := range required {
 		if !strings.Contains(text, needle) {

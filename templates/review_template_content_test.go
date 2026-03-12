@@ -298,6 +298,9 @@ func TestReviewTemplates_BlockEventDrivenAndProjectScopedGaps(t *testing.T) {
 				"local id",
 				"source of truth",
 				"distributed state parity",
+				"provenance variant",
+				"rpc-vs-event",
+				"stale responses",
 			} {
 				if !strings.Contains(strings.ToLower(content), strings.ToLower(required)) {
 					t.Errorf("%s missing event-driven/project-scoped review guidance %q", file, required)
@@ -313,10 +316,12 @@ func TestReviewRound2_RechecksAlternateWritersScopedCachesAndParity(t *testing.T
 	content := strings.ToLower(readReviewTemplate(t, "review_round2.md"))
 	for _, required := range []string{
 		"alternate write",
+		"provenance variants",
 		"mirrored linkage",
 		"project-scoped caches",
 		"local id",
 		"distributed state parity",
+		"event-driven reloads",
 	} {
 		if !strings.Contains(content, required) {
 			t.Errorf("review_round2.md missing re-verification guidance %q", required)

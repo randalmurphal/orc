@@ -110,8 +110,10 @@ If blocked, still return the same top-level keys. Use `null` or `[]` for fields 
 17. If relationship state is mirrored in a mirrored linkage or join table, verify create/update/delete parity across both representations, including delete-path parity.
 18. If project-scoped caches, browser-local state, or UI memoization are involved, verify every get/set/delete key includes project or tenant scope plus a stable identifier. Local-ID-only keys are a correctness bug.
 19. If the feature duplicates state across source rows, mirrored tables, caches, events, or browser-visible summaries, verify distributed state parity and name the source of truth in your evidence.
-20. Prefer the smallest set of production paths needed to prove the task. After you inventory the relevant writers and readers, start editing.
-21. Prefer existing repo verification commands, fixtures, and browser flows over ad hoc temp harnesses. Only build a custom harness when the normal path cannot prove the behavior, and explain why in the evidence.
+20. If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant explicitly. Do not assume the full-provenance happy path is the only valid case.
+21. If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling and duplicate suppression explicitly.
+22. Prefer the smallest set of production paths needed to prove the task. After you inventory the relevant writers and readers, start editing.
+23. Prefer existing repo verification commands, fixtures, and browser flows over ad hoc temp harnesses. Only build a custom harness when the normal path cannot prove the behavior, and explain why in the evidence.
 
 ## Verification Status Rules
 
@@ -170,9 +172,11 @@ Do not stop at same-page happy paths when the surface depends on external update
 18. If relationship state is mirrored in a mirrored linkage or join table, verify create/update/delete parity, including delete paths and cleanup paths.
 19. If project-scoped caches or browser-local state are involved, verify cache get/set/delete keys include project or tenant scope; do not accept local-ID-only keys.
 20. If state is duplicated across DB rows, mirrored tables, caches, events, and browser-visible summaries, verify distributed state parity and record the source of truth.
-21. Prefer existing repo/browser validation flows over ad hoc temp environments. Build a custom harness only if the normal path cannot prove the behavior, and say why.
-22. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
-23. Output completion JSON.
+21. If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant and record which ones are valid, including cases where run provenance is intentionally absent.
+22. If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling and duplicate suppression with a real race scenario.
+23. Prefer existing repo/browser validation flows over ad hoc temp environments. Build a custom harness only if the normal path cannot prove the behavior, and say why.
+24. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
+25. Output completion JSON.
 
 {{#if TDD_TESTS_CONTENT}}
 If tests fail: fix your implementation, not the tests. If a test contradicts the spec, document as `AMEND-NNN`.

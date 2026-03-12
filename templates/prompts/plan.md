@@ -184,6 +184,8 @@ If blocked due to unclear requirements:
 14. **Name mirrored linkage state explicitly** — if relationship state is duplicated in a linkage or join table, success criteria must prove create/update/delete parity across the source of truth and the mirrored table.
 15. **Treat project-scoped cache keys as part of correctness** — if caches, local UI state, or browser stores are involved, the plan must define the cache key and prove it includes project or tenant scope plus a stable identifier; local ID alone is not sufficient.
 16. **State the source of truth and distributed state parity** — when data is duplicated across DB rows, caches, events, or browser-visible summaries, the plan must name the source of truth and require parity checks across every duplicated representation.
+17. **Inventory provenance variants explicitly** — if the task promotes drafts, creates artifacts from discussion, or links objects across task/run/thread/initiative context, the plan must name which provenance combinations are valid on each path, including cases where some metadata is intentionally absent.
+18. **Name async race behavior for live UI state** — if browser-local state can be updated by both RPC responses and event-driven reloads, success criteria must say how stale responses are ignored, deduped, or made authoritative.
 </critical_constraints>
 
 <context>
@@ -252,8 +254,13 @@ If the task touches events, dashboards, inboxes, live views, or multi-project su
 - Include at least one success criterion for external-update behavior when the page should react while open.
 - Include at least one success criterion for project or tenant isolation when the behavior must stay scoped.
 - Include at least one success criterion that inventories hidden alternate write paths and event sources, not just the obvious request path.
+- Include at least one success criterion for async race handling when RPC responses and event-driven reloads can both update the same browser-local state.
 - Put those checks into `verification_plan.e2e` or the test list explicitly.
 - Treat this as event-driven behavior, not generic UI polish.
+
+If the task promotes drafts, recommendations, decisions, or other artifacts from mixed context:
+- Include at least one success criterion for each valid provenance variant the code must support, such as thread-only, task-linked without a workflow run, task-linked with a workflow run, or initiative-linked.
+- State which provenance fields are required, optional, or intentionally absent on each path.
 
 If the task replaces computed/live reconstruction with persisted/materialized state:
 - Include at least one success criterion for rollout parity so pre-existing data and in-flight states still appear correctly before any backfill or rewrite completes.

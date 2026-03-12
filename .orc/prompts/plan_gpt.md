@@ -93,6 +93,8 @@ Rules:
    - mirrored linkage or join-table parity when relationship state is stored twice
    - cache-key correctness for project-scoped UI state; local ID alone is not sufficient
    - source-of-truth and distributed state parity across DB rows, mirrored tables, caches, events, and browser-visible summaries
+   - provenance variants for task/run/thread/initiative-linked paths, including valid cases where some provenance is intentionally absent
+   - async race behavior when RPC responses and event-driven reloads can both update the same browser-local state
 9. If the change adds work on a repeated path (request, phase, poll, render, load, event), call out the cost model and how it stays bounded.
 10. Distinguish "no data" from "failed to load data" whenever behavior depends on that difference.
 11. Omit speculation. If the code does not prove a claim, either inspect more or state the assumption explicitly.
@@ -145,5 +147,6 @@ Before you finalize, ask yourself:
 - What would cause this implementation to look correct locally but still be wrong in production?
 - What transitions or failure paths would a rushed implementer forget?
 - What alternate writers, mirrored tables, or project-scoped cache keys would let stale or cross-project state slip through?
+- What provenance combinations and RPC-vs-event races could make the feature look correct on the happy path but fail in real usage?
 - What tests would actually catch those mistakes?
 </instructions>

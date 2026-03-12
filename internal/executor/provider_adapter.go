@@ -49,6 +49,9 @@ func checkResumeSession(we *WorkflowExecutor, phaseID string) (sessionID string,
 	if shouldStartFreshRetryPhase(we.task, phaseID) {
 		return "", false
 	}
+	if shouldStartFreshBlockedReviewPhase(we.task, phaseID) {
+		return "", false
+	}
 	if we.task.Execution == nil || we.task.Execution.Phases == nil {
 		return "", false
 	}
@@ -64,6 +67,16 @@ func checkResumeSession(we *WorkflowExecutor, phaseID string) (sessionID string,
 		return storedSessionID, true
 	}
 	return "", false
+}
+
+func shouldStartFreshBlockedReviewPhase(t *orcv1.Task, phaseID string) bool {
+	if t == nil {
+		return false
+	}
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
+		return false
+	}
+	return phaseID == "review" || phaseID == "review_cross"
 }
 
 func shouldStartFreshRetryPhase(t *orcv1.Task, phaseID string) bool {

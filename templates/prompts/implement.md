@@ -394,7 +394,9 @@ Execute all checks and include evidence for each in your completion output:
 16. **Mirrored linkage parity check** — If relationship state is stored in a mirrored linkage or join table, prove create/update/delete parity across both representations.
 17. **Project-scoped cache key check** — If browser-local state, project-scoped caches, or memoized stores are involved, prove every get/set/delete key includes project or tenant scope. `local-ID-only` keys are not sufficient, and local ID alone is not sufficient.
 18. **Distributed state parity check** — If the feature duplicates state across DB rows, mirrored tables, caches, events, or browser-visible summaries, identify the source of truth and prove distributed state parity across the copies.
-19. **Bounded discovery check** — Use the smallest set of production paths and existing repo verification flows needed to prove the task. Do not build ad hoc harnesses unless the normal path cannot validate the behavior.
+19. **Provenance variant check** — If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant explicitly. Do not assume the full-provenance happy path is the only valid case.
+20. **RPC-vs-event race check** — If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling and duplicate suppression explicitly.
+21. **Bounded discovery check** — Use the smallest set of production paths and existing repo verification flows needed to prove the task. Do not build ad hoc harnesses unless the normal path cannot validate the behavior.
 
 **Only output completion JSON after all checks pass.** See Output Format for the exact schema.
 

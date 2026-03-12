@@ -66,6 +66,8 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - Treat mirrored linkage or join-table drift as blocking when relationship state is stored in more than one place.
 - Treat project-scoped caches keyed only by local IDs as blocking correctness issues.
 - Treat distributed state parity across DB rows, mirrored tables, caches, events, and browser-visible summaries as mandatory when the feature duplicates state.
+- Treat missing provenance-variant coverage as blocking when the feature supports task-, run-, thread-, or initiative-linked paths with different valid metadata combinations.
+- Treat RPC-vs-event/browser-reload races as blocking when stale responses can overwrite, duplicate, or cross-contaminate visible state.
 
 **3. Simplicity & Maintainability**
 - Is the solution more complex than the task requires?
@@ -94,6 +96,8 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - Partial failures must leave the system in a consistent state
 - If the diff adds optional context, summaries, caches, or derived state, verify whether "no data" and "failed to load" are intentionally distinct. Silent collapse of both outcomes into the same empty value is a real finding when callers need that distinction.
 - If the diff adds project-scoped caches or browser-local state, verify cache get/set/delete keys include project or tenant scope. Local ID alone is not sufficient.
+- If the diff supports multiple provenance variants, verify the branch covers each valid combination and does not accidentally require metadata that is intentionally absent on some paths.
+- If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale responses are ignored or deduped and cannot overwrite newer state.
 
 **7. Dead Code & Integration**
 - Every new function must be called from at least one production path
@@ -170,7 +174,7 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 8. **Check event-driven and project-scoped behavior** — if the diff adds live browser state or project-scoped behavior, verify external-mutation and isolation evidence
 9. **Check shared-path cost model** — if the diff adds work on a repeated/shared path, verify what triggers it, whether it is lazy/bounded, and whether tests would catch accidental eager behavior
 10. **Check persisted-state replacement risks** — if computed/live behavior is replaced with stored/materialized state, verify rollout parity, every production transition that mutates the truth, and atomicity or rollback for multi-write operator actions
-11. **Check alternate writers and mirrored state** — verify the branch covered all production writers, mirrored linkage tables, project-scoped cache keys, and distributed state parity
+11. **Check alternate writers, provenance variants, and mirrored state** — verify the branch covered all production writers, valid provenance combinations, mirrored linkage tables, project-scoped cache keys, distributed state parity, and RPC-vs-event race handling
 12. **Verify integration** — new code is reachable from production paths
 13. Prefer the repo's standard validation flows over ad hoc harnesses. If the branch used a custom harness, decide whether the normal path should have been enough and whether that detour hid missing coverage.
 14. If you found small issues, fix and commit them

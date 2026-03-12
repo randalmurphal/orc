@@ -28,6 +28,8 @@ func TestPlanPrompt_RequiresEventDrivenAndProjectScopedChecks(t *testing.T) {
 		"rollout parity",
 		"production transition",
 		"atomicity or rollback",
+		"async race handling",
+		"provenance variant",
 	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("plan.md missing planning guidance %q", required)
@@ -51,6 +53,7 @@ func TestPlanPrompt_RequiresAlternateWritersScopedCachesAndStateParity(t *testin
 		"local ID alone is not sufficient",
 		"source of truth",
 		"distributed state parity",
+		"task-linked without a workflow run",
 	} {
 		if !strings.Contains(text, required) {
 			t.Errorf("plan.md missing planning guidance %q", required)
