@@ -7,7 +7,7 @@
 
 import type { Event } from '@/gen/orc/v1/events_pb';
 import { ActivityState } from '@/gen/orc/v1/events_pb';
-import { useTaskStore, useInitiativeStore, useSessionStore, useUIStore, toast } from '@/stores';
+import { useTaskStore, useInitiativeStore, useSessionStore, useUIStore, useProjectStore, useThreadStore, toast } from '@/stores';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
 import { create } from '@bufbuild/protobuf';
 import { PendingDecisionSchema } from '@/gen/orc/v1/decision_pb';
@@ -433,6 +433,11 @@ export function handleEvent(event: Event): void {
 		}
 
 		case 'threadUpdated': {
+			const currentProjectId = useProjectStore.getState().currentProjectId;
+			if (!event.projectId || currentProjectId !== event.projectId) {
+				break;
+			}
+			void useThreadStore.getState().refreshThreadList(event.projectId);
 			break;
 		}
 

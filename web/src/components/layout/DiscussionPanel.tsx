@@ -60,6 +60,11 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 	const [error, setError] = useState<string | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const latestThreadRequestIdRef = useRef(0);
+	const nextActionTokenRef = useRef(0);
+	const sendingActionTokenRef = useRef(0);
+	const addingLinkActionTokenRef = useRef(0);
+	const creatingDraftActionTokenRef = useRef(0);
+	const promotingDraftActionTokenRef = useRef(0);
 	const currentThreadKeyRef = useRef(threadRequestKey(projectId, threadId));
 	currentThreadKeyRef.current = threadRequestKey(projectId, threadId);
 
@@ -70,6 +75,11 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 			requestId,
 			threadKey: currentThreadKeyRef.current,
 		};
+	}, []);
+
+	const beginActionToken = useCallback(() => {
+		nextActionTokenRef.current += 1;
+		return nextActionTokenRef.current;
 	}, []);
 
 	const isCurrentThreadRequest = useCallback((requestId: number, threadKey: string) => (
@@ -101,6 +111,10 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		setLoadingThread(true);
 		setPromotingDraftId(null);
 		setError(null);
+		sendingActionTokenRef.current = 0;
+		addingLinkActionTokenRef.current = 0;
+		creatingDraftActionTokenRef.current = 0;
+		promotingDraftActionTokenRef.current = 0;
 	}, [initialMessages, projectId, threadId]);
 
 	useEffect(() => {
@@ -218,8 +232,10 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		if (!content || sending) return;
 
 		const request = beginThreadRequest();
+		const actionToken = beginActionToken();
 		setError(null);
 		setSending(true);
+		sendingActionTokenRef.current = actionToken;
 
 		// Optimistic: add user message immediately
 		const optimisticMsg = {
@@ -260,14 +276,17 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 			setInput(content);
 			setError(withErrorDetails('Failed to send message. Try again.', err));
 		} finally {
-			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+			if (sendingActionTokenRef.current === actionToken) {
+				sendingActionTokenRef.current = 0;
 				setSending(false);
 			}
 		}
-	}, [beginThreadRequest, input, isCurrentThreadRequest, projectId, sending, threadId]);
+	}, [beginActionToken, beginThreadRequest, input, isCurrentThreadRequest, projectId, sending, threadId]);
 
 	const promoteRecommendationDraft = useCallback(async (draftId: string) => {
 		const request = beginThreadRequest();
+		const actionToken = beginActionToken();
+		promotingDraftActionTokenRef.current = actionToken;
 		setPromotingDraftId(draftId);
 		setError(null);
 		try {
@@ -285,11 +304,12 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 				setError(withErrorDetails('Failed to promote recommendation draft. Try again.', err));
 			}
 		} finally {
-			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+			if (promotingDraftActionTokenRef.current === actionToken) {
+				promotingDraftActionTokenRef.current = 0;
 				setPromotingDraftId(null);
 			}
 		}
-	}, [applyThreadMutationState, beginThreadRequest, isCurrentThreadRequest, projectId, threadId]);
+	}, [applyThreadMutationState, beginActionToken, beginThreadRequest, isCurrentThreadRequest, projectId, threadId]);
 
 	const addLink = useCallback(async () => {
 		const targetId = linkTargetId.trim();
@@ -298,6 +318,8 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		}
 
 		const request = beginThreadRequest();
+		const actionToken = beginActionToken();
+		addingLinkActionTokenRef.current = actionToken;
 		setAddingLink(true);
 		setError(null);
 		try {
@@ -321,11 +343,12 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 				setError(withErrorDetails('Failed to add linked context. Try again.', err));
 			}
 		} finally {
-			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+			if (addingLinkActionTokenRef.current === actionToken) {
+				addingLinkActionTokenRef.current = 0;
 				setAddingLink(false);
 			}
 		}
-	}, [addingLink, applyThreadMutationState, beginThreadRequest, isCurrentThreadRequest, linkTargetId, linkTitle, linkType, projectId, threadId]);
+	}, [addingLink, applyThreadMutationState, beginActionToken, beginThreadRequest, isCurrentThreadRequest, linkTargetId, linkTitle, linkType, projectId, threadId]);
 
 	const createRecommendationDraft = useCallback(async () => {
 		if (creatingDraft !== null) {
@@ -345,6 +368,8 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		}
 
 		const request = beginThreadRequest();
+		const actionToken = beginActionToken();
+		creatingDraftActionTokenRef.current = actionToken;
 		setCreatingDraft('recommendation');
 		setError(null);
 		try {
@@ -373,13 +398,15 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 				setError(withErrorDetails('Failed to create recommendation draft. Try again.', err));
 			}
 		} finally {
-			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+			if (creatingDraftActionTokenRef.current === actionToken) {
+				creatingDraftActionTokenRef.current = 0;
 				setCreatingDraft(null);
 			}
 		}
 	}, [
 		creatingDraft,
 		applyThreadMutationState,
+		beginActionToken,
 		beginThreadRequest,
 		isCurrentThreadRequest,
 		projectId,
@@ -401,6 +428,8 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		}
 
 		const request = beginThreadRequest();
+		const actionToken = beginActionToken();
+		creatingDraftActionTokenRef.current = actionToken;
 		setCreatingDraft('decision');
 		setError(null);
 		try {
@@ -424,11 +453,12 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 				setError(withErrorDetails('Failed to create decision draft. Try again.', err));
 			}
 		} finally {
-			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+			if (creatingDraftActionTokenRef.current === actionToken) {
+				creatingDraftActionTokenRef.current = 0;
 				setCreatingDraft(null);
 			}
 		}
-	}, [applyThreadMutationState, beginThreadRequest, creatingDraft, decisionInitiativeId, decisionRationale, decisionText, isCurrentThreadRequest, projectId, threadId]);
+	}, [applyThreadMutationState, beginActionToken, beginThreadRequest, creatingDraft, decisionInitiativeId, decisionRationale, decisionText, isCurrentThreadRequest, projectId, threadId]);
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
 		if (e.key === 'Enter' && !e.shiftKey) {

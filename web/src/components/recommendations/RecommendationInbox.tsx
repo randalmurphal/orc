@@ -101,6 +101,9 @@ export function RecommendationInbox() {
 					[stateKey]: response.contextPack,
 				}));
 			}
+			if (currentProjectIdRef.current !== decisionProjectId) {
+				return;
+			}
 			await loadRecommendations();
 		} catch (err) {
 			if (currentProjectIdRef.current === decisionProjectId) {

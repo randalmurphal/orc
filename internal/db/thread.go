@@ -207,6 +207,8 @@ func (p *ProjectDB) GetThread(id string) (*Thread, error) {
 
 	thread.Messages = messages
 	thread.Links = mergeThreadLinks(threadLegacyLinks(thread), links)
+	thread.TaskID = threadAssociationTarget(thread, ThreadLinkTypeTask)
+	thread.InitiativeID = threadAssociationTarget(thread, ThreadLinkTypeInitiative)
 	thread.RecommendationDrafts = recommendationDrafts
 	thread.DecisionDrafts = decisionDrafts
 	return thread, nil
@@ -317,14 +319,24 @@ func (p *ProjectDB) ListThreads(opts ThreadListOpts) ([]Thread, error) {
 		argIndex++
 	}
 	if opts.TaskID != "" {
-		query += fmt.Sprintf(" AND task_id = %s", dialectPlaceholder(p.Dialect(), argIndex))
-		args = append(args, opts.TaskID)
-		argIndex++
+		query += fmt.Sprintf(
+			" AND (task_id = %s OR EXISTS (SELECT 1 FROM thread_links WHERE thread_id = threads.id AND link_type = '%s' AND target_id = %s))",
+			dialectPlaceholder(p.Dialect(), argIndex),
+			ThreadLinkTypeTask,
+			dialectPlaceholder(p.Dialect(), argIndex+1),
+		)
+		args = append(args, opts.TaskID, opts.TaskID)
+		argIndex += 2
 	}
 	if opts.InitiativeID != "" {
-		query += fmt.Sprintf(" AND initiative_id = %s", dialectPlaceholder(p.Dialect(), argIndex))
-		args = append(args, opts.InitiativeID)
-		argIndex++
+		query += fmt.Sprintf(
+			" AND (initiative_id = %s OR EXISTS (SELECT 1 FROM thread_links WHERE thread_id = threads.id AND link_type = '%s' AND target_id = %s))",
+			dialectPlaceholder(p.Dialect(), argIndex),
+			ThreadLinkTypeInitiative,
+			dialectPlaceholder(p.Dialect(), argIndex+1),
+		)
+		args = append(args, opts.InitiativeID, opts.InitiativeID)
+		argIndex += 2
 	}
 	query += " ORDER BY updated_at DESC"
 	if opts.Limit > 0 {
@@ -860,6 +872,27 @@ func threadLegacyFileLinks(thread *Thread) []ThreadLink {
 	return []ThreadLink{{LinkType: ThreadLinkTypeFile, TargetID: thread.FileContext, Title: thread.FileContext}}
 }
 
+func threadAssociationTarget(thread *Thread, linkType string) string {
+	if thread != nil {
+		for _, link := range thread.Links {
+			if link.LinkType == linkType && strings.TrimSpace(link.TargetID) != "" {
+				return link.TargetID
+			}
+		}
+	}
+	if thread == nil {
+		return ""
+	}
+	switch linkType {
+	case ThreadLinkTypeTask:
+		return thread.TaskID
+	case ThreadLinkTypeInitiative:
+		return thread.InitiativeID
+	default:
+		return ""
+	}
+}
+
 func mergeThreadLinks(base []ThreadLink, extra []ThreadLink) []ThreadLink {
 	if len(base) == 0 && len(extra) == 0 {
 		return nil
@@ -990,7 +1023,29 @@ func threadInsertQuery(dialect driver.Dialect) string {
 
 func threadSelectQuery(dialect driver.Dialect, many bool) string {
 	query := `
-		SELECT id, title, status, task_id, initiative_id, session_id, file_context, created_at, updated_at
+		SELECT id,
+		       title,
+		       status,
+		       COALESCE(
+		           (SELECT target_id
+		            FROM thread_links
+		            WHERE thread_id = threads.id AND link_type = 'task'
+		            ORDER BY created_at ASC, id ASC
+		            LIMIT 1),
+		           task_id
+		       ) AS task_id,
+		       COALESCE(
+		           (SELECT target_id
+		            FROM thread_links
+		            WHERE thread_id = threads.id AND link_type = 'initiative'
+		            ORDER BY created_at ASC, id ASC
+		            LIMIT 1),
+		           initiative_id
+		       ) AS initiative_id,
+		       session_id,
+		       file_context,
+		       created_at,
+		       updated_at
 		FROM threads
 		WHERE 1=1
 	`

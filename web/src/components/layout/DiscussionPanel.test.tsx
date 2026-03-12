@@ -619,6 +619,7 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 		await waitFor(() => {
 			expect(screen.getByText('Fresh link')).toBeInTheDocument();
 			expect(screen.queryByText('Stale link')).not.toBeInTheDocument();
+			expect(screen.getByRole('button', { name: /add link/i })).toBeEnabled();
 		});
 	});
 

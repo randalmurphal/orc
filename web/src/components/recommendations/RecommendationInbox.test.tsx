@@ -251,6 +251,37 @@ describe('RecommendationInbox', () => {
 		expect(screen.queryByText('Project A recommendation')).not.toBeInTheDocument();
 		expect(screen.getByText('Project B recommendation')).toBeInTheDocument();
 	});
+
+	it('does not trigger an old-project reload after a decision completes on a different active project', async () => {
+		const acceptDeferred = createDeferred<ReturnType<typeof create<typeof AcceptRecommendationResponseSchema>>>();
+		vi.mocked(listRecommendations)
+			.mockResolvedValueOnce(makeListResponse([makeRecommendation({ title: 'Project A recommendation' })]))
+			.mockResolvedValueOnce(makeListResponse([makeRecommendation({
+				title: 'Project B recommendation',
+				summary: 'Active project after the switch.',
+			})]));
+		vi.mocked(acceptRecommendation).mockReturnValue(acceptDeferred.promise as never);
+
+		const view = render(<RecommendationInbox />);
+
+		await screen.findByText('Project A recommendation');
+		fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+
+		currentProjectId = 'proj-002';
+		view.rerender(<RecommendationInbox />);
+		await screen.findByText('Project B recommendation');
+
+		await act(async () => {
+			acceptDeferred.resolve(create(AcceptRecommendationResponseSchema, {
+				recommendation: makeRecommendation({ status: RecommendationStatus.ACCEPTED }),
+			}));
+			await Promise.resolve();
+		});
+
+		expect(screen.getByText('Project B recommendation')).toBeInTheDocument();
+		expect(screen.queryByText('Project A recommendation')).not.toBeInTheDocument();
+		expect(listRecommendations).toHaveBeenCalledTimes(2);
+	});
 });
 
 function makeListResponse(recommendations: Recommendation[]) {

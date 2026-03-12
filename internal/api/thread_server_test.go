@@ -55,6 +55,55 @@ func TestThreadServer_Registration(t *testing.T) {
 	}
 }
 
+func TestThreadServer_GetThread_UsesCanonicalTypedLinks(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+	publisher := events.NewMemoryPublisher()
+	defer publisher.Close()
+
+	server := NewThreadServer(backend, publisher, slog.Default())
+
+	createResp, err := server.CreateThread(
+		context.Background(),
+		connect.NewRequest(&orcv1.CreateThreadRequest{
+			Title: "Generic thread",
+		}),
+	)
+	if err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+
+	threadID := createResp.Msg.Thread.Id
+	_, err = server.AddLink(
+		context.Background(),
+		connect.NewRequest(&orcv1.AddThreadLinkRequest{
+			ThreadId:  threadID,
+			Link: &orcv1.ThreadLinkInput{
+				LinkType: db.ThreadLinkTypeTask,
+				TargetId: "TASK-123",
+				Title:    "TASK-123",
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("AddLink: %v", err)
+	}
+
+	getResp, err := server.GetThread(
+		context.Background(),
+		connect.NewRequest(&orcv1.GetThreadRequest{
+			ThreadId: threadID,
+		}),
+	)
+	if err != nil {
+		t.Fatalf("GetThread: %v", err)
+	}
+
+	if getResp.Msg.Thread.TaskId != "TASK-123" {
+		t.Fatalf("expected canonical task ID TASK-123, got %q", getResp.Msg.Thread.TaskId)
+	}
+}
+
 // ============================================================================
 // SC-6: SendMessage stores user message, invokes Claude, stores response
 // ============================================================================

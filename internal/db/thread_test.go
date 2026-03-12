@@ -315,6 +315,55 @@ func TestThread_ListFilter_NoMatch(t *testing.T) {
 	}
 }
 
+func TestThread_GetAndListUseTypedAssociationLinks(t *testing.T) {
+	t.Parallel()
+	pdb := NewTestProjectDB(t)
+
+	thread := &Thread{Title: "Generic linked thread"}
+	if err := pdb.CreateThread(thread); err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+
+	for _, link := range []*ThreadLink{
+		{ThreadID: thread.ID, LinkType: ThreadLinkTypeTask, TargetID: "TASK-123", Title: "TASK-123"},
+		{ThreadID: thread.ID, LinkType: ThreadLinkTypeInitiative, TargetID: "INIT-456", Title: "INIT-456"},
+	} {
+		if err := pdb.CreateThreadLink(link); err != nil {
+			t.Fatalf("CreateThreadLink(%s): %v", link.LinkType, err)
+		}
+	}
+
+	got, err := pdb.GetThread(thread.ID)
+	if err != nil {
+		t.Fatalf("GetThread: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected thread")
+	}
+	if got.TaskID != "TASK-123" {
+		t.Fatalf("expected canonical task ID TASK-123, got %q", got.TaskID)
+	}
+	if got.InitiativeID != "INIT-456" {
+		t.Fatalf("expected canonical initiative ID INIT-456, got %q", got.InitiativeID)
+	}
+
+	taskThreads, err := pdb.ListThreads(ThreadListOpts{TaskID: "TASK-123"})
+	if err != nil {
+		t.Fatalf("ListThreads(task): %v", err)
+	}
+	if len(taskThreads) != 1 || taskThreads[0].ID != thread.ID {
+		t.Fatalf("expected linked thread in task filter, got %+v", taskThreads)
+	}
+
+	initThreads, err := pdb.ListThreads(ThreadListOpts{InitiativeID: "INIT-456"})
+	if err != nil {
+		t.Fatalf("ListThreads(initiative): %v", err)
+	}
+	if len(initThreads) != 1 || initThreads[0].ID != thread.ID {
+		t.Fatalf("expected linked thread in initiative filter, got %+v", initThreads)
+	}
+}
+
 // ============================================================================
 // SC-4: ArchiveThread changes status to "archived"
 // ============================================================================

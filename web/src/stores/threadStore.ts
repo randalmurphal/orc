@@ -29,6 +29,7 @@ interface ThreadStore {
 	// Actions
 	loadThreads: (projectId: string) => Promise<void>;
 	createThread: (projectId: string, title: string) => Promise<Thread | null>;
+	refreshThreadList: (projectId: string) => Promise<void>;
 	selectThread: (threadId: string | null) => void;
 	reset: () => void;
 }
@@ -94,6 +95,10 @@ export const useThreadStore = create<ThreadStore>()(
 				set({ error: 'Failed to create thread' });
 				return null;
 			}
+		},
+
+		refreshThreadList: async (projectId: string) => {
+			await get().loadThreads(projectId);
 		},
 
 		selectThread: (threadId: string | null) => {

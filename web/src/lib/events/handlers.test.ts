@@ -18,6 +18,8 @@ import { onRecommendationSignal } from './recommendationSignals';
 import { onAttentionDashboardSignal } from './attentionDashboardSignals';
 import { useTaskStore } from '@/stores/taskStore';
 import { useInitiativeStore } from '@/stores/initiativeStore';
+import { useProjectStore } from '@/stores/projectStore';
+import { useThreadStore } from '@/stores/threadStore';
 import { create } from '@bufbuild/protobuf';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 import {
@@ -25,6 +27,7 @@ import {
 	DecisionResolvedEventSchema,
 	EventSchema,
 	RecommendationCreatedEventSchema,
+	ThreadUpdatedEventSchema,
 	TaskCreatedEventSchema,
 	TaskDeletedEventSchema,
 	TaskUpdatedEventSchema,
@@ -99,6 +102,8 @@ describe('handleEvent - taskCreated', () => {
 		// Reset stores before each test
 		useTaskStore.getState().reset();
 		useInitiativeStore.getState().reset();
+		useProjectStore.getState().reset();
+		useThreadStore.getState().reset();
 		vi.clearAllMocks();
 	});
 
@@ -510,5 +515,47 @@ describe('handleEvent - attention dashboard signals', () => {
 				type: 'decision-resolved',
 			},
 		]);
+	});
+
+	it('refreshes the thread store for threadUpdated events in the active project', () => {
+		const loadThreads = vi.fn().mockResolvedValue(undefined);
+		useProjectStore.getState().selectProject('proj-001');
+		useThreadStore.setState({ refreshThreadList: loadThreads } as never);
+
+		handleEvent(create(EventSchema, {
+			id: 'evt-thread-updated',
+			timestamp: createTimestamp(),
+			projectId: 'proj-001',
+			payload: {
+				case: 'threadUpdated',
+				value: create(ThreadUpdatedEventSchema, {
+					threadId: 'THR-001',
+					updateType: 'link_added',
+				}),
+			},
+		}));
+
+		expect(loadThreads).toHaveBeenCalledWith('proj-001');
+	});
+
+	it('ignores threadUpdated events for inactive projects', () => {
+		const loadThreads = vi.fn().mockResolvedValue(undefined);
+		useProjectStore.getState().selectProject('proj-001');
+		useThreadStore.setState({ refreshThreadList: loadThreads } as never);
+
+		handleEvent(create(EventSchema, {
+			id: 'evt-thread-updated-other',
+			timestamp: createTimestamp(),
+			projectId: 'proj-002',
+			payload: {
+				case: 'threadUpdated',
+				value: create(ThreadUpdatedEventSchema, {
+					threadId: 'THR-002',
+					updateType: 'message_added',
+				}),
+			},
+		}));
+
+		expect(loadThreads).not.toHaveBeenCalled();
 	});
 });

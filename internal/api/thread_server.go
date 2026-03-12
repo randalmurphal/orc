@@ -556,12 +556,15 @@ func threadToProto(t *db.Thread) *orcv1.Thread {
 		return nil
 	}
 
+	taskID := protoThreadAssociationTarget(t, db.ThreadLinkTypeTask)
+	initiativeID := protoThreadAssociationTarget(t, db.ThreadLinkTypeInitiative)
+
 	proto := &orcv1.Thread{
 		Id:           t.ID,
 		Title:        t.Title,
 		Status:       t.Status,
-		TaskId:       t.TaskID,
-		InitiativeId: t.InitiativeID,
+		TaskId:       taskID,
+		InitiativeId: initiativeID,
 		SessionId:    t.SessionID,
 		FileContext:  t.FileContext,
 	}
@@ -587,6 +590,27 @@ func threadToProto(t *db.Thread) *orcv1.Thread {
 	}
 
 	return proto
+}
+
+func protoThreadAssociationTarget(thread *db.Thread, linkType string) string {
+	if thread != nil {
+		for _, link := range thread.Links {
+			if link.LinkType == linkType && strings.TrimSpace(link.TargetID) != "" {
+				return link.TargetID
+			}
+		}
+	}
+	if thread == nil {
+		return ""
+	}
+	switch linkType {
+	case db.ThreadLinkTypeTask:
+		return thread.TaskID
+	case db.ThreadLinkTypeInitiative:
+		return thread.InitiativeID
+	default:
+		return ""
+	}
 }
 
 // threadMessageToProto converts a db.ThreadMessage to the proto ThreadMessage.
