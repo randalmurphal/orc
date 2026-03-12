@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +41,45 @@ func TestRecommendationCRUD(t *testing.T) {
 	deleted, err := pdb.GetRecommendation(rec.ID)
 	require.NoError(t, err)
 	require.Nil(t, deleted)
+}
+
+func TestRecommendationDelete_RemovesSyntheticThreadLink(t *testing.T) {
+	t.Parallel()
+
+	pdb := newRecommendationTestDB(t)
+	require.NoError(t, pdb.SaveWorkflow(&Workflow{ID: "wf", Name: "wf"}))
+	require.NoError(t, pdb.SaveTask(&Task{ID: "TASK-001", Title: "task", WorkflowID: "wf", Status: "planned"}))
+
+	thread := &Thread{
+		Title:  "Recommendation thread",
+		TaskID: "TASK-001",
+	}
+	require.NoError(t, pdb.CreateThread(thread))
+
+	draft := &ThreadRecommendationDraft{
+		ThreadID:       thread.ID,
+		Kind:           RecommendationKindFollowUp,
+		Title:          "Follow up",
+		Summary:        "Need a recommendation link in the thread view.",
+		ProposedAction: "Promote the draft.",
+		Evidence:       "Thread links should mirror recommendations through one source of truth.",
+	}
+	require.NoError(t, pdb.CreateThreadRecommendationDraft(draft))
+
+	_, rec, err := pdb.PromoteThreadRecommendationDraft(context.Background(), thread.ID, draft.ID, "operator")
+	require.NoError(t, err)
+
+	gotThread, err := pdb.GetThread(thread.ID)
+	require.NoError(t, err)
+	require.Len(t, gotThread.Links, 2)
+	require.Equal(t, ThreadLinkTypeRecommendation, gotThread.Links[1].LinkType)
+
+	require.NoError(t, pdb.DeleteRecommendation(rec.ID))
+
+	gotThread, err = pdb.GetThread(thread.ID)
+	require.NoError(t, err)
+	require.Len(t, gotThread.Links, 1)
+	require.Equal(t, ThreadLinkTypeTask, gotThread.Links[0].LinkType)
 }
 
 func TestRecommendationCreate_AllowsThreadOnlyProvenance(t *testing.T) {

@@ -517,15 +517,6 @@ func (p *ProjectDB) PromoteThreadRecommendationDraft(ctx context.Context, thread
 		if err := markThreadRecommendationDraftPromotedTx(tx, draft.ID, recommendation.ID, promotedBy, now); err != nil {
 			return err
 		}
-		link := &ThreadLink{
-			ThreadID: draft.ThreadID,
-			LinkType: ThreadLinkTypeRecommendation,
-			TargetID: recommendation.ID,
-			Title:    recommendation.Title,
-		}
-		if err := createThreadLinkTx(tx, link); err != nil {
-			return err
-		}
 		if err := touchThreadTx(tx, draft.ThreadID, now); err != nil {
 			return err
 		}

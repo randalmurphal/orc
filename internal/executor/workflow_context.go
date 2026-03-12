@@ -384,40 +384,72 @@ func (we *WorkflowExecutor) populateThreadContext(rctx *variable.ResolutionConte
 
 func (we *WorkflowExecutor) loadPromptContextThread(t *orcv1.Task) (*db.Thread, error) {
 	if t.Id != "" {
-		threads, err := we.backend.DB().ListThreads(db.ThreadListOpts{
+		thread, err := we.loadPromptContextThreadForList(db.ThreadListOpts{
+			TaskID: t.Id,
+			Status: db.ThreadStatusActive,
+			Limit:  1,
+		}, "task discussion threads for "+t.Id)
+		if err != nil {
+			return nil, err
+		}
+		if thread != nil {
+			return thread, nil
+		}
+
+		thread, err = we.loadPromptContextThreadForList(db.ThreadListOpts{
 			TaskID: t.Id,
 			Limit:  1,
-		})
+		}, "task discussion threads for "+t.Id)
 		if err != nil {
-			return nil, fmt.Errorf("load task discussion threads for %s: %w", t.Id, err)
+			return nil, err
 		}
-		if len(threads) > 0 {
-			thread, err := we.backend.DB().GetThread(threads[0].ID)
-			if err != nil {
-				return nil, fmt.Errorf("load discussion thread %s: %w", threads[0].ID, err)
-			}
+		if thread != nil {
 			return thread, nil
 		}
 	}
 
 	if initiativeID := task.GetInitiativeIDProto(t); initiativeID != "" {
-		threads, err := we.backend.DB().ListThreads(db.ThreadListOpts{
+		thread, err := we.loadPromptContextThreadForList(db.ThreadListOpts{
+			InitiativeID: initiativeID,
+			Status:       db.ThreadStatusActive,
+			Limit:        1,
+		}, "initiative discussion threads for "+initiativeID)
+		if err != nil {
+			return nil, err
+		}
+		if thread != nil {
+			return thread, nil
+		}
+
+		thread, err = we.loadPromptContextThreadForList(db.ThreadListOpts{
 			InitiativeID: initiativeID,
 			Limit:        1,
-		})
+		}, "initiative discussion threads for "+initiativeID)
 		if err != nil {
-			return nil, fmt.Errorf("load initiative discussion threads for %s: %w", initiativeID, err)
+			return nil, err
 		}
-		if len(threads) > 0 {
-			thread, err := we.backend.DB().GetThread(threads[0].ID)
-			if err != nil {
-				return nil, fmt.Errorf("load discussion thread %s: %w", threads[0].ID, err)
-			}
+		if thread != nil {
 			return thread, nil
 		}
 	}
 
 	return nil, nil
+}
+
+func (we *WorkflowExecutor) loadPromptContextThreadForList(opts db.ThreadListOpts, description string) (*db.Thread, error) {
+	threads, err := we.backend.DB().ListThreads(opts)
+	if err != nil {
+		return nil, fmt.Errorf("load %s: %w", description, err)
+	}
+	if len(threads) == 0 {
+		return nil, nil
+	}
+
+	thread, err := we.backend.DB().GetThread(threads[0].ID)
+	if err != nil {
+		return nil, fmt.Errorf("load discussion thread %s: %w", threads[0].ID, err)
+	}
+	return thread, nil
 }
 
 func sectionIfPresent(title, content string) string {

@@ -958,6 +958,60 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 			expect(screen.getAllByText('Hi there!')).toHaveLength(1);
 		});
 	});
+
+	it('should ignore late sendMessage responses after switching threads', async () => {
+		const sendDeferred = createDeferred<{
+			userMessage?: ReturnType<typeof createMockMessage>;
+			assistantMessage?: ReturnType<typeof createMockMessage>;
+		}>();
+
+		vi.mocked(threadClient.getThread)
+			.mockResolvedValueOnce({ thread: createMockThread({ messages: [] }) } as never)
+			.mockResolvedValueOnce({ thread: createMockThread({ id: 'thread-002', title: 'Second Thread', messages: [] }) } as never);
+		vi.mocked(threadClient.sendMessage).mockReturnValue(sendDeferred.promise as never);
+
+		const { rerender } = renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalledTimes(1);
+		});
+
+		fireEvent.change(screen.getByPlaceholderText('Type a message...'), { target: { value: 'Hello from thread one' } });
+		fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+		await screen.findByText('Hello from thread one');
+
+		rerender(<DiscussionPanel threadId="thread-002" projectId="proj-001" />);
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalledTimes(2);
+		});
+
+		await act(async () => {
+			sendDeferred.resolve({
+				userMessage: createMockMessage({
+					id: BigInt(11),
+					threadId: 'thread-001',
+					role: 'user',
+					content: 'Hello from thread one',
+				}),
+				assistantMessage: createMockMessage({
+					id: BigInt(12),
+					threadId: 'thread-001',
+					role: 'assistant',
+					content: 'Reply from thread one',
+				}),
+			});
+			await Promise.resolve();
+		});
+
+		await waitFor(() => {
+			expect(screen.queryByText('Hello from thread one')).not.toBeInTheDocument();
+			expect(screen.queryByText('Reply from thread one')).not.toBeInTheDocument();
+		});
+	});
 });
 
 // =============================================================================

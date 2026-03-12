@@ -217,6 +217,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		const content = input.trim();
 		if (!content || sending) return;
 
+		const request = beginThreadRequest();
 		setError(null);
 		setSending(true);
 
@@ -238,6 +239,9 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 					content,
 				})
 			);
+			if (!isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				return;
+			}
 
 			// Replace optimistic message with real ones
 			setMessages((prev) => {
@@ -248,14 +252,19 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 				]);
 			});
 		} catch (err) {
+			if (!isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				return;
+			}
 			// Remove optimistic message and restore input
 			setMessages((prev) => prev.filter((m) => m !== optimisticMsg));
 			setInput(content);
 			setError(withErrorDetails('Failed to send message. Try again.', err));
 		} finally {
-			setSending(false);
+			if (isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				setSending(false);
+			}
 		}
-	}, [input, sending, threadId, projectId]);
+	}, [beginThreadRequest, input, isCurrentThreadRequest, projectId, sending, threadId]);
 
 	const promoteRecommendationDraft = useCallback(async (draftId: string) => {
 		const request = beginThreadRequest();

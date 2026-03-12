@@ -207,6 +207,73 @@ func TestEnrichContextForPhase_PrefersTaskThreadOverNewerInitiativeThread(t *tes
 	}
 }
 
+func TestEnrichContextForPhase_PrefersActiveThreadOverNewerArchivedThread(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	taskItem := task.NewProtoTask("TASK-THREAD-004", "active thread should win")
+	if err := backend.SaveTask(taskItem); err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+
+	activeThread := &db.Thread{
+		Title:  "Active thread",
+		TaskID: taskItem.Id,
+	}
+	if err := backend.DB().CreateThread(activeThread); err != nil {
+		t.Fatalf("CreateThread(active): %v", err)
+	}
+	if err := backend.DB().AddThreadMessage(&db.ThreadMessage{
+		ThreadID: activeThread.ID,
+		Role:     "assistant",
+		Content:  "Use the live discussion.",
+	}); err != nil {
+		t.Fatalf("AddThreadMessage(active): %v", err)
+	}
+
+	archivedThread := &db.Thread{
+		Title:  "Archived thread",
+		TaskID: taskItem.Id,
+	}
+	if err := backend.DB().CreateThread(archivedThread); err != nil {
+		t.Fatalf("CreateThread(archived): %v", err)
+	}
+	if err := backend.DB().AddThreadMessage(&db.ThreadMessage{
+		ThreadID: archivedThread.ID,
+		Role:     "assistant",
+		Content:  "Old archived discussion.",
+	}); err != nil {
+		t.Fatalf("AddThreadMessage(archived): %v", err)
+	}
+	if err := backend.DB().ArchiveThread(archivedThread.ID); err != nil {
+		t.Fatalf("ArchiveThread: %v", err)
+	}
+
+	we := NewWorkflowExecutor(
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+	)
+	rctx := &variable.ResolutionContext{}
+
+	err := we.enrichContextForPhase(rctx, "implement", taskItem, threadVariableUsage{
+		ThreadID:      true,
+		ThreadHistory: true,
+	})
+	if err != nil {
+		t.Fatalf("enrichContextForPhase() error = %v", err)
+	}
+
+	if rctx.ThreadID != activeThread.ID {
+		t.Fatalf("ThreadID = %q, want active thread %q", rctx.ThreadID, activeThread.ID)
+	}
+	if !strings.Contains(rctx.ThreadHistory, "Use the live discussion.") {
+		t.Fatalf("ThreadHistory = %q, want active thread history", rctx.ThreadHistory)
+	}
+	if strings.Contains(rctx.ThreadHistory, "Old archived discussion.") {
+		t.Fatalf("ThreadHistory = %q, should not contain archived thread history", rctx.ThreadHistory)
+	}
+}
+
 func TestEnrichContextForPhase_SkipsThreadLoadingWhenUnused(t *testing.T) {
 	t.Parallel()
 
