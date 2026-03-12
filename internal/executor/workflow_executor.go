@@ -1139,6 +1139,14 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 							we.publisher.PhaseLoop(t.Id, tmpl.ID, loopCfg.LoopToPhase, loopCount)
 						}
 
+						if we.task != nil {
+							reason := phaseResult.BlockedReason
+							if reason == "" {
+								reason = fmt.Sprintf("Loop condition triggered for phase %s", tmpl.ID)
+							}
+							task.SetRetryState(we.task, tmpl.ID, loopCfg.LoopToPhase, reason, phaseResult.Content, int32(loopCount))
+						}
+
 						// Reset phase completion status for loop-back phases.
 						// Target phases get Iterations = loopCount + 1 to reflect
 						// total execution count (initial + loop-backs).
@@ -1147,12 +1155,13 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						if we.task != nil {
 							for k := loopIdx; k <= i; k++ {
 								phaseID := phases[k].PhaseTemplateID
-								if ps, exists := we.task.Execution.Phases[phaseID]; exists {
-									ps.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
-									if phaseID != tmpl.ID {
-										ps.Iterations = int32(loopCount + 1)
-									}
+								task.ResetPhaseProto(we.task.Execution, phaseID)
+								task.EnsurePhaseProto(we.task.Execution, phaseID)
+								if phaseID == tmpl.ID {
+									we.task.Execution.Phases[phaseID].Iterations = int32(loopCount)
+									continue
 								}
+								we.task.Execution.Phases[phaseID].Iterations = int32(loopCount + 1)
 							}
 							if err := we.backend.SaveTask(we.task); err != nil {
 								we.logger.Warn("failed to save loop state", "error", err)

@@ -38,6 +38,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strings"
 	"testing"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -291,6 +292,104 @@ func TestPhaseLoop_ReviewImplementLoop(t *testing.T) {
 	// Verify task completed successfully
 	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 		t.Errorf("task status = %v, want COMPLETED", reloaded.Status)
+	}
+}
+
+func TestPhaseLoop_ResumeLoopbackStartsFreshRetry(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	pdb := backend.DB()
+
+	wf := &db.Workflow{ID: "loop-retry-fresh-wf", Name: "Loop Retry Fresh Workflow"}
+	if err := pdb.SaveWorkflow(wf); err != nil {
+		t.Fatalf("save workflow: %v", err)
+	}
+
+	if err := pdb.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:            "implement_codex",
+		Name:          "implement_codex",
+		PromptSource:  "db",
+		PromptContent: "Implement the requested changes.\n{{#if RETRY_ATTEMPT}}Retry {{RETRY_ATTEMPT}} from {{RETRY_FROM_PHASE}} because {{RETRY_REASON}}.\nFeedback:\n{{RETRY_FEEDBACK}}{{/if}}",
+	}); err != nil {
+		t.Fatalf("save implement template: %v", err)
+	}
+	if err := pdb.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:            "review_cross",
+		Name:          "review_cross",
+		PromptSource:  "db",
+		PromptContent: "Review the implementation.",
+	}); err != nil {
+		t.Fatalf("save review template: %v", err)
+	}
+
+	if err := pdb.SaveWorkflowPhase(&db.WorkflowPhase{
+		WorkflowID:      "loop-retry-fresh-wf",
+		PhaseTemplateID: "implement_codex",
+		Sequence:        1,
+	}); err != nil {
+		t.Fatalf("save implement phase: %v", err)
+	}
+	if err := pdb.SaveWorkflowPhase(&db.WorkflowPhase{
+		WorkflowID:      "loop-retry-fresh-wf",
+		PhaseTemplateID: "review_cross",
+		Sequence:        2,
+		LoopConfig: `{
+			"loop_to_phase": "implement_codex",
+			"condition": {"field": "phase_output.review_cross.needs_changes", "op": "eq", "value": "true"},
+			"max_loops": 2
+		}`,
+	}); err != nil {
+		t.Fatalf("save review phase: %v", err)
+	}
+
+	tsk := task.NewProtoTask("TASK-LOOP-RETRY-FRESH", "Loop retry should start fresh")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+	wfID := "loop-retry-fresh-wf"
+	tsk.WorkflowId = &wfID
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	mock := &MockTurnExecutor{
+		Responses: []string{
+			`{"status":"complete","summary":"Implemented once"}`,
+			`{"needs_changes":true,"summary":"SC-4 broken: thread state still leaks"}`,
+			`{"status":"complete","summary":"Implemented retry"}`,
+			`{"needs_changes":false,"summary":"Looks good now"}`,
+		},
+		SessionIDValue: "mock-session",
+	}
+
+	we := NewWorkflowExecutor(
+		backend, backend.DB(), testGlobalDBFrom(backend), &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowTurnExecutor(mock),
+		WithSkipGates(true),
+	)
+
+	_, err := we.Run(context.Background(), "loop-retry-fresh-wf", WorkflowRunOptions{
+		ContextType: ContextTask,
+		TaskID:      tsk.Id,
+		IsResume:    true,
+	})
+	if err != nil {
+		t.Fatalf("Run() error: %v", err)
+	}
+
+	if len(mock.Prompts) < 3 {
+		t.Fatalf("expected at least 3 prompts, got %d", len(mock.Prompts))
+	}
+
+	retryImplementPrompt := mock.Prompts[2]
+	if strings.Contains(retryImplementPrompt, "Continue where you left off.") {
+		t.Fatalf("retry loopback resumed stale session prompt instead of rendering retry context:\n%s", retryImplementPrompt)
+	}
+	if !strings.Contains(retryImplementPrompt, "Retry 1 from review_cross because") {
+		t.Fatalf("retry loopback prompt missing retry metadata:\n%s", retryImplementPrompt)
+	}
+	if !strings.Contains(retryImplementPrompt, "SC-4 broken: thread state still leaks") {
+		t.Fatalf("retry loopback prompt missing prior review findings:\n%s", retryImplementPrompt)
 	}
 }
 
