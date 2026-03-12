@@ -8,8 +8,9 @@ import {
 	rejectRecommendation,
 } from '@/lib/api/recommendation';
 import type { Recommendation } from '@/gen/orc/v1/recommendation_pb';
-import { RecommendationKind, RecommendationStatus } from '@/gen/orc/v1/recommendation_pb';
+import { RecommendationStatus } from '@/gen/orc/v1/recommendation_pb';
 import { onRecommendationSignal } from '@/lib/events/recommendationSignals';
+import { recommendationKindLabel } from '@/lib/recommendations';
 import './RecommendationInbox.css';
 
 export function RecommendationInbox() {
@@ -194,19 +195,6 @@ function recommendationStatusLabel(status: RecommendationStatus): string {
 			return 'Discussed';
 		default:
 			return 'Pending';
-	}
-}
-
-function recommendationKindLabel(kind: RecommendationKind): string {
-	switch (kind) {
-		case RecommendationKind.RISK:
-			return 'Risk';
-		case RecommendationKind.FOLLOW_UP:
-			return 'Follow-up';
-		case RecommendationKind.DECISION_REQUEST:
-			return 'Decision request';
-		default:
-			return 'Cleanup';
 	}
 }
 

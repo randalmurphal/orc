@@ -15,6 +15,7 @@ import {
 import { RecommendationKind } from '@/gen/orc/v1/recommendation_pb';
 import { useEvents } from '@/hooks/useEvents';
 import { threadClient } from '@/lib/client';
+import { recommendationKindLabel } from '@/lib/recommendations';
 import './DiscussionPanel.css';
 
 interface DiscussionPanelProps {
@@ -58,6 +59,22 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 	const [promotingDraftId, setPromotingDraftId] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const latestThreadRequestIdRef = useRef(0);
+	const currentThreadKeyRef = useRef(threadRequestKey(projectId, threadId));
+	currentThreadKeyRef.current = threadRequestKey(projectId, threadId);
+
+	const beginThreadRequest = useCallback(() => {
+		const requestId = latestThreadRequestIdRef.current + 1;
+		latestThreadRequestIdRef.current = requestId;
+		return {
+			requestId,
+			threadKey: currentThreadKeyRef.current,
+		};
+	}, []);
+
+	const isCurrentThreadRequest = useCallback((requestId: number, threadKey: string) => (
+		latestThreadRequestIdRef.current === requestId && currentThreadKeyRef.current === threadKey
+	), []);
 
 	useEffect(() => {
 		setMessages(initialMessages ?? EMPTY_MESSAGES);
@@ -110,30 +127,41 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 	}, []);
 
 	const reloadThreadState = useCallback(async () => {
-		const response = await threadClient.getThread(
-			create(GetThreadRequestSchema, {
-				projectId,
-				threadId,
-			})
-		);
-		syncThreadState(response.thread);
-	}, [projectId, syncThreadState, threadId]);
+		const request = beginThreadRequest();
+		try {
+			const response = await threadClient.getThread(
+				create(GetThreadRequestSchema, {
+					projectId,
+					threadId,
+				})
+			);
+			if (!isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				return false;
+			}
+			syncThreadState(response.thread);
+			setLoadingThread(false);
+			return true;
+		} catch (err) {
+			if (!isCurrentThreadRequest(request.requestId, request.threadKey)) {
+				return false;
+			}
+			throw err;
+		}
+	}, [beginThreadRequest, isCurrentThreadRequest, projectId, syncThreadState, threadId]);
 
 	useEffect(() => {
 		let cancelled = false;
 		const loadThread = async () => {
 			setLoadingThread(initialMessages === undefined);
+			let shouldFinishLoading = true;
 			try {
-				await reloadThreadState();
-				if (cancelled) {
-					return;
-				}
+				shouldFinishLoading = await reloadThreadState();
 			} catch (err) {
 				if (!cancelled) {
 					setError(withErrorDetails('Failed to load thread history. Try again.', err));
 				}
 			} finally {
-				if (!cancelled) {
+				if (!cancelled && shouldFinishLoading) {
 					setLoadingThread(false);
 				}
 			}
@@ -158,6 +186,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 
 		void reloadThreadState().catch((err) => {
 			setError(withErrorDetails('Failed to refresh thread state. Try again.', err));
+			setLoadingThread(false);
 		});
 	}), [onEvent, projectId, reloadThreadState, threadId]);
 
@@ -606,19 +635,6 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 	);
 }
 
-function recommendationKindLabel(kind: RecommendationKind): string {
-	switch (kind) {
-		case RecommendationKind.CLEANUP:
-			return 'cleanup';
-		case RecommendationKind.RISK:
-			return 'risk';
-		case RecommendationKind.DECISION_REQUEST:
-			return 'decision request';
-		default:
-			return 'follow-up';
-	}
-}
-
 function recommendationKindFromValue(value: string): RecommendationKind | undefined {
 	switch (value) {
 		case 'cleanup':
@@ -655,4 +671,8 @@ function withErrorDetails(prefix: string, err: unknown): string {
 		return `${prefix} ${err.message}`;
 	}
 	return prefix;
+}
+
+function threadRequestKey(projectId: string, threadId: string): string {
+	return `${projectId}:${threadId}`;
 }

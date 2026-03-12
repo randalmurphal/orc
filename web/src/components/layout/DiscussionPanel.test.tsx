@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
 import { DiscussionPanel } from './DiscussionPanel';
@@ -23,7 +23,7 @@ vi.mock('@/lib/client', () => ({
 		sendMessage: vi.fn(),
 		getThread: vi.fn(),
 		promoteRecommendationDraft: vi.fn(),
-	promoteDecisionDraft: vi.fn(),
+		promoteDecisionDraft: vi.fn(),
 	},
 }));
 
@@ -100,12 +100,34 @@ function createMockThread(overrides: Record<string, unknown> = {}) {
 	});
 }
 
+function createDeferred<T>() {
+	let resolvePromise: ((value: T | PromiseLike<T>) => void) | undefined;
+	let rejectPromise: ((reason?: unknown) => void) | undefined;
+	const promise = new Promise<T>((resolve, reject) => {
+		resolvePromise = resolve;
+		rejectPromise = reject;
+	});
+	return {
+		promise,
+		resolve(value: T) {
+			if (resolvePromise === undefined) {
+				throw new Error('Deferred promise resolved before initialization');
+			}
+			resolvePromise(value);
+		},
+		reject(reason?: unknown) {
+			if (rejectPromise === undefined) {
+				throw new Error('Deferred promise rejected before initialization');
+			}
+			rejectPromise(reason);
+		},
+	};
+}
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	eventHandler = undefined;
-	vi.mocked(threadClient.getThread).mockResolvedValue({
-		thread: createMockThread(),
-	} as never);
+	vi.mocked(threadClient.getThread).mockReturnValue(new Promise(() => {}) as never);
 });
 
 afterEach(() => {
@@ -412,10 +434,12 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 			expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
 		});
 
-		// Resolve the pending call
-		resolvePromise!({
-			userMessage: createMockMessage(),
-			assistantMessage: createMockMessage(),
+		await act(async () => {
+			resolvePromise!({
+				userMessage: createMockMessage(),
+				assistantMessage: createMockMessage({ id: BigInt(2), role: 'assistant' }),
+			});
+			await Promise.resolve();
 		});
 	});
 
@@ -475,6 +499,9 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 	});
 
 	it('should add typed context links from the workspace', async () => {
+		vi.mocked(threadClient.getThread).mockResolvedValue({
+			thread: createMockThread(),
+		} as never);
 		vi.mocked(threadClient.addLink).mockResolvedValue({
 			thread: createMockThread({
 				links: [
@@ -522,6 +549,9 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 	});
 
 	it('should create a recommendation draft from the workspace', async () => {
+		vi.mocked(threadClient.getThread).mockResolvedValue({
+			thread: createMockThread(),
+		} as never);
 		vi.mocked(threadClient.createRecommendationDraft).mockResolvedValue({
 			thread: createMockThread({
 				recommendationDrafts: [
@@ -660,28 +690,21 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 	});
 
 	it('should reset thread-local state when switching threads', async () => {
-		let resolveSecondThread: ((value: unknown) => void) | undefined;
+		const firstThread = createDeferred<unknown>();
+		const secondThread = createDeferred<unknown>();
 		vi.mocked(threadClient.getThread)
-			.mockResolvedValueOnce({
-				thread: createMockThread({
-					id: 'thread-001',
-					initiativeId: 'INIT-001',
-					messages: [
-						createMockMessage({ id: BigInt(1), content: 'Thread one message' }),
-					],
-				}),
-			} as never)
-			.mockReturnValueOnce(new Promise((resolve) => {
-				resolveSecondThread = resolve;
-			}) as never);
+			.mockReturnValueOnce(firstThread.promise as never)
+			.mockReturnValueOnce(secondThread.promise as never);
 
 		const { rerender } = renderWithProviders(
-			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+			<DiscussionPanel
+				threadId="thread-001"
+				projectId="proj-001"
+				messages={[createMockMessage({ id: BigInt(1), content: 'Thread one message' })]}
+			/>
 		);
 
-		await waitFor(() => {
-			expect(screen.getByText('Thread one message')).toBeInTheDocument();
-		});
+		expect(screen.getByText('Thread one message')).toBeInTheDocument();
 
 		fireEvent.change(screen.getByLabelText('Decision initiative'), {
 			target: { value: 'CUSTOM-INIT' },
@@ -694,20 +717,40 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 		expect(screen.queryByText('Thread one message')).not.toBeInTheDocument();
 		expect(screen.getByText(/loading thread history/i)).toBeInTheDocument();
 
-		resolveSecondThread?.({
-			thread: createMockThread({
-				id: 'thread-002',
-				initiativeId: 'INIT-002',
-				messages: [
-					createMockMessage({ id: BigInt(2), threadId: 'thread-002', content: 'Thread two message' }),
-				],
-			}),
+		await act(async () => {
+			secondThread.resolve({
+				thread: createMockThread({
+					id: 'thread-002',
+					initiativeId: 'INIT-002',
+					messages: [
+						createMockMessage({ id: BigInt(2), threadId: 'thread-002', content: 'Thread two message' }),
+					],
+				}),
+			});
+			await Promise.resolve();
 		});
 
 		await waitFor(() => {
 			expect(screen.getByText('Thread two message')).toBeInTheDocument();
 			expect((screen.getByLabelText('Decision initiative') as HTMLInputElement).value).toBe('INIT-002');
 		});
+
+		await act(async () => {
+			firstThread.resolve({
+				thread: createMockThread({
+					id: 'thread-001',
+					initiativeId: 'INIT-001',
+					messages: [
+						createMockMessage({ id: BigInt(3), content: 'Late thread one message' }),
+					],
+				}),
+			});
+			await Promise.resolve();
+		});
+
+		expect(screen.queryByText('Late thread one message')).not.toBeInTheDocument();
+		expect(screen.getByText('Thread two message')).toBeInTheDocument();
+		expect((screen.getByLabelText('Decision initiative') as HTMLInputElement).value).toBe('INIT-002');
 	});
 
 	it('should refresh when a matching threadUpdated event arrives', async () => {
@@ -739,15 +782,17 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 			expect(threadClient.getThread).toHaveBeenCalledTimes(1);
 		});
 
-		eventHandler?.({
-			projectId: 'proj-001',
-			payload: {
-				case: 'threadUpdated',
-				value: {
-					threadId: 'thread-001',
-					updateType: 'link_added',
+		await act(async () => {
+			eventHandler?.({
+				projectId: 'proj-001',
+				payload: {
+					case: 'threadUpdated',
+					value: {
+						threadId: 'thread-001',
+						updateType: 'link_added',
+					},
 				},
-			},
+			});
 		});
 
 		await waitFor(() => {
