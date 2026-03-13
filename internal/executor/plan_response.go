@@ -94,9 +94,11 @@ const PlanCompletionSchema = `{
 					"source_of_truth": {"type": "string"},
 					"writer_paths": {"type": "array", "items": {"type": "string"}},
 					"reader_paths": {"type": "array", "items": {"type": "string"}},
-					"mirrors": {"type": "array", "items": {"type": "string"}}
+					"mirrors": {"type": "array", "items": {"type": "string"}},
+					"conflict_paths": {"type": "array", "items": {"type": "string"}},
+					"integrity_guards": {"type": "array", "items": {"type": "string"}}
 				},
-				"required": ["name", "source_of_truth", "writer_paths", "reader_paths", "mirrors"]
+				"required": ["name", "source_of_truth", "writer_paths", "reader_paths", "mirrors", "conflict_paths", "integrity_guards"]
 			}
 		},
 		"provenance_variants": {
@@ -106,9 +108,10 @@ const PlanCompletionSchema = `{
 				"properties": {
 					"path": {"type": "string"},
 					"valid_variants": {"type": "array", "items": {"type": "string"}},
+					"rejected_variants": {"type": "array", "items": {"type": "string"}},
 					"notes": {"type": "string"}
 				},
-				"required": ["path", "valid_variants", "notes"]
+				"required": ["path", "valid_variants", "rejected_variants", "notes"]
 			}
 		},
 		"ui_invalidation_paths": {
@@ -119,10 +122,12 @@ const PlanCompletionSchema = `{
 					"surface": {"type": "string"},
 					"update_sources": {"type": "array", "items": {"type": "string"}},
 					"reset_triggers": {"type": "array", "items": {"type": "string"}},
+					"same_scope_races": {"type": "array", "items": {"type": "string"}},
 					"stale_response_handling": {"type": "string"},
+					"cross_scope_reset_rule": {"type": "string"},
 					"project_scope_key": {"type": "string"}
 				},
-				"required": ["surface", "update_sources", "reset_triggers", "stale_response_handling", "project_scope_key"]
+				"required": ["surface", "update_sources", "reset_triggers", "same_scope_races", "stale_response_handling", "cross_scope_reset_rule", "project_scope_key"]
 			}
 		}
 	},
@@ -159,24 +164,29 @@ type PlanVerificationPlan struct {
 }
 
 type PlanCanonicalAssociation struct {
-	Name          string   `json:"name"`
-	SourceOfTruth string   `json:"source_of_truth,omitempty"`
-	WriterPaths   []string `json:"writer_paths,omitempty"`
-	ReaderPaths   []string `json:"reader_paths,omitempty"`
-	Mirrors       []string `json:"mirrors,omitempty"`
+	Name            string   `json:"name"`
+	SourceOfTruth   string   `json:"source_of_truth,omitempty"`
+	WriterPaths     []string `json:"writer_paths,omitempty"`
+	ReaderPaths     []string `json:"reader_paths,omitempty"`
+	Mirrors         []string `json:"mirrors,omitempty"`
+	ConflictPaths   []string `json:"conflict_paths,omitempty"`
+	IntegrityGuards []string `json:"integrity_guards,omitempty"`
 }
 
 type PlanProvenanceVariant struct {
-	Path          string   `json:"path"`
-	ValidVariants []string `json:"valid_variants,omitempty"`
-	Notes         string   `json:"notes,omitempty"`
+	Path             string   `json:"path"`
+	ValidVariants    []string `json:"valid_variants,omitempty"`
+	RejectedVariants []string `json:"rejected_variants,omitempty"`
+	Notes            string   `json:"notes,omitempty"`
 }
 
 type PlanUIInvalidationPath struct {
 	Surface               string   `json:"surface"`
 	UpdateSources         []string `json:"update_sources,omitempty"`
 	ResetTriggers         []string `json:"reset_triggers,omitempty"`
+	SameScopeRaces        []string `json:"same_scope_races,omitempty"`
 	StaleResponseHandling string   `json:"stale_response_handling,omitempty"`
+	CrossScopeResetRule   string   `json:"cross_scope_reset_rule,omitempty"`
 	ProjectScopeKey       string   `json:"project_scope_key,omitempty"`
 }
 
@@ -245,6 +255,12 @@ func ParsePlanResponse(content string) (*PlanResponse, error) {
 		if resp.CanonicalAssociations[i].Mirrors == nil {
 			resp.CanonicalAssociations[i].Mirrors = []string{}
 		}
+		if resp.CanonicalAssociations[i].ConflictPaths == nil {
+			resp.CanonicalAssociations[i].ConflictPaths = []string{}
+		}
+		if resp.CanonicalAssociations[i].IntegrityGuards == nil {
+			resp.CanonicalAssociations[i].IntegrityGuards = []string{}
+		}
 	}
 	if resp.ProvenanceVariants == nil {
 		resp.ProvenanceVariants = []PlanProvenanceVariant{}
@@ -252,6 +268,9 @@ func ParsePlanResponse(content string) (*PlanResponse, error) {
 	for i := range resp.ProvenanceVariants {
 		if resp.ProvenanceVariants[i].ValidVariants == nil {
 			resp.ProvenanceVariants[i].ValidVariants = []string{}
+		}
+		if resp.ProvenanceVariants[i].RejectedVariants == nil {
+			resp.ProvenanceVariants[i].RejectedVariants = []string{}
 		}
 	}
 	if resp.UIInvalidationPaths == nil {
@@ -263,6 +282,9 @@ func ParsePlanResponse(content string) (*PlanResponse, error) {
 		}
 		if resp.UIInvalidationPaths[i].ResetTriggers == nil {
 			resp.UIInvalidationPaths[i].ResetTriggers = []string{}
+		}
+		if resp.UIInvalidationPaths[i].SameScopeRaces == nil {
+			resp.UIInvalidationPaths[i].SameScopeRaces = []string{}
 		}
 	}
 

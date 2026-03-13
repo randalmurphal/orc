@@ -64,10 +64,14 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - Treat multi-write operator actions as blocking if partial failure can leave the visible state inconsistent and the branch does not prove atomicity or explicit rollback.
 - Treat hidden alternate write paths as blocking when the branch claims a single source of truth or promotion path but does not cover retries, imports, repair jobs, admin/operator flows, or failure recovery paths.
 - Treat mirrored linkage or join-table drift as blocking when relationship state is stored in more than one place.
+- Treat conflicting association paths as blocking when canonical and legacy readers/writers can still disagree, race, or create contradictory linkage under concurrent writes.
 - Treat project-scoped caches keyed only by local IDs as blocking correctness issues.
 - Treat distributed state parity across DB rows, mirrored tables, caches, events, and browser-visible summaries as mandatory when the feature duplicates state.
 - Treat missing provenance-variant coverage as blocking when the feature supports task-, run-, thread-, or initiative-linked paths with different valid metadata combinations.
+- Treat missing rejected-variant handling as blocking when an invalid provenance combination or conflicting association can still be written instead of rejected.
 - Treat RPC-vs-event/browser-reload races as blocking when stale responses can overwrite, duplicate, or cross-contaminate visible state.
+- Treat same-scope browser races and missing cross-scope reset rules as blocking when project/thread/tenant switches or same-project refreshes can still write stale local state.
+- Treat missing inventory coverage itself as blocking when the implementation completion JSON omits conflicting paths, integrity guards, rejected variants, same-scope races, or cross-scope reset rules for a task that obviously needs them.
 
 **3. Simplicity & Maintainability**
 - Is the solution more complex than the task requires?
@@ -97,7 +101,9 @@ You have NOT seen the primary reviewer's findings. This is intentional — you p
 - If the diff adds optional context, summaries, caches, or derived state, verify whether "no data" and "failed to load" are intentionally distinct. Silent collapse of both outcomes into the same empty value is a real finding when callers need that distinction.
 - If the diff adds project-scoped caches or browser-local state, verify cache get/set/delete keys include project or tenant scope. Local ID alone is not sufficient.
 - If the diff supports multiple provenance variants, verify the branch covers each valid combination and does not accidentally require metadata that is intentionally absent on some paths.
+- If the diff supports multiple provenance variants, verify it also rejects invalid combinations instead of silently writing contradictory metadata.
 - If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale responses are ignored or deduped and cannot overwrite newer state.
+- If browser-local state can be updated by multiple same-scope operations, verify same-scope race ordering is safe and that project/thread/tenant switches invalidate older in-flight results before they can write state.
 
 **7. Dead Code & Integration**
 - Every new function must be called from at least one production path
@@ -174,11 +180,12 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 8. **Check event-driven and project-scoped behavior** — if the diff adds live browser state or project-scoped behavior, verify external-mutation and isolation evidence
 9. **Check shared-path cost model** — if the diff adds work on a repeated/shared path, verify what triggers it, whether it is lazy/bounded, and whether tests would catch accidental eager behavior
 10. **Check persisted-state replacement risks** — if computed/live behavior is replaced with stored/materialized state, verify rollout parity, every production transition that mutates the truth, and atomicity or rollback for multi-write operator actions
-11. **Check alternate writers, provenance variants, and mirrored state** — verify the branch covered all production writers, valid provenance combinations, mirrored linkage tables, project-scoped cache keys, distributed state parity, and RPC-vs-event race handling
-12. **Verify integration** — new code is reachable from production paths
-13. Prefer the repo's standard validation flows over ad hoc harnesses. If the branch used a custom harness, decide whether the normal path should have been enough and whether that detour hid missing coverage.
-14. If you found small issues, fix and commit them
-15. Output your structured response
+11. **Check alternate writers, provenance variants, and mirrored state** — verify the branch covered all production writers, valid and rejected provenance combinations, mirrored linkage tables, conflicting association paths, project-scoped cache keys, distributed state parity, and RPC-vs-event race handling
+12. **Check implementation inventories directly** — when `{{OUTPUT_IMPLEMENT_CODEX}}` or `{{OUTPUT_IMPLEMENT}}` is available, verify the inventories include conflicting/legacy paths, integrity guards, rejected provenance variants, same-scope races, and cross-scope reset rules. If those categories are obviously relevant and the inventory hand-waves them, block.
+13. **Verify integration** — new code is reachable from production paths
+14. Prefer the repo's standard validation flows over ad hoc harnesses. If the branch used a custom harness, decide whether the normal path should have been enough and whether that detour hid missing coverage.
+15. If you found small issues, fix and commit them
+16. Output your structured response
 
 ## Success Criteria Verification (MANDATORY)
 

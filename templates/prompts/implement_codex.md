@@ -78,6 +78,8 @@ When complete, output JSON:
         "source_of_truth": "thread_links",
         "verified_writer_paths": ["CreateThread", "AddLink", "PromoteRecommendationDraft"],
         "verified_reader_paths": ["ListThreads", "GetThread", "threadToProto", "prompt-context loaders"],
+        "verified_conflict_paths": ["legacy task_id readers", "concurrent create/update paths"],
+        "integrity_evidence": "Verified uniqueness, transactions, or other guards prevent contradictory association state.",
         "parity_evidence": "Verified typed links and mirrored legacy readers stay in sync or were removed."
       }
     ],
@@ -85,6 +87,7 @@ When complete, output JSON:
       {
         "path": "thread recommendation promotion",
         "verified_variants": ["task+run+thread", "task+thread without run", "thread-only"],
+        "rejected_variants": ["task provenance attached to the wrong linked thread", "run metadata required on a path that intentionally has no run"],
         "evidence": "Verified each supported provenance combination through tests or direct codepath checks."
       }
     ],
@@ -93,7 +96,9 @@ When complete, output JSON:
         "surface": "discussion workspace",
         "update_sources": ["sendMessage RPC", "threadUpdated event"],
         "reset_triggers": ["thread switch", "project switch"],
+        "same_scope_races": ["same-project create thread vs list reload", "RPC response vs event-driven reload for the same thread"],
         "stale_response_handling": "Late RPC responses are ignored once a fresher reload wins.",
+        "cross_scope_reset_rule": "Project and thread switches invalidate prior in-flight results before they can write browser-local state.",
         "evidence": "Validated the race with browser/tests and confirmed stale responses do not overwrite current state."
       }
     ]
@@ -135,11 +140,12 @@ If blocked, still return the same top-level keys. Use `null` or `[]` for fields 
 17. If relationship state is mirrored in a mirrored linkage or join table, verify create/update/delete parity across both representations, including delete-path parity.
 18. If project-scoped caches, browser-local state, or UI memoization are involved, verify every get/set/delete key includes project or tenant scope plus a stable identifier. Local-ID-only keys are a correctness bug.
 19. If the feature duplicates state across source rows, mirrored tables, caches, events, or browser-visible summaries, verify distributed state parity and name the source of truth in your evidence.
-20. If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant explicitly. Do not assume the full-provenance happy path is the only valid case.
-21. If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling and duplicate suppression explicitly.
-22. Fill `verification.canonical_associations`, `verification.provenance_variants`, and `verification.ui_invalidation_paths` with the exact paths you audited. Use `[]` only when a category is truly not applicable.
+20. If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant explicitly and name the combinations that must be rejected. Do not assume the full-provenance happy path is the only valid case.
+21. If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling, duplicate suppression, same-scope race ordering, and the reset rule for project/thread/tenant switches explicitly.
+22. Fill `verification.canonical_associations`, `verification.provenance_variants`, and `verification.ui_invalidation_paths` with the exact paths you audited. Include conflicting/legacy paths, integrity guards, rejected provenance combinations, same-scope races, and cross-scope reset rules. Use `[]` only when a category is truly not applicable.
 23. Prefer the smallest set of production paths needed to prove the task. After you inventory the relevant writers and readers, start editing.
 24. Prefer existing repo verification commands, fixtures, and browser flows over ad hoc temp harnesses. Only build a custom harness when the normal path cannot prove the behavior, and explain why in the evidence.
+25. Starting a new local server, fake home, or bespoke multi-project lab is the exception path. If you do it, explain why the standard repo/browser flow could not prove the behavior.
 
 ## Verification Status Rules
 
@@ -194,15 +200,15 @@ Do not stop at same-page happy paths when the surface depends on external update
 14. If the diff replaces computed/live behavior with persisted/materialized state, verify rollout parity with pre-existing rows or states and record the evidence.
 15. Verify every production transition that must keep the new stored state synchronized, including task-control paths, operator actions, retries, and failure paths.
 16. If any operator action performs multiple writes, verify atomicity or explicit rollback and record what proves partial failure cannot leave user-visible state inconsistent.
-17. Grep for alternate writers to the affected state and record which ones you verified.
-18. If relationship state is mirrored in a mirrored linkage or join table, verify create/update/delete parity, including delete paths and cleanup paths.
+17. Grep for alternate writers and alternate readers to the affected state and record which ones you verified.
+18. If relationship state is mirrored in a mirrored linkage or join table, verify create/update/delete parity, including delete paths and cleanup paths, and record the integrity guard that prevents contradictory rows under concurrent writes.
 19. If project-scoped caches or browser-local state are involved, verify cache get/set/delete keys include project or tenant scope; do not accept local-ID-only keys.
 20. If state is duplicated across DB rows, mirrored tables, caches, events, and browser-visible summaries, verify distributed state parity and record the source of truth.
-21. If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant and record which ones are valid, including cases where run provenance is intentionally absent.
-22. If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling and duplicate suppression with a real race scenario.
-23. Populate `verification.canonical_associations` with the exact writers, readers, mirrors, and source of truth you verified.
-24. Populate `verification.provenance_variants` with every supported task/run/thread/initiative combination you verified, including valid cases where some provenance is intentionally absent.
-25. Populate `verification.ui_invalidation_paths` with every browser-local surface where RPC responses, events, or project/thread switches can invalidate or overwrite local state.
+21. If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant, record which ones are valid, and name which combinations must be rejected, including cases where run provenance is intentionally absent.
+22. If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling, duplicate suppression, same-scope race ordering, and the reset rule for project/thread/tenant switches with a real race scenario.
+23. Populate `verification.canonical_associations` with the exact writers, readers, mirrors, conflicting/legacy paths, source of truth, and integrity guard you verified.
+24. Populate `verification.provenance_variants` with every supported task/run/thread/initiative combination and rejected combination you verified, including valid cases where some provenance is intentionally absent.
+25. Populate `verification.ui_invalidation_paths` with every browser-local surface where RPC responses, events, or project/thread switches can invalidate or overwrite local state, including same-scope races and cross-scope reset rules.
 26. Prefer existing repo/browser validation flows over ad hoc temp environments. Build a custom harness only if the normal path cannot prove the behavior, and say why.
 27. Commit: `git add -A && git commit -m "[orc] {{TASK_ID}}: implement - [description]"`
 28. Output completion JSON.

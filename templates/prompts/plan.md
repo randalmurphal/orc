@@ -63,13 +63,16 @@ When `status` is `complete`, include every top-level field shown below:
       "source_of_truth": "thread_links",
       "writer_paths": ["CreateThread", "AddLink", "PromoteRecommendationDraft"],
       "reader_paths": ["ListThreads", "GetThread", "threadToProto", "prompt-context loaders"],
-      "mirrors": ["threads.task_id", "threads.initiative_id"]
+      "mirrors": ["threads.task_id", "threads.initiative_id"],
+      "conflict_paths": ["legacy task_id readers", "concurrent create/update paths"],
+      "integrity_guards": ["unique constraint on canonical link", "transaction keeps canonical and mirrored state in sync"]
     }
   ],
   "provenance_variants": [
     {
       "path": "thread recommendation promotion",
       "valid_variants": ["task+run+thread", "task+thread without run", "thread-only"],
+      "rejected_variants": ["task provenance attached to the wrong linked thread", "run metadata required on a path that intentionally has no run"],
       "notes": "Name which variants are valid and which ones must be rejected."
     }
   ],
@@ -78,7 +81,9 @@ When `status` is `complete`, include every top-level field shown below:
       "surface": "discussion workspace",
       "update_sources": ["sendMessage RPC", "threadUpdated event"],
       "reset_triggers": ["thread switch", "project switch"],
+      "same_scope_races": ["same-project create thread vs list reload", "RPC response vs event-driven reload for the same thread"],
       "stale_response_handling": "Late RPC responses must not overwrite fresher event-driven state.",
+      "cross_scope_reset_rule": "Project and thread switches must invalidate prior in-flight results before they can write UI state.",
       "project_scope_key": "project_id + thread_id"
     }
   ]
@@ -211,7 +216,10 @@ If blocked due to unclear requirements:
 16. **State the source of truth and distributed state parity** — when data is duplicated across DB rows, caches, events, or browser-visible summaries, the plan must name the source of truth and require parity checks across every duplicated representation.
 17. **Inventory provenance variants explicitly** — if the task promotes drafts, creates artifacts from discussion, or links objects across task/run/thread/initiative context, the plan must name which provenance combinations are valid on each path, including cases where some metadata is intentionally absent.
 18. **Name async race behavior for live UI state** — if browser-local state can be updated by both RPC responses and event-driven reloads, success criteria must say how stale responses are ignored, deduped, or made authoritative.
-19. **Emit concrete inventories, not vague assurances** — for linked artifacts, prompt-context enrichment, or live browser state, fill `canonical_associations`, `provenance_variants`, and `ui_invalidation_paths` with actual paths from inspected code. Name the actual writers and readers, the supported task/run/thread/initiative combinations, and the browser surfaces with their stale-response rule. Use `[]` only when truly not applicable.
+19. **Inventory conflicting association paths explicitly** — if more than one code path can create, mutate, or discover a relationship, `canonical_associations` must name the conflicting or legacy paths and the integrity guards that prevent duplicate or contradictory state under retries or concurrent writes.
+20. **Name rejected provenance combinations** — `provenance_variants` must include combinations that must be rejected, not just the happy-path variants that are allowed.
+21. **Call out same-scope races and cross-scope resets** — `ui_invalidation_paths` must name same-project or same-scope race windows, the stale-response rule for each browser surface, and the cross-scope reset rule for project/thread/tenant switches. "Stale responses are handled" is not specific enough.
+22. **Emit concrete inventories, not vague assurances** — for linked artifacts, prompt-context enrichment, or live browser state, fill `canonical_associations`, `provenance_variants`, and `ui_invalidation_paths` with actual paths from inspected code. Name the actual writers and readers, conflicting or legacy paths, integrity guards, supported task/run/thread/initiative combinations, rejected combinations, browser surfaces, same-scope races, stale-response rule, and cross-scope reset rules. Use `[]` only when truly not applicable.
 </critical_constraints>
 
 <context>

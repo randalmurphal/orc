@@ -65,13 +65,16 @@ When `status` is `complete`, include every top-level field shown below:
       "source_of_truth": "thread_links",
       "writer_paths": ["CreateThread", "AddLink", "PromoteRecommendationDraft"],
       "reader_paths": ["ListThreads", "GetThread", "threadToProto", "prompt-context loaders"],
-      "mirrors": ["threads.task_id", "threads.initiative_id"]
+      "mirrors": ["threads.task_id", "threads.initiative_id"],
+      "conflict_paths": ["legacy task_id readers", "concurrent create/update paths"],
+      "integrity_guards": ["unique constraint on canonical link", "transaction keeps canonical and mirrored state in sync"]
     }
   ],
   "provenance_variants": [
     {
       "path": "thread recommendation promotion",
       "valid_variants": ["task+run+thread", "task+thread without run", "thread-only"],
+      "rejected_variants": ["task provenance attached to the wrong linked thread", "run metadata required on a path that intentionally has no run"],
       "notes": "Name which variants are valid and which ones must be rejected."
     }
   ],
@@ -80,7 +83,9 @@ When `status` is `complete`, include every top-level field shown below:
       "surface": "discussion workspace",
       "update_sources": ["sendMessage RPC", "threadUpdated event"],
       "reset_triggers": ["thread switch", "project switch"],
+      "same_scope_races": ["same-project create thread vs list reload", "RPC response vs event-driven reload for the same thread"],
       "stale_response_handling": "Late RPC responses must not overwrite fresher event-driven state.",
+      "cross_scope_reset_rule": "Project and thread switches must invalidate prior in-flight results before they can write UI state.",
       "project_scope_key": "project_id + thread_id"
     }
   ]
@@ -124,7 +129,10 @@ Rules:
 10. Distinguish "no data" from "failed to load data" whenever behavior depends on that difference.
 11. Omit speculation. If the code does not prove a claim, either inspect more or state the assumption explicitly.
 12. The plan should help implementation finish the exact requested scope with high confidence, not redesign the system.
-13. Emit concrete inventories, not vague assurances. For linked artifacts, prompt context, or live browser state, fill `canonical_associations`, `provenance_variants`, and `ui_invalidation_paths` with actual paths from inspected code. Use `[]` only when truly not applicable.
+13. Inventory conflicting association paths explicitly. If more than one code path can create, mutate, or discover a relationship, `canonical_associations` must name the conflicting or legacy paths and the integrity guards that prevent duplicate or contradictory state under retries or concurrent writes.
+14. Name rejected provenance combinations. `provenance_variants` must include combinations that must be rejected, not just the happy-path variants that are allowed.
+15. Call out same-scope races and cross-scope resets. `ui_invalidation_paths` must name same-project or same-scope race windows, the stale-response rule for each browser surface, and the cross-scope reset rule for project/thread/tenant switches. "Stale responses are handled" is not specific enough.
+16. Emit concrete inventories, not vague assurances. For linked artifacts, prompt context, or live browser state, fill `canonical_associations`, `provenance_variants`, and `ui_invalidation_paths` with actual paths from inspected code, including conflicting/legacy paths, integrity guards, supported task/run/thread/initiative combinations, rejected combinations, same-scope races, stale-response rule, and cross-scope reset rules. Use `[]` only when truly not applicable.
 </critical_constraints>
 
 <context>
@@ -177,7 +185,7 @@ Before you finalize, ask yourself:
 - What tests would actually catch those mistakes?
 
 When the task touches typed links, promotion flows, prompt context, or live browser state:
-- `canonical_associations` must name the actual writers, readers, source of truth, and mirrored representations.
-- `provenance_variants` must name the supported task/run/thread/initiative combinations, including valid cases where some provenance is intentionally absent.
-- `ui_invalidation_paths` must name the browser surfaces, update sources, reset triggers, stale-response rule, and project or tenant key.
+- `canonical_associations` must name the actual writers, readers, source of truth, mirrored representations, conflicting paths, and integrity guards.
+- `provenance_variants` must name the supported and rejected task/run/thread/initiative combinations, including valid cases where some provenance is intentionally absent.
+- `ui_invalidation_paths` must name the browser surfaces, update sources, reset triggers, same-scope races, stale-response rule, cross-scope reset rule, and project or tenant key.
 </instructions>

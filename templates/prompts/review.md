@@ -357,13 +357,16 @@ Missing project scoping, stale live state, or notification-only wiring on an ope
 If the diff changes a source of truth, promotion flow, acceptance path, persisted summary, or project-scoped browser state:
 
 - Verify all alternate write paths are covered, not just the obvious new RPC or helper. Check retries, imports, repair jobs, admin/operator flows, background jobs, and failure recovery paths.
+- Verify conflicting association paths and legacy readers/writers are covered, not just the new canonical path. Canonical and legacy paths must not be able to disagree under concurrent writes or partial migration states.
 - Verify mirrored linkage or join tables stay in create/update/delete parity with the source of truth, including cleanup and delete paths.
 - Verify project-scoped caches, browser-local state, and memoized UI stores key by project or tenant scope plus a stable identifier. Local ID alone is a blocking correctness bug.
 - Verify distributed state parity across DB rows, mirrored tables, caches, events, and browser-visible summaries. The branch must make the source of truth obvious and keep duplicates synchronized.
-- Verify every valid provenance variant for promoted or linked artifacts, including cases where task, run, thread, or initiative metadata is intentionally absent on some paths.
+- Verify every valid provenance variant for promoted or linked artifacts, including cases where task, run, thread, or initiative metadata is intentionally absent on some paths, and verify invalid combinations are rejected instead of silently written.
 - Verify browser-local state cannot be corrupted by races between RPC responses and event-driven reloads. One authoritative path or explicit dedupe is required when both can update the same state, and stale responses must not overwrite newer data.
+- Verify same-scope races and cross-scope reset behavior. Same-project or same-thread operations must not clobber each other, and project/thread/tenant switches must invalidate older in-flight results before they can write visible state.
+- Verify the implementation inventories are concrete when this task class requires them. If the branch hand-waves conflicting paths, integrity guards, rejected provenance combinations, same-scope races, or cross-scope reset rules, that is a blocking quality gap.
 
-Missing alternate writers, mirrored-table parity, scoped cache keys, or distributed state parity are HIGH-SEVERITY findings. Block them.
+Missing alternate writers, conflicting association coverage, mirrored-table parity, scoped cache keys, distributed state parity, rejected provenance handling, or concrete inventory coverage are HIGH-SEVERITY findings. Block them.
 
 ## Check 7: Behavioral Parity (CRITICAL for parallel/concurrent code)
 
@@ -449,7 +452,7 @@ If the code is significantly more complex than required, or tests do not convinc
 6. For any new repeated/shared path work, explicitly verify the cost model and whether whole-project scans, broad state reconstruction, or eager loading were introduced
 7. For any new optional context or derived state, explicitly verify whether "no data" and "failed to load" are distinct outcomes and whether the implementation/test suite handles that intentionally
 8. If the diff replaces computed/live behavior with persisted/materialized state, explicitly verify rollout parity, transition coverage, and atomicity or rollback for multi-write operator actions
-9. If the diff changes a source of truth, explicitly verify alternate writers, valid provenance variants, mirrored linkage parity, project-scoped cache keys, distributed state parity, and RPC-vs-event race handling
+9. If the diff changes a source of truth, explicitly verify alternate writers, conflicting or legacy association paths, valid and rejected provenance variants, mirrored linkage parity, project-scoped cache keys, distributed state parity, same-scope races, cross-scope reset behavior, and RPC-vs-event race handling
 {{#if SUPPORTS_SUBAGENTS}}
 10. Wait for sub-agent results and incorporate their findings
 {{/if}}

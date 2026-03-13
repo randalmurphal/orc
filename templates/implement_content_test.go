@@ -217,8 +217,13 @@ func TestImplementPrompts_RequireConcreteInventories(t *testing.T) {
 				"verification.provenance_variants",
 				"verification.ui_invalidation_paths",
 				"exact writers",
+				"conflicting/legacy paths",
+				"integrity guard",
 				"supported task/run/thread/initiative combination",
+				"rejected",
 				"browser-local surface",
+				"same-scope race",
+				"cross-scope reset",
 				"project/thread switch",
 			} {
 				if !strings.Contains(text, required) {

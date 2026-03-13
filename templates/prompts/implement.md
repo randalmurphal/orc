@@ -93,6 +93,8 @@ If `project_scoped_surface` is `true`, then `project_isolation_validated` MUST a
     "source_of_truth": "thread_links",
     "verified_writer_paths": ["CreateThread", "AddLink", "PromoteRecommendationDraft"],
     "verified_reader_paths": ["ListThreads", "GetThread", "threadToProto", "prompt-context loaders"],
+    "verified_conflict_paths": ["legacy task_id readers", "concurrent create/update paths"],
+    "integrity_evidence": "Verified uniqueness, transactions, or other guards prevent contradictory association state.",
     "parity_evidence": "Verified typed links and mirrored readers stay in sync."
   }
 ],
@@ -100,6 +102,7 @@ If `project_scoped_surface` is `true`, then `project_isolation_validated` MUST a
   {
     "path": "thread recommendation promotion",
     "verified_variants": ["task+run+thread", "task+thread without run", "thread-only"],
+    "rejected_variants": ["task provenance attached to the wrong linked thread", "run metadata required on a path that intentionally has no run"],
     "evidence": "Verified each supported provenance combination."
   }
 ],
@@ -108,7 +111,9 @@ If `project_scoped_surface` is `true`, then `project_isolation_validated` MUST a
     "surface": "discussion workspace",
     "update_sources": ["sendMessage RPC", "threadUpdated event"],
     "reset_triggers": ["thread switch", "project switch"],
+    "same_scope_races": ["same-project create thread vs list reload", "RPC response vs event-driven reload for the same thread"],
     "stale_response_handling": "Late RPC responses are ignored once a fresher reload wins.",
+    "cross_scope_reset_rule": "Project and thread switches invalidate prior in-flight results before they can write browser-local state.",
     "evidence": "Validated stale-response handling and duplicate suppression."
   }
 ]
@@ -424,12 +429,13 @@ Execute all checks and include evidence for each in your completion output:
 16. **Mirrored linkage parity check** — If relationship state is stored in a mirrored linkage or join table, prove create/update/delete parity across both representations.
 17. **Project-scoped cache key check** — If browser-local state, project-scoped caches, or memoized stores are involved, prove every get/set/delete key includes project or tenant scope. `local-ID-only` keys are not sufficient, and local ID alone is not sufficient.
 18. **Distributed state parity check** — If the feature duplicates state across DB rows, mirrored tables, caches, events, or browser-visible summaries, identify the source of truth and prove distributed state parity across the copies.
-19. **Provenance variant check** — If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant explicitly. Do not assume the full-provenance happy path is the only valid case.
-20. **RPC-vs-event race check** — If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling and duplicate suppression explicitly.
-21. **Canonical association inventory** — Fill `verification.canonical_associations` with the exact writers, readers, mirrors, and source of truth you verified.
-22. **Provenance inventory** — Fill `verification.provenance_variants` with every supported task/run/thread/initiative combination you verified, including valid cases where some provenance is intentionally absent.
-23. **UI invalidation inventory** — Fill `verification.ui_invalidation_paths` with every browser-local surface where RPC responses, events, or project/thread switches can invalidate or overwrite local state.
+19. **Provenance variant check** — If the feature links or promotes artifacts across task/run/thread/initiative context, verify every supported provenance variant explicitly and name the combinations that must be rejected. Do not assume the full-provenance happy path is the only valid case.
+20. **RPC-vs-event race check** — If browser-local state can be updated by both RPC responses and event-driven reloads, verify stale-response handling, duplicate suppression, same-scope race ordering, and the reset rule for project/thread/tenant switches explicitly.
+21. **Canonical association inventory** — Fill `verification.canonical_associations` with the exact writers, readers, mirrors, conflicting/legacy paths, source of truth, and integrity guard you verified.
+22. **Provenance inventory** — Fill `verification.provenance_variants` with every supported task/run/thread/initiative combination and rejected combination you verified, including valid cases where some provenance is intentionally absent.
+23. **UI invalidation inventory** — Fill `verification.ui_invalidation_paths` with every browser-local surface where RPC responses, events, or project/thread switches can invalidate or overwrite local state, including same-scope races and cross-scope reset rules.
 24. **Bounded discovery check** — Use the smallest set of production paths and existing repo verification flows needed to prove the task. Do not build ad hoc harnesses unless the normal path cannot validate the behavior.
+25. **Custom harness justification** — Starting a new local server, fake home, or bespoke multi-project lab is the exception path. If you do it, explain why the standard repo/browser flow could not prove the behavior.
 
 **Only output completion JSON after all checks pass.** See Output Format for the exact schema.
 

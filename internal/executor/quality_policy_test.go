@@ -99,7 +99,7 @@ func TestGetSchemaForPhaseWithRound_PlanAndReviewCross(t *testing.T) {
 	t.Parallel()
 
 	planSchema := GetSchemaForPhaseWithRound("plan", 0, true)
-	if !containsAllSnippets(planSchema, `"risk_assessment"`, `"verification_plan"`, `"invariants"`) {
+	if !containsAllSnippets(planSchema, `"risk_assessment"`, `"verification_plan"`, `"invariants"`, `"conflict_paths"`, `"integrity_guards"`, `"rejected_variants"`, `"same_scope_races"`, `"cross_scope_reset_rule"`) {
 		t.Errorf("plan schema missing policy fields: %s", planSchema)
 	}
 
@@ -113,7 +113,7 @@ func TestGetSchemaForPhaseWithRound_PlanAlias(t *testing.T) {
 	t.Parallel()
 
 	planSchema := GetSchemaForPhaseWithRound("plan_gpt", 0, true)
-	if !containsAllSnippets(planSchema, `"risk_assessment"`, `"verification_plan"`, `"invariants"`) {
+	if !containsAllSnippets(planSchema, `"risk_assessment"`, `"verification_plan"`, `"invariants"`, `"conflict_paths"`, `"integrity_guards"`, `"rejected_variants"`, `"same_scope_races"`, `"cross_scope_reset_rule"`) {
 		t.Fatalf("plan_gpt schema should reuse plan schema: %s", planSchema)
 	}
 }

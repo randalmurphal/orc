@@ -25,7 +25,7 @@ The most common failure is missing integration completeness issues — dead code
 | Severity | Criteria |
 |----------|----------|
 | **critical** | Incomplete updates (missed dependents), removed preserved functionality |
-| **high** | Bugs, security issues, incorrect behavior, dead code, missing integration, obvious performance regressions on important paths, alternate writers, mirrored linkage drift, project-scoped cache bugs, distributed state parity gaps |
+| **high** | Bugs, security issues, incorrect behavior, dead code, missing integration, obvious performance regressions on important paths, alternate writers, conflicting association paths, mirrored linkage drift, project-scoped cache bugs, distributed state parity gaps, rejected provenance gaps, same-scope or cross-scope UI race bugs |
 | **medium** | Missing edge cases, unclear code, unnecessary complexity, weak or incomplete tests |
 | **low** | Style issues, minor improvements, suggestions |
 </critical_constraints>
@@ -102,9 +102,13 @@ For each issue, determine if it violates the constitution:
 - [ ] New interfaces have implementations wired into the system
 - [ ] If the task adds hooks/callbacks/triggers, they are registered
 - [ ] Hidden alternate write paths are covered, not just the obvious new RPC or helper
+- [ ] Conflicting association paths and legacy readers/writers are covered, not just the new canonical path
 - [ ] Mirrored linkage or join tables stay in create/update/delete parity with the source of truth
 - [ ] Project-scoped caches and browser-local state key by project or tenant scope, not local ID alone
 - [ ] Distributed state parity holds across DB rows, mirrored tables, caches, events, and browser-visible summaries
+- [ ] Invalid provenance combinations are rejected instead of silently written
+- [ ] Same-scope races and cross-scope reset behavior are safe for browser-local state
+- [ ] The implementation inventories are concrete about conflicting paths, integrity guards, rejected variants, and reset rules
 
 ## Step 3: Document Findings
 
@@ -115,5 +119,5 @@ When deciding severity, bias toward blocking if the issue affects:
 - performance on a hot or scalable path
 - code simplicity or maintainability enough to obscure correctness
 - test coverage for critical behavior or failure modes
-- alternate writers, mirrored linkage state, project-scoped cache keys, or distributed state parity
+- alternate writers, conflicting association paths, mirrored linkage state, project-scoped cache keys, distributed state parity, rejected provenance handling, or same-scope/cross-scope UI races
 </instructions>

@@ -237,9 +237,11 @@ const ImplementCompletionSchema = `{
 							"source_of_truth": {"type": "string"},
 							"verified_writer_paths": {"type": "array", "items": {"type": "string"}},
 							"verified_reader_paths": {"type": "array", "items": {"type": "string"}},
+							"verified_conflict_paths": {"type": "array", "items": {"type": "string"}},
+							"integrity_evidence": {"type": "string"},
 							"parity_evidence": {"type": "string"}
 						},
-						"required": ["name", "source_of_truth", "verified_writer_paths", "verified_reader_paths", "parity_evidence"]
+						"required": ["name", "source_of_truth", "verified_writer_paths", "verified_reader_paths", "verified_conflict_paths", "integrity_evidence", "parity_evidence"]
 					}
 				},
 				"provenance_variants": {
@@ -250,9 +252,10 @@ const ImplementCompletionSchema = `{
 						"properties": {
 							"path": {"type": "string"},
 							"verified_variants": {"type": "array", "items": {"type": "string"}},
+							"rejected_variants": {"type": "array", "items": {"type": "string"}},
 							"evidence": {"type": "string"}
 						},
-						"required": ["path", "verified_variants", "evidence"]
+						"required": ["path", "verified_variants", "rejected_variants", "evidence"]
 					}
 				},
 				"ui_invalidation_paths": {
@@ -264,10 +267,12 @@ const ImplementCompletionSchema = `{
 							"surface": {"type": "string"},
 							"update_sources": {"type": "array", "items": {"type": "string"}},
 							"reset_triggers": {"type": "array", "items": {"type": "string"}},
+							"same_scope_races": {"type": "array", "items": {"type": "string"}},
 							"stale_response_handling": {"type": "string"},
+							"cross_scope_reset_rule": {"type": "string"},
 							"evidence": {"type": "string"}
 						},
-						"required": ["surface", "update_sources", "reset_triggers", "stale_response_handling", "evidence"]
+						"required": ["surface", "update_sources", "reset_triggers", "same_scope_races", "stale_response_handling", "cross_scope_reset_rule", "evidence"]
 					}
 				}
 			}
@@ -535,16 +540,19 @@ type BrowserValidation struct {
 }
 
 type AssociationVerification struct {
-	Name                string   `json:"name"`
-	SourceOfTruth       string   `json:"source_of_truth,omitempty"`
-	VerifiedWriterPaths []string `json:"verified_writer_paths,omitempty"`
-	VerifiedReaderPaths []string `json:"verified_reader_paths,omitempty"`
-	ParityEvidence      string   `json:"parity_evidence,omitempty"`
+	Name                  string   `json:"name"`
+	SourceOfTruth         string   `json:"source_of_truth,omitempty"`
+	VerifiedWriterPaths   []string `json:"verified_writer_paths,omitempty"`
+	VerifiedReaderPaths   []string `json:"verified_reader_paths,omitempty"`
+	VerifiedConflictPaths []string `json:"verified_conflict_paths,omitempty"`
+	IntegrityEvidence     string   `json:"integrity_evidence,omitempty"`
+	ParityEvidence        string   `json:"parity_evidence,omitempty"`
 }
 
 type ProvenanceVerification struct {
 	Path             string   `json:"path"`
 	VerifiedVariants []string `json:"verified_variants,omitempty"`
+	RejectedVariants []string `json:"rejected_variants,omitempty"`
 	Evidence         string   `json:"evidence,omitempty"`
 }
 
@@ -552,7 +560,9 @@ type UIInvalidationVerification struct {
 	Surface               string   `json:"surface"`
 	UpdateSources         []string `json:"update_sources,omitempty"`
 	ResetTriggers         []string `json:"reset_triggers,omitempty"`
+	SameScopeRaces        []string `json:"same_scope_races,omitempty"`
 	StaleResponseHandling string   `json:"stale_response_handling,omitempty"`
+	CrossScopeResetRule   string   `json:"cross_scope_reset_rule,omitempty"`
 	Evidence              string   `json:"evidence,omitempty"`
 }
 

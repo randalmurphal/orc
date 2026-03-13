@@ -907,6 +907,22 @@ func TestImplementCompletionSchema_RequiresEventDrivenBrowserFields(t *testing.T
 	}
 }
 
+func TestImplementCompletionSchema_RequiresExpandedInventoryFields(t *testing.T) {
+	t.Parallel()
+
+	for _, required := range []string{
+		`"verified_conflict_paths"`,
+		`"integrity_evidence"`,
+		`"rejected_variants"`,
+		`"same_scope_races"`,
+		`"cross_scope_reset_rule"`,
+	} {
+		if !strings.Contains(ImplementCompletionSchema, required) {
+			t.Errorf("ImplementCompletionSchema missing %s", required)
+		}
+	}
+}
+
 func TestValidateImplementCompletion_RequiresInventoryFields(t *testing.T) {
 	t.Parallel()
 

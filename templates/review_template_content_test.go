@@ -110,7 +110,7 @@ func TestReviewRound1_IntegrationCompletenessChecks(t *testing.T) {
 	if !strings.Contains(lower, "called from") || !strings.Contains(lower, "production") {
 		t.Error("review_round1.md Integration Completeness should check functions called from production code")
 	}
-	for _, required := range []string{"alternate write", "mirrored linkage", "project-scoped cache", "distributed state parity"} {
+	for _, required := range []string{"alternate write", "conflicting association", "mirrored linkage", "project-scoped cache", "distributed state parity", "rejected", "same-scope", "cross-scope"} {
 		if !strings.Contains(lower, required) {
 			t.Errorf("review_round1.md Integration Completeness missing %q", required)
 		}
@@ -177,7 +177,7 @@ func TestReviewRound1_HighSeverityClassification(t *testing.T) {
 	// Verify they're associated with high severity.
 	// Find the section containing severity definitions and check both terms
 	// appear in context with "high"
-	severityTerms := []string{"dead code", "missing integration", "project-scoped cache", "distributed state parity"}
+	severityTerms := []string{"dead code", "missing integration", "project-scoped cache", "distributed state parity", "conflicting association", "same-scope"}
 	for _, term := range severityTerms {
 		termIdx := strings.Index(lower, term)
 		if termIdx == -1 {
@@ -199,10 +199,14 @@ func TestReviewRound1_RequiresAlternateWritersScopedCachesAndParityChecks(t *tes
 	content := strings.ToLower(readReviewTemplate(t, "review_round1.md"))
 	for _, required := range []string{
 		"alternate write",
+		"conflicting association",
 		"mirrored linkage",
 		"project-scoped cache",
 		"local id",
 		"distributed state parity",
+		"rejected",
+		"same-scope",
+		"cross-scope",
 	} {
 		if !strings.Contains(content, required) {
 			t.Errorf("review_round1.md missing exploratory check %q", required)
@@ -293,13 +297,18 @@ func TestReviewTemplates_BlockEventDrivenAndProjectScopedGaps(t *testing.T) {
 				"rollback",
 				"persisted",
 				"alternate write path",
+				"conflicting association",
+				"integrity guard",
 				"mirrored linkage",
 				"project-scoped cache",
 				"local id",
 				"source of truth",
 				"distributed state parity",
 				"provenance variant",
+				"rejected",
 				"rpc-vs-event",
+				"same-scope",
+				"cross-scope reset",
 				"stale responses",
 			} {
 				if !strings.Contains(strings.ToLower(content), strings.ToLower(required)) {
@@ -317,11 +326,15 @@ func TestReviewRound2_RechecksAlternateWritersScopedCachesAndParity(t *testing.T
 	for _, required := range []string{
 		"alternate write",
 		"provenance variants",
+		"rejected",
+		"conflicting association",
 		"mirrored linkage",
 		"project-scoped caches",
 		"local id",
 		"distributed state parity",
 		"event-driven reloads",
+		"same-scope",
+		"cross-scope reset",
 	} {
 		if !strings.Contains(content, required) {
 			t.Errorf("review_round2.md missing re-verification guidance %q", required)

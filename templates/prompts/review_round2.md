@@ -118,11 +118,15 @@ If the fix refactored code into a new helper/file but nothing imports it, this i
 If round 1 involved a source of truth, promotion flow, persisted summary, or project-scoped browser state, re-check all of these after the fix:
 
 - [ ] Hidden alternate write paths are now covered, not just the obvious new request path
+- [ ] Conflicting association paths and legacy readers/writers are now covered, and cannot disagree under concurrent writes or partial migration state
 - [ ] Valid provenance variants are now covered, including paths where task/run/thread/initiative metadata is intentionally absent
+- [ ] Invalid provenance variants are rejected instead of silently written
 - [ ] Mirrored linkage or join tables stay in create/update/delete parity with the source of truth
 - [ ] Project-scoped caches or browser-local state use keys that include project or tenant scope; local ID alone is not sufficient
 - [ ] Distributed state parity still holds across DB rows, mirrored tables, caches, events, and browser-visible summaries
 - [ ] RPC responses and event-driven reloads cannot race to duplicate, overwrite, or cross-contaminate visible browser state
+- [ ] Same-scope operations and project/thread/tenant switches cannot leave stale in-flight state writing into the wrong visible surface
+- [ ] The implementation inventories now name conflicting paths, integrity guards, rejected variants, same-scope races, and cross-scope reset rules concretely
 - [ ] Any custom verification harness was actually necessary, or the normal repo/browser path now proves the behavior directly
 
 ### Step 2c: Spec Compliance Re-Check

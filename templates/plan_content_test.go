@@ -75,8 +75,13 @@ func TestPlanPrompt_RequiresConcreteInventories(t *testing.T) {
 		"provenance_variants",
 		"ui_invalidation_paths",
 		"actual writers",
+		"conflicting or legacy paths",
+		"integrity guards",
 		"supported task/run/thread/initiative combinations",
+		"rejected",
 		"browser surfaces",
+		"same-scope races",
+		"cross-scope reset rules",
 		"stale-response rule",
 	} {
 		if !strings.Contains(text, required) {
