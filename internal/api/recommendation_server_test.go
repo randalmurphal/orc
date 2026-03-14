@@ -82,6 +82,40 @@ func TestRecommendationServiceCRUDViaHTTP(t *testing.T) {
 	require.Equal(t, "proj-001", publisher.events[1].ProjectID)
 }
 
+func TestRecommendationServiceDefaultsDecisionActorViaHTTP(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	storageFixturesForRecommendation(t, backend)
+	publisher := &recommendationTestPublisher{}
+	projectCache := testProjectCacheForBackend("proj-001", backend)
+
+	recommendationSvc := NewRecommendationServer(backend, slog.Default(), publisher)
+	recommendationSvc.(*recommendationServer).SetProjectCache(projectCache)
+
+	mux := http.NewServeMux()
+	path, handler := orcv1connect.NewRecommendationServiceHandler(recommendationSvc)
+	mux.Handle(path, corsHandler(handler))
+
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	client := orcv1connect.NewRecommendationServiceClient(http.DefaultClient, ts.URL)
+
+	createResp, err := client.CreateRecommendation(context.Background(), connect.NewRequest(&orcv1.CreateRecommendationRequest{
+		ProjectId:      "proj-001",
+		Recommendation: recommendationProtoForAPI("cleanup:task-001:default-actor"),
+	}))
+	require.NoError(t, err)
+
+	discussResp, err := client.DiscussRecommendation(context.Background(), connect.NewRequest(&orcv1.DiscussRecommendationRequest{
+		ProjectId:        "proj-001",
+		RecommendationId: createResp.Msg.Recommendation.Id,
+	}))
+	require.NoError(t, err)
+	require.NotEmpty(t, discussResp.Msg.Recommendation.GetDecidedBy())
+}
+
 func TestRegisterConnectHandlersIncludesRecommendationService(t *testing.T) {
 	t.Parallel()
 

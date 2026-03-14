@@ -317,16 +317,16 @@ func (p *ProjectDB) ListThreads(opts ThreadListOpts) ([]Thread, error) {
 	argIndex := 1
 
 	if opts.Status != "" {
-		query += fmt.Sprintf(" AND status = %s", dialectPlaceholder(p.Dialect(), argIndex))
+		query += fmt.Sprintf(" AND status = %s", placeholderForDialect(p.Dialect(), argIndex))
 		args = append(args, opts.Status)
 		argIndex++
 	}
 	if opts.TaskID != "" {
 		query += fmt.Sprintf(
 			" AND (task_id = %s OR EXISTS (SELECT 1 FROM thread_links WHERE thread_id = threads.id AND link_type = '%s' AND target_id = %s))",
-			dialectPlaceholder(p.Dialect(), argIndex),
+			placeholderForDialect(p.Dialect(), argIndex),
 			ThreadLinkTypeTask,
-			dialectPlaceholder(p.Dialect(), argIndex+1),
+			placeholderForDialect(p.Dialect(), argIndex+1),
 		)
 		args = append(args, opts.TaskID, opts.TaskID)
 		argIndex += 2
@@ -334,16 +334,16 @@ func (p *ProjectDB) ListThreads(opts ThreadListOpts) ([]Thread, error) {
 	if opts.InitiativeID != "" {
 		query += fmt.Sprintf(
 			" AND (initiative_id = %s OR EXISTS (SELECT 1 FROM thread_links WHERE thread_id = threads.id AND link_type = '%s' AND target_id = %s))",
-			dialectPlaceholder(p.Dialect(), argIndex),
+			placeholderForDialect(p.Dialect(), argIndex),
 			ThreadLinkTypeInitiative,
-			dialectPlaceholder(p.Dialect(), argIndex+1),
+			placeholderForDialect(p.Dialect(), argIndex+1),
 		)
 		args = append(args, opts.InitiativeID, opts.InitiativeID)
 		argIndex += 2
 	}
 	query += " ORDER BY updated_at DESC"
 	if opts.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT %s", dialectPlaceholder(p.Dialect(), argIndex))
+		query += fmt.Sprintf(" LIMIT %s", placeholderForDialect(p.Dialect(), argIndex))
 		args = append(args, opts.Limit)
 	}
 
@@ -402,6 +402,9 @@ func (p *ProjectDB) CreateThreadLink(link *ThreadLink) error {
 			return err
 		}
 		if err := createThreadLinkTx(tx, link); err != nil {
+			return err
+		}
+		if err := syncThreadAssociationMirrorTx(tx, link); err != nil {
 			return err
 		}
 		return touchThreadTx(tx, link.ThreadID, now)
@@ -655,6 +658,21 @@ func ensureThreadAssociationLinkTargetTx(tx *TxOps, link *ThreadLink) error {
 	return nil
 }
 
+func syncThreadAssociationMirrorTx(tx *TxOps, link *ThreadLink) error {
+	if !threadLinkTypeHasSingleTarget(link.LinkType) {
+		return nil
+	}
+
+	query, err := threadAssociationMirrorUpdateQuery(tx.Dialect(), link.LinkType)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(query, link.TargetID, link.ThreadID); err != nil {
+		return fmt.Errorf("sync legacy %s mirror for thread %s: %w", link.LinkType, link.ThreadID, err)
+	}
+	return nil
+}
+
 func insertThreadRecommendationDraftTx(tx *TxOps, draft *ThreadRecommendationDraft) error {
 	_, err := tx.Exec(threadRecommendationDraftInsertQuery(tx.Dialect()), draft.ID, draft.ThreadID, draft.Kind, draft.Title, draft.Summary, draft.ProposedAction, draft.Evidence, draft.DedupeKey, draft.SourceTaskID, draft.SourceRunID, draft.Status, draft.PromotedRecommendationID, draft.PromotedBy, nullableTime(draft.PromotedAt), draft.CreatedAt, draft.UpdatedAt)
 	if err != nil {
@@ -675,14 +693,16 @@ func createRecommendationTx(tx *TxOps, rec *Recommendation) error {
 	if err := validateRecommendationForCreate(rec); err != nil {
 		return err
 	}
-	now := time.Now().UTC()
-	rec.CreatedAt = now
-	rec.UpdatedAt = now
 
-	query, args := recommendationInsertQuery(tx.Dialect(), txNow(tx.Dialect()), rec)
+	query, args := recommendationInsertQuery(tx.Dialect(), nowExpressionForDialect(tx.Dialect()), rec)
 	if _, err := tx.Exec(query, args...); err != nil {
 		return fmt.Errorf("insert recommendation: %w", err)
 	}
+	created, err := getRecommendationTx(tx, rec.ID)
+	if err != nil {
+		return err
+	}
+	*rec = *created
 	return nil
 }
 
@@ -775,7 +795,7 @@ func pSyntheticRecommendationLinks(pdb *ProjectDB, threadID string) ([]ThreadLin
 		FROM recommendations
 		WHERE source_thread_id = %s
 		ORDER BY created_at ASC, id ASC
-	`, dialectPlaceholder(pdb.Dialect(), 1))
+	`, placeholderForDialect(pdb.Dialect(), 1))
 
 	rows, err := pdb.Query(query, threadID)
 	if err != nil {
@@ -1111,7 +1131,7 @@ func threadSelectQuery(dialect driver.Dialect, many bool) string {
 		WHERE 1=1
 	`
 	if !many {
-		query += " AND id = " + dialectPlaceholder(dialect, 1)
+		query += " AND id = " + placeholderForDialect(dialect, 1)
 	}
 	return query
 }
@@ -1120,7 +1140,7 @@ func threadMessagesQuery(dialect driver.Dialect) string {
 	return `
 		SELECT id, thread_id, role, content, created_at
 		FROM thread_messages
-		WHERE thread_id = ` + dialectPlaceholder(dialect, 1) + `
+		WHERE thread_id = ` + placeholderForDialect(dialect, 1) + `
 		ORDER BY created_at ASC, id ASC
 	`
 }
@@ -1129,8 +1149,8 @@ func threadAssociationLinkTargetQuery(dialect driver.Dialect) string {
 	return `
 		SELECT target_id
 		FROM thread_links
-		WHERE thread_id = ` + dialectPlaceholder(dialect, 1) + `
-		  AND link_type = ` + dialectPlaceholder(dialect, 2) + `
+		WHERE thread_id = ` + placeholderForDialect(dialect, 1) + `
+		  AND link_type = ` + placeholderForDialect(dialect, 2) + `
 		ORDER BY created_at ASC, id ASC
 		LIMIT 1
 	`
@@ -1146,34 +1166,34 @@ func threadMessageInsertQuery(dialect driver.Dialect) string {
 func threadTouchQuery(dialect driver.Dialect) string {
 	return `
 		UPDATE threads
-		SET updated_at = ` + dialectPlaceholder(dialect, 1) + `
-		WHERE id = ` + dialectPlaceholder(dialect, 2)
+		SET updated_at = ` + placeholderForDialect(dialect, 1) + `
+		WHERE id = ` + placeholderForDialect(dialect, 2)
 }
 
 func threadArchiveQuery(dialect driver.Dialect) string {
 	return `
 		UPDATE threads
-		SET status = 'archived', updated_at = ` + dialectPlaceholder(dialect, 1) + `
-		WHERE id = ` + dialectPlaceholder(dialect, 2)
+		SET status = 'archived', updated_at = ` + placeholderForDialect(dialect, 1) + `
+		WHERE id = ` + placeholderForDialect(dialect, 2)
 }
 
 func threadDeleteQuery(dialect driver.Dialect) string {
-	return `DELETE FROM threads WHERE id = ` + dialectPlaceholder(dialect, 1)
+	return `DELETE FROM threads WHERE id = ` + placeholderForDialect(dialect, 1)
 }
 
 func threadSessionUpdateQuery(dialect driver.Dialect) string {
 	return `
 		UPDATE threads
-		SET session_id = ` + dialectPlaceholder(dialect, 1) + `,
-		    updated_at = ` + dialectPlaceholder(dialect, 2) + `
-		WHERE id = ` + dialectPlaceholder(dialect, 3)
+		SET session_id = ` + placeholderForDialect(dialect, 1) + `,
+		    updated_at = ` + placeholderForDialect(dialect, 2) + `
+		WHERE id = ` + placeholderForDialect(dialect, 3)
 }
 
 func threadLinksQuery(dialect driver.Dialect) string {
 	return `
 		SELECT id, thread_id, link_type, target_id, title, created_at
 		FROM thread_links
-		WHERE thread_id = ` + dialectPlaceholder(dialect, 1) + `
+		WHERE thread_id = ` + placeholderForDialect(dialect, 1) + `
 		ORDER BY created_at ASC, id ASC
 	`
 }
@@ -1190,9 +1210,9 @@ func threadLinkByUniqueQuery(dialect driver.Dialect) string {
 	return `
 		SELECT id, thread_id, link_type, target_id, title, created_at
 		FROM thread_links
-		WHERE thread_id = ` + dialectPlaceholder(dialect, 1) + `
-		  AND link_type = ` + dialectPlaceholder(dialect, 2) + `
-		  AND target_id = ` + dialectPlaceholder(dialect, 3)
+		WHERE thread_id = ` + placeholderForDialect(dialect, 1) + `
+		  AND link_type = ` + placeholderForDialect(dialect, 2) + `
+		  AND target_id = ` + placeholderForDialect(dialect, 3)
 }
 
 func threadRecommendationDraftsQuery(dialect driver.Dialect) string {
@@ -1201,7 +1221,7 @@ func threadRecommendationDraftsQuery(dialect driver.Dialect) string {
 		       source_task_id, source_run_id, status, promoted_recommendation_id, promoted_by,
 		       promoted_at, created_at, updated_at
 		FROM thread_recommendation_drafts
-		WHERE thread_id = ` + dialectPlaceholder(dialect, 1) + `
+		WHERE thread_id = ` + placeholderForDialect(dialect, 1) + `
 		ORDER BY created_at ASC, id ASC
 	`
 }
@@ -1223,18 +1243,18 @@ func threadRecommendationDraftByIDQuery(dialect driver.Dialect) string {
 		       source_task_id, source_run_id, status, promoted_recommendation_id, promoted_by,
 		       promoted_at, created_at, updated_at
 		FROM thread_recommendation_drafts
-		WHERE id = ` + dialectPlaceholder(dialect, 1)
+		WHERE id = ` + placeholderForDialect(dialect, 1)
 }
 
 func threadRecommendationDraftPromoteQuery(dialect driver.Dialect) string {
 	return `
 		UPDATE thread_recommendation_drafts
 		SET status = 'promoted',
-		    promoted_recommendation_id = ` + dialectPlaceholder(dialect, 1) + `,
-		    promoted_by = ` + dialectPlaceholder(dialect, 2) + `,
-		    promoted_at = ` + dialectPlaceholder(dialect, 3) + `,
-		    updated_at = ` + dialectPlaceholder(dialect, 4) + `
-		WHERE id = ` + dialectPlaceholder(dialect, 5)
+		    promoted_recommendation_id = ` + placeholderForDialect(dialect, 1) + `,
+		    promoted_by = ` + placeholderForDialect(dialect, 2) + `,
+		    promoted_at = ` + placeholderForDialect(dialect, 3) + `,
+		    updated_at = ` + placeholderForDialect(dialect, 4) + `
+		WHERE id = ` + placeholderForDialect(dialect, 5)
 }
 
 func threadDecisionDraftsQuery(dialect driver.Dialect) string {
@@ -1242,7 +1262,7 @@ func threadDecisionDraftsQuery(dialect driver.Dialect) string {
 		SELECT id, thread_id, initiative_id, decision, rationale, status,
 		       promoted_decision_id, promoted_by, promoted_at, created_at, updated_at
 		FROM thread_decision_drafts
-		WHERE thread_id = ` + dialectPlaceholder(dialect, 1) + `
+		WHERE thread_id = ` + placeholderForDialect(dialect, 1) + `
 		ORDER BY created_at ASC, id ASC
 	`
 }
@@ -1261,32 +1281,35 @@ func latestWorkflowRunIDForTaskQuery(dialect driver.Dialect) string {
 	return `
 		SELECT id
 		FROM workflow_runs
-		WHERE task_id = ` + dialectPlaceholder(dialect, 1) + `
+		WHERE task_id = ` + placeholderForDialect(dialect, 1) + `
 		ORDER BY created_at DESC
 		LIMIT 1
 	`
 }
 
-func dialectPlaceholder(dialect driver.Dialect, index int) string {
-	if dialect == driver.DialectPostgres {
-		return fmt.Sprintf("$%d", index)
-	}
-	return "?"
-}
-
 func placeholders(dialect driver.Dialect, start int, count int) string {
 	values := make([]string, 0, count)
 	for i := 0; i < count; i++ {
-		values = append(values, dialectPlaceholder(dialect, start+i))
+		values = append(values, placeholderForDialect(dialect, start+i))
 	}
 	return strings.Join(values, ", ")
 }
 
-func txNow(dialect driver.Dialect) string {
-	if dialect == driver.DialectPostgres {
-		return "NOW()"
+func threadAssociationMirrorUpdateQuery(dialect driver.Dialect, linkType string) (string, error) {
+	switch linkType {
+	case ThreadLinkTypeTask:
+		return `
+			UPDATE threads
+			SET task_id = ` + placeholderForDialect(dialect, 1) + `
+			WHERE id = ` + placeholderForDialect(dialect, 2), nil
+	case ThreadLinkTypeInitiative:
+		return `
+			UPDATE threads
+			SET initiative_id = ` + placeholderForDialect(dialect, 1) + `
+			WHERE id = ` + placeholderForDialect(dialect, 2), nil
+	default:
+		return "", fmt.Errorf("thread link type %q does not mirror to legacy columns", linkType)
 	}
-	return "datetime('now')"
 }
 
 func nullableTime(value *time.Time) any {

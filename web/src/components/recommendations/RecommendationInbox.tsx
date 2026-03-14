@@ -81,7 +81,7 @@ export function RecommendationInbox() {
 		recommendation: Recommendation,
 		action: 'accept' | 'reject' | 'discuss',
 	) => {
-		const decidedBy = 'operator';
+		const decidedBy = '';
 		const decisionProjectId = projectId;
 		const stateKey = recommendationStateKey(decisionProjectId, recommendation.id);
 		setBusyId(stateKey);

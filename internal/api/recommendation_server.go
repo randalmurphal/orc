@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"os/user"
 	"strings"
 	"time"
 
@@ -211,9 +213,7 @@ func (s *recommendationServer) updateRecommendationDecision(
 	if recommendationID == "" {
 		return nil, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_UNSPECIFIED, connect.NewError(connect.CodeInvalidArgument, errors.New("recommendation_id is required"))
 	}
-	if decidedBy == "" {
-		return nil, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_UNSPECIFIED, connect.NewError(connect.CodeInvalidArgument, errors.New("decided_by is required"))
-	}
+	decidedBy = defaultActorName(decidedBy)
 
 	current, err := backend.LoadRecommendation(recommendationID)
 	if err != nil {
@@ -236,6 +236,20 @@ func (s *recommendationServer) updateRecommendationDecision(
 	}
 
 	return updated, current.Status, nil
+}
+
+func defaultActorName(value string) string {
+	value = strings.TrimSpace(value)
+	if value != "" {
+		return value
+	}
+	if currentUser, err := user.Current(); err == nil && strings.TrimSpace(currentUser.Username) != "" {
+		return currentUser.Username
+	}
+	if envUser := strings.TrimSpace(os.Getenv("USER")); envUser != "" {
+		return envUser
+	}
+	return "human"
 }
 
 func (s *recommendationServer) publishRecommendationCreated(projectID string, rec *orcv1.Recommendation) {

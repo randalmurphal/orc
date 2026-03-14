@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -424,6 +425,93 @@ func TestThread_CreateThreadLink_RejectsConflictingAssociationTarget(t *testing.
 	}
 	if len(got.Links) != 1 {
 		t.Fatalf("expected only one task link after conflict, got %d", len(got.Links))
+	}
+}
+
+func TestThread_CreateThreadLink_SyncsLegacyAssociationMirror(t *testing.T) {
+	t.Parallel()
+	pdb := NewTestProjectDB(t)
+
+	testCases := []struct {
+		name              string
+		threadID          string
+		linkType          string
+		legacyColumn      string
+		legacyValue       string
+		updatedValue      string
+		otherLegacyColumn string
+	}{
+		{
+			name:              "task",
+			threadID:          "THR-LEGACY-TASK",
+			linkType:          ThreadLinkTypeTask,
+			legacyColumn:      "task_id",
+			legacyValue:       "TASK-OLD",
+			updatedValue:      "TASK-NEW",
+			otherLegacyColumn: "initiative_id",
+		},
+		{
+			name:              "initiative",
+			threadID:          "THR-LEGACY-INIT",
+			linkType:          ThreadLinkTypeInitiative,
+			legacyColumn:      "initiative_id",
+			legacyValue:       "INIT-OLD",
+			updatedValue:      "INIT-NEW",
+			otherLegacyColumn: "task_id",
+		},
+	}
+
+	now := time.Now().UTC()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			query := fmt.Sprintf(`
+				INSERT INTO threads (id, title, status, %s, %s, session_id, file_context, created_at, updated_at)
+				VALUES (?, ?, ?, ?, '', '', '', ?, ?)
+			`, tc.legacyColumn, tc.otherLegacyColumn)
+			if _, err := pdb.Exec(query, tc.threadID, tc.name+" legacy thread", ThreadStatusActive, tc.legacyValue, now, now); err != nil {
+				t.Fatalf("insert legacy thread: %v", err)
+			}
+
+			if err := pdb.CreateThreadLink(&ThreadLink{
+				ThreadID: tc.threadID,
+				LinkType: tc.linkType,
+				TargetID: tc.updatedValue,
+				Title:    tc.updatedValue,
+			}); err != nil {
+				t.Fatalf("CreateThreadLink(%s): %v", tc.linkType, err)
+			}
+
+			var storedValue string
+			row := pdb.QueryRow(fmt.Sprintf("SELECT %s FROM threads WHERE id = ?", tc.legacyColumn), tc.threadID)
+			if err := row.Scan(&storedValue); err != nil {
+				t.Fatalf("reload legacy mirror: %v", err)
+			}
+			if storedValue != tc.updatedValue {
+				t.Fatalf("expected legacy mirror %s to be %q, got %q", tc.legacyColumn, tc.updatedValue, storedValue)
+			}
+
+			oldMatches, err := pdb.ListThreads(ThreadListOpts{
+				TaskID:       valueForLinkType(tc.linkType, tc.legacyValue, ""),
+				InitiativeID: valueForLinkType(tc.linkType, "", tc.legacyValue),
+			})
+			if err != nil {
+				t.Fatalf("ListThreads(old): %v", err)
+			}
+			if len(oldMatches) != 0 {
+				t.Fatalf("expected old legacy association to stop matching, got %+v", oldMatches)
+			}
+
+			newMatches, err := pdb.ListThreads(ThreadListOpts{
+				TaskID:       valueForLinkType(tc.linkType, tc.updatedValue, ""),
+				InitiativeID: valueForLinkType(tc.linkType, "", tc.updatedValue),
+			})
+			if err != nil {
+				t.Fatalf("ListThreads(new): %v", err)
+			}
+			if len(newMatches) != 1 || newMatches[0].ID != tc.threadID {
+				t.Fatalf("expected updated association to match %s, got %+v", tc.threadID, newMatches)
+			}
+		})
 	}
 }
 
@@ -1067,5 +1155,16 @@ func mustCreateThreadFixtures(t *testing.T, pdb *ProjectDB) {
 		Status: "active",
 	}); err != nil {
 		t.Fatalf("SaveInitiative: %v", err)
+	}
+}
+
+func valueForLinkType(linkType string, taskID string, initiativeID string) string {
+	switch linkType {
+	case ThreadLinkTypeTask:
+		return taskID
+	case ThreadLinkTypeInitiative:
+		return initiativeID
+	default:
+		return ""
 	}
 }

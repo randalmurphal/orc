@@ -208,6 +208,9 @@ describe('threadStore', () => {
 			vi.mocked(threadClient.createThread).mockResolvedValue({
 				thread: newThread,
 			} as never);
+			vi.mocked(threadClient.listThreads).mockResolvedValue({
+				threads: [newThread],
+			} as never);
 
 			const result = await useThreadStore.getState().createThread('proj-001', 'New Thread');
 
@@ -226,6 +229,9 @@ describe('threadStore', () => {
 
 			vi.mocked(threadClient.createThread).mockResolvedValue({
 				thread: newThread,
+			} as never);
+			vi.mocked(threadClient.listThreads).mockResolvedValue({
+				threads: [newThread],
 			} as never);
 
 			await useThreadStore.getState().createThread('proj-001', 'New Thread');
@@ -262,6 +268,49 @@ describe('threadStore', () => {
 			expect(state.threads).toEqual([]);
 			expect(state.selectedThreadId).toBeNull();
 			expect(state.error).toBeNull();
+		});
+
+		it('keeps the created thread selected when a same-project list refresh overlaps the create response', async () => {
+			const staleListLoad = createDeferred<{ threads: ReturnType<typeof createMockThread>[] }>();
+			const refreshAfterCreate = createDeferred<{ threads: ReturnType<typeof createMockThread>[] }>();
+			const createdThread = createMockThread({
+				id: 'thread-new',
+				title: 'New Thread',
+			});
+
+			vi.mocked(threadClient.createThread).mockResolvedValue({
+				thread: createdThread,
+			} as never);
+			vi.mocked(threadClient.listThreads)
+				.mockReturnValueOnce(staleListLoad.promise as never)
+				.mockReturnValueOnce(refreshAfterCreate.promise as never);
+
+			const createPromise = useThreadStore.getState().createThread('proj-001', 'New Thread');
+			const overlappingLoadPromise = useThreadStore.getState().loadThreads('proj-001');
+
+			await expect(createPromise).resolves.toMatchObject({ id: 'thread-new' });
+			expect(useThreadStore.getState().selectedThreadId).toBe('thread-new');
+			expect(useThreadStore.getState().threads).toEqual([createdThread]);
+
+			staleListLoad.resolve({
+				threads: [createMockThread({ id: 'thread-old', title: 'Old Thread' })],
+			});
+			await overlappingLoadPromise;
+
+			expect(useThreadStore.getState().selectedThreadId).toBe('thread-new');
+			expect(useThreadStore.getState().threads).toEqual([createdThread]);
+
+			refreshAfterCreate.resolve({
+				threads: [
+					createMockThread({ id: 'thread-old', title: 'Old Thread' }),
+					createdThread,
+				],
+			});
+			await refreshAfterCreate.promise;
+			await Promise.resolve();
+
+			expect(useThreadStore.getState().threads.map((thread) => thread.id)).toEqual(['thread-old', 'thread-new']);
+			expect(useThreadStore.getState().selectedThreadId).toBe('thread-new');
 		});
 	});
 

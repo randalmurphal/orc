@@ -1324,6 +1324,49 @@ func TestThreadServer_AddLinkAndPromoteRecommendationDraft(t *testing.T) {
 	}
 }
 
+func TestThreadServer_PromoteRecommendationDraft_DefaultsActorWhenClientOmitsIt(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+	publisher := events.NewMemoryPublisher()
+	defer publisher.Close()
+
+	mustCreateThreadServerFixtures(t, backend)
+	server := NewThreadServer(backend, publisher, slog.Default())
+
+	thread := &db.Thread{
+		Title:  "Promotion without explicit actor",
+		TaskID: "TASK-001",
+	}
+	if err := backend.DB().CreateThread(thread); err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+	draft := &db.ThreadRecommendationDraft{
+		ThreadID:       thread.ID,
+		Kind:           db.RecommendationKindFollowUp,
+		Title:          "Promote without actor",
+		Summary:        "The server should attribute the promotion even when the browser omits a name.",
+		ProposedAction: "Resolve the actor server-side.",
+		Evidence:       "Frontend discussion flows do not carry an authenticated user name today.",
+	}
+	if err := backend.DB().CreateThreadRecommendationDraft(draft); err != nil {
+		t.Fatalf("CreateThreadRecommendationDraft: %v", err)
+	}
+
+	resp, err := server.PromoteRecommendationDraft(
+		context.Background(),
+		connect.NewRequest(&orcv1.PromoteThreadRecommendationDraftRequest{
+			ThreadId: thread.ID,
+			DraftId:  draft.ID,
+		}),
+	)
+	if err != nil {
+		t.Fatalf("PromoteRecommendationDraft: %v", err)
+	}
+	if resp.Msg.Draft.GetPromotedBy() == "" {
+		t.Fatal("expected server to fill promoted_by when omitted")
+	}
+}
+
 func TestThreadServer_PromoteRecommendationDraft_FromGenericThread(t *testing.T) {
 	t.Parallel()
 	backend := storage.NewTestBackend(t)

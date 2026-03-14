@@ -6,6 +6,7 @@ import { create as createMsg } from '@bufbuild/protobuf';
 import { threadClient } from '@/lib/client';
 
 let latestThreadLoadRequestId = 0;
+let threadStoreGeneration = 0;
 
 function beginThreadLoadRequest() {
 	latestThreadLoadRequestId += 1;
@@ -14,6 +15,19 @@ function beginThreadLoadRequest() {
 
 function isCurrentThreadLoadRequest(requestId: number) {
 	return requestId === latestThreadLoadRequestId;
+}
+
+function currentThreadStoreGeneration() {
+	return threadStoreGeneration;
+}
+
+function resetThreadStoreGeneration() {
+	threadStoreGeneration += 1;
+	return threadStoreGeneration;
+}
+
+function isCurrentThreadStoreGeneration(generation: number) {
+	return generation === threadStoreGeneration;
 }
 
 function withErrorDetails(prefix: string, err: unknown): string {
@@ -82,25 +96,26 @@ export const useThreadStore = create<ThreadStore>()(
 		},
 
 		createThread: async (projectId: string, title: string) => {
-			const requestId = beginThreadLoadRequest();
+			const generation = currentThreadStoreGeneration();
 			try {
 				const response = await threadClient.createThread(
 					createMsg(CreateThreadRequestSchema, { projectId, title })
 				);
-				if (!isCurrentThreadLoadRequest(requestId)) {
+				if (!isCurrentThreadStoreGeneration(generation)) {
 					return null;
 				}
 				const thread = response.thread;
 				if (thread) {
 					set((state) => ({
-						threads: [...state.threads, thread],
+						threads: upsertThread(state.threads, thread),
 						selectedThreadId: thread.id,
 					}));
+					void get().loadThreads(projectId).catch(() => {});
 					return thread;
 				}
 				return null;
 			} catch (err) {
-				if (!isCurrentThreadLoadRequest(requestId)) {
+				if (!isCurrentThreadStoreGeneration(generation)) {
 					return null;
 				}
 				set({ error: withErrorDetails('Failed to create thread', err) });
@@ -118,10 +133,19 @@ export const useThreadStore = create<ThreadStore>()(
 
 		reset: () => {
 			beginThreadLoadRequest();
+			resetThreadStoreGeneration();
 			set(initialState);
 		},
 	}))
 );
+
+function upsertThread(threads: Thread[], thread: Thread): Thread[] {
+	const existingIndex = threads.findIndex((candidate) => candidate.id === thread.id);
+	if (existingIndex === -1) {
+		return [...threads, thread];
+	}
+	return threads.map((candidate, index) => (index === existingIndex ? thread : candidate));
+}
 
 // Selector hooks
 export const useThreads = () => useThreadStore((state) => state.threads);

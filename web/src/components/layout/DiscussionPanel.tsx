@@ -299,7 +299,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 					projectId,
 					threadId,
 					draftId,
-					promotedBy: 'operator',
+					promotedBy: '',
 				})
 			);
 			applyThreadMutationState(request, response.thread);

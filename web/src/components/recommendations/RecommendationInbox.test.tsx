@@ -107,7 +107,7 @@ describe('RecommendationInbox', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Discuss' }));
 
 		await screen.findByText(/Recommendation REC-001/);
-		expect(discussRecommendation).toHaveBeenCalledWith('proj-001', 'REC-001', 'operator', '');
+		expect(discussRecommendation).toHaveBeenCalledWith('proj-001', 'REC-001', '', '');
 	});
 
 	it('accepts and rejects recommendations through the API and refreshes the list', async () => {
@@ -159,13 +159,13 @@ describe('RecommendationInbox', () => {
 		fireEvent.click(screen.getAllByRole('button', { name: 'Accept' })[0]);
 
 		await waitFor(() => {
-			expect(acceptRecommendation).toHaveBeenCalledWith('proj-001', 'REC-001', 'operator', '');
+			expect(acceptRecommendation).toHaveBeenCalledWith('proj-001', 'REC-001', '', '');
 		});
 
 		fireEvent.click(screen.getAllByRole('button', { name: 'Reject' })[1]);
 
 		await waitFor(() => {
-			expect(rejectRecommendation).toHaveBeenCalledWith('proj-001', 'REC-002', 'operator', '');
+			expect(rejectRecommendation).toHaveBeenCalledWith('proj-001', 'REC-002', '', '');
 		});
 		expect(listRecommendations).toHaveBeenCalledTimes(3);
 	});

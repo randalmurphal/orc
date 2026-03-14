@@ -284,7 +284,7 @@ func (s *threadServer) SendMessage(
 	// Store session ID from response (for multi-turn continuity)
 	if result.SessionID != "" && result.SessionID != thread.SessionID {
 		if updateErr := backend.DB().UpdateThreadSessionID(thread.ID, result.SessionID); updateErr != nil {
-			s.logger.Error("failed to update thread session ID", "thread_id", thread.ID, "error", updateErr)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist thread session: %w", updateErr))
 		}
 	}
 
@@ -441,7 +441,8 @@ func (s *threadServer) PromoteRecommendationDraft(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
 	}
 
-	draft, rec, err := backend.DB().PromoteThreadRecommendationDraft(ctx, req.Msg.ThreadId, req.Msg.DraftId, req.Msg.PromotedBy)
+	promotedBy := defaultActorName(req.Msg.PromotedBy)
+	draft, rec, err := backend.DB().PromoteThreadRecommendationDraft(ctx, req.Msg.ThreadId, req.Msg.DraftId, promotedBy)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("promote recommendation draft: %w", err))
 	}
