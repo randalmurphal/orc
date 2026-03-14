@@ -828,6 +828,60 @@ describe('DiscussionPanel chat interface (SC-7)', () => {
 		expect((screen.getByLabelText('Decision initiative') as HTMLInputElement).value).toBe('INIT-002');
 	});
 
+	it('should preserve an edited decision initiative during same-thread reloads', async () => {
+		vi.mocked(threadClient.getThread)
+			.mockResolvedValueOnce({
+				thread: createMockThread({
+					initiativeId: 'INIT-001',
+				}),
+			} as never)
+			.mockResolvedValueOnce({
+				thread: createMockThread({
+					initiativeId: 'INIT-001',
+					links: [
+						create(ThreadLinkSchema, {
+							id: BigInt(9),
+							threadId: 'thread-001',
+							linkType: 'file',
+							targetId: 'docs/notes.md',
+							title: 'notes.md',
+						}),
+					],
+				}),
+			} as never);
+
+		renderWithProviders(
+			<DiscussionPanel threadId="thread-001" projectId="proj-001" />
+		);
+
+		const initiativeInput = await screen.findByLabelText('Decision initiative');
+		await waitFor(() => {
+			expect((initiativeInput as HTMLInputElement).value).toBe('INIT-001');
+		});
+
+		fireEvent.change(initiativeInput, { target: { value: 'CUSTOM-INIT' } });
+		expect((initiativeInput as HTMLInputElement).value).toBe('CUSTOM-INIT');
+
+		await act(async () => {
+			eventHandler?.({
+				projectId: 'proj-001',
+				payload: {
+					case: 'threadUpdated',
+					value: {
+						threadId: 'thread-001',
+						updateType: 'link_added',
+					},
+				},
+			});
+		});
+
+		await waitFor(() => {
+			expect(threadClient.getThread).toHaveBeenCalledTimes(2);
+			expect((screen.getByLabelText('Decision initiative') as HTMLInputElement).value).toBe('CUSTOM-INIT');
+			expect(screen.getByText('notes.md')).toBeInTheDocument();
+		});
+	});
+
 	it('should refresh when a matching threadUpdated event arrives', async () => {
 		vi.mocked(threadClient.getThread)
 			.mockResolvedValueOnce({

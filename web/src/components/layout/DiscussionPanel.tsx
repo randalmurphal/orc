@@ -65,6 +65,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 	const addingLinkActionTokenRef = useRef(0);
 	const creatingDraftActionTokenRef = useRef(0);
 	const promotingDraftActionTokenRef = useRef(0);
+	const decisionInitiativeDirtyRef = useRef(false);
 	const currentThreadKeyRef = useRef(threadRequestKey(projectId, threadId));
 	currentThreadKeyRef.current = threadRequestKey(projectId, threadId);
 
@@ -115,6 +116,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		addingLinkActionTokenRef.current = 0;
 		creatingDraftActionTokenRef.current = 0;
 		promotingDraftActionTokenRef.current = 0;
+		decisionInitiativeDirtyRef.current = false;
 	}, [initialMessages, projectId, threadId]);
 
 	useEffect(() => {
@@ -137,7 +139,9 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 		setDecisionDrafts(thread?.decisionDrafts ?? EMPTY_DECISION_DRAFTS);
 		setThreadTaskId(thread?.taskId ?? '');
 		setThreadInitiativeId(thread?.initiativeId ?? '');
-		setDecisionInitiativeId(thread?.initiativeId ?? '');
+		if (!decisionInitiativeDirtyRef.current) {
+			setDecisionInitiativeId(thread?.initiativeId ?? '');
+		}
 	}, []);
 
 	const applyThreadMutationState = useCallback((
@@ -638,7 +642,10 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 							<input
 								aria-label="Decision initiative"
 								value={decisionInitiativeId}
-								onChange={(e) => setDecisionInitiativeId(e.target.value)}
+								onChange={(e) => {
+									decisionInitiativeDirtyRef.current = true;
+									setDecisionInitiativeId(e.target.value);
+								}}
 								placeholder={threadInitiativeId || 'Initiative ID'}
 								disabled={creatingDraft !== null}
 							/>
