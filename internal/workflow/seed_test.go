@@ -217,6 +217,40 @@ func TestBuiltinPhaseTemplatesHaveRequiredFields(t *testing.T) {
 	}
 }
 
+func TestImplementCodexPhaseHasQualityChecks(t *testing.T) {
+	t.Parallel()
+
+	gdb := openTestGlobalDB(t)
+
+	_, err := SeedBuiltins(gdb)
+	if err != nil {
+		t.Fatalf("SeedBuiltins failed: %v", err)
+	}
+
+	implement, err := gdb.GetPhaseTemplate("implement")
+	if err != nil {
+		t.Fatalf("GetPhaseTemplate(implement) failed: %v", err)
+	}
+	implementCodex, err := gdb.GetPhaseTemplate("implement_codex")
+	if err != nil {
+		t.Fatalf("GetPhaseTemplate(implement_codex) failed: %v", err)
+	}
+
+	if implement == nil || implementCodex == nil {
+		t.Fatal("implement and implement_codex phase templates must both exist")
+	}
+
+	if implement.QualityChecks == "" {
+		t.Fatal("implement phase should define quality checks")
+	}
+	if implementCodex.QualityChecks == "" {
+		t.Fatal("implement_codex phase should define quality checks")
+	}
+	if implementCodex.QualityChecks != implement.QualityChecks {
+		t.Fatalf("implement_codex quality checks = %q, want %q", implementCodex.QualityChecks, implement.QualityChecks)
+	}
+}
+
 func TestBuiltinWorkflowsHavePhases(t *testing.T) {
 	t.Parallel()
 

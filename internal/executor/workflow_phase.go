@@ -1243,6 +1243,37 @@ func (we *WorkflowExecutor) runQualityChecks(ctx context.Context, cfg PhaseExecu
 		return nil
 	}
 
+	commands := make(map[string]*db.ProjectCommand)
+	if we.projectDB != nil {
+		// Load project commands from database
+		loadedCommands, err := we.projectDB.GetProjectCommandsMap()
+		if err != nil {
+			we.logger.Warn("failed to load project commands - code checks may not run",
+				"phase", cfg.PhaseID,
+				"error", err,
+				"hint", "run 'orc config commands' to view/configure",
+			)
+		} else {
+			commands = loadedCommands
+		}
+	}
+
+	if isImplementationPhase(cfg.PhaseID) {
+		if we.projectDB == nil {
+			we.logger.Debug("skipping hard implement verification checks without project database",
+				"phase", cfg.PhaseID,
+			)
+		}
+		requiredChecks := buildRequiredImplementChecks(commands)
+		if we.projectDB != nil && len(requiredChecks) == 0 {
+			we.logger.Warn("no enabled project verification commands configured for implementation hard gate",
+				"phase", cfg.PhaseID,
+				"hint", "configure project commands with 'orc config commands' or re-run 'orc init'",
+			)
+		}
+		checks = mergeRequiredImplementationChecks(checks, requiredChecks)
+	}
+
 	if len(checks) == 0 {
 		// No checks configured for this phase
 		we.logger.Debug("no quality checks configured for phase", "phase", cfg.PhaseID)
@@ -1250,18 +1281,6 @@ func (we *WorkflowExecutor) runQualityChecks(ctx context.Context, cfg PhaseExecu
 	}
 
 	we.logger.Info("running quality checks", "phase", cfg.PhaseID, "check_count", len(checks))
-
-	// Load project commands from database
-	commands, err := we.projectDB.GetProjectCommandsMap()
-	if err != nil {
-		we.logger.Warn("failed to load project commands - code checks may not run",
-			"phase", cfg.PhaseID,
-			"error", err,
-			"hint", "run 'orc config commands' to view/configure",
-		)
-		// Continue with empty commands - custom checks may still work
-		commands = make(map[string]*db.ProjectCommand)
-	}
 
 	// Create and run the quality check runner
 	runner := NewQualityCheckRunner(

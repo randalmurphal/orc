@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 
@@ -145,6 +146,96 @@ func NewQualityCheckRunner(
 		logger:   logger,
 		shell:    detectShell(),
 	}
+}
+
+func isImplementVerificationCommand(name string) bool {
+	switch {
+	case name == "tests", strings.HasPrefix(name, "tests-"):
+		return true
+	case name == "lint", strings.HasPrefix(name, "lint-"):
+		return true
+	case name == "build", strings.HasPrefix(name, "build-"):
+		return true
+	case name == "typecheck", strings.HasPrefix(name, "typecheck-"):
+		return true
+	default:
+		return false
+	}
+}
+
+func buildRequiredImplementChecks(commands map[string]*db.ProjectCommand) []db.QualityCheck {
+	if len(commands) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(commands))
+	for key, cmd := range commands {
+		if cmd == nil || !cmd.Enabled {
+			continue
+		}
+		if !isImplementVerificationCommand(key) && !isImplementVerificationCommand(cmd.Name) {
+			continue
+		}
+		if strings.TrimSpace(cmd.Command) == "" {
+			continue
+		}
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
+	checks := make([]db.QualityCheck, 0, len(keys))
+	for _, key := range keys {
+		cmd := commands[key]
+		checks = append(checks, db.QualityCheck{
+			Type:      "custom",
+			Name:      key,
+			Command:   cmd.Command,
+			Enabled:   true,
+			OnFailure: "block",
+		})
+	}
+
+	return checks
+}
+
+func mergeRequiredImplementationChecks(configured, required []db.QualityCheck) []db.QualityCheck {
+	if len(required) == 0 {
+		return configured
+	}
+
+	merged := make([]db.QualityCheck, 0, len(configured)+len(required))
+	seen := make(map[string]bool, len(configured)+len(required))
+
+	for _, check := range configured {
+		if requiredCheck, ok := findQualityCheckByName(required, check.Name); ok {
+			check.Enabled = true
+			check.OnFailure = "block"
+			if strings.TrimSpace(check.Command) == "" {
+				check.Command = requiredCheck.Command
+			}
+		}
+		merged = append(merged, check)
+		seen[check.Name] = true
+	}
+
+	for _, check := range required {
+		if seen[check.Name] {
+			continue
+		}
+		merged = append(merged, check)
+	}
+
+	return merged
+}
+
+func findQualityCheckByName(checks []db.QualityCheck, name string) (db.QualityCheck, bool) {
+	for _, check := range checks {
+		if check.Name == name {
+			return check, true
+		}
+	}
+	return db.QualityCheck{}, false
 }
 
 // Run executes all configured quality checks sequentially.
