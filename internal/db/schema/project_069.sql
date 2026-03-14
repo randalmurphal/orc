@@ -1,59 +1,31 @@
--- orc:disable_fk
--- Migration 069: Allow thread-only recommendation provenance
+-- Migration 069: Enforce single canonical task/initiative thread links
 --
--- Recommendation inbox entries promoted from generic discussion threads do not
--- always have a source task/run pair. Rebuild the recommendations table so
--- source_task_id and source_run_id can be NULL while preserving thread linkage.
+-- Cleans up contradictory typed associations created before task/initiative
+-- links were treated as single-target relationships, then adds uniqueness
+-- guards so each thread can link to at most one task and one initiative.
 
-CREATE TABLE recommendations_new (
-    id TEXT PRIMARY KEY,
-    kind TEXT NOT NULL,
-    status TEXT NOT NULL,
-    title TEXT NOT NULL,
-    summary TEXT NOT NULL,
-    proposed_action TEXT NOT NULL,
-    evidence TEXT NOT NULL,
-    source_task_id TEXT,
-    source_run_id TEXT,
-    source_thread_id TEXT REFERENCES threads(id) ON DELETE CASCADE,
-    dedupe_key TEXT NOT NULL UNIQUE,
-    decided_by TEXT,
-    decided_at TEXT,
-    decision_reason TEXT,
-    promoted_to_type TEXT,
-    promoted_to_id TEXT,
-    promoted_by TEXT,
-    promoted_at TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (source_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-    FOREIGN KEY (source_run_id) REFERENCES workflow_runs(id) ON DELETE CASCADE
-);
+DELETE FROM thread_links
+WHERE link_type IN ('task', 'initiative')
+  AND id IN (
+    SELECT duplicate.id
+    FROM thread_links AS duplicate
+    WHERE duplicate.link_type IN ('task', 'initiative')
+      AND EXISTS (
+        SELECT 1
+        FROM thread_links AS canonical
+        WHERE canonical.thread_id = duplicate.thread_id
+          AND canonical.link_type = duplicate.link_type
+          AND (
+            canonical.created_at < duplicate.created_at OR
+            (canonical.created_at = duplicate.created_at AND canonical.id < duplicate.id)
+          )
+      )
+  );
 
-INSERT INTO recommendations_new (
-    id, kind, status, title, summary, proposed_action, evidence,
-    source_task_id, source_run_id, source_thread_id, dedupe_key,
-    decided_by, decided_at, decision_reason,
-    promoted_to_type, promoted_to_id, promoted_by, promoted_at,
-    created_at, updated_at
-)
-SELECT
-    id, kind, status, title, summary, proposed_action, evidence,
-    NULLIF(source_task_id, ''),
-    NULLIF(source_run_id, ''),
-    source_thread_id,
-    dedupe_key,
-    decided_by, decided_at, decision_reason,
-    promoted_to_type, promoted_to_id, promoted_by, promoted_at,
-    created_at, updated_at
-FROM recommendations;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_thread_links_single_task
+    ON thread_links(thread_id)
+    WHERE link_type = 'task';
 
-DROP TABLE recommendations;
-
-ALTER TABLE recommendations_new RENAME TO recommendations;
-
-CREATE INDEX IF NOT EXISTS idx_recommendations_status ON recommendations(status);
-CREATE INDEX IF NOT EXISTS idx_recommendations_source_task ON recommendations(source_task_id);
-CREATE INDEX IF NOT EXISTS idx_recommendations_source_run ON recommendations(source_run_id);
-CREATE INDEX IF NOT EXISTS idx_recommendations_created_at ON recommendations(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_recommendations_source_thread ON recommendations(source_thread_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_thread_links_single_initiative
+    ON thread_links(thread_id)
+    WHERE link_type = 'initiative';

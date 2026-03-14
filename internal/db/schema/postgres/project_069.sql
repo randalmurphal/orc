@@ -1,26 +1,23 @@
--- Migration 069: Allow thread-only recommendation provenance
+-- Migration 069: Enforce single canonical task/initiative thread links
 --
--- Generic discussion threads can promote recommendation drafts without task/run
--- execution provenance, so those columns must be nullable.
+-- Cleans up contradictory typed associations created before task/initiative
+-- links were treated as single-target relationships, then adds uniqueness
+-- guards so each thread can link to at most one task and one initiative.
 
-ALTER TABLE recommendations
-    ALTER COLUMN source_task_id DROP NOT NULL,
-    ALTER COLUMN source_run_id DROP NOT NULL;
+DELETE FROM thread_links AS duplicate
+USING thread_links AS canonical
+WHERE duplicate.link_type IN ('task', 'initiative')
+  AND canonical.thread_id = duplicate.thread_id
+  AND canonical.link_type = duplicate.link_type
+  AND (
+    canonical.created_at < duplicate.created_at OR
+    (canonical.created_at = duplicate.created_at AND canonical.id < duplicate.id)
+  );
 
-ALTER TABLE recommendations
-    DROP CONSTRAINT IF EXISTS recommendations_source_task_id_fkey,
-    DROP CONSTRAINT IF EXISTS recommendations_source_run_id_fkey;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_thread_links_single_task
+    ON thread_links(thread_id)
+    WHERE link_type = 'task';
 
-ALTER TABLE recommendations
-    ADD CONSTRAINT recommendations_source_task_id_fkey
-        FOREIGN KEY (source_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-    ADD CONSTRAINT recommendations_source_run_id_fkey
-        FOREIGN KEY (source_run_id) REFERENCES workflow_runs(id) ON DELETE CASCADE;
-
-UPDATE recommendations
-SET source_task_id = NULL
-WHERE source_task_id = '';
-
-UPDATE recommendations
-SET source_run_id = NULL
-WHERE source_run_id = '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_thread_links_single_initiative
+    ON thread_links(thread_id)
+    WHERE link_type = 'initiative';

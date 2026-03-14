@@ -150,7 +150,7 @@ describe('threadStore', () => {
 			await useThreadStore.getState().loadThreads('proj-001');
 
 			const state = useThreadStore.getState();
-			expect(state.error).toBe('Failed to load threads');
+			expect(state.error).toBe('Failed to load threads Network error');
 			expect(state.loading).toBe(false);
 			expect(state.threads).toEqual([]);
 		});
@@ -241,8 +241,7 @@ describe('threadStore', () => {
 			const result = await useThreadStore.getState().createThread('proj-001', 'New Thread');
 
 			expect(result).toBeNull();
-			// Error should be accessible for UI to display toast
-			expect(useThreadStore.getState().error).toBeTruthy();
+			expect(useThreadStore.getState().error).toBe('Failed to create thread Creation failed');
 		});
 
 		it('should ignore stale create results after switching projects', async () => {

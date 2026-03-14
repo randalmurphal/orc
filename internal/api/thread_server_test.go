@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -77,7 +78,7 @@ func TestThreadServer_GetThread_UsesCanonicalTypedLinks(t *testing.T) {
 	_, err = server.AddLink(
 		context.Background(),
 		connect.NewRequest(&orcv1.AddThreadLinkRequest{
-			ThreadId:  threadID,
+			ThreadId: threadID,
 			Link: &orcv1.ThreadLinkInput{
 				LinkType: db.ThreadLinkTypeTask,
 				TargetId: "TASK-123",
@@ -101,6 +102,64 @@ func TestThreadServer_GetThread_UsesCanonicalTypedLinks(t *testing.T) {
 
 	if getResp.Msg.Thread.TaskId != "TASK-123" {
 		t.Fatalf("expected canonical task ID TASK-123, got %q", getResp.Msg.Thread.TaskId)
+	}
+}
+
+func TestThreadServer_ListThreads_FiltersByInitiative(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+	publisher := events.NewMemoryPublisher()
+	defer publisher.Close()
+
+	server := NewThreadServer(backend, publisher, slog.Default())
+
+	matchingResp, err := server.CreateThread(
+		context.Background(),
+		connect.NewRequest(&orcv1.CreateThreadRequest{
+			Title: "Matching initiative thread",
+			Links: []*orcv1.ThreadLinkInput{
+				{
+					LinkType: db.ThreadLinkTypeInitiative,
+					TargetId: "INIT-001",
+					Title:    "INIT-001",
+				},
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("CreateThread(matching): %v", err)
+	}
+	_, err = server.CreateThread(
+		context.Background(),
+		connect.NewRequest(&orcv1.CreateThreadRequest{
+			Title: "Different initiative thread",
+			Links: []*orcv1.ThreadLinkInput{
+				{
+					LinkType: db.ThreadLinkTypeInitiative,
+					TargetId: "INIT-002",
+					Title:    "INIT-002",
+				},
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("CreateThread(other): %v", err)
+	}
+
+	listResp, err := server.ListThreads(
+		context.Background(),
+		connect.NewRequest(&orcv1.ListThreadsRequest{
+			InitiativeId: "INIT-001",
+		}),
+	)
+	if err != nil {
+		t.Fatalf("ListThreads: %v", err)
+	}
+	if len(listResp.Msg.Threads) != 1 {
+		t.Fatalf("expected 1 matching thread, got %d", len(listResp.Msg.Threads))
+	}
+	if listResp.Msg.Threads[0].Id != matchingResp.Msg.Thread.Id {
+		t.Fatalf("expected thread %s, got %s", matchingResp.Msg.Thread.Id, listResp.Msg.Threads[0].Id)
 	}
 }
 
@@ -1543,9 +1602,127 @@ func TestThreadServer_ConcurrentSend_UsesFreshSessionState(t *testing.T) {
 	}
 }
 
+func TestThreadServer_ConcurrentSend_IsScopedByProjectAndThread(t *testing.T) {
+	t.Parallel()
+
+	backendA := storage.NewTestBackend(t)
+	backendB := storage.NewTestBackend(t)
+	publisher := events.NewMemoryPublisher()
+	defer publisher.Close()
+
+	exec := &parallelSendMockExecutor{delay: 100 * time.Millisecond}
+	server := NewThreadServer(backendA, publisher, slog.Default())
+	server.SetTurnExecutorFactory(func(sessionID string) executor.TurnExecutor {
+		return exec
+	})
+
+	cache := NewProjectCache(2)
+	cache.entries["proj-a"] = &cacheEntry{db: backendA.DB(), backend: backendA}
+	cache.entries["proj-b"] = &cacheEntry{db: backendB.DB(), backend: backendB}
+	cache.order = append(cache.order, "proj-a", "proj-b")
+	server.SetProjectCache(cache)
+
+	createThread := func(projectID string) string {
+		resp, err := server.CreateThread(
+			context.Background(),
+			connect.NewRequest(&orcv1.CreateThreadRequest{
+				ProjectId: projectID,
+				Title:     "Shared thread id",
+			}),
+		)
+		if err != nil {
+			t.Fatalf("CreateThread(%s): %v", projectID, err)
+		}
+		return resp.Msg.Thread.Id
+	}
+
+	threadIDA := createThread("proj-a")
+	threadIDB := createThread("proj-b")
+	if threadIDA != threadIDB {
+		t.Fatalf("expected matching local thread IDs for isolation test, got %s and %s", threadIDA, threadIDB)
+	}
+
+	errCh := make(chan error, 2)
+	for _, projectID := range []string{"proj-a", "proj-b"} {
+		go func(projectID string) {
+			_, err := server.SendMessage(
+				context.Background(),
+				connect.NewRequest(&orcv1.SendThreadMessageRequest{
+					ProjectId: projectID,
+					ThreadId:  threadIDA,
+					Content:   "hello",
+				}),
+			)
+			errCh <- err
+		}(projectID)
+	}
+
+	for i := 0; i < 2; i++ {
+		if err := <-errCh; err != nil {
+			t.Fatalf("SendMessage[%d]: %v", i, err)
+		}
+	}
+	if exec.maxConcurrent() != 2 {
+		t.Fatalf("expected project-scoped sends to execute concurrently, max concurrency was %d", exec.maxConcurrent())
+	}
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
+
+type parallelSendMockExecutor struct {
+	delay     time.Duration
+	mu        sync.Mutex
+	active    int
+	maxActive int
+	sessionID string
+}
+
+func (m *parallelSendMockExecutor) ExecuteTurn(ctx context.Context, prompt string) (*executor.TurnResult, error) {
+	m.mu.Lock()
+	m.active++
+	if m.active > m.maxActive {
+		m.maxActive = m.active
+	}
+	m.mu.Unlock()
+
+	defer func() {
+		m.mu.Lock()
+		m.active--
+		m.mu.Unlock()
+	}()
+
+	select {
+	case <-time.After(m.delay):
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	return &executor.TurnResult{
+		Content:   "parallel response",
+		NumTurns:  1,
+		SessionID: "parallel-session",
+	}, nil
+}
+
+func (m *parallelSendMockExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt string) (*executor.TurnResult, error) {
+	return m.ExecuteTurn(ctx, prompt)
+}
+
+func (m *parallelSendMockExecutor) UpdateSessionID(id string) {
+	m.sessionID = id
+}
+
+func (m *parallelSendMockExecutor) SessionID() string {
+	return m.sessionID
+}
+
+func (m *parallelSendMockExecutor) maxConcurrent() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.maxActive
+}
 
 // threadStringPtr avoids collision with stringPtr in other test files.
 func threadStringPtr(s string) *string {

@@ -16,6 +16,13 @@ function isCurrentThreadLoadRequest(requestId: number) {
 	return requestId === latestThreadLoadRequestId;
 }
 
+function withErrorDetails(prefix: string, err: unknown): string {
+	if (err instanceof Error && err.message) {
+		return `${prefix} ${err.message}`;
+	}
+	return prefix;
+}
+
 interface ThreadStore {
 	// State
 	threads: Thread[];
@@ -62,11 +69,15 @@ export const useThreadStore = create<ThreadStore>()(
 					return;
 				}
 				set({ threads: response.threads, loading: false });
-			} catch {
+			} catch (err) {
 				if (!isCurrentThreadLoadRequest(requestId)) {
 					return;
 				}
-				set({ threads: [], error: 'Failed to load threads', loading: false });
+				set({
+					threads: [],
+					error: withErrorDetails('Failed to load threads', err),
+					loading: false,
+				});
 			}
 		},
 
@@ -88,11 +99,11 @@ export const useThreadStore = create<ThreadStore>()(
 					return thread;
 				}
 				return null;
-			} catch {
+			} catch (err) {
 				if (!isCurrentThreadLoadRequest(requestId)) {
 					return null;
 				}
-				set({ error: 'Failed to create thread' });
+				set({ error: withErrorDetails('Failed to create thread', err) });
 				return null;
 			}
 		},

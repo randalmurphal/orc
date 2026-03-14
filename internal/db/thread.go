@@ -157,6 +157,9 @@ func (p *ProjectDB) CreateThread(t *Thread) error {
 	t.UpdatedAt = now
 
 	initialLinks := mergeThreadLinks(threadInitialLinks(t), t.Links)
+	if err := validateThreadAssociationLinks(initialLinks); err != nil {
+		return fmt.Errorf("validate thread links: %w", err)
+	}
 	if err := p.RunInTx(context.Background(), func(tx *TxOps) error {
 		if err := insertThreadTx(tx, t); err != nil {
 			return err
@@ -207,8 +210,8 @@ func (p *ProjectDB) GetThread(id string) (*Thread, error) {
 
 	thread.Messages = messages
 	thread.Links = mergeThreadLinks(threadLegacyLinks(thread), links)
-	thread.TaskID = threadAssociationTarget(thread, ThreadLinkTypeTask)
-	thread.InitiativeID = threadAssociationTarget(thread, ThreadLinkTypeInitiative)
+	thread.TaskID = ThreadAssociationTarget(thread, ThreadLinkTypeTask)
+	thread.InitiativeID = ThreadAssociationTarget(thread, ThreadLinkTypeInitiative)
 	thread.RecommendationDrafts = recommendationDrafts
 	thread.DecisionDrafts = decisionDrafts
 	return thread, nil
@@ -395,6 +398,9 @@ func (p *ProjectDB) CreateThreadLink(link *ThreadLink) error {
 	now := time.Now().UTC()
 	link.CreatedAt = now
 	return p.RunInTx(context.Background(), func(tx *TxOps) error {
+		if err := ensureThreadAssociationLinkTargetTx(tx, link); err != nil {
+			return err
+		}
 		if err := createThreadLinkTx(tx, link); err != nil {
 			return err
 		}
@@ -492,7 +498,7 @@ func (p *ProjectDB) PromoteThreadRecommendationDraft(ctx context.Context, thread
 
 		sourceTaskID := draft.SourceTaskID
 		if sourceTaskID == "" {
-			sourceTaskID = thread.TaskID
+			sourceTaskID = ThreadAssociationTarget(thread, ThreadLinkTypeTask)
 		}
 		sourceRunID := draft.SourceRunID
 		if sourceRunID == "" && sourceTaskID != "" {
@@ -634,6 +640,21 @@ func createThreadLinkTx(tx *TxOps, link *ThreadLink) error {
 	return nil
 }
 
+func ensureThreadAssociationLinkTargetTx(tx *TxOps, link *ThreadLink) error {
+	if !threadLinkTypeHasSingleTarget(link.LinkType) {
+		return nil
+	}
+
+	existingTarget, err := threadAssociationLinkTargetTx(tx, link.ThreadID, link.LinkType)
+	if err != nil {
+		return err
+	}
+	if existingTarget != "" && existingTarget != link.TargetID {
+		return fmt.Errorf("thread %s already linked to %s %s", link.ThreadID, link.LinkType, existingTarget)
+	}
+	return nil
+}
+
 func insertThreadRecommendationDraftTx(tx *TxOps, draft *ThreadRecommendationDraft) error {
 	_, err := tx.Exec(threadRecommendationDraftInsertQuery(tx.Dialect()), draft.ID, draft.ThreadID, draft.Kind, draft.Title, draft.Summary, draft.ProposedAction, draft.Evidence, draft.DedupeKey, draft.SourceTaskID, draft.SourceRunID, draft.Status, draft.PromotedRecommendationID, draft.PromotedBy, nullableTime(draft.PromotedAt), draft.CreatedAt, draft.UpdatedAt)
 	if err != nil {
@@ -727,6 +748,18 @@ func latestWorkflowRunIDForTaskTx(tx *TxOps, taskID string) (string, error) {
 		return "", fmt.Errorf("load latest workflow run for task %s: %w", taskID, err)
 	}
 	return runID.String, nil
+}
+
+func threadAssociationLinkTargetTx(tx *TxOps, threadID string, linkType string) (string, error) {
+	row := tx.QueryRow(threadAssociationLinkTargetQuery(tx.Dialect()), threadID, linkType)
+	var targetID sql.NullString
+	if err := row.Scan(&targetID); err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+		return "", fmt.Errorf("load %s link for thread %s: %w", linkType, threadID, err)
+	}
+	return targetID.String, nil
 }
 
 func (p *ProjectDB) syntheticRecommendationLinks(threadID string) ([]ThreadLink, error) {
@@ -835,6 +868,15 @@ func isValidThreadLinkType(linkType string) bool {
 	}
 }
 
+func threadLinkTypeHasSingleTarget(linkType string) bool {
+	switch linkType {
+	case ThreadLinkTypeTask, ThreadLinkTypeInitiative:
+		return true
+	default:
+		return false
+	}
+}
+
 func threadInitialLinks(thread *Thread) []ThreadLink {
 	links := make([]ThreadLink, 0)
 	if thread.TaskID != "" {
@@ -872,7 +914,8 @@ func threadLegacyFileLinks(thread *Thread) []ThreadLink {
 	return []ThreadLink{{LinkType: ThreadLinkTypeFile, TargetID: thread.FileContext, Title: thread.FileContext}}
 }
 
-func threadAssociationTarget(thread *Thread, linkType string) string {
+// ThreadAssociationTarget returns the canonical target for a typed thread association.
+func ThreadAssociationTarget(thread *Thread, linkType string) string {
 	if thread != nil {
 		for _, link := range thread.Links {
 			if link.LinkType == linkType && strings.TrimSpace(link.TargetID) != "" {
@@ -891,6 +934,24 @@ func threadAssociationTarget(thread *Thread, linkType string) string {
 	default:
 		return ""
 	}
+}
+
+func validateThreadAssociationLinks(links []ThreadLink) error {
+	canonicalTargets := make(map[string]string)
+	for _, link := range links {
+		if !threadLinkTypeHasSingleTarget(link.LinkType) {
+			continue
+		}
+		targetID := strings.TrimSpace(link.TargetID)
+		if targetID == "" {
+			continue
+		}
+		if existingTarget, ok := canonicalTargets[link.LinkType]; ok && existingTarget != targetID {
+			return fmt.Errorf("thread cannot link %s to both %s and %s", link.LinkType, existingTarget, targetID)
+		}
+		canonicalTargets[link.LinkType] = targetID
+	}
+	return nil
 }
 
 func mergeThreadLinks(base []ThreadLink, extra []ThreadLink) []ThreadLink {
@@ -1061,6 +1122,17 @@ func threadMessagesQuery(dialect driver.Dialect) string {
 		FROM thread_messages
 		WHERE thread_id = ` + dialectPlaceholder(dialect, 1) + `
 		ORDER BY created_at ASC, id ASC
+	`
+}
+
+func threadAssociationLinkTargetQuery(dialect driver.Dialect) string {
+	return `
+		SELECT target_id
+		FROM thread_links
+		WHERE thread_id = ` + dialectPlaceholder(dialect, 1) + `
+		  AND link_type = ` + dialectPlaceholder(dialect, 2) + `
+		ORDER BY created_at ASC, id ASC
+		LIMIT 1
 	`
 }
 

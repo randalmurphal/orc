@@ -847,6 +847,7 @@ type ListThreadsRequest struct {
 	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	TaskId        string                 `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,4,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -898,6 +899,13 @@ func (x *ListThreadsRequest) GetStatus() string {
 func (x *ListThreadsRequest) GetTaskId() string {
 	if x != nil {
 		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ListThreadsRequest) GetInitiativeId() string {
+	if x != nil {
+		return x.InitiativeId
 	}
 	return ""
 }
@@ -2100,12 +2108,13 @@ const file_orc_v1_thread_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
 	"\tthread_id\x18\x02 \x01(\tR\bthreadId\";\n" +
 	"\x11GetThreadResponse\x12&\n" +
-	"\x06thread\x18\x01 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"d\n" +
+	"\x06thread\x18\x01 \x01(\v2\x0e.orc.v1.ThreadR\x06thread\"\x89\x01\n" +
 	"\x12ListThreadsRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x17\n" +
-	"\atask_id\x18\x03 \x01(\tR\x06taskId\"?\n" +
+	"\atask_id\x18\x03 \x01(\tR\x06taskId\x12#\n" +
+	"\rinitiative_id\x18\x04 \x01(\tR\finitiativeId\"?\n" +
 	"\x13ListThreadsResponse\x12(\n" +
 	"\athreads\x18\x01 \x03(\v2\x0e.orc.v1.ThreadR\athreads\"p\n" +
 	"\x18SendThreadMessageRequest\x12\x1d\n" +

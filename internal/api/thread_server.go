@@ -31,8 +31,20 @@ type threadServer struct {
 	turnExecutorFactory func(sessionID string) executor.TurnExecutor
 	factoryMu           sync.RWMutex
 
-	// Per-thread mutex to prevent concurrent SendMessage on same thread.
-	threadLocks sync.Map
+	// Per-project/per-thread mutex to prevent concurrent SendMessage on the same
+	// thread without serializing unrelated projects that reuse the same ID.
+	threadLocks   sync.Map
+	threadLocksMu sync.Mutex
+}
+
+type threadLockKey struct {
+	projectID string
+	threadID  string
+}
+
+type threadLockEntry struct {
+	mu       sync.Mutex
+	refCount int
 }
 
 // NewThreadServer creates a new thread service handler.
@@ -74,6 +86,28 @@ func (s *threadServer) getTurnExecutorFactory() func(sessionID string) executor.
 	s.factoryMu.RLock()
 	defer s.factoryMu.RUnlock()
 	return s.turnExecutorFactory
+}
+
+func (s *threadServer) acquireThreadLock(projectID string, threadID string) func() {
+	key := threadLockKey{projectID: projectID, threadID: threadID}
+
+	s.threadLocksMu.Lock()
+	entryAny, _ := s.threadLocks.LoadOrStore(key, &threadLockEntry{})
+	entry := entryAny.(*threadLockEntry)
+	entry.refCount++
+	s.threadLocksMu.Unlock()
+
+	entry.mu.Lock()
+	return func() {
+		entry.mu.Unlock()
+
+		s.threadLocksMu.Lock()
+		defer s.threadLocksMu.Unlock()
+		entry.refCount--
+		if entry.refCount == 0 {
+			s.threadLocks.Delete(key)
+		}
+	}
 }
 
 // CreateThread creates a new conversation thread.
@@ -153,8 +187,9 @@ func (s *threadServer) ListThreads(
 	}
 
 	opts := db.ThreadListOpts{
-		Status: req.Msg.Status,
-		TaskID: req.Msg.TaskId,
+		Status:       req.Msg.Status,
+		TaskID:       req.Msg.TaskId,
+		InitiativeID: req.Msg.InitiativeId,
 	}
 
 	threads, err := backend.DB().ListThreads(opts)
@@ -186,11 +221,8 @@ func (s *threadServer) SendMessage(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
 	}
 
-	// Acquire per-thread lock to serialize concurrent SendMessage calls
-	lockVal, _ := s.threadLocks.LoadOrStore(req.Msg.ThreadId, &sync.Mutex{})
-	mu := lockVal.(*sync.Mutex)
-	mu.Lock()
-	defer mu.Unlock()
+	releaseLock := s.acquireThreadLock(req.Msg.ProjectId, req.Msg.ThreadId)
+	defer releaseLock()
 
 	// Reload the thread while holding the lock so session continuity and linked
 	// context reflect the latest persisted state.
@@ -252,7 +284,7 @@ func (s *threadServer) SendMessage(
 	// Store session ID from response (for multi-turn continuity)
 	if result.SessionID != "" && result.SessionID != thread.SessionID {
 		if updateErr := backend.DB().UpdateThreadSessionID(thread.ID, result.SessionID); updateErr != nil {
-			s.logger.Warn("failed to update thread session ID", "thread_id", thread.ID, "error", updateErr)
+			s.logger.Error("failed to update thread session ID", "thread_id", thread.ID, "error", updateErr)
 		}
 	}
 
@@ -556,8 +588,8 @@ func threadToProto(t *db.Thread) *orcv1.Thread {
 		return nil
 	}
 
-	taskID := protoThreadAssociationTarget(t, db.ThreadLinkTypeTask)
-	initiativeID := protoThreadAssociationTarget(t, db.ThreadLinkTypeInitiative)
+	taskID := db.ThreadAssociationTarget(t, db.ThreadLinkTypeTask)
+	initiativeID := db.ThreadAssociationTarget(t, db.ThreadLinkTypeInitiative)
 
 	proto := &orcv1.Thread{
 		Id:           t.ID,
@@ -590,27 +622,6 @@ func threadToProto(t *db.Thread) *orcv1.Thread {
 	}
 
 	return proto
-}
-
-func protoThreadAssociationTarget(thread *db.Thread, linkType string) string {
-	if thread != nil {
-		for _, link := range thread.Links {
-			if link.LinkType == linkType && strings.TrimSpace(link.TargetID) != "" {
-				return link.TargetID
-			}
-		}
-	}
-	if thread == nil {
-		return ""
-	}
-	switch linkType {
-	case db.ThreadLinkTypeTask:
-		return thread.TaskID
-	case db.ThreadLinkTypeInitiative:
-		return thread.InitiativeID
-	default:
-		return ""
-	}
 }
 
 // threadMessageToProto converts a db.ThreadMessage to the proto ThreadMessage.

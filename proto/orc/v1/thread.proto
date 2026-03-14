@@ -157,6 +157,7 @@ message ListThreadsRequest {
   string project_id = 1;
   string status = 2;
   string task_id = 3;
+  string initiative_id = 4;
 }
 
 message ListThreadsResponse {

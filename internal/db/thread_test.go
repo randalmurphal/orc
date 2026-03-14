@@ -364,6 +364,69 @@ func TestThread_GetAndListUseTypedAssociationLinks(t *testing.T) {
 	}
 }
 
+func TestThread_Create_RejectsConflictingAssociationLinks(t *testing.T) {
+	t.Parallel()
+	pdb := NewTestProjectDB(t)
+
+	thread := &Thread{
+		Title:  "Conflicting thread",
+		TaskID: "TASK-001",
+		Links: []ThreadLink{
+			{LinkType: ThreadLinkTypeTask, TargetID: "TASK-002", Title: "TASK-002"},
+		},
+	}
+
+	err := pdb.CreateThread(thread)
+	if err == nil {
+		t.Fatal("expected conflicting task links to fail")
+	}
+	if !strings.Contains(err.Error(), "thread cannot link task") {
+		t.Fatalf("expected conflicting task link error, got %v", err)
+	}
+}
+
+func TestThread_CreateThreadLink_RejectsConflictingAssociationTarget(t *testing.T) {
+	t.Parallel()
+	pdb := NewTestProjectDB(t)
+
+	thread := &Thread{Title: "Single task association"}
+	if err := pdb.CreateThread(thread); err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+	if err := pdb.CreateThreadLink(&ThreadLink{
+		ThreadID: thread.ID,
+		LinkType: ThreadLinkTypeTask,
+		TargetID: "TASK-001",
+		Title:    "TASK-001",
+	}); err != nil {
+		t.Fatalf("CreateThreadLink(task-1): %v", err)
+	}
+
+	err := pdb.CreateThreadLink(&ThreadLink{
+		ThreadID: thread.ID,
+		LinkType: ThreadLinkTypeTask,
+		TargetID: "TASK-002",
+		Title:    "TASK-002",
+	})
+	if err == nil {
+		t.Fatal("expected conflicting task link to fail")
+	}
+	if !strings.Contains(err.Error(), "already linked to task TASK-001") {
+		t.Fatalf("expected existing task link error, got %v", err)
+	}
+
+	got, err := pdb.GetThread(thread.ID)
+	if err != nil {
+		t.Fatalf("GetThread: %v", err)
+	}
+	if got.TaskID != "TASK-001" {
+		t.Fatalf("expected canonical task ID TASK-001, got %q", got.TaskID)
+	}
+	if len(got.Links) != 1 {
+		t.Fatalf("expected only one task link after conflict, got %d", len(got.Links))
+	}
+}
+
 // ============================================================================
 // SC-4: ArchiveThread changes status to "archived"
 // ============================================================================
@@ -831,6 +894,64 @@ func TestThread_PromoteRecommendationDraft_AllowsTaskThreadWithoutWorkflowRun(t 
 	}
 	if rec.SourceThreadID != thread.ID {
 		t.Fatalf("expected source thread %s, got %s", thread.ID, rec.SourceThreadID)
+	}
+}
+
+func TestThread_PromoteRecommendationDraft_UsesCanonicalTypedTaskLink(t *testing.T) {
+	t.Parallel()
+	pdb := NewTestProjectDB(t)
+
+	if err := pdb.SaveWorkflow(&Workflow{ID: "wf", Name: "wf"}); err != nil {
+		t.Fatalf("SaveWorkflow: %v", err)
+	}
+	if err := pdb.SaveTask(&Task{ID: "TASK-001", Title: "task", WorkflowID: "wf", Status: "running"}); err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+	taskID := "TASK-001"
+	if err := pdb.SaveWorkflowRun(&WorkflowRun{
+		ID:          "RUN-001",
+		WorkflowID:  "wf",
+		ContextType: "task",
+		TaskID:      &taskID,
+		Status:      "running",
+	}); err != nil {
+		t.Fatalf("SaveWorkflowRun: %v", err)
+	}
+
+	thread := &Thread{Title: "Typed task link thread"}
+	if err := pdb.CreateThread(thread); err != nil {
+		t.Fatalf("CreateThread: %v", err)
+	}
+	if err := pdb.CreateThreadLink(&ThreadLink{
+		ThreadID: thread.ID,
+		LinkType: ThreadLinkTypeTask,
+		TargetID: "TASK-001",
+		Title:    "TASK-001",
+	}); err != nil {
+		t.Fatalf("CreateThreadLink(task): %v", err)
+	}
+
+	draft := &ThreadRecommendationDraft{
+		ThreadID:       thread.ID,
+		Kind:           RecommendationKindFollowUp,
+		Title:          "Promote from typed task link",
+		Summary:        "Task provenance should come from canonical typed links.",
+		ProposedAction: "Use the task link when the legacy thread task_id is empty.",
+		Evidence:       "The thread was created without a legacy task association.",
+	}
+	if err := pdb.CreateThreadRecommendationDraft(draft); err != nil {
+		t.Fatalf("CreateThreadRecommendationDraft: %v", err)
+	}
+
+	_, rec, err := pdb.PromoteThreadRecommendationDraft(context.Background(), thread.ID, draft.ID, "operator")
+	if err != nil {
+		t.Fatalf("PromoteThreadRecommendationDraft: %v", err)
+	}
+	if rec.SourceTaskID != "TASK-001" {
+		t.Fatalf("expected source task TASK-001, got %q", rec.SourceTaskID)
+	}
+	if rec.SourceRunID != "RUN-001" {
+		t.Fatalf("expected source run RUN-001, got %q", rec.SourceRunID)
 	}
 }
 
