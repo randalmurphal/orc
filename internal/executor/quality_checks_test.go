@@ -13,10 +13,10 @@ func TestQualityCheckResult_AsContext(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name     string
-		result   *QualityCheckResult
+		name      string
+		result    *QualityCheckResult
 		wantEmpty bool
-		contains []string
+		contains  []string
 	}{
 		{
 			name: "all passed returns empty",
@@ -173,8 +173,8 @@ func TestLoadQualityChecksForPhase(t *testing.T) {
 			wantNames:     []string{"tests", "lint"},
 		},
 		{
-			name: "nil template returns empty",
-			template: nil,
+			name:          "nil template returns empty",
+			template:      nil,
 			workflowPhase: nil,
 			wantNames:     []string{},
 		},
@@ -308,6 +308,77 @@ func TestNewQualityCheckRunner(t *testing.T) {
 	}
 }
 
+func TestBuildRequiredImplementChecks(t *testing.T) {
+	t.Parallel()
+
+	commands := map[string]*db.ProjectCommand{
+		"tests":         {Name: "tests", Command: "go test ./...", Enabled: true},
+		"lint":          {Name: "lint", Command: "golangci-lint run", Enabled: true},
+		"typecheck-web": {Name: "typecheck-web", Command: "cd web && bun run build", Enabled: true},
+		"custom":        {Name: "custom", Command: "echo nope", Enabled: true},
+		"build":         {Name: "build", Command: "", Enabled: true},
+		"lint-web":      {Name: "lint-web", Command: "cd web && bun run lint", Enabled: false},
+	}
+
+	checks := buildRequiredImplementChecks(commands)
+	if len(checks) != 3 {
+		t.Fatalf("buildRequiredImplementChecks() returned %d checks, want 3", len(checks))
+	}
+
+	gotNames := []string{checks[0].Name, checks[1].Name, checks[2].Name}
+	wantNames := []string{"lint", "tests", "typecheck-web"}
+	for i, want := range wantNames {
+		if gotNames[i] != want {
+			t.Fatalf("check[%d].Name = %q, want %q", i, gotNames[i], want)
+		}
+		if checks[i].OnFailure != "block" {
+			t.Fatalf("check[%d].OnFailure = %q, want block", i, checks[i].OnFailure)
+		}
+		if checks[i].Type != "custom" {
+			t.Fatalf("check[%d].Type = %q, want custom", i, checks[i].Type)
+		}
+	}
+}
+
+func TestMergeRequiredImplementationChecks(t *testing.T) {
+	t.Parallel()
+
+	configured := []db.QualityCheck{
+		{Name: "tests", Type: "code", Enabled: false, OnFailure: "warn", UseShort: true},
+		{Name: "custom-extra", Type: "custom", Enabled: true, Command: "echo ok", OnFailure: "warn"},
+	}
+	required := []db.QualityCheck{
+		{Name: "tests", Type: "custom", Command: "go test ./...", Enabled: true, OnFailure: "block"},
+		{Name: "lint", Type: "custom", Command: "golangci-lint run", Enabled: true, OnFailure: "block"},
+	}
+
+	merged := mergeRequiredImplementationChecks(configured, required)
+	if len(merged) != 3 {
+		t.Fatalf("mergeRequiredImplementationChecks() returned %d checks, want 3", len(merged))
+	}
+
+	testsCheck := merged[0]
+	if testsCheck.Name != "tests" {
+		t.Fatalf("merged tests check name = %q, want tests", testsCheck.Name)
+	}
+	if !testsCheck.Enabled {
+		t.Fatal("merged tests check should be enabled")
+	}
+	if testsCheck.OnFailure != "block" {
+		t.Fatalf("merged tests check OnFailure = %q, want block", testsCheck.OnFailure)
+	}
+	if testsCheck.Command != "go test ./..." {
+		t.Fatalf("merged tests check Command = %q, want go test ./...", testsCheck.Command)
+	}
+	if !testsCheck.UseShort {
+		t.Fatal("merged tests check should preserve UseShort from configured check")
+	}
+
+	if merged[2].Name != "lint" {
+		t.Fatalf("merged appended check name = %q, want lint", merged[2].Name)
+	}
+}
+
 func TestQualityCheckRunner_SetsGOWORKOff(t *testing.T) {
 	t.Parallel()
 
@@ -331,7 +402,7 @@ func TestQualityCheckRunner_SetsGOWORKOff(t *testing.T) {
 	}
 
 	checkResult := result.Checks[0]
-	
+
 	// The command should have run successfully
 	if !checkResult.Passed {
 		t.Errorf("check failed unexpectedly: %s", checkResult.Output)
