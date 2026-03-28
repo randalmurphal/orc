@@ -493,7 +493,11 @@ func (we *WorkflowExecutor) populateControlPlaneContext(
 			rctx.PendingRecommendations = formatPendingRecommendations(recommendations)
 		}
 		if usage.CompletionRecommendations {
-			rctx.CompletionRecommendations = formatCompletionRecommendations(currentTask, recommendations)
+			rctx.CompletionRecommendations = formatCompletionRecommendations(
+				currentTask,
+				rctx.WorkflowRunID,
+				recommendations,
+			)
 		}
 		if usage.HandoffContext {
 			rctx.HandoffContext = formatHandoffContext(currentTask, phaseID, recommendations)
@@ -557,15 +561,19 @@ func formatPendingRecommendations(recommendations []*orcv1.Recommendation) strin
 
 func formatCompletionRecommendations(
 	currentTask *orcv1.Task,
+	currentRunID string,
 	recommendations []*orcv1.Recommendation,
 ) string {
-	if currentTask == nil {
+	if currentTask == nil || strings.TrimSpace(currentRunID) == "" {
 		return ""
 	}
 
 	candidates := make([]controlplane.RecommendationCandidate, 0, len(recommendations))
 	for _, recommendation := range recommendations {
 		if recommendation.GetSourceTaskId() != currentTask.GetId() {
+			continue
+		}
+		if recommendation.GetSourceRunId() != currentRunID {
 			continue
 		}
 		if recommendation.GetStatus() != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING {

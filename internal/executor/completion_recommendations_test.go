@@ -308,6 +308,16 @@ func TestCompletionRecommendationsVariable(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SaveWorkflowRun(other) error = %v", err)
 	}
+	taskID := taskItem.GetId()
+	if err := backend.SaveWorkflowRun(&db.WorkflowRun{
+		ID:          "RUN-STALE",
+		WorkflowID:  otherWorkflowID,
+		ContextType: string(ContextTask),
+		TaskID:      &taskID,
+		Status:      string(workflow.RunStatusCompleted),
+	}); err != nil {
+		t.Fatalf("SaveWorkflowRun(stale) error = %v", err)
+	}
 
 	recommendations := []*orcv1.Recommendation{
 		{
@@ -332,6 +342,17 @@ func TestCompletionRecommendationsVariable(t *testing.T) {
 			SourceRunId:    "RUN-OTHER",
 			DedupeKey:      "task:TASK-OTHER:risk:other",
 		},
+		{
+			Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_FOLLOW_UP,
+			Status:         orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING,
+			Title:          "Ignore prior run follow-up",
+			Summary:        "Older runs for the same task must not leak into COMPLETION_RECOMMENDATIONS.",
+			ProposedAction: "Ignore this stale fixture.",
+			Evidence:       "Prior run fixture.",
+			SourceTaskId:   taskItem.GetId(),
+			SourceRunId:    "RUN-STALE",
+			DedupeKey:      "task:TASK-001:follow_up:stale",
+		},
 	}
 	for _, recommendation := range recommendations {
 		if err := backend.SaveRecommendation(recommendation); err != nil {
@@ -340,8 +361,9 @@ func TestCompletionRecommendationsVariable(t *testing.T) {
 	}
 
 	rctx := &variable.ResolutionContext{
-		TaskID:    taskItem.GetId(),
-		TaskTitle: taskItem.GetTitle(),
+		WorkflowRunID: run.ID,
+		TaskID:        taskItem.GetId(),
+		TaskTitle:     taskItem.GetTitle(),
 	}
 	if err := we.populateControlPlaneContext(rctx, "docs", taskItem, controlPlaneVariableUsage{
 		CompletionRecommendations: true,
