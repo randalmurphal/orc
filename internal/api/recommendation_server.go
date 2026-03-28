@@ -629,6 +629,7 @@ func promotedTaskCategory(rec *orcv1.Recommendation, sourceTask *orcv1.Task) str
 	}
 }
 
+// indexAcceptedRecommendation is best-effort: indexing failure must not block the primary operation.
 func (s *recommendationServer) indexAcceptedRecommendation(projectID string, rec *orcv1.Recommendation) {
 	backend, err := s.getBackend(projectID)
 	if err != nil {
@@ -669,6 +670,7 @@ func (s *recommendationServer) indexAcceptedRecommendation(projectID string, rec
 	}
 }
 
+// indexAcceptedRecommendationDecision is best-effort: indexing failure must not block the primary operation.
 func (s *recommendationServer) indexAcceptedRecommendationDecision(projectID string, rec *orcv1.Recommendation) {
 	if rec == nil || rec.GetPromotedToType() != db.RecommendationPromotionTypeInitiativeDecision || rec.GetPromotedToId() == "" {
 		return

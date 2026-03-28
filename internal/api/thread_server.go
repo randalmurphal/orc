@@ -483,6 +483,7 @@ func (s *threadServer) PromoteRecommendationDraft(
 	}), nil
 }
 
+// indexPromotedDraft is best-effort: indexing failure must not block the primary operation.
 func (s *threadServer) indexPromotedDraft(
 	backend storage.Backend,
 	draft *db.ThreadRecommendationDraft,

@@ -567,6 +567,7 @@ func (s *initiativeServer) AddDecision(
 	}), nil
 }
 
+// indexInitiativeDecision is best-effort: indexing failure must not block the primary operation.
 func indexInitiativeDecision(
 	backend storage.Backend,
 	initiativeID string,

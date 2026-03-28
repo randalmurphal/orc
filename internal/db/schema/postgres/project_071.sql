@@ -26,6 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_artifact_index_initiative ON artifact_index(initi
 CREATE INDEX IF NOT EXISTS idx_artifact_index_source_task ON artifact_index(source_task_id);
 CREATE INDEX IF NOT EXISTS idx_artifact_index_source_run ON artifact_index(source_run_id);
 CREATE INDEX IF NOT EXISTS idx_artifact_index_source_thread ON artifact_index(source_thread_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_artifact_index_dedupe_kind ON artifact_index(dedupe_key, kind) WHERE dedupe_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_artifact_index_dedupe_key ON artifact_index(dedupe_key);
 CREATE INDEX IF NOT EXISTS idx_artifact_index_created_at ON artifact_index(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_artifact_index_deleted_at ON artifact_index(deleted_at);

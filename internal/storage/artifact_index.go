@@ -70,5 +70,14 @@ func SaveArtifactIndexEntryIfAbsent(backend Backend, entry *db.ArtifactIndexEntr
 		}
 	}
 
-	return backend.SaveArtifactIndexEntry(entry)
+	err := backend.SaveArtifactIndexEntry(entry)
+	if err != nil && isArtifactDedupeError(err) {
+		return nil
+	}
+	return err
+}
+
+func isArtifactDedupeError(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "UNIQUE constraint") || strings.Contains(msg, "duplicate key")
 }
