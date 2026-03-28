@@ -48,6 +48,45 @@ func TestArtifactIndex_AcceptedRecommendation(t *testing.T) {
 	require.Contains(t, results[0].Content, "Evidence:")
 }
 
+func TestArtifactIndex_AcceptedRecommendationFallsBackToThreadInitiative(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	storageFixturesForRecommendation(t, backend)
+
+	sourceTask, err := backend.LoadTask("TASK-001")
+	require.NoError(t, err)
+	sourceTask.InitiativeId = nil
+	require.NoError(t, backend.SaveTask(sourceTask))
+
+	server := NewRecommendationServer(backend, slog.Default(), events.NewMemoryPublisher()).(*recommendationServer)
+	server.SetProjectCache(testProjectCacheForBackend("proj-001", backend))
+
+	createResp, err := server.CreateRecommendation(context.Background(), connect.NewRequest(&orcv1.CreateRecommendationRequest{
+		ProjectId:      "proj-001",
+		Recommendation: recommendationProtoForAPI("cleanup:task-001:artifact-index:thread-fallback"),
+	}))
+	require.NoError(t, err)
+
+	_, err = server.AcceptRecommendation(context.Background(), connect.NewRequest(&orcv1.AcceptRecommendationRequest{
+		ProjectId:        "proj-001",
+		RecommendationId: createResp.Msg.Recommendation.Id,
+		DecidedBy:        "operator",
+		DecisionReason:   "thread initiative is the remaining context",
+	}))
+	require.NoError(t, err)
+
+	results, err := backend.QueryArtifactIndex(db.ArtifactIndexQueryOpts{
+		Kind:         db.ArtifactKindAcceptedRecommendation,
+		SourceTaskID: "TASK-001",
+		Limit:        10,
+	})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "cleanup:task-001:artifact-index:thread-fallback", results[0].DedupeKey)
+	require.Equal(t, "INIT-001", results[0].InitiativeID)
+}
+
 func TestArtifactIndex_PromotedDraft(t *testing.T) {
 	t.Parallel()
 

@@ -727,7 +727,7 @@ func artifactIndexInitiativeIDForRecommendation(backend storage.Backend, rec *or
 		if err != nil {
 			return "", fmt.Errorf("load source task %s: %w", rec.GetSourceTaskId(), err)
 		}
-		if taskItem != nil {
+		if taskItem != nil && strings.TrimSpace(taskItem.GetInitiativeId()) != "" {
 			return taskItem.GetInitiativeId(), nil
 		}
 	}
@@ -737,7 +737,7 @@ func artifactIndexInitiativeIDForRecommendation(backend storage.Backend, rec *or
 		if err != nil {
 			return "", fmt.Errorf("load promoted task %s: %w", rec.GetPromotedToId(), err)
 		}
-		if taskItem != nil {
+		if taskItem != nil && strings.TrimSpace(taskItem.GetInitiativeId()) != "" {
 			return taskItem.GetInitiativeId(), nil
 		}
 	}
