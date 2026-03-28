@@ -368,7 +368,8 @@ orc pool switch work         # Switch active account
 orc serve  # localhost:8080
 ```
 
-- **Dashboard**: Running tasks, recent activity, quick stats
+- **Dashboard**: Multi-project command center for running work, attention items, and recent activity
+- **Project home**: Project-scoped running tasks, discussions, recommendations, handoff actions, and recent completions
 - **Recommendations**: Inbox for pending follow-up, risk, and decision requests
 - **Task detail**: Timeline, live transcript, controls
 - **Task board**: Drag-and-drop Kanban with initiative filtering
