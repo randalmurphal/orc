@@ -1740,6 +1740,7 @@ func buildReviewRecommendationCandidates(
 	if _, hasNeedsChanges := payload["needs_changes"]; hasNeedsChanges {
 		findings, err := ParseReviewFindings(output.Content)
 		if err != nil {
+			slog.Warn("skip review recommendation candidates: parse findings failed", "phase", output.PhaseTemplateID, "error", err)
 			return nil
 		}
 		return buildCandidatesFromReviewFindings(t, run, output.PhaseTemplateID, findings, changedFiles)
@@ -1761,6 +1762,7 @@ func buildReviewRecommendationCandidates(
 
 	decision, err := ParseReviewDecision(output.Content)
 	if err != nil {
+		slog.Warn("skip review recommendation candidates: parse decision failed", "phase", output.PhaseTemplateID, "error", err)
 		return nil
 	}
 	return buildCandidatesFromReviewDecision(t, run, output.PhaseTemplateID, decision, changedFiles)
@@ -1890,7 +1892,11 @@ func buildImplementRecommendationCandidates(
 	changedFiles []string,
 ) []controlplane.RecommendationCandidate {
 	response, err := ParseImplementResponse(output.Content)
-	if err != nil || response == nil {
+	if err != nil {
+		slog.Warn("skip implement recommendation candidates: parse response failed", "phase", output.PhaseTemplateID, "error", err)
+		return nil
+	}
+	if response == nil {
 		return nil
 	}
 
