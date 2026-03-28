@@ -59,9 +59,9 @@ describe('TopBar', () => {
 			expect(screen.getByText('Settings')).toBeInTheDocument();
 		});
 
-		it('should render search box', () => {
+		it('should render command palette trigger', () => {
 			renderWithRouter(<TopBar />);
-			expect(screen.getByLabelText('Search tasks')).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: /open command palette/i })).toBeInTheDocument();
 		});
 	});
 
@@ -215,40 +215,31 @@ describe('TopBar', () => {
 			expect(screen.getByRole('banner')).toBeInTheDocument();
 		});
 
-		it('should have aria-label on search input', () => {
+		it('should expose an accessible label for the command palette trigger', () => {
 			renderWithRouter(<TopBar />);
-			expect(screen.getByLabelText('Search tasks')).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: /open command palette/i })).toBeInTheDocument();
 		});
 
 	});
 
-	describe('keyboard shortcuts', () => {
-		it('should focus search input on Cmd+K', async () => {
-			renderWithRouter(<TopBar />);
-			const searchInput = screen.getByLabelText('Search tasks');
+	describe('command palette trigger', () => {
+		it('dispatches the command palette event when clicked', async () => {
+			const listener = vi.fn();
+			window.addEventListener('orc:command-palette', listener);
 
-			// Simulate Cmd+K
-			act(() => {
-				fireEvent.keyDown(document, { key: 'k', metaKey: true });
-			});
+			renderWithRouter(<TopBar />);
+			fireEvent.click(screen.getByRole('button', { name: /open command palette/i }));
 
 			await waitFor(() => {
-				expect(document.activeElement).toBe(searchInput);
+				expect(listener).toHaveBeenCalledTimes(1);
 			});
+
+			window.removeEventListener('orc:command-palette', listener);
 		});
 
-		it('should focus search input on Ctrl+K', async () => {
+		it('does not render the dead search input', () => {
 			renderWithRouter(<TopBar />);
-			const searchInput = screen.getByLabelText('Search tasks');
-
-			// Simulate Ctrl+K
-			act(() => {
-				fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
-			});
-
-			await waitFor(() => {
-				expect(document.activeElement).toBe(searchInput);
-			});
+			expect(screen.queryByPlaceholderText('Search tasks...')).not.toBeInTheDocument();
 		});
 
 		it('should show keyboard hint in search box', () => {
@@ -259,26 +250,20 @@ describe('TopBar', () => {
 	});
 
 	describe('mobile search toggle', () => {
-		it('should render search toggle button', () => {
+		it('should render the command palette trigger button', () => {
 			renderWithRouter(<TopBar />);
-			expect(screen.getByLabelText('Toggle search')).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: /open command palette/i })).toBeInTheDocument();
 		});
 
-		it('should have aria-expanded on search toggle', () => {
+		it('should keep the Search label visible for the trigger', () => {
 			renderWithRouter(<TopBar />);
-			const toggleBtn = screen.getByLabelText('Toggle search');
-			expect(toggleBtn).toHaveAttribute('aria-expanded', 'false');
+			expect(screen.getByText('Search')).toBeInTheDocument();
 		});
 
-		it('should toggle search expanded state when clicked', () => {
+		it('should keep the keyboard hint visible on the trigger', () => {
 			renderWithRouter(<TopBar />);
-			const toggleBtn = screen.getByLabelText('Toggle search');
-
-			fireEvent.click(toggleBtn);
-			expect(toggleBtn).toHaveAttribute('aria-expanded', 'true');
-
-			fireEvent.click(toggleBtn);
-			expect(toggleBtn).toHaveAttribute('aria-expanded', 'false');
+			expect(screen.getByText('⌘')).toBeInTheDocument();
+			expect(screen.getByText('K')).toBeInTheDocument();
 		});
 	});
 });

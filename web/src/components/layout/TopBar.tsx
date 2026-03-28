@@ -1,16 +1,8 @@
 /**
- * TopBar component - 48px fixed header with navigation tabs, search, session metrics, and actions.
- *
- * Features:
- * - Navigation tabs: Home, Project, Board, Inbox, Knowledge, Workflows, Settings
- * - Search box with Cmd+K shortcut (search functionality is future task)
- * - Session metrics: duration, tokens, cost with colored icon badges
- * - Pause/Resume button that integrates with sessionStore
- * - New Task button
- * - Responsive: hides session stats at 768px, expandable search at 480px
+ * TopBar component - 48px fixed header with navigation tabs, command palette trigger,
+ * session metrics, and actions.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
@@ -49,6 +41,8 @@ const NAV_TABS = [
 	{ label: 'Settings', path: '/settings', end: false },
 ] as const;
 
+const COMMAND_PALETTE_EVENT = 'orc:command-palette';
+
 function SessionStat({ icon, label, value, colorClass }: SessionStatProps) {
 	return (
 		<div className="session-stat">
@@ -74,9 +68,6 @@ export function TopBar({
 	const pauseAll = useSessionStore((s) => s.pauseAll);
 	const resumeAll = useSessionStore((s) => s.resumeAll);
 
-	const searchInputRef = useRef<HTMLInputElement>(null);
-	const [searchExpanded, setSearchExpanded] = useState(false);
-
 	const handlePauseResume = async () => {
 		if (isPaused) {
 			await resumeAll(projectId ?? undefined);
@@ -85,33 +76,7 @@ export function TopBar({
 		}
 	};
 
-	// Focus search on Cmd+K / Ctrl+K
-	const handleKeyDown = useCallback((e: KeyboardEvent) => {
-		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-			e.preventDefault();
-			setSearchExpanded(true);
-			searchInputRef.current?.focus();
-		}
-		if (e.key === 'Escape') {
-			setSearchExpanded(false);
-			searchInputRef.current?.blur();
-		}
-	}, []);
-
-	useEffect(() => {
-		document.addEventListener('keydown', handleKeyDown);
-		return () => document.removeEventListener('keydown', handleKeyDown);
-	}, [handleKeyDown]);
-
-	const handleSearchToggle = () => {
-		setSearchExpanded((prev) => !prev);
-		if (!searchExpanded) {
-			setTimeout(() => searchInputRef.current?.focus(), 0);
-		}
-	};
-
 	const classes = ['top-bar', className].filter(Boolean).join(' ');
-	const searchClasses = ['search-box', searchExpanded && 'search-expanded'].filter(Boolean).join(' ');
 	const fallbackStartTime = runningTasks.reduce<Date | null>((earliest, task) => {
 		if (!task.startedAt?.seconds) {
 			return earliest;
@@ -160,29 +125,19 @@ export function TopBar({
 			</nav>
 
 			<div className="top-bar-center">
-				{/* Mobile search toggle button (visible <480px) */}
 				<button
-					className="search-toggle"
-					onClick={handleSearchToggle}
-					aria-label="Toggle search"
-					aria-expanded={searchExpanded}
+					type="button"
+					className="command-palette-trigger"
+					onClick={() => window.dispatchEvent(new CustomEvent(COMMAND_PALETTE_EVENT))}
+					aria-label="Open command palette"
 				>
 					<Icon name="search" size={14} />
-				</button>
-
-				<div className={searchClasses}>
-					<Icon name="search" size={14} />
-					<input
-						ref={searchInputRef}
-						type="text"
-						placeholder="Search tasks..."
-						aria-label="Search tasks"
-					/>
-					<span className="search-kbd-hint">
+					<span className="command-palette-trigger-label">Search</span>
+					<span className="command-palette-trigger-hint">
 						<kbd>⌘</kbd>
 						<kbd>K</kbd>
 					</span>
-				</div>
+				</button>
 
 				<div className="session-info">
 					<SessionStat
