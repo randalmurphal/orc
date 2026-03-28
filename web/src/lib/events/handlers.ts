@@ -134,9 +134,12 @@ function mapPhaseStatus(
 export function handleEvent(event: Event): void {
 	const taskStore = useTaskStore.getState();
 	const initiativeStore = useInitiativeStore.getState();
+	const currentProjectId = useProjectStore.getState().currentProjectId;
 
 	switch (event.payload.case) {
 		case 'taskCreated': {
+			// Skip events from other projects to prevent cross-project leakage
+			if (event.projectId && currentProjectId && currentProjectId !== event.projectId) break;
 			// TaskCreatedEvent has partial info - add minimal task to store
 			const { taskId, title, initiativeId } = event.payload.value;
 			// Check if task already exists to avoid duplicates
@@ -166,6 +169,7 @@ export function handleEvent(event: Event): void {
 		}
 
 		case 'taskUpdated': {
+			if (event.projectId && currentProjectId && currentProjectId !== event.projectId) break;
 			const { taskId, task } = event.payload.value;
 			if (task) {
 				taskStore.updateTask(taskId, task);
@@ -179,6 +183,7 @@ export function handleEvent(event: Event): void {
 		}
 
 		case 'taskDeleted': {
+			if (event.projectId && currentProjectId && currentProjectId !== event.projectId) break;
 			const { taskId } = event.payload.value;
 			taskStore.removeTask(taskId);
 			emitAttentionDashboardSignal({
@@ -191,6 +196,7 @@ export function handleEvent(event: Event): void {
 		}
 
 		case 'phaseChanged': {
+			if (event.projectId && currentProjectId && currentProjectId !== event.projectId) break;
 			const { taskId, phaseName, status, iteration, error } = event.payload.value;
 			// Update task store with current phase
 			taskStore.updateTask(taskId, {
@@ -433,8 +439,7 @@ export function handleEvent(event: Event): void {
 		}
 
 		case 'threadUpdated': {
-			const currentProjectId = useProjectStore.getState().currentProjectId;
-			if (!event.projectId || currentProjectId !== event.projectId) {
+			if (!event.projectId || (currentProjectId && currentProjectId !== event.projectId)) {
 				break;
 			}
 			void useThreadStore.getState().refreshThreadList(event.projectId);

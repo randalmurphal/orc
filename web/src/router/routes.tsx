@@ -1,10 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useState, useCallback, lazy, Suspense } from 'react';
+import { useState, useCallback, lazy, Suspense, useEffect } from 'react';
 import { RouteObject, Navigate, Outlet, useParams, useLocation } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PageLoader } from '@/components/ui/PageLoader';
-import { NewTaskWorkflowModal, ProjectSwitcher } from '@/components/overlays';
+import { CommandPalette, NewTaskWorkflowModal, ProjectSwitcher } from '@/components/overlays';
+import { useGlobalShortcuts } from '@/hooks';
 import { useTaskStore } from '@/stores/taskStore';
 import { useProjectLoading } from '@/stores';
 import type { Task } from '@/gen/orc/v1/task_pb';
@@ -120,6 +121,7 @@ function RootLayout() {
 function AppShellLayout() {
 	const [showNewTaskModal, setShowNewTaskModal] = useState(false);
 	const [showProjectSwitcher, setShowProjectSwitcher] = useState(false);
+	const [showCommandPalette, setShowCommandPalette] = useState(false);
 
 	const handleNewTask = useCallback(() => {
 		setShowNewTaskModal(true);
@@ -127,6 +129,55 @@ function AppShellLayout() {
 
 	const handleProjectChange = useCallback(() => {
 		setShowProjectSwitcher(true);
+	}, []);
+
+	const handleCommandPalette = useCallback(() => {
+		setShowCommandPalette(true);
+	}, []);
+
+	useGlobalShortcuts({
+		onCommandPalette: handleCommandPalette,
+	});
+
+	useEffect(() => {
+		const handleCommandPaletteEvent = () => {
+			setShowCommandPalette(true);
+		};
+		const handleNewTaskEvent = () => {
+			setShowNewTaskModal(true);
+		};
+		const handleProjectSwitcherEvent = () => {
+			setShowProjectSwitcher(true);
+		};
+		const handleMetaShortcut = (event: KeyboardEvent) => {
+			if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') {
+				return;
+			}
+			const target = event.target as HTMLElement | null;
+			if (
+				target &&
+				(target.tagName === 'INPUT' ||
+					target.tagName === 'TEXTAREA' ||
+					target.tagName === 'SELECT' ||
+					target.isContentEditable)
+			) {
+				return;
+			}
+			event.preventDefault();
+			setShowCommandPalette(true);
+		};
+
+		window.addEventListener('orc:command-palette', handleCommandPaletteEvent);
+		window.addEventListener('orc:new-task', handleNewTaskEvent);
+		window.addEventListener('orc:project-switcher', handleProjectSwitcherEvent);
+		document.addEventListener('keydown', handleMetaShortcut);
+
+		return () => {
+			window.removeEventListener('orc:command-palette', handleCommandPaletteEvent);
+			window.removeEventListener('orc:new-task', handleNewTaskEvent);
+			window.removeEventListener('orc:project-switcher', handleProjectSwitcherEvent);
+			document.removeEventListener('keydown', handleMetaShortcut);
+		};
 	}, []);
 
 	return (
@@ -145,6 +196,10 @@ function AppShellLayout() {
 			<ProjectSwitcher
 				open={showProjectSwitcher}
 				onClose={() => setShowProjectSwitcher(false)}
+			/>
+			<CommandPalette
+				open={showCommandPalette}
+				onClose={() => setShowCommandPalette(false)}
 			/>
 		</>
 	);

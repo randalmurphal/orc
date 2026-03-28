@@ -21,7 +21,7 @@ import { useThreadStore } from '@/stores/threadStore';
 import { create } from '@bufbuild/protobuf';
 import { ProjectSchema } from '@/gen/orc/v1/project_pb';
 import { ThreadSchema } from '@/gen/orc/v1/thread_pb';
-import { createTimestamp } from '@/test/factories';
+import { createMockTask, createTimestamp } from '@/test/factories';
 
 // Mock ALL API clients used by DataProvider and threadStore
 vi.mock('@/lib/client', () => ({
@@ -64,6 +64,16 @@ function createMockThread(overrides: Record<string, unknown> = {}) {
 		messages: [],
 		...overrides,
 	});
+}
+
+function createDeferred<T>() {
+	let resolve!: (value: T) => void;
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<T>((res, rej) => {
+		resolve = res;
+		reject = rej;
+	});
+	return { promise, resolve, reject };
 }
 
 // =============================================================================
@@ -122,6 +132,63 @@ afterEach(() => {
 // =============================================================================
 
 describe('DataProvider thread loading integration', () => {
+	it('should ignore stale task responses after switching projects', async () => {
+		const firstProjectLoad = createDeferred<{
+			tasks: ReturnType<typeof createMockTask>[];
+			page: { hasMore: boolean };
+		}>();
+		const secondProjectLoad = createDeferred<{
+			tasks: ReturnType<typeof createMockTask>[];
+			page: { hasMore: boolean };
+		}>();
+
+		vi.mocked(taskClient.listTasks)
+			.mockReturnValueOnce(firstProjectLoad.promise as never)
+			.mockReturnValueOnce(secondProjectLoad.promise as never);
+
+		render(
+			<DataProvider>
+				<div>Content</div>
+			</DataProvider>
+		);
+
+		await waitFor(() => {
+			expect(taskClient.listTasks).toHaveBeenCalledWith(
+				expect.objectContaining({ projectId: 'proj-001' })
+			);
+		});
+
+		act(() => {
+			useProjectStore.setState({ currentProjectId: 'proj-002' });
+		});
+
+		await waitFor(() => {
+			expect(taskClient.listTasks).toHaveBeenNthCalledWith(
+				2,
+				expect.objectContaining({ projectId: 'proj-002' })
+			);
+		});
+
+		secondProjectLoad.resolve({
+			tasks: [createMockTask({ id: 'TASK-P2', title: 'Project Two Task' })],
+			page: { hasMore: false },
+		});
+
+		await waitFor(() => {
+			expect(useTaskStore.getState().tasks.map((task) => task.id)).toEqual(['TASK-P2']);
+		});
+
+		firstProjectLoad.resolve({
+			tasks: [createMockTask({ id: 'TASK-P1', title: 'Project One Task' })],
+			page: { hasMore: false },
+		});
+
+		await waitFor(() => {
+			expect(useTaskStore.getState().tasks.map((task) => task.id)).toEqual(['TASK-P2']);
+			expect(useTaskStore.getState().loading).toBe(false);
+		});
+	});
+
 	it('should call threadClient.listThreads on initial load with current project', async () => {
 		render(
 			<DataProvider>

@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useRoutes } from 'react-router-dom';
 import { routes } from './routes';
-import { EventProvider } from '@/hooks';
+import { EventProvider, ShortcutProvider } from '@/hooks';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { useProjectStore, useInitiativeStore, useUIStore, useTaskStore } from '@/stores';
-import { createTimestamp } from '@/test/factories';
+import { createMockTask, createTimestamp } from '@/test/factories';
 import type { Project } from '@/gen/orc/v1/project_pb';
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
 
 // Mock events module to prevent actual connections
 vi.mock('@/lib/events', () => ({
@@ -59,6 +60,9 @@ vi.mock('@/lib/client', () => ({
 		listTasks: vi.fn().mockResolvedValue({ tasks: [] }),
 		listReviewComments: vi.fn().mockResolvedValue({ comments: [] }),
 		getDiff: vi.fn().mockResolvedValue({ files: [] }),
+		resumeTask: vi.fn().mockResolvedValue({}),
+		updateTask: vi.fn().mockResolvedValue({}),
+		finalizeTask: vi.fn().mockResolvedValue({}),
 	},
 		initiativeClient: {
 			getInitiative: vi.fn().mockResolvedValue({
@@ -257,9 +261,11 @@ vi.mock('@/lib/api', () => ({
 function TestApp() {
 	const routeElements = useRoutes(routes);
 	return (
-		<TooltipProvider delayDuration={0}>
-			<EventProvider>{routeElements}</EventProvider>
-		</TooltipProvider>
+		<ShortcutProvider>
+			<TooltipProvider delayDuration={0}>
+				<EventProvider>{routeElements}</EventProvider>
+			</TooltipProvider>
+		</ShortcutProvider>
 	);
 }
 
@@ -327,6 +333,107 @@ describe('Routes', () => {
 				const banner = screen.getByRole('banner');
 				expect(banner.querySelector('a[href="/board"]')).toBeInTheDocument();
 				expect(banner.querySelector('a[href="/settings"]')).toBeInTheDocument();
+			});
+		});
+
+		it('opens the command palette on Cmd+K and closes it on Escape', async () => {
+			renderWithRouter('/');
+
+			fireEvent.keyDown(document, { key: 'k', metaKey: true });
+
+			await waitFor(() => {
+				expect(screen.getByRole('dialog', { name: 'Command palette' })).toBeInTheDocument();
+			});
+
+			fireEvent.keyDown(screen.getByLabelText('Search commands'), { key: 'Escape' });
+
+			await waitFor(() => {
+				expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument();
+			});
+		});
+
+		it('opens the command palette on Shift+Alt+K and does not render the dead search input', async () => {
+			renderWithRouter('/');
+
+			expect(screen.queryByPlaceholderText('Search tasks...')).not.toBeInTheDocument();
+
+			fireEvent.keyDown(document, { key: 'k', shiftKey: true, altKey: true });
+
+			await waitFor(() => {
+				expect(screen.getByRole('dialog', { name: 'Command palette' })).toBeInTheDocument();
+			});
+		});
+
+		it('ignores the Cmd+K shortcut while another input is focused', async () => {
+			renderWithRouter('/');
+
+			const externalInput = document.createElement('input');
+			document.body.appendChild(externalInput);
+			externalInput.focus();
+
+			fireEvent.keyDown(externalInput, { key: 'k', metaKey: true });
+
+			await waitFor(() => {
+				expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument();
+			});
+
+			externalInput.remove();
+		});
+
+		it('updates project-scoped task actions when the project store changes', async () => {
+			const projectOneTask = createMockTask({
+				id: 'TASK-P1',
+				title: 'Project One Task',
+				status: TaskStatus.PAUSED,
+			});
+			const projectTwoTask = createMockTask({
+				id: 'TASK-P2',
+				title: 'Project Two Task',
+				status: TaskStatus.BLOCKED,
+			});
+
+			act(() => {
+				useProjectStore.setState({
+					projects: [
+						{
+							id: 'P1',
+							path: '/projects/one',
+							name: 'Project One',
+							createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+						} as Project,
+						{
+							id: 'P2',
+							path: '/projects/two',
+							name: 'Project Two',
+							createdAt: createTimestamp('2024-01-02T00:00:00Z'),
+						} as Project,
+					],
+					currentProjectId: 'P1',
+					loading: false,
+					error: null,
+					_isHandlingPopState: false,
+				});
+				useTaskStore.setState({
+					tasks: [projectOneTask],
+				});
+			});
+
+			renderWithRouter('/');
+			fireEvent.keyDown(document, { key: 'k', metaKey: true });
+
+			await waitFor(() => {
+				expect(screen.getByRole('option', { name: /^resume task-p1/i })).toBeInTheDocument();
+				expect(screen.queryByRole('option', { name: /^resume task-p2/i })).not.toBeInTheDocument();
+			});
+
+			act(() => {
+				useProjectStore.setState({ currentProjectId: 'P2' });
+				useTaskStore.setState({ tasks: [projectTwoTask] });
+			});
+
+			await waitFor(() => {
+				expect(screen.queryByRole('option', { name: /^resume task-p1/i })).not.toBeInTheDocument();
+				expect(screen.getByRole('option', { name: /^resume task-p2/i })).toBeInTheDocument();
 			});
 		});
 	});
