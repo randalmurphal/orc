@@ -80,6 +80,43 @@ function canFinalizeTask(task: Task): boolean {
 	].includes(task.status);
 }
 
+function canResumeTask(task: Task): boolean {
+	return [TaskStatus.PAUSED, TaskStatus.FAILED, TaskStatus.BLOCKED].includes(task.status);
+}
+
+function canApproveTask(task: Task): boolean {
+	return task.status === TaskStatus.BLOCKED;
+}
+
+function canCloseTask(task: Task): boolean {
+	return task.status === TaskStatus.FAILED;
+}
+
+function assertTaskActionAllowed(task: Task, action: CommandKind): void {
+	switch (action) {
+		case 'resume':
+			if (canResumeTask(task)) {
+				return;
+			}
+			throw new Error(`Task ${task.id} cannot be resumed from its current status`);
+		case 'approve':
+			if (canApproveTask(task)) {
+				return;
+			}
+			throw new Error(`Task ${task.id} is not blocked`);
+		case 'finalize':
+			if (canFinalizeTask(task)) {
+				return;
+			}
+			throw new Error(`Task ${task.id} cannot be finalized from its current status`);
+		case 'close':
+			if (canCloseTask(task)) {
+				return;
+			}
+			throw new Error(`Task ${task.id} is not failed`);
+	}
+}
+
 function createTaskCommandItems(task: Task): CommandItem[] {
 	const items: CommandItem[] = [
 		{
@@ -124,7 +161,7 @@ function createTaskCommandItems(task: Task): CommandItem[] {
 		},
 	];
 
-	if ([TaskStatus.PAUSED, TaskStatus.FAILED, TaskStatus.BLOCKED].includes(task.status)) {
+	if (canResumeTask(task)) {
 		items.push(
 			{
 				id: `resume:${task.id}`,
@@ -149,7 +186,7 @@ function createTaskCommandItems(task: Task): CommandItem[] {
 		);
 	}
 
-	if (task.status === TaskStatus.BLOCKED) {
+	if (canApproveTask(task)) {
 		items.push(
 			{
 				id: `approve:${task.id}`,
@@ -199,7 +236,7 @@ function createTaskCommandItems(task: Task): CommandItem[] {
 		);
 	}
 
-	if (task.status === TaskStatus.FAILED) {
+	if (canCloseTask(task)) {
 		items.push(
 			{
 				id: `close:${task.id}`,
@@ -479,6 +516,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 			case 'resume': {
 				const activeProjectId = requireProjectId();
 				const task = requireCurrentTask(item.taskId ?? '');
+				assertTaskActionAllowed(task, 'resume');
 				const result = await taskClient.resumeTask(
 					create(ResumeTaskRequestSchema, { projectId: activeProjectId, taskId: task.id })
 				);
@@ -493,6 +531,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 			case 'approve': {
 				const activeProjectId = requireProjectId();
 				const task = requireCurrentTask(item.taskId ?? '');
+				assertTaskActionAllowed(task, 'approve');
 				const result = await taskClient.updateTask(
 					create(UpdateTaskRequestSchema, {
 						projectId: activeProjectId,
@@ -511,6 +550,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 			case 'finalize': {
 				const activeProjectId = requireProjectId();
 				const task = requireCurrentTask(item.taskId ?? '');
+				assertTaskActionAllowed(task, 'finalize');
 				const result = await taskClient.finalizeTask(
 					create(FinalizeTaskRequestSchema, { projectId: activeProjectId, taskId: task.id })
 				);
@@ -525,6 +565,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 			case 'close': {
 				const activeProjectId = requireProjectId();
 				const task = requireCurrentTask(item.taskId ?? '');
+				assertTaskActionAllowed(task, 'close');
 				const result = await taskClient.updateTask(
 					create(UpdateTaskRequestSchema, {
 						projectId: activeProjectId,

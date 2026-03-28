@@ -173,6 +173,48 @@ describe('CommandPalette', () => {
 		});
 	});
 
+	it('revalidates task status before running state-changing actions', async () => {
+		const resumeTask = createMockTask({ id: 'TASK-RESUME', status: TaskStatus.PAUSED });
+		const approveTask = createMockTask({ id: 'TASK-APPROVE', status: TaskStatus.BLOCKED });
+		const finalizeTask = createMockTask({ id: 'TASK-FINALIZE', status: TaskStatus.COMPLETED });
+		const closeTask = createMockTask({ id: 'TASK-CLOSE', status: TaskStatus.FAILED });
+
+		useTaskStore.setState({
+			tasks: [resumeTask, approveTask, finalizeTask, closeTask],
+		});
+
+		renderPalette();
+
+		const resumeAction = screen.getByRole('option', { name: /^resume task-resume/i });
+		const approveAction = screen.getByRole('option', { name: /^approve task-approve/i });
+		const finalizeAction = screen.getByRole('option', { name: /^finalize task-finalize/i });
+		const closeAction = screen.getByRole('option', { name: /^close task-close/i });
+
+		resumeTask.status = TaskStatus.COMPLETED;
+		approveTask.status = TaskStatus.PAUSED;
+		finalizeTask.status = TaskStatus.PAUSED;
+		closeTask.status = TaskStatus.COMPLETED;
+
+		await userEvent.click(resumeAction);
+		await userEvent.click(approveAction);
+		await userEvent.click(finalizeAction);
+		await userEvent.click(closeAction);
+
+		expect(mockResumeTask).not.toHaveBeenCalled();
+		expect(mockUpdateTask).not.toHaveBeenCalled();
+		expect(mockFinalizeTask).not.toHaveBeenCalled();
+		expect(toastError).toHaveBeenNthCalledWith(
+			1,
+			'Task TASK-RESUME cannot be resumed from its current status'
+		);
+		expect(toastError).toHaveBeenNthCalledWith(2, 'Task TASK-APPROVE is not blocked');
+		expect(toastError).toHaveBeenNthCalledWith(
+			3,
+			'Task TASK-FINALIZE cannot be finalized from its current status'
+		);
+		expect(toastError).toHaveBeenNthCalledWith(4, 'Task TASK-CLOSE is not failed');
+	});
+
 	it('routes navigation actions and dispatches global actions', async () => {
 		const newTaskListener = vi.fn();
 		window.addEventListener('orc:new-task', newTaskListener);
