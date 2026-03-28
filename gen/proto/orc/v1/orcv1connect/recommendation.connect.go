@@ -42,6 +42,9 @@ const (
 	// RecommendationServiceListRecommendationsProcedure is the fully-qualified name of the
 	// RecommendationService's ListRecommendations RPC.
 	RecommendationServiceListRecommendationsProcedure = "/orc.v1.RecommendationService/ListRecommendations"
+	// RecommendationServiceListRecommendationHistoryProcedure is the fully-qualified name of the
+	// RecommendationService's ListRecommendationHistory RPC.
+	RecommendationServiceListRecommendationHistoryProcedure = "/orc.v1.RecommendationService/ListRecommendationHistory"
 	// RecommendationServiceAcceptRecommendationProcedure is the fully-qualified name of the
 	// RecommendationService's AcceptRecommendation RPC.
 	RecommendationServiceAcceptRecommendationProcedure = "/orc.v1.RecommendationService/AcceptRecommendation"
@@ -58,6 +61,7 @@ type RecommendationServiceClient interface {
 	CreateRecommendation(context.Context, *connect.Request[v1.CreateRecommendationRequest]) (*connect.Response[v1.CreateRecommendationResponse], error)
 	GetRecommendation(context.Context, *connect.Request[v1.GetRecommendationRequest]) (*connect.Response[v1.GetRecommendationResponse], error)
 	ListRecommendations(context.Context, *connect.Request[v1.ListRecommendationsRequest]) (*connect.Response[v1.ListRecommendationsResponse], error)
+	ListRecommendationHistory(context.Context, *connect.Request[v1.ListRecommendationHistoryRequest]) (*connect.Response[v1.ListRecommendationHistoryResponse], error)
 	AcceptRecommendation(context.Context, *connect.Request[v1.AcceptRecommendationRequest]) (*connect.Response[v1.AcceptRecommendationResponse], error)
 	RejectRecommendation(context.Context, *connect.Request[v1.RejectRecommendationRequest]) (*connect.Response[v1.RejectRecommendationResponse], error)
 	DiscussRecommendation(context.Context, *connect.Request[v1.DiscussRecommendationRequest]) (*connect.Response[v1.DiscussRecommendationResponse], error)
@@ -92,6 +96,12 @@ func NewRecommendationServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(recommendationServiceMethods.ByName("ListRecommendations")),
 			connect.WithClientOptions(opts...),
 		),
+		listRecommendationHistory: connect.NewClient[v1.ListRecommendationHistoryRequest, v1.ListRecommendationHistoryResponse](
+			httpClient,
+			baseURL+RecommendationServiceListRecommendationHistoryProcedure,
+			connect.WithSchema(recommendationServiceMethods.ByName("ListRecommendationHistory")),
+			connect.WithClientOptions(opts...),
+		),
 		acceptRecommendation: connect.NewClient[v1.AcceptRecommendationRequest, v1.AcceptRecommendationResponse](
 			httpClient,
 			baseURL+RecommendationServiceAcceptRecommendationProcedure,
@@ -115,12 +125,13 @@ func NewRecommendationServiceClient(httpClient connect.HTTPClient, baseURL strin
 
 // recommendationServiceClient implements RecommendationServiceClient.
 type recommendationServiceClient struct {
-	createRecommendation  *connect.Client[v1.CreateRecommendationRequest, v1.CreateRecommendationResponse]
-	getRecommendation     *connect.Client[v1.GetRecommendationRequest, v1.GetRecommendationResponse]
-	listRecommendations   *connect.Client[v1.ListRecommendationsRequest, v1.ListRecommendationsResponse]
-	acceptRecommendation  *connect.Client[v1.AcceptRecommendationRequest, v1.AcceptRecommendationResponse]
-	rejectRecommendation  *connect.Client[v1.RejectRecommendationRequest, v1.RejectRecommendationResponse]
-	discussRecommendation *connect.Client[v1.DiscussRecommendationRequest, v1.DiscussRecommendationResponse]
+	createRecommendation      *connect.Client[v1.CreateRecommendationRequest, v1.CreateRecommendationResponse]
+	getRecommendation         *connect.Client[v1.GetRecommendationRequest, v1.GetRecommendationResponse]
+	listRecommendations       *connect.Client[v1.ListRecommendationsRequest, v1.ListRecommendationsResponse]
+	listRecommendationHistory *connect.Client[v1.ListRecommendationHistoryRequest, v1.ListRecommendationHistoryResponse]
+	acceptRecommendation      *connect.Client[v1.AcceptRecommendationRequest, v1.AcceptRecommendationResponse]
+	rejectRecommendation      *connect.Client[v1.RejectRecommendationRequest, v1.RejectRecommendationResponse]
+	discussRecommendation     *connect.Client[v1.DiscussRecommendationRequest, v1.DiscussRecommendationResponse]
 }
 
 // CreateRecommendation calls orc.v1.RecommendationService.CreateRecommendation.
@@ -136,6 +147,11 @@ func (c *recommendationServiceClient) GetRecommendation(ctx context.Context, req
 // ListRecommendations calls orc.v1.RecommendationService.ListRecommendations.
 func (c *recommendationServiceClient) ListRecommendations(ctx context.Context, req *connect.Request[v1.ListRecommendationsRequest]) (*connect.Response[v1.ListRecommendationsResponse], error) {
 	return c.listRecommendations.CallUnary(ctx, req)
+}
+
+// ListRecommendationHistory calls orc.v1.RecommendationService.ListRecommendationHistory.
+func (c *recommendationServiceClient) ListRecommendationHistory(ctx context.Context, req *connect.Request[v1.ListRecommendationHistoryRequest]) (*connect.Response[v1.ListRecommendationHistoryResponse], error) {
+	return c.listRecommendationHistory.CallUnary(ctx, req)
 }
 
 // AcceptRecommendation calls orc.v1.RecommendationService.AcceptRecommendation.
@@ -158,6 +174,7 @@ type RecommendationServiceHandler interface {
 	CreateRecommendation(context.Context, *connect.Request[v1.CreateRecommendationRequest]) (*connect.Response[v1.CreateRecommendationResponse], error)
 	GetRecommendation(context.Context, *connect.Request[v1.GetRecommendationRequest]) (*connect.Response[v1.GetRecommendationResponse], error)
 	ListRecommendations(context.Context, *connect.Request[v1.ListRecommendationsRequest]) (*connect.Response[v1.ListRecommendationsResponse], error)
+	ListRecommendationHistory(context.Context, *connect.Request[v1.ListRecommendationHistoryRequest]) (*connect.Response[v1.ListRecommendationHistoryResponse], error)
 	AcceptRecommendation(context.Context, *connect.Request[v1.AcceptRecommendationRequest]) (*connect.Response[v1.AcceptRecommendationResponse], error)
 	RejectRecommendation(context.Context, *connect.Request[v1.RejectRecommendationRequest]) (*connect.Response[v1.RejectRecommendationResponse], error)
 	DiscussRecommendation(context.Context, *connect.Request[v1.DiscussRecommendationRequest]) (*connect.Response[v1.DiscussRecommendationResponse], error)
@@ -188,6 +205,12 @@ func NewRecommendationServiceHandler(svc RecommendationServiceHandler, opts ...c
 		connect.WithSchema(recommendationServiceMethods.ByName("ListRecommendations")),
 		connect.WithHandlerOptions(opts...),
 	)
+	recommendationServiceListRecommendationHistoryHandler := connect.NewUnaryHandler(
+		RecommendationServiceListRecommendationHistoryProcedure,
+		svc.ListRecommendationHistory,
+		connect.WithSchema(recommendationServiceMethods.ByName("ListRecommendationHistory")),
+		connect.WithHandlerOptions(opts...),
+	)
 	recommendationServiceAcceptRecommendationHandler := connect.NewUnaryHandler(
 		RecommendationServiceAcceptRecommendationProcedure,
 		svc.AcceptRecommendation,
@@ -214,6 +237,8 @@ func NewRecommendationServiceHandler(svc RecommendationServiceHandler, opts ...c
 			recommendationServiceGetRecommendationHandler.ServeHTTP(w, r)
 		case RecommendationServiceListRecommendationsProcedure:
 			recommendationServiceListRecommendationsHandler.ServeHTTP(w, r)
+		case RecommendationServiceListRecommendationHistoryProcedure:
+			recommendationServiceListRecommendationHistoryHandler.ServeHTTP(w, r)
 		case RecommendationServiceAcceptRecommendationProcedure:
 			recommendationServiceAcceptRecommendationHandler.ServeHTTP(w, r)
 		case RecommendationServiceRejectRecommendationProcedure:
@@ -239,6 +264,10 @@ func (UnimplementedRecommendationServiceHandler) GetRecommendation(context.Conte
 
 func (UnimplementedRecommendationServiceHandler) ListRecommendations(context.Context, *connect.Request[v1.ListRecommendationsRequest]) (*connect.Response[v1.ListRecommendationsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.RecommendationService.ListRecommendations is not implemented"))
+}
+
+func (UnimplementedRecommendationServiceHandler) ListRecommendationHistory(context.Context, *connect.Request[v1.ListRecommendationHistoryRequest]) (*connect.Response[v1.ListRecommendationHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.RecommendationService.ListRecommendationHistory is not implemented"))
 }
 
 func (UnimplementedRecommendationServiceHandler) AcceptRecommendation(context.Context, *connect.Request[v1.AcceptRecommendationRequest]) (*connect.Response[v1.AcceptRecommendationResponse], error) {

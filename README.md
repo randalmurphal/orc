@@ -278,7 +278,7 @@ orc deps TASK-ID             # Show dependencies (--tree, --graph)
 orc costs                    # Cost report (--by user/project/model, --since)
 orc scratchpad TASK-ID       # View phase observations and decisions
 orc recommendation list      # Review pending recommendations for current project
-orc recommendation accept REC-001 --reason "Handled in INIT-042"
+orc recommendation accept REC-001 --reason "Handled in INIT-042"  # Promote to a backlog task or initiative decision
 orc search "query"           # Search tasks
 orc list                     # List tasks (alias: ls)
 ```

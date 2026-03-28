@@ -361,5 +361,9 @@ func formatRecommendationDecision(action string, recommendation *orcv1.Recommend
 	if recommendation == nil {
 		return fmt.Sprintf("Recommendation %s", action)
 	}
-	return fmt.Sprintf("%s %s: %s", strings.ToUpper(action[:1])+action[1:], recommendation.Id, recommendation.Title)
+	message := fmt.Sprintf("%s %s: %s", strings.ToUpper(action[:1])+action[1:], recommendation.Id, recommendation.Title)
+	if recommendation.PromotedToType != "" && recommendation.PromotedToId != "" {
+		message += fmt.Sprintf(" -> %s %s", recommendation.PromotedToType, recommendation.PromotedToId)
+	}
+	return message
 }

@@ -3,10 +3,8 @@ package storage
 import (
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
@@ -42,18 +40,12 @@ func TestRecommendationConcurrentDecision(t *testing.T) {
 	close(errs)
 
 	var successCount int
-	var conflictCount int
 	for err := range errs {
-		if err == nil {
-			successCount++
-			continue
-		}
-		require.ErrorIs(t, err, db.ErrRecommendationConflict)
-		conflictCount++
+		require.NoError(t, err)
+		successCount++
 	}
 
-	require.Equal(t, 1, successCount)
-	require.Equal(t, 1, conflictCount)
+	require.Equal(t, 2, successCount)
 
 	loaded, err := backend.LoadRecommendation(rec.Id)
 	require.NoError(t, err)
@@ -74,14 +66,41 @@ func TestRecommendationBackendRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, rec.DedupeKey, loaded.DedupeKey)
 	require.Equal(t, rec.SourceThreadId, loaded.SourceThreadId)
-	require.Equal(t, rec.PromotedToType, loaded.PromotedToType)
-	require.Equal(t, rec.PromotedToId, loaded.PromotedToId)
-	require.Equal(t, rec.PromotedBy, loaded.PromotedBy)
-	require.NotNil(t, loaded.PromotedAt)
+	require.Empty(t, loaded.PromotedToType)
+	require.Empty(t, loaded.PromotedToId)
+	require.Empty(t, loaded.PromotedBy)
+	require.Nil(t, loaded.PromotedAt)
 
 	count, err := backend.CountRecommendationsByStatus(orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING)
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
+}
+
+func TestRecommendationBackendHistoryRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	backend := NewTestBackend(t)
+	createRecommendationFixtures(t, backend)
+
+	rec := testProtoRecommendation()
+	require.NoError(t, backend.SaveRecommendation(rec))
+
+	_, err := backend.UpdateRecommendationStatus(
+		rec.Id,
+		orcv1.RecommendationStatus_RECOMMENDATION_STATUS_DISCUSSED,
+		"randy",
+		"needs a narrower scope",
+	)
+	require.NoError(t, err)
+
+	history, err := backend.LoadRecommendationHistory(rec.Id)
+	require.NoError(t, err)
+	require.Len(t, history, 2)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_DISCUSSED, history[0].ToStatus)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING, history[0].FromStatus)
+	require.Equal(t, "randy", history[0].DecidedBy)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING, history[1].ToStatus)
+	require.Equal(t, orcv1.RecommendationStatus_RECOMMENDATION_STATUS_UNSPECIFIED, history[1].FromStatus)
 }
 
 func createRecommendationFixtures(t *testing.T, backend *DatabaseBackend) {
@@ -113,7 +132,6 @@ func createRecommendationFixtures(t *testing.T, backend *DatabaseBackend) {
 }
 
 func testProtoRecommendation() *orcv1.Recommendation {
-	promotedAt := time.Date(2026, time.March, 9, 18, 0, 0, 0, time.UTC)
 	return &orcv1.Recommendation{
 		Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_CLEANUP,
 		Status:         orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING,
@@ -125,9 +143,5 @@ func testProtoRecommendation() *orcv1.Recommendation {
 		SourceRunId:    "RUN-001",
 		SourceThreadId: "THR-001",
 		DedupeKey:      "cleanup:task-001:duplicate-polling",
-		PromotedToType: "task",
-		PromotedToId:   "TASK-002",
-		PromotedBy:     "operator",
-		PromotedAt:     timestamppb.New(promotedAt),
 	}
 }
