@@ -24,6 +24,7 @@ func TestSchemaRoundTrip(t *testing.T) {
 				ProposedAction: "Consolidate the retry branch.",
 				Evidence:       "Three separate retries diverged in review.",
 				DedupeKey:      "cleanup:retry-path",
+				Confidence:     "high",
 			},
 			jsonField: `"proposed_action":"Consolidate the retry branch."`,
 		},

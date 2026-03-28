@@ -479,6 +479,7 @@ func (we *WorkflowExecutor) populateControlPlaneContext(
 	usage controlPlaneVariableUsage,
 ) error {
 	rctx.PendingRecommendations = ""
+	rctx.CompletionRecommendations = ""
 	rctx.HandoffContext = ""
 	rctx.AttentionSummary = ""
 
@@ -490,6 +491,13 @@ func (we *WorkflowExecutor) populateControlPlaneContext(
 
 		if usage.PendingRecommendations {
 			rctx.PendingRecommendations = formatPendingRecommendations(recommendations)
+		}
+		if usage.CompletionRecommendations {
+			rctx.CompletionRecommendations = formatCompletionRecommendations(
+				currentTask,
+				rctx.WorkflowRunID,
+				recommendations,
+			)
 		}
 		if usage.HandoffContext {
 			rctx.HandoffContext = formatHandoffContext(currentTask, phaseID, recommendations)
@@ -527,6 +535,47 @@ func (we *WorkflowExecutor) populateControlPlaneContext(
 func formatPendingRecommendations(recommendations []*orcv1.Recommendation) string {
 	candidates := make([]controlplane.RecommendationCandidate, 0, len(recommendations))
 	for _, recommendation := range recommendations {
+		if recommendation.GetStatus() != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING {
+			continue
+		}
+
+		candidates = append(candidates, controlplane.RecommendationCandidate{
+			Kind:           recommendationKindName(recommendation.GetKind()),
+			Title:          recommendation.GetTitle(),
+			Summary:        recommendation.GetSummary(),
+			ProposedAction: recommendation.GetProposedAction(),
+			Evidence:       recommendation.GetEvidence(),
+			DedupeKey:      recommendation.GetDedupeKey(),
+		})
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].DedupeKey == candidates[j].DedupeKey {
+			return candidates[i].Title < candidates[j].Title
+		}
+		return candidates[i].DedupeKey < candidates[j].DedupeKey
+	})
+
+	return controlplane.FormatRecommendationSummary(candidates)
+}
+
+func formatCompletionRecommendations(
+	currentTask *orcv1.Task,
+	currentRunID string,
+	recommendations []*orcv1.Recommendation,
+) string {
+	if currentTask == nil || strings.TrimSpace(currentRunID) == "" {
+		return ""
+	}
+
+	candidates := make([]controlplane.RecommendationCandidate, 0, len(recommendations))
+	for _, recommendation := range recommendations {
+		if recommendation.GetSourceTaskId() != currentTask.GetId() {
+			continue
+		}
+		if recommendation.GetSourceRunId() != currentRunID {
+			continue
+		}
 		if recommendation.GetStatus() != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING {
 			continue
 		}

@@ -277,9 +277,10 @@ type ResolutionContext struct {
 	ProjectBrief string
 
 	// Control-plane context injected through builtin variables.
-	PendingRecommendations string
-	AttentionSummary       string
-	HandoffContext         string
+	PendingRecommendations    string
+	CompletionRecommendations string
+	AttentionSummary          string
+	HandoffContext            string
 
 	// Discussion workspace context injected through builtin variables.
 	ThreadID                   string

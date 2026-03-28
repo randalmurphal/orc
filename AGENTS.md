@@ -109,8 +109,9 @@ Run `orc new --help` for detailed guidance on creating tasks that execute well.
 ### Task Completion Flow
 
 1. **Task completes** → PR created or reused on hosting provider (GitHub or GitLab) if `completion.action: pr`
-2. **Review PR** → Manual review opportunity
-3. **`orc finalize TASK-XXX`** → Syncs with target branch, resolves conflicts, optionally enables auto-merge
+2. **Task is marked completed** → Any post-completion recommendations land in the project inbox as `PENDING` items for human review; nothing is promoted into the backlog automatically
+3. **Review PR** → Manual review opportunity
+4. **`orc finalize TASK-XXX`** → Syncs with target branch, resolves conflicts, optionally enables auto-merge
 
 **PR creation is idempotent:** If an open PR already exists on the task branch (from a previous run), it's reused and updated rather than creating a duplicate. See `executor/CLAUDE.md` for the full flow.
 

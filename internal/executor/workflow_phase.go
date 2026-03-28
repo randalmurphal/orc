@@ -60,9 +60,10 @@ type PhaseExecutionResult struct {
 }
 
 type controlPlaneVariableUsage struct {
-	PendingRecommendations bool
-	AttentionSummary       bool
-	HandoffContext         bool
+	PendingRecommendations    bool
+	CompletionRecommendations bool
+	AttentionSummary          bool
+	HandoffContext            bool
 }
 
 type threadVariableUsage struct {
@@ -76,11 +77,11 @@ type threadVariableUsage struct {
 }
 
 func (u controlPlaneVariableUsage) Any() bool {
-	return u.PendingRecommendations || u.AttentionSummary || u.HandoffContext
+	return u.PendingRecommendations || u.CompletionRecommendations || u.AttentionSummary || u.HandoffContext
 }
 
 func (u controlPlaneVariableUsage) needsRecommendations() bool {
-	return u.PendingRecommendations || u.HandoffContext
+	return u.PendingRecommendations || u.CompletionRecommendations || u.HandoffContext
 }
 
 func (u threadVariableUsage) Any() bool {
@@ -95,9 +96,10 @@ func (u threadVariableUsage) Any() bool {
 
 func detectControlPlaneVariableUsage(content string) controlPlaneVariableUsage {
 	return controlPlaneVariableUsage{
-		PendingRecommendations: strings.Contains(content, "{{PENDING_RECOMMENDATIONS}}"),
-		AttentionSummary:       strings.Contains(content, "{{ATTENTION_SUMMARY}}"),
-		HandoffContext:         strings.Contains(content, "{{HANDOFF_CONTEXT}}"),
+		PendingRecommendations:    strings.Contains(content, "{{PENDING_RECOMMENDATIONS}}"),
+		CompletionRecommendations: strings.Contains(content, "{{COMPLETION_RECOMMENDATIONS}}"),
+		AttentionSummary:          strings.Contains(content, "{{ATTENTION_SUMMARY}}"),
+		HandoffContext:            strings.Contains(content, "{{HANDOFF_CONTEXT}}"),
 	}
 }
 
@@ -117,6 +119,7 @@ func mergeControlPlaneVariableUsage(parts ...controlPlaneVariableUsage) controlP
 	merged := controlPlaneVariableUsage{}
 	for _, part := range parts {
 		merged.PendingRecommendations = merged.PendingRecommendations || part.PendingRecommendations
+		merged.CompletionRecommendations = merged.CompletionRecommendations || part.CompletionRecommendations
 		merged.AttentionSummary = merged.AttentionSummary || part.AttentionSummary
 		merged.HandoffContext = merged.HandoffContext || part.HandoffContext
 	}
