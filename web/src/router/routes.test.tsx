@@ -381,14 +381,16 @@ describe('Routes', () => {
 		});
 
 		it('updates project-scoped task actions when the project store changes', async () => {
-			const projectOneTask = {
-				...createMockTask({ id: 'TASK-P1', title: 'Project One Task', status: TaskStatus.PAUSED }),
-				projectId: 'P1',
-			};
-			const projectTwoTask = {
-				...createMockTask({ id: 'TASK-P2', title: 'Project Two Task', status: TaskStatus.BLOCKED }),
-				projectId: 'P2',
-			};
+			const projectOneTask = createMockTask({
+				id: 'TASK-P1',
+				title: 'Project One Task',
+				status: TaskStatus.PAUSED,
+			});
+			const projectTwoTask = createMockTask({
+				id: 'TASK-P2',
+				title: 'Project Two Task',
+				status: TaskStatus.BLOCKED,
+			});
 
 			act(() => {
 				useProjectStore.setState({
@@ -412,7 +414,7 @@ describe('Routes', () => {
 					_isHandlingPopState: false,
 				});
 				useTaskStore.setState({
-					tasks: [projectOneTask, projectTwoTask],
+					tasks: [projectOneTask],
 				});
 			});
 
@@ -426,6 +428,7 @@ describe('Routes', () => {
 
 			act(() => {
 				useProjectStore.setState({ currentProjectId: 'P2' });
+				useTaskStore.setState({ tasks: [projectTwoTask] });
 			});
 
 			await waitFor(() => {

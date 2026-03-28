@@ -230,18 +230,20 @@ describe('CommandPalette', () => {
 		window.removeEventListener('orc:new-task', newTaskListener);
 	});
 
-	it('updates available task actions when the current project changes', async () => {
-		const projectOneTask = {
-			...createMockTask({ id: 'TASK-P1', title: 'Project One Task', status: TaskStatus.PAUSED }),
-			projectId: 'P1',
-		};
-		const projectTwoTask = {
-			...createMockTask({ id: 'TASK-P2', title: 'Project Two Task', status: TaskStatus.BLOCKED }),
-			projectId: 'P2',
-		};
+	it('updates available task actions when the current project task store changes', async () => {
+		const projectOneTask = createMockTask({
+			id: 'TASK-P1',
+			title: 'Project One Task',
+			status: TaskStatus.PAUSED,
+		});
+		const projectTwoTask = createMockTask({
+			id: 'TASK-P2',
+			title: 'Project Two Task',
+			status: TaskStatus.BLOCKED,
+		});
 
 		useTaskStore.setState({
-			tasks: [projectOneTask, projectTwoTask],
+			tasks: [projectOneTask],
 		});
 
 		renderPalette();
@@ -251,6 +253,7 @@ describe('CommandPalette', () => {
 
 		act(() => {
 			useProjectStore.setState({ currentProjectId: 'P2' });
+			useTaskStore.setState({ tasks: [projectTwoTask] });
 		});
 
 		await waitFor(() => {
@@ -259,30 +262,27 @@ describe('CommandPalette', () => {
 		});
 	});
 
-	it('opens active threads in the current project and ignores archived ones', async () => {
+	it('opens active threads from the current project store and ignores archived ones', async () => {
 		const selectThread = vi.fn();
-		const openThread = {
-			...createMockThread({ id: 'thread-open', title: 'Design Discussion', status: 'active' }),
-			projectId: 'P1',
-		};
-		const otherProjectThread = {
-			...createMockThread({ id: 'thread-other-project', title: 'Other Project Thread', status: 'active' }),
-			projectId: 'P2',
-		};
-		const archivedThread = {
-			...createMockThread({ id: 'thread-archived', title: 'Old Thread', status: 'archived' }),
-			projectId: 'P1',
-		};
+		const openThread = createMockThread({
+			id: 'thread-open',
+			title: 'Design Discussion',
+			status: 'active',
+		});
+		const archivedThread = createMockThread({
+			id: 'thread-archived',
+			title: 'Old Thread',
+			status: 'archived',
+		});
 
 		useThreadStore.setState({
-			threads: [openThread, otherProjectThread, archivedThread],
+			threads: [openThread, archivedThread],
 			selectThread,
 		});
 
 		renderPalette();
 
 		expect(screen.getByRole('option', { name: /open thread: design discussion/i })).toBeInTheDocument();
-		expect(screen.queryByRole('option', { name: /open thread: other project thread/i })).not.toBeInTheDocument();
 		expect(screen.queryByRole('option', { name: /open thread: old thread/i })).not.toBeInTheDocument();
 
 		await userEvent.click(screen.getByRole('option', { name: /open thread: design discussion/i }));

@@ -61,6 +61,7 @@ export function DataProvider({ children }: DataProviderProps) {
 	// Track previous project ID to detect changes
 	// Starts as undefined to distinguish "not yet initialized" from "null project"
 	const prevProjectIdRef = useRef<string | null | undefined>(undefined);
+	const latestTaskLoadRequestIdRef = useRef(0);
 	// Track if initial load has happened
 	const initialLoadDone = useRef(false);
 
@@ -86,11 +87,20 @@ export function DataProvider({ children }: DataProviderProps) {
 
 	// Load tasks for current project - paginates to get all tasks
 	const loadTasks = useCallback(async (projectId: string | null) => {
+		const beginTaskLoadRequest = () => {
+			latestTaskLoadRequestIdRef.current += 1;
+			return latestTaskLoadRequestIdRef.current;
+		};
+		const isCurrentTaskLoadRequest = (requestId: number) =>
+			requestId === latestTaskLoadRequestIdRef.current;
+
 		if (!projectId) {
+			beginTaskLoadRequest();
 			resetTasks();
 			return;
 		}
 
+		const requestId = beginTaskLoadRequest();
 		setTaskLoading(true);
 		setTaskError(null);
 		try {
@@ -105,6 +115,9 @@ export function DataProvider({ children }: DataProviderProps) {
 					projectId,
 					page: create(PageRequestSchema, { page: currentPage, limit: pageLimit }),
 				}));
+				if (!isCurrentTaskLoadRequest(requestId)) {
+					return;
+				}
 				allTasks.push(...response.tasks);
 				hasMore = response.page?.hasMore ?? false;
 				currentPage++;
@@ -112,11 +125,19 @@ export function DataProvider({ children }: DataProviderProps) {
 				if (currentPage > 1000) break;
 			}
 
+			if (!isCurrentTaskLoadRequest(requestId)) {
+				return;
+			}
 			setTasks(allTasks);
 		} catch (err) {
+			if (!isCurrentTaskLoadRequest(requestId)) {
+				return;
+			}
 			setTaskError(err instanceof Error ? err.message : 'Failed to load tasks');
 		} finally {
-			setTaskLoading(false);
+			if (isCurrentTaskLoadRequest(requestId)) {
+				setTaskLoading(false);
+			}
 		}
 	}, [setTasks, setTaskLoading, setTaskError, resetTasks]);
 

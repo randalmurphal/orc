@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
 import { taskClient } from '@/lib/client';
-import { useCurrentProject, useCurrentProjectId, useProjectStore, useTaskStore, useThreadStore } from '@/stores';
+import { useCurrentProject, useProjectStore, useTaskStore, useThreadStore } from '@/stores';
 import { toast } from '@/stores/uiStore';
 import {
 	FinalizeTaskRequestSchema,
@@ -52,25 +52,6 @@ interface CommandPaletteProps {
 
 function normalize(text: string): string {
 	return text.trim().toLowerCase();
-}
-
-function getProjectId(candidate: unknown): string | null {
-	if (!candidate || typeof candidate !== 'object') {
-		return null;
-	}
-	const projectId = Reflect.get(candidate, 'projectId');
-	return typeof projectId === 'string' && projectId.length > 0 ? projectId : null;
-}
-
-function belongsToProject(projectId: string | null, candidate: unknown): boolean {
-	if (!projectId) {
-		return false;
-	}
-	const candidateProjectId = getProjectId(candidate);
-	if (!candidateProjectId) {
-		return true;
-	}
-	return candidateProjectId === projectId;
 }
 
 function canFinalizeTask(task: Task): boolean {
@@ -283,7 +264,6 @@ function isOpenThread(thread: Thread): boolean {
 export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 	const navigate = useNavigate();
 	const currentProject = useCurrentProject();
-	const projectId = useCurrentProjectId();
 	const tasks = useTaskStore((state) => state.tasks);
 	const threads = useThreadStore((state) => state.threads);
 	const selectThread = useThreadStore((state) => state.selectThread);
@@ -401,16 +381,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 			},
 		];
 
-		const threadItems = threads
-			.filter((thread) => belongsToProject(projectId, thread))
-			.filter(isOpenThread)
-			.map(createThreadCommandItem);
-		const taskItems = tasks
-			.filter((task) => belongsToProject(projectId, task))
-			.flatMap(createTaskCommandItems);
+		const threadItems = threads.filter(isOpenThread).map(createThreadCommandItem);
+		const taskItems = tasks.flatMap(createTaskCommandItems);
 
 		return [...globalItems, ...navigationItems, ...threadItems, ...taskItems];
-	}, [open, projectId, tasks, threads]);
+	}, [open, tasks, threads]);
 
 	const filteredItems = useMemo(() => {
 		const normalizedQuery = normalize(query);
@@ -433,7 +408,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
 	useEffect(() => {
 		setSelectedIndex(0);
-	}, [query, projectId]);
+	}, [query]);
 
 	useEffect(() => {
 		const selectedItem = listRef.current?.querySelector<HTMLElement>('.command-palette-item.selected');
@@ -456,18 +431,16 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 	}, []);
 
 	const requireCurrentTask = useCallback((taskId: string) => {
-		const currentProjectId = useProjectStore.getState().currentProjectId;
 		const task = useTaskStore.getState().tasks.find((candidate) => candidate.id === taskId);
-		if (!task || !belongsToProject(currentProjectId, task)) {
+		if (!task) {
 			throw new Error(`Task ${taskId} is not available in the current project`);
 		}
 		return task;
 	}, []);
 
 	const requireCurrentThread = useCallback((threadId: string) => {
-		const currentProjectId = useProjectStore.getState().currentProjectId;
 		const thread = useThreadStore.getState().threads.find((candidate) => candidate.id === threadId);
-		if (!thread || !belongsToProject(currentProjectId, thread) || !isOpenThread(thread)) {
+		if (!thread || !isOpenThread(thread)) {
 			throw new Error('Thread is not available in the current project');
 		}
 		return thread;
@@ -579,6 +552,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 				useTaskStore.getState().updateTask(task.id, result.task);
 				toast.success(`Closed ${task.id}`);
 				onClose();
+				return;
 			}
 		}
 	}, [navigate, onClose, requireCurrentTask, requireCurrentThread, requireProjectId, selectThread]);
