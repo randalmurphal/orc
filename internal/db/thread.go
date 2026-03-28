@@ -367,6 +367,21 @@ func (p *ProjectDB) ListThreads(opts ThreadListOpts) ([]Thread, error) {
 	return threads, nil
 }
 
+// CountActiveThreads returns the number of non-archived discussion threads.
+func (p *ProjectDB) CountActiveThreads() (int, error) {
+	query := fmt.Sprintf(
+		"SELECT COUNT(*) FROM threads WHERE status = %s",
+		p.Placeholder(1),
+	)
+
+	var count int
+	if err := p.QueryRow(query, ThreadStatusActive).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count active threads: %w", err)
+	}
+
+	return count, nil
+}
+
 // AddThreadMessage adds a message to a thread.
 func (p *ProjectDB) AddThreadMessage(msg *ThreadMessage) error {
 	if msg == nil {

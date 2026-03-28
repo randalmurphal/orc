@@ -1500,6 +1500,8 @@ type ProjectStatus struct {
 	TotalTasks             int32                  `protobuf:"varint,5,opt,name=total_tasks,json=totalTasks,proto3" json:"total_tasks,omitempty"`
 	CompletedToday         int32                  `protobuf:"varint,6,opt,name=completed_today,json=completedToday,proto3" json:"completed_today,omitempty"`
 	PendingRecommendations int32                  `protobuf:"varint,7,opt,name=pending_recommendations,json=pendingRecommendations,proto3" json:"pending_recommendations,omitempty"`
+	ActiveThreadCount      int32                  `protobuf:"varint,8,opt,name=active_thread_count,json=activeThreadCount,proto3" json:"active_thread_count,omitempty"`
+	RecentCompletions      []*RecentCompletion    `protobuf:"bytes,9,rep,name=recent_completions,json=recentCompletions,proto3" json:"recent_completions,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -1581,6 +1583,20 @@ func (x *ProjectStatus) GetPendingRecommendations() int32 {
 		return x.PendingRecommendations
 	}
 	return 0
+}
+
+func (x *ProjectStatus) GetActiveThreadCount() int32 {
+	if x != nil {
+		return x.ActiveThreadCount
+	}
+	return 0
+}
+
+func (x *ProjectStatus) GetRecentCompletions() []*RecentCompletion {
+	if x != nil {
+		return x.RecentCompletions
+	}
+	return nil
 }
 
 // Summary of a single task within a project
@@ -1672,7 +1688,7 @@ var File_orc_v1_project_proto protoreflect.FileDescriptor
 
 const file_orc_v1_project_proto_rawDesc = "" +
 	"\n" +
-	"\x14orc/v1/project.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x11orc/v1/task.proto\"\x9b\x01\n" +
+	"\x14orc/v1/project.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16orc/v1/dashboard.proto\x1a\x11orc/v1/task.proto\"\x9b\x01\n" +
 	"\aProject\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -1766,7 +1782,7 @@ const file_orc_v1_project_proto_rawDesc = "" +
 	"\n" +
 	"\b_user_id\"Q\n" +
 	"\x1cGetAllProjectsStatusResponse\x121\n" +
-	"\bprojects\x18\x01 \x03(\v2\x15.orc.v1.ProjectStatusR\bprojects\"\xaf\x02\n" +
+	"\bprojects\x18\x01 \x03(\v2\x15.orc.v1.ProjectStatusR\bprojects\"\xa8\x03\n" +
 	"\rProjectStatus\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12!\n" +
@@ -1776,7 +1792,9 @@ const file_orc_v1_project_proto_rawDesc = "" +
 	"\vtotal_tasks\x18\x05 \x01(\x05R\n" +
 	"totalTasks\x12'\n" +
 	"\x0fcompleted_today\x18\x06 \x01(\x05R\x0ecompletedToday\x127\n" +
-	"\x17pending_recommendations\x18\a \x01(\x05R\x16pendingRecommendations\"\xdd\x01\n" +
+	"\x17pending_recommendations\x18\a \x01(\x05R\x16pendingRecommendations\x12.\n" +
+	"\x13active_thread_count\x18\b \x01(\x05R\x11activeThreadCount\x12G\n" +
+	"\x12recent_completions\x18\t \x03(\v2\x18.orc.v1.RecentCompletionR\x11recentCompletions\"\xdd\x01\n" +
 	"\vTaskSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12*\n" +
@@ -1862,7 +1880,8 @@ var file_orc_v1_project_proto_goTypes = []any{
 	(*ProjectStatus)(nil),                // 28: orc.v1.ProjectStatus
 	(*TaskSummary)(nil),                  // 29: orc.v1.TaskSummary
 	(*timestamppb.Timestamp)(nil),        // 30: google.protobuf.Timestamp
-	(TaskStatus)(0),                      // 31: orc.v1.TaskStatus
+	(*RecentCompletion)(nil),             // 31: orc.v1.RecentCompletion
+	(TaskStatus)(0),                      // 32: orc.v1.TaskStatus
 }
 var file_orc_v1_project_proto_depIdxs = []int32{
 	30, // 0: orc.v1.Project.created_at:type_name -> google.protobuf.Timestamp
@@ -1883,37 +1902,38 @@ var file_orc_v1_project_proto_depIdxs = []int32{
 	3,  // 15: orc.v1.UpdateBranchStatusResponse.branch:type_name -> orc.v1.Branch
 	28, // 16: orc.v1.GetAllProjectsStatusResponse.projects:type_name -> orc.v1.ProjectStatus
 	29, // 17: orc.v1.ProjectStatus.active_tasks:type_name -> orc.v1.TaskSummary
-	31, // 18: orc.v1.TaskSummary.status:type_name -> orc.v1.TaskStatus
-	30, // 19: orc.v1.TaskSummary.claimed_at:type_name -> google.protobuf.Timestamp
-	4,  // 20: orc.v1.ProjectService.ListProjects:input_type -> orc.v1.ListProjectsRequest
-	6,  // 21: orc.v1.ProjectService.GetProject:input_type -> orc.v1.GetProjectRequest
-	8,  // 22: orc.v1.ProjectService.GetDefaultProject:input_type -> orc.v1.GetDefaultProjectRequest
-	10, // 23: orc.v1.ProjectService.SetDefaultProject:input_type -> orc.v1.SetDefaultProjectRequest
-	12, // 24: orc.v1.ProjectService.AddProject:input_type -> orc.v1.AddProjectRequest
-	14, // 25: orc.v1.ProjectService.RemoveProject:input_type -> orc.v1.RemoveProjectRequest
-	26, // 26: orc.v1.ProjectService.GetAllProjectsStatus:input_type -> orc.v1.GetAllProjectsStatusRequest
-	16, // 27: orc.v1.BranchService.ListBranches:input_type -> orc.v1.ListBranchesRequest
-	18, // 28: orc.v1.BranchService.GetBranch:input_type -> orc.v1.GetBranchRequest
-	20, // 29: orc.v1.BranchService.UpdateBranchStatus:input_type -> orc.v1.UpdateBranchStatusRequest
-	22, // 30: orc.v1.BranchService.DeleteBranch:input_type -> orc.v1.DeleteBranchRequest
-	24, // 31: orc.v1.BranchService.CleanupStaleBranches:input_type -> orc.v1.CleanupStaleBranchesRequest
-	5,  // 32: orc.v1.ProjectService.ListProjects:output_type -> orc.v1.ListProjectsResponse
-	7,  // 33: orc.v1.ProjectService.GetProject:output_type -> orc.v1.GetProjectResponse
-	9,  // 34: orc.v1.ProjectService.GetDefaultProject:output_type -> orc.v1.GetDefaultProjectResponse
-	11, // 35: orc.v1.ProjectService.SetDefaultProject:output_type -> orc.v1.SetDefaultProjectResponse
-	13, // 36: orc.v1.ProjectService.AddProject:output_type -> orc.v1.AddProjectResponse
-	15, // 37: orc.v1.ProjectService.RemoveProject:output_type -> orc.v1.RemoveProjectResponse
-	27, // 38: orc.v1.ProjectService.GetAllProjectsStatus:output_type -> orc.v1.GetAllProjectsStatusResponse
-	17, // 39: orc.v1.BranchService.ListBranches:output_type -> orc.v1.ListBranchesResponse
-	19, // 40: orc.v1.BranchService.GetBranch:output_type -> orc.v1.GetBranchResponse
-	21, // 41: orc.v1.BranchService.UpdateBranchStatus:output_type -> orc.v1.UpdateBranchStatusResponse
-	23, // 42: orc.v1.BranchService.DeleteBranch:output_type -> orc.v1.DeleteBranchResponse
-	25, // 43: orc.v1.BranchService.CleanupStaleBranches:output_type -> orc.v1.CleanupStaleBranchesResponse
-	32, // [32:44] is the sub-list for method output_type
-	20, // [20:32] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	31, // 18: orc.v1.ProjectStatus.recent_completions:type_name -> orc.v1.RecentCompletion
+	32, // 19: orc.v1.TaskSummary.status:type_name -> orc.v1.TaskStatus
+	30, // 20: orc.v1.TaskSummary.claimed_at:type_name -> google.protobuf.Timestamp
+	4,  // 21: orc.v1.ProjectService.ListProjects:input_type -> orc.v1.ListProjectsRequest
+	6,  // 22: orc.v1.ProjectService.GetProject:input_type -> orc.v1.GetProjectRequest
+	8,  // 23: orc.v1.ProjectService.GetDefaultProject:input_type -> orc.v1.GetDefaultProjectRequest
+	10, // 24: orc.v1.ProjectService.SetDefaultProject:input_type -> orc.v1.SetDefaultProjectRequest
+	12, // 25: orc.v1.ProjectService.AddProject:input_type -> orc.v1.AddProjectRequest
+	14, // 26: orc.v1.ProjectService.RemoveProject:input_type -> orc.v1.RemoveProjectRequest
+	26, // 27: orc.v1.ProjectService.GetAllProjectsStatus:input_type -> orc.v1.GetAllProjectsStatusRequest
+	16, // 28: orc.v1.BranchService.ListBranches:input_type -> orc.v1.ListBranchesRequest
+	18, // 29: orc.v1.BranchService.GetBranch:input_type -> orc.v1.GetBranchRequest
+	20, // 30: orc.v1.BranchService.UpdateBranchStatus:input_type -> orc.v1.UpdateBranchStatusRequest
+	22, // 31: orc.v1.BranchService.DeleteBranch:input_type -> orc.v1.DeleteBranchRequest
+	24, // 32: orc.v1.BranchService.CleanupStaleBranches:input_type -> orc.v1.CleanupStaleBranchesRequest
+	5,  // 33: orc.v1.ProjectService.ListProjects:output_type -> orc.v1.ListProjectsResponse
+	7,  // 34: orc.v1.ProjectService.GetProject:output_type -> orc.v1.GetProjectResponse
+	9,  // 35: orc.v1.ProjectService.GetDefaultProject:output_type -> orc.v1.GetDefaultProjectResponse
+	11, // 36: orc.v1.ProjectService.SetDefaultProject:output_type -> orc.v1.SetDefaultProjectResponse
+	13, // 37: orc.v1.ProjectService.AddProject:output_type -> orc.v1.AddProjectResponse
+	15, // 38: orc.v1.ProjectService.RemoveProject:output_type -> orc.v1.RemoveProjectResponse
+	27, // 39: orc.v1.ProjectService.GetAllProjectsStatus:output_type -> orc.v1.GetAllProjectsStatusResponse
+	17, // 40: orc.v1.BranchService.ListBranches:output_type -> orc.v1.ListBranchesResponse
+	19, // 41: orc.v1.BranchService.GetBranch:output_type -> orc.v1.GetBranchResponse
+	21, // 42: orc.v1.BranchService.UpdateBranchStatus:output_type -> orc.v1.UpdateBranchStatusResponse
+	23, // 43: orc.v1.BranchService.DeleteBranch:output_type -> orc.v1.DeleteBranchResponse
+	25, // 44: orc.v1.BranchService.CleanupStaleBranches:output_type -> orc.v1.CleanupStaleBranchesResponse
+	33, // [33:45] is the sub-list for method output_type
+	21, // [21:33] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_project_proto_init() }
@@ -1921,6 +1941,7 @@ func file_orc_v1_project_proto_init() {
 	if File_orc_v1_project_proto != nil {
 		return
 	}
+	file_orc_v1_dashboard_proto_init()
 	file_orc_v1_task_proto_init()
 	file_orc_v1_project_proto_msgTypes[1].OneofWrappers = []any{}
 	file_orc_v1_project_proto_msgTypes[7].OneofWrappers = []any{}

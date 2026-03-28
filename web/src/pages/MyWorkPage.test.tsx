@@ -1,465 +1,298 @@
-/**
- * Unit Tests for MyWorkPage
- *
- * Success Criteria Coverage:
- * - SC-1: MyWorkPage fetches and renders cross-project data from getAllProjectsStatus
- * - SC-8: Filter dropdown filters tasks by status category
- *
- * Failure Modes:
- * - API error: page shows error message with retry affordance
- * - Empty projects: page shows empty state with guidance
- * - Network timeout: loading then error state
- *
- * Edge Cases:
- * - Single project with no active tasks
- * - All tasks filtered out by status filter
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { create } from '@bufbuild/protobuf';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { MyWorkPage } from './MyWorkPage';
-import { projectClient } from '@/lib/client';
+import { TooltipProvider } from '@/components/ui';
+import { attentionDashboardClient, projectClient } from '@/lib/client';
 import {
+	createMockAttentionDashboardResponse,
+	createMockAttentionItem,
 	createMockGetAllProjectsStatusResponse,
 	createMockProjectStatus,
-	createMockTaskSummary,
+	createMockRecentCompletion,
+	createMockRunningTask,
 } from '@/test/factories';
-import { TaskStatus } from '@/gen/orc/v1/task_pb';
-import { TooltipProvider } from '@/components/ui';
+import { AttentionAction, AttentionItemType } from '@/gen/orc/v1/attention_dashboard_pb';
+import {
+	PerformAttentionActionResponseSchema,
+	RunningSummarySchema,
+} from '@/gen/orc/v1/attention_dashboard_pb';
+import { emitAttentionDashboardSignal } from '@/lib/events/attentionDashboardSignals';
 import { emitRecommendationSignal } from '@/lib/events/recommendationSignals';
 
-// Mock the API client
+const mockNavigate = vi.fn();
+const mockSelectProject = vi.fn();
+const mockToastError = vi.fn();
+const mockToastWarning = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+	const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+	return {
+		...actual,
+		useNavigate: () => mockNavigate,
+	};
+});
+
 vi.mock('@/lib/client', () => ({
 	projectClient: {
 		getAllProjectsStatus: vi.fn(),
-		listProjects: vi.fn().mockResolvedValue({ projects: [] }),
 	},
-	taskClient: {
-		listTasks: vi.fn().mockResolvedValue({ tasks: [] }),
+	attentionDashboardClient: {
+		getAttentionDashboardData: vi.fn(),
+		performAttentionAction: vi.fn(),
 	},
 }));
 
-// Mock project store
 vi.mock('@/stores/projectStore', () => ({
 	useProjectStore: Object.assign(
 		vi.fn((selector?: (state: Record<string, unknown>) => unknown) => {
 			const state = {
-				projects: [],
-				currentProjectId: null,
-				selectProject: vi.fn(),
-				loading: false,
+				selectProject: mockSelectProject,
 			};
 			return selector ? selector(state) : state;
 		}),
 		{
 			getState: vi.fn(() => ({
-				selectProject: vi.fn(),
+				selectProject: mockSelectProject,
 			})),
-		}
+		},
 	),
-	useCurrentProjectId: vi.fn(() => null),
-	useProjectLoading: vi.fn(() => false),
-	useCurrentProject: vi.fn(() => undefined),
-	useProjects: vi.fn(() => []),
 }));
 
-function renderMyWorkPage() {
+vi.mock('@/stores', () => ({
+	toast: {
+		error: (...args: unknown[]) => mockToastError(...args),
+		warning: (...args: unknown[]) => mockToastWarning(...args),
+	},
+}));
+
+function renderPage() {
 	return render(
 		<MemoryRouter initialEntries={['/']}>
 			<TooltipProvider delayDuration={0}>
 				<MyWorkPage />
 			</TooltipProvider>
-		</MemoryRouter>
+		</MemoryRouter>,
 	);
 }
 
-describe('MyWorkPage', () => {
+describe('CommandCenter MyWorkPage', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		vi.useRealTimers();
+		vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+			createMockGetAllProjectsStatusResponse([
+				createMockProjectStatus({
+					projectId: 'proj-alpha',
+					projectName: 'Project Alpha',
+					activeThreadCount: 2,
+					pendingRecommendations: 2,
+					recentCompletions: [
+						createMockRecentCompletion({
+							id: 'TASK-099',
+							title: 'Finished alpha task',
+						}),
+					],
+				}),
+			]),
+		);
+		vi.mocked(attentionDashboardClient.getAttentionDashboardData).mockResolvedValue(
+			createMockAttentionDashboardResponse(),
+		);
+		vi.mocked(attentionDashboardClient.performAttentionAction).mockResolvedValue({
+			...create(PerformAttentionActionResponseSchema, {
+				success: true,
+				errorMessage: '',
+			}),
+		});
 	});
 
 	afterEach(() => {
 		vi.useRealTimers();
 	});
 
-	describe('SC-1: fetches and renders cross-project data', () => {
-		it('should call getAllProjectsStatus on mount', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
-				createMockGetAllProjectsStatusResponse([])
-			);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(1);
-			});
-		});
-
-		it('should render project cards for each project with active tasks', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
-				createMockGetAllProjectsStatusResponse([
-					createMockProjectStatus({
-						projectId: 'proj-1',
-						projectName: 'Project Alpha',
-						activeTasks: [
-							createMockTaskSummary({ id: 'TASK-001', title: 'Alpha task 1' }),
-						],
-					}),
-					createMockProjectStatus({
-						projectId: 'proj-2',
-						projectName: 'Project Beta',
-						activeTasks: [
-							createMockTaskSummary({ id: 'TASK-010', title: 'Beta task 1' }),
-							createMockTaskSummary({ id: 'TASK-011', title: 'Beta task 2' }),
-						],
-					}),
-				])
-			);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText('Project Alpha')).toBeInTheDocument();
-				expect(screen.getByText('Project Beta')).toBeInTheDocument();
-			});
-
-			// Task rows should be visible
-			expect(screen.getByText('TASK-001')).toBeInTheDocument();
-			expect(screen.getByText('TASK-010')).toBeInTheDocument();
-			expect(screen.getByText('TASK-011')).toBeInTheDocument();
-		});
-
-		it('should show loading state while fetching', () => {
-			// Create a promise that never resolves to keep loading state
-			vi.mocked(projectClient.getAllProjectsStatus).mockReturnValue(
-				new Promise(() => {})
-			);
-
-			renderMyWorkPage();
-
-			// Should show some loading indicator
-			const loader = screen.queryByRole('progressbar') ||
-				screen.queryByText(/loading/i) ||
-				document.querySelector('.page-loader');
-			expect(loader).toBeInTheDocument();
-		});
-
-		it('refreshes when a recommendation event is emitted', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus)
-				.mockResolvedValueOnce(
-					createMockGetAllProjectsStatusResponse([
-						createMockProjectStatus({
-							projectId: 'proj-1',
-							projectName: 'Project Alpha',
-							pendingRecommendations: 1,
+	it('renders the five command center sections from the cross-project API responses', async () => {
+		vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+			createMockGetAllProjectsStatusResponse([
+				createMockProjectStatus({
+					projectId: 'proj-alpha',
+					projectName: 'Project Alpha',
+					activeThreadCount: 2,
+					pendingRecommendations: 2,
+					recentCompletions: [
+						createMockRecentCompletion({
+							id: 'TASK-099',
+							title: 'Finished alpha task',
 						}),
-					])
-				)
-				.mockResolvedValueOnce(
-					createMockGetAllProjectsStatusResponse([
-						createMockProjectStatus({
-							projectId: 'proj-1',
+					],
+				}),
+			]),
+		);
+		vi.mocked(attentionDashboardClient.getAttentionDashboardData).mockResolvedValue(
+			createMockAttentionDashboardResponse({
+				runningSummary: create(RunningSummarySchema, {
+					taskCount: 1,
+					tasks: [
+						createMockRunningTask({
+							id: 'TASK-001',
+							title: 'Alpha run',
+							projectId: 'proj-alpha',
 							projectName: 'Project Alpha',
-							pendingRecommendations: 2,
 						}),
-					])
-				);
+					],
+				}),
+				attentionItems: [
+					createMockAttentionItem({
+						id: 'proj-alpha::failed-TASK-002',
+						taskId: 'TASK-002',
+						title: 'Needs retry',
+						type: AttentionItemType.FAILED_TASK,
+						projectId: 'proj-alpha',
+						signalKind: 'blocker',
+					}),
+					createMockAttentionItem({
+						id: 'proj-alpha::decision-TASK-003',
+						taskId: 'TASK-003',
+						title: 'Discuss release plan',
+						type: AttentionItemType.PENDING_DECISION,
+						projectId: 'proj-alpha',
+						signalKind: 'decision_request',
+					}),
+				],
+				pendingRecommendations: 2,
+			}),
+		);
 
-			renderMyWorkPage();
+		renderPage();
 
-			await screen.findByText('1 pending recommendations');
+		await screen.findByText('Command Center');
 
-			await act(async () => {
-				emitRecommendationSignal({
-					projectId: 'proj-1',
-					recommendationId: 'REC-001',
-					type: 'created',
-				});
-			});
+		expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(1);
+		expect(attentionDashboardClient.getAttentionDashboardData).toHaveBeenCalledWith({ projectId: '' });
+		expect(screen.getByText('Running', { selector: '.command-center-section__title' })).toBeInTheDocument();
+		expect(screen.getByText('Attention', { selector: '.command-center-section__title' })).toBeInTheDocument();
+		expect(screen.getByText('Discussions', { selector: '.command-center-section__title' })).toBeInTheDocument();
+		expect(screen.getByText('Recommendations', { selector: '.command-center-section__title' })).toBeInTheDocument();
+		expect(screen.getByText('Recently Completed', { selector: '.command-center-section__title' })).toBeInTheDocument();
+		expect(screen.getByText('Alpha run')).toBeInTheDocument();
+		expect(screen.getByText('Needs retry')).toBeInTheDocument();
+		expect(screen.getByText('Discuss release plan')).toBeInTheDocument();
+		expect(screen.getByText('Finished alpha task')).toBeInTheDocument();
+		expect(screen.getAllByText('Project Alpha').length).toBeGreaterThan(0);
+		expect(screen.getByText('2 pending')).toBeInTheDocument();
+	});
 
-			await screen.findByText('2 pending recommendations');
-			expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(2);
+	it('renders explicit empty states for every command center section', async () => {
+		vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+			createMockGetAllProjectsStatusResponse([
+				createMockProjectStatus({
+					projectId: 'proj-empty',
+					projectName: 'Quiet Project',
+				}),
+			]),
+		);
+		vi.mocked(attentionDashboardClient.getAttentionDashboardData).mockResolvedValue(
+			createMockAttentionDashboardResponse(),
+		);
+
+		renderPage();
+
+		await screen.findByText('Quiet Project');
+
+		expect(screen.getByText('No tasks running')).toBeInTheDocument();
+		expect(screen.getByText('Nothing needs attention')).toBeInTheDocument();
+		expect(screen.getByText('No active discussions')).toBeInTheDocument();
+		expect(screen.getByText('No pending recommendations')).toBeInTheDocument();
+		expect(screen.getByText('No recent completions')).toBeInTheDocument();
+	});
+
+	it('polls every 15 seconds and refreshes on recommendation and attention signals', async () => {
+		vi.mocked(projectClient.getAllProjectsStatus)
+			.mockResolvedValueOnce(createMockGetAllProjectsStatusResponse([
+				createMockProjectStatus({ projectName: 'Project Alpha' }),
+			]))
+			.mockResolvedValue(createMockGetAllProjectsStatusResponse([
+				createMockProjectStatus({ projectName: 'Project Alpha' }),
+			]));
+		const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+
+		renderPage();
+
+		await screen.findByText('Project Alpha');
+
+		expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 15_000);
+		const intervalCallback = setIntervalSpy.mock.calls[0]?.[0];
+		expect(intervalCallback).toBeTypeOf('function');
+
+		await act(async () => {
+			await intervalCallback?.();
 		});
 
-		it('refreshes on the background interval', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus)
-				.mockResolvedValueOnce(createMockGetAllProjectsStatusResponse([]))
-				.mockResolvedValue(createMockGetAllProjectsStatusResponse([]));
-			const setIntervalSpy = vi.spyOn(window, 'setInterval');
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(1);
-			});
-
-			expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 15_000);
-			const intervalCallback = setIntervalSpy.mock.calls[0]?.[0];
-			expect(intervalCallback).toBeTypeOf('function');
-
-			await act(async () => {
-				await intervalCallback?.();
-			});
-
+		await waitFor(() => {
 			expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(2);
+			expect(attentionDashboardClient.getAttentionDashboardData).toHaveBeenCalledTimes(2);
+		});
+
+		await act(async () => {
+			emitRecommendationSignal({
+				projectId: 'proj-alpha',
+				recommendationId: 'REC-001',
+				type: 'created',
+			});
+		});
+
+		await waitFor(() => {
+			expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(3);
+		});
+
+		await act(async () => {
+			emitAttentionDashboardSignal({
+				projectId: 'proj-alpha',
+				taskId: 'TASK-001',
+				type: 'task-updated',
+			});
+		});
+
+		await waitFor(() => {
+			expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(4);
+			expect(attentionDashboardClient.getAttentionDashboardData).toHaveBeenCalledTimes(4);
 		});
 	});
 
-	describe('SC-8: status filter', () => {
-		const projectsWithMixedStatuses = [
-			createMockProjectStatus({
-				projectId: 'proj-1',
-				projectName: 'Project One',
-				activeTasks: [
-					createMockTaskSummary({
-						id: 'TASK-001',
-						title: 'Running task',
-						status: TaskStatus.RUNNING,
-					}),
-					createMockTaskSummary({
-						id: 'TASK-002',
-						title: 'Blocked task',
-						status: TaskStatus.BLOCKED,
+	it('uses composite attention IDs for actions and refreshes after success', async () => {
+		vi.mocked(attentionDashboardClient.getAttentionDashboardData).mockResolvedValue(
+			createMockAttentionDashboardResponse({
+				attentionItems: [
+					createMockAttentionItem({
+						id: 'proj-alpha::failed-TASK-001',
+						taskId: 'TASK-001',
+						title: 'Retry me',
+						projectId: 'proj-alpha',
+						signalKind: 'blocker',
 					}),
 				],
 			}),
-			createMockProjectStatus({
-				projectId: 'proj-2',
-				projectName: 'Project Two',
-				activeTasks: [
-					createMockTaskSummary({
-						id: 'TASK-003',
-						title: 'Created task',
-						status: TaskStatus.CREATED,
-					}),
-				],
-			}),
-		];
+		);
 
-		it('should show all tasks by default (All filter)', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
-				createMockGetAllProjectsStatusResponse(projectsWithMixedStatuses)
-			);
+		renderPage();
 
-			renderMyWorkPage();
+		await screen.findByText('Retry me');
 
-			await waitFor(() => {
-				expect(screen.getByText('TASK-001')).toBeInTheDocument();
-			});
+		fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
-			expect(screen.getByText('TASK-002')).toBeInTheDocument();
-			expect(screen.getByText('TASK-003')).toBeInTheDocument();
-		});
-
-		it('should filter to show only running tasks when Running is selected', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
-				createMockGetAllProjectsStatusResponse(projectsWithMixedStatuses)
-			);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText('TASK-001')).toBeInTheDocument();
-			});
-
-			// Find and click the filter dropdown, select "Running"
-			const filterSelect = screen.getByRole('combobox') ||
-				screen.getByLabelText(/filter/i);
-			fireEvent.change(filterSelect, { target: { value: 'running' } });
-
-			// Only running task should be visible
-			await waitFor(() => {
-				expect(screen.getByText('TASK-001')).toBeInTheDocument();
-				expect(screen.queryByText('TASK-002')).not.toBeInTheDocument();
-				expect(screen.queryByText('TASK-003')).not.toBeInTheDocument();
+		await waitFor(() => {
+			expect(attentionDashboardClient.performAttentionAction).toHaveBeenCalledWith({
+				projectId: 'proj-alpha',
+				attentionItemId: 'proj-alpha::failed-TASK-001',
+				action: AttentionAction.RETRY,
+				decisionOptionId: '',
 			});
 		});
 
-		it('should filter to show only blocked tasks when Blocked is selected', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
-				createMockGetAllProjectsStatusResponse(projectsWithMixedStatuses)
-			);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText('TASK-001')).toBeInTheDocument();
-			});
-
-			const filterSelect = screen.getByRole('combobox') ||
-				screen.getByLabelText(/filter/i);
-			fireEvent.change(filterSelect, { target: { value: 'blocked' } });
-
-			await waitFor(() => {
-				expect(screen.queryByText('TASK-001')).not.toBeInTheDocument();
-				expect(screen.getByText('TASK-002')).toBeInTheDocument();
-				expect(screen.queryByText('TASK-003')).not.toBeInTheDocument();
-			});
-		});
-
-		it('should hide projects with no matching tasks after filtering', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
-				createMockGetAllProjectsStatusResponse(projectsWithMixedStatuses)
-			);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText('Project One')).toBeInTheDocument();
-				expect(screen.getByText('Project Two')).toBeInTheDocument();
-			});
-
-			// Filter to Running - only Project One has running tasks
-			const filterSelect = screen.getByRole('combobox') ||
-				screen.getByLabelText(/filter/i);
-			fireEvent.change(filterSelect, { target: { value: 'running' } });
-
-			await waitFor(() => {
-				expect(screen.getByText('Project One')).toBeInTheDocument();
-				// Project Two has no running tasks, should be hidden
-				expect(screen.queryByText('Project Two')).not.toBeInTheDocument();
-			});
-		});
-
-		it('should show "No matching tasks" when all tasks are filtered out', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
-				createMockGetAllProjectsStatusResponse([
-					createMockProjectStatus({
-						activeTasks: [
-							createMockTaskSummary({ status: TaskStatus.CREATED }),
-						],
-					}),
-				])
-			);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText('TASK-001')).toBeInTheDocument();
-			});
-
-			// Filter to "Running" - but no running tasks exist
-			const filterSelect = screen.getByRole('combobox') ||
-				screen.getByLabelText(/filter/i);
-			fireEvent.change(filterSelect, { target: { value: 'running' } });
-
-			await waitFor(() => {
-				expect(screen.getByText(/no matching tasks/i)).toBeInTheDocument();
-			});
-		});
-
-		it('should show all tasks again when filter is reset to All', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
-				createMockGetAllProjectsStatusResponse(projectsWithMixedStatuses)
-			);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText('TASK-001')).toBeInTheDocument();
-			});
-
-			const filterSelect = screen.getByRole('combobox') ||
-				screen.getByLabelText(/filter/i);
-
-			// Filter to Running
-			fireEvent.change(filterSelect, { target: { value: 'running' } });
-			await waitFor(() => {
-				expect(screen.queryByText('TASK-002')).not.toBeInTheDocument();
-			});
-
-			// Reset to All
-			fireEvent.change(filterSelect, { target: { value: 'all' } });
-			await waitFor(() => {
-				expect(screen.getByText('TASK-001')).toBeInTheDocument();
-				expect(screen.getByText('TASK-002')).toBeInTheDocument();
-				expect(screen.getByText('TASK-003')).toBeInTheDocument();
-			});
-		});
-	});
-
-	describe('failure modes', () => {
-		it('should show error message when API call fails', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockRejectedValue(
-				new Error('Network error')
-			);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText(/error/i)).toBeInTheDocument();
-			});
-		});
-
-		it('should show retry button when API call fails', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockRejectedValue(
-				new Error('Network error')
-			);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				const retryButton = screen.getByRole('button', { name: /retry/i });
-				expect(retryButton).toBeInTheDocument();
-			});
-		});
-
-		it('should re-fetch when retry button is clicked', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus)
-				.mockRejectedValueOnce(new Error('Network error'))
-				.mockResolvedValueOnce(
-					createMockGetAllProjectsStatusResponse([
-						createMockProjectStatus({ projectName: 'Recovered Project' }),
-					])
-				);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
-			});
-
-			fireEvent.click(screen.getByRole('button', { name: /retry/i }));
-
-			await waitFor(() => {
-				expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(2);
-			});
-		});
-
-		it('should show empty state when API returns no projects', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
-				createMockGetAllProjectsStatusResponse([])
-			);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText(/no projects/i)).toBeInTheDocument();
-			});
-			// Should show guidance about running orc init
-			expect(screen.getByText(/orc init/i)).toBeInTheDocument();
-		});
-	});
-
-	describe('edge cases', () => {
-		it('should render single project with no active tasks', async () => {
-			vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
-				createMockGetAllProjectsStatusResponse([
-					createMockProjectStatus({
-						projectName: 'Empty Project',
-						activeTasks: [],
-						totalTasks: 5,
-					}),
-				])
-			);
-
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText('Empty Project')).toBeInTheDocument();
-			});
-			expect(screen.getByText(/no active tasks/i)).toBeInTheDocument();
+		await waitFor(() => {
+			expect(projectClient.getAllProjectsStatus).toHaveBeenCalledTimes(2);
+			expect(attentionDashboardClient.getAttentionDashboardData).toHaveBeenCalledTimes(2);
 		});
 	});
 });

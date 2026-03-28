@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/controlplane"
@@ -121,6 +123,49 @@ func TestCrossProjectAttentionSignalsIncludeProjectIDAndStayIsolated(t *testing.
 	require.Len(t, resp.Msg.AttentionItems, 1)
 	require.Equal(t, "TASK-001", resp.Msg.AttentionItems[0].TaskId)
 	require.Equal(t, projectOne.ID, resp.Msg.AttentionItems[0].ProjectId)
+}
+
+func TestCrossProjectRunning(t *testing.T) {
+	tmpDir := setupTestHome(t)
+	projectOne := setupTestProject(t, tmpDir, "alpha")
+	projectTwo := setupTestProject(t, tmpDir, "beta")
+
+	cache := NewProjectCache(10)
+	defer func() { _ = cache.Close() }()
+
+	backendOne, err := cache.GetBackend(projectOne.ID)
+	require.NoError(t, err)
+	backendTwo, err := cache.GetBackend(projectTwo.ID)
+	require.NoError(t, err)
+
+	alphaTask := task.NewProtoTask("TASK-001", "Alpha running task")
+	alphaTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	alphaTask.StartedAt = timestamppb.New(time.Now().Add(-2 * time.Hour))
+	require.NoError(t, backendOne.SaveTask(alphaTask))
+
+	betaTask := task.NewProtoTask("TASK-002", "Beta running task")
+	betaTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	betaTask.StartedAt = timestamppb.New(time.Now().Add(-15 * time.Minute))
+	require.NoError(t, backendTwo.SaveTask(betaTask))
+
+	server := NewAttentionDashboardServer(nil, nil, nil, nil)
+	server.(*attentionDashboardServer).SetProjectCache(cache)
+
+	resp, err := server.GetAttentionDashboardData(context.Background(), connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{}))
+	require.NoError(t, err)
+	require.NotNil(t, resp.Msg.RunningSummary)
+	require.Equal(t, int32(2), resp.Msg.RunningSummary.TaskCount)
+	require.Len(t, resp.Msg.RunningSummary.Tasks, 2)
+
+	first := resp.Msg.RunningSummary.Tasks[0]
+	second := resp.Msg.RunningSummary.Tasks[1]
+	require.Equal(t, projectOne.ID, first.ProjectId)
+	require.Equal(t, projectOne.Name, first.ProjectName)
+	require.Equal(t, "TASK-001", first.Id)
+	require.Equal(t, projectTwo.ID, second.ProjectId)
+	require.Equal(t, projectTwo.Name, second.ProjectName)
+	require.Equal(t, "TASK-002", second.Id)
+	require.GreaterOrEqual(t, first.ElapsedTimeSeconds, second.ElapsedTimeSeconds)
 }
 
 func TestCrossProjectAttentionSignalsIncludeLegacyBlockedTasks(t *testing.T) {

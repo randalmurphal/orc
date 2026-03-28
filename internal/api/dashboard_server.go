@@ -153,6 +153,7 @@ func (s *dashboardServer) GetStats(
 					Title:       t.Title,
 					Success:     true,
 					CompletedAt: t.CompletedAt,
+					Status:      orcv1.TaskStatus_TASK_STATUS_COMPLETED,
 				})
 			}
 		case orcv1.TaskStatus_TASK_STATUS_FAILED:
@@ -163,6 +164,7 @@ func (s *dashboardServer) GetStats(
 					Title:       t.Title,
 					Success:     false,
 					CompletedAt: t.UpdatedAt,
+					Status:      orcv1.TaskStatus_TASK_STATUS_FAILED,
 				})
 			}
 		}

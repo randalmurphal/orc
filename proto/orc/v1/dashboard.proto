@@ -4,6 +4,7 @@ package orc.v1;
 
 import "google/protobuf/timestamp.proto";
 import "orc/v1/common.proto";
+import "orc/v1/task.proto";
 
 option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
 
@@ -52,6 +53,7 @@ message RecentCompletion {
   string title = 2;
   bool success = 3;
   google.protobuf.Timestamp completed_at = 4;
+  TaskStatus status = 5;
 }
 
 // Activity heatmap data

@@ -282,6 +282,7 @@ type RecentCompletion struct {
 	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	Success       bool                   `protobuf:"varint,3,opt,name=success,proto3" json:"success,omitempty"`
 	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	Status        TaskStatus             `protobuf:"varint,5,opt,name=status,proto3,enum=orc.v1.TaskStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -342,6 +343,13 @@ func (x *RecentCompletion) GetCompletedAt() *timestamppb.Timestamp {
 		return x.CompletedAt
 	}
 	return nil
+}
+
+func (x *RecentCompletion) GetStatus() TaskStatus {
+	if x != nil {
+		return x.Status
+	}
+	return TaskStatus_TASK_STATUS_UNSPECIFIED
 }
 
 // Activity heatmap data
@@ -2496,7 +2504,7 @@ var File_orc_v1_dashboard_proto protoreflect.FileDescriptor
 
 const file_orc_v1_dashboard_proto_rawDesc = "" +
 	"\n" +
-	"\x16orc/v1/dashboard.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\"\xd8\x02\n" +
+	"\x16orc/v1/dashboard.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\x1a\x11orc/v1/task.proto\"\xd8\x02\n" +
 	"\x0eDashboardStats\x125\n" +
 	"\vtask_counts\x18\x01 \x01(\v2\x14.orc.v1.StatusCountsR\n" +
 	"taskCounts\x12<\n" +
@@ -2518,12 +2526,13 @@ const file_orc_v1_dashboard_proto_rawDesc = "" +
 	"\rcurrent_phase\x18\x03 \x01(\tR\fcurrentPhase\x12\x1c\n" +
 	"\titeration\x18\x04 \x01(\x05R\titeration\x129\n" +
 	"\n" +
-	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\"\x91\x01\n" +
+	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\"\xbd\x01\n" +
 	"\x10RecentCompletion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
 	"\asuccess\x18\x03 \x01(\bR\asuccess\x12=\n" +
-	"\fcompleted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\":\n" +
+	"\fcompleted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12*\n" +
+	"\x06status\x18\x05 \x01(\x0e2\x12.orc.v1.TaskStatusR\x06status\":\n" +
 	"\x0fActivityHeatmap\x12'\n" +
 	"\x04days\x18\x01 \x03(\v2\x13.orc.v1.ActivityDayR\x04days\"\xa7\x01\n" +
 	"\vActivityDay\x12\x12\n" +
@@ -2772,6 +2781,7 @@ var file_orc_v1_dashboard_proto_goTypes = []any{
 	nil,                                // 42: orc.v1.CostSummary.ByCategoryEntry
 	(*TokenUsage)(nil),                 // 43: orc.v1.TokenUsage
 	(*timestamppb.Timestamp)(nil),      // 44: google.protobuf.Timestamp
+	(TaskStatus)(0),                    // 45: orc.v1.TaskStatus
 }
 var file_orc_v1_dashboard_proto_depIdxs = []int32{
 	1,  // 0: orc.v1.DashboardStats.task_counts:type_name -> orc.v1.StatusCounts
@@ -2780,57 +2790,58 @@ var file_orc_v1_dashboard_proto_depIdxs = []int32{
 	43, // 3: orc.v1.DashboardStats.today_tokens:type_name -> orc.v1.TokenUsage
 	44, // 4: orc.v1.RunningTaskInfo.started_at:type_name -> google.protobuf.Timestamp
 	44, // 5: orc.v1.RecentCompletion.completed_at:type_name -> google.protobuf.Timestamp
-	5,  // 6: orc.v1.ActivityHeatmap.days:type_name -> orc.v1.ActivityDay
-	7,  // 7: orc.v1.CostSummary.by_period:type_name -> orc.v1.PeriodCost
-	41, // 8: orc.v1.CostSummary.by_model:type_name -> orc.v1.CostSummary.ByModelEntry
-	42, // 9: orc.v1.CostSummary.by_category:type_name -> orc.v1.CostSummary.ByCategoryEntry
-	43, // 10: orc.v1.MetricsSummary.total_tokens:type_name -> orc.v1.TokenUsage
-	43, // 11: orc.v1.ModelMetrics.tokens:type_name -> orc.v1.TokenUsage
-	9,  // 12: orc.v1.PerDayStats.days:type_name -> orc.v1.DailyMetrics
-	8,  // 13: orc.v1.ComparisonMetrics.current:type_name -> orc.v1.MetricsSummary
-	8,  // 14: orc.v1.ComparisonMetrics.previous:type_name -> orc.v1.MetricsSummary
-	0,  // 15: orc.v1.GetStatsResponse.stats:type_name -> orc.v1.DashboardStats
-	4,  // 16: orc.v1.GetActivityHeatmapResponse.heatmap:type_name -> orc.v1.ActivityHeatmap
-	6,  // 17: orc.v1.GetCostSummaryResponse.summary:type_name -> orc.v1.CostSummary
-	8,  // 18: orc.v1.GetMetricsResponse.metrics:type_name -> orc.v1.MetricsSummary
-	11, // 19: orc.v1.GetDailyMetricsResponse.stats:type_name -> orc.v1.PerDayStats
-	10, // 20: orc.v1.GetMetricsByModelResponse.models:type_name -> orc.v1.ModelMetrics
-	12, // 21: orc.v1.GetOutcomesResponse.outcomes:type_name -> orc.v1.OutcomeStats
-	13, // 22: orc.v1.GetTopInitiativesResponse.initiatives:type_name -> orc.v1.TopInitiative
-	14, // 23: orc.v1.GetTopFilesResponse.files:type_name -> orc.v1.TopFile
-	15, // 24: orc.v1.GetComparisonResponse.comparison:type_name -> orc.v1.ComparisonMetrics
-	8,  // 25: orc.v1.GetTaskMetricsResponse.metrics:type_name -> orc.v1.MetricsSummary
-	44, // 26: orc.v1.GetCostReportRequest.since:type_name -> google.protobuf.Timestamp
-	40, // 27: orc.v1.GetCostReportResponse.breakdowns:type_name -> orc.v1.CostBreakdown
-	16, // 28: orc.v1.DashboardService.GetStats:input_type -> orc.v1.GetStatsRequest
-	18, // 29: orc.v1.DashboardService.GetActivityHeatmap:input_type -> orc.v1.GetActivityHeatmapRequest
-	20, // 30: orc.v1.DashboardService.GetCostSummary:input_type -> orc.v1.GetCostSummaryRequest
-	22, // 31: orc.v1.DashboardService.GetMetrics:input_type -> orc.v1.GetMetricsRequest
-	24, // 32: orc.v1.DashboardService.GetDailyMetrics:input_type -> orc.v1.GetDailyMetricsRequest
-	26, // 33: orc.v1.DashboardService.GetMetricsByModel:input_type -> orc.v1.GetMetricsByModelRequest
-	28, // 34: orc.v1.DashboardService.GetOutcomes:input_type -> orc.v1.GetOutcomesRequest
-	30, // 35: orc.v1.DashboardService.GetTopInitiatives:input_type -> orc.v1.GetTopInitiativesRequest
-	32, // 36: orc.v1.DashboardService.GetTopFiles:input_type -> orc.v1.GetTopFilesRequest
-	34, // 37: orc.v1.DashboardService.GetComparison:input_type -> orc.v1.GetComparisonRequest
-	36, // 38: orc.v1.DashboardService.GetTaskMetrics:input_type -> orc.v1.GetTaskMetricsRequest
-	38, // 39: orc.v1.DashboardService.GetCostReport:input_type -> orc.v1.GetCostReportRequest
-	17, // 40: orc.v1.DashboardService.GetStats:output_type -> orc.v1.GetStatsResponse
-	19, // 41: orc.v1.DashboardService.GetActivityHeatmap:output_type -> orc.v1.GetActivityHeatmapResponse
-	21, // 42: orc.v1.DashboardService.GetCostSummary:output_type -> orc.v1.GetCostSummaryResponse
-	23, // 43: orc.v1.DashboardService.GetMetrics:output_type -> orc.v1.GetMetricsResponse
-	25, // 44: orc.v1.DashboardService.GetDailyMetrics:output_type -> orc.v1.GetDailyMetricsResponse
-	27, // 45: orc.v1.DashboardService.GetMetricsByModel:output_type -> orc.v1.GetMetricsByModelResponse
-	29, // 46: orc.v1.DashboardService.GetOutcomes:output_type -> orc.v1.GetOutcomesResponse
-	31, // 47: orc.v1.DashboardService.GetTopInitiatives:output_type -> orc.v1.GetTopInitiativesResponse
-	33, // 48: orc.v1.DashboardService.GetTopFiles:output_type -> orc.v1.GetTopFilesResponse
-	35, // 49: orc.v1.DashboardService.GetComparison:output_type -> orc.v1.GetComparisonResponse
-	37, // 50: orc.v1.DashboardService.GetTaskMetrics:output_type -> orc.v1.GetTaskMetricsResponse
-	39, // 51: orc.v1.DashboardService.GetCostReport:output_type -> orc.v1.GetCostReportResponse
-	40, // [40:52] is the sub-list for method output_type
-	28, // [28:40] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	45, // 6: orc.v1.RecentCompletion.status:type_name -> orc.v1.TaskStatus
+	5,  // 7: orc.v1.ActivityHeatmap.days:type_name -> orc.v1.ActivityDay
+	7,  // 8: orc.v1.CostSummary.by_period:type_name -> orc.v1.PeriodCost
+	41, // 9: orc.v1.CostSummary.by_model:type_name -> orc.v1.CostSummary.ByModelEntry
+	42, // 10: orc.v1.CostSummary.by_category:type_name -> orc.v1.CostSummary.ByCategoryEntry
+	43, // 11: orc.v1.MetricsSummary.total_tokens:type_name -> orc.v1.TokenUsage
+	43, // 12: orc.v1.ModelMetrics.tokens:type_name -> orc.v1.TokenUsage
+	9,  // 13: orc.v1.PerDayStats.days:type_name -> orc.v1.DailyMetrics
+	8,  // 14: orc.v1.ComparisonMetrics.current:type_name -> orc.v1.MetricsSummary
+	8,  // 15: orc.v1.ComparisonMetrics.previous:type_name -> orc.v1.MetricsSummary
+	0,  // 16: orc.v1.GetStatsResponse.stats:type_name -> orc.v1.DashboardStats
+	4,  // 17: orc.v1.GetActivityHeatmapResponse.heatmap:type_name -> orc.v1.ActivityHeatmap
+	6,  // 18: orc.v1.GetCostSummaryResponse.summary:type_name -> orc.v1.CostSummary
+	8,  // 19: orc.v1.GetMetricsResponse.metrics:type_name -> orc.v1.MetricsSummary
+	11, // 20: orc.v1.GetDailyMetricsResponse.stats:type_name -> orc.v1.PerDayStats
+	10, // 21: orc.v1.GetMetricsByModelResponse.models:type_name -> orc.v1.ModelMetrics
+	12, // 22: orc.v1.GetOutcomesResponse.outcomes:type_name -> orc.v1.OutcomeStats
+	13, // 23: orc.v1.GetTopInitiativesResponse.initiatives:type_name -> orc.v1.TopInitiative
+	14, // 24: orc.v1.GetTopFilesResponse.files:type_name -> orc.v1.TopFile
+	15, // 25: orc.v1.GetComparisonResponse.comparison:type_name -> orc.v1.ComparisonMetrics
+	8,  // 26: orc.v1.GetTaskMetricsResponse.metrics:type_name -> orc.v1.MetricsSummary
+	44, // 27: orc.v1.GetCostReportRequest.since:type_name -> google.protobuf.Timestamp
+	40, // 28: orc.v1.GetCostReportResponse.breakdowns:type_name -> orc.v1.CostBreakdown
+	16, // 29: orc.v1.DashboardService.GetStats:input_type -> orc.v1.GetStatsRequest
+	18, // 30: orc.v1.DashboardService.GetActivityHeatmap:input_type -> orc.v1.GetActivityHeatmapRequest
+	20, // 31: orc.v1.DashboardService.GetCostSummary:input_type -> orc.v1.GetCostSummaryRequest
+	22, // 32: orc.v1.DashboardService.GetMetrics:input_type -> orc.v1.GetMetricsRequest
+	24, // 33: orc.v1.DashboardService.GetDailyMetrics:input_type -> orc.v1.GetDailyMetricsRequest
+	26, // 34: orc.v1.DashboardService.GetMetricsByModel:input_type -> orc.v1.GetMetricsByModelRequest
+	28, // 35: orc.v1.DashboardService.GetOutcomes:input_type -> orc.v1.GetOutcomesRequest
+	30, // 36: orc.v1.DashboardService.GetTopInitiatives:input_type -> orc.v1.GetTopInitiativesRequest
+	32, // 37: orc.v1.DashboardService.GetTopFiles:input_type -> orc.v1.GetTopFilesRequest
+	34, // 38: orc.v1.DashboardService.GetComparison:input_type -> orc.v1.GetComparisonRequest
+	36, // 39: orc.v1.DashboardService.GetTaskMetrics:input_type -> orc.v1.GetTaskMetricsRequest
+	38, // 40: orc.v1.DashboardService.GetCostReport:input_type -> orc.v1.GetCostReportRequest
+	17, // 41: orc.v1.DashboardService.GetStats:output_type -> orc.v1.GetStatsResponse
+	19, // 42: orc.v1.DashboardService.GetActivityHeatmap:output_type -> orc.v1.GetActivityHeatmapResponse
+	21, // 43: orc.v1.DashboardService.GetCostSummary:output_type -> orc.v1.GetCostSummaryResponse
+	23, // 44: orc.v1.DashboardService.GetMetrics:output_type -> orc.v1.GetMetricsResponse
+	25, // 45: orc.v1.DashboardService.GetDailyMetrics:output_type -> orc.v1.GetDailyMetricsResponse
+	27, // 46: orc.v1.DashboardService.GetMetricsByModel:output_type -> orc.v1.GetMetricsByModelResponse
+	29, // 47: orc.v1.DashboardService.GetOutcomes:output_type -> orc.v1.GetOutcomesResponse
+	31, // 48: orc.v1.DashboardService.GetTopInitiatives:output_type -> orc.v1.GetTopInitiativesResponse
+	33, // 49: orc.v1.DashboardService.GetTopFiles:output_type -> orc.v1.GetTopFilesResponse
+	35, // 50: orc.v1.DashboardService.GetComparison:output_type -> orc.v1.GetComparisonResponse
+	37, // 51: orc.v1.DashboardService.GetTaskMetrics:output_type -> orc.v1.GetTaskMetricsResponse
+	39, // 52: orc.v1.DashboardService.GetCostReport:output_type -> orc.v1.GetCostReportResponse
+	41, // [41:53] is the sub-list for method output_type
+	29, // [29:41] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_dashboard_proto_init() }
@@ -2839,6 +2850,7 @@ func file_orc_v1_dashboard_proto_init() {
 		return
 	}
 	file_orc_v1_common_proto_init()
+	file_orc_v1_task_proto_init()
 	file_orc_v1_dashboard_proto_msgTypes[22].OneofWrappers = []any{}
 	file_orc_v1_dashboard_proto_msgTypes[26].OneofWrappers = []any{}
 	file_orc_v1_dashboard_proto_msgTypes[28].OneofWrappers = []any{}

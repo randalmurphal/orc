@@ -140,6 +140,11 @@ func (s *attentionDashboardServer) GetAttentionDashboardData(
 }
 
 func (s *attentionDashboardServer) getCrossProjectAttentionDashboardData() (*orcv1.GetAttentionDashboardDataResponse, error) {
+	runningSummary, err := s.buildCrossProjectRunningSummary()
+	if err != nil {
+		return nil, fmt.Errorf("build cross-project running summary: %w", err)
+	}
+
 	signals, err := s.loadCrossProjectAttentionSignals()
 	if err != nil {
 		return nil, fmt.Errorf("load cross-project attention signals: %w", err)
@@ -156,10 +161,7 @@ func (s *attentionDashboardServer) getCrossProjectAttentionDashboardData() (*orc
 	}
 
 	return &orcv1.GetAttentionDashboardDataResponse{
-		RunningSummary: &orcv1.RunningSummary{
-			TaskCount: 0,
-			Tasks:     []*orcv1.RunningTask{},
-		},
+		RunningSummary: runningSummary,
 		AttentionItems: attentionItems,
 		QueueSummary: &orcv1.QueueSummary{
 			TaskCount:       0,
@@ -167,6 +169,53 @@ func (s *attentionDashboardServer) getCrossProjectAttentionDashboardData() (*orc
 			UnassignedTasks: []*orcv1.QueuedTask{},
 		},
 		PendingRecommendations: int32(pendingRecommendations),
+	}, nil
+}
+
+func (s *attentionDashboardServer) buildCrossProjectRunningSummary() (*orcv1.RunningSummary, error) {
+	if s.projectCache == nil {
+		return nil, fmt.Errorf("project cache not configured")
+	}
+
+	projects, err := project.ListProjects()
+	if err != nil {
+		return nil, fmt.Errorf("list projects: %w", err)
+	}
+
+	now := time.Now()
+	runningTasks := make([]*orcv1.RunningTask, 0)
+	for _, proj := range projects {
+		backend, err := s.projectCache.GetBackend(proj.ID)
+		if err != nil {
+			return nil, fmt.Errorf("get backend for project %s: %w", proj.ID, err)
+		}
+
+		tasks, err := backend.LoadAllTasks()
+		if err != nil {
+			return nil, fmt.Errorf("load tasks for project %s: %w", proj.ID, err)
+		}
+
+		projectSummary := s.buildRunningSummary(backend, tasks, now)
+		for _, runningTask := range projectSummary.Tasks {
+			runningTask.ProjectId = proj.ID
+			runningTask.ProjectName = proj.Name
+			runningTasks = append(runningTasks, runningTask)
+		}
+	}
+
+	sort.Slice(runningTasks, func(i, j int) bool {
+		if runningTasks[i].ElapsedTimeSeconds == runningTasks[j].ElapsedTimeSeconds {
+			if runningTasks[i].ProjectId == runningTasks[j].ProjectId {
+				return runningTasks[i].Id < runningTasks[j].Id
+			}
+			return runningTasks[i].ProjectId < runningTasks[j].ProjectId
+		}
+		return runningTasks[i].ElapsedTimeSeconds > runningTasks[j].ElapsedTimeSeconds
+	})
+
+	return &orcv1.RunningSummary{
+		TaskCount: int32(len(runningTasks)),
+		Tasks:     runningTasks,
 	}, nil
 }
 
@@ -374,7 +423,7 @@ func (s *attentionDashboardServer) loadPendingDecisionItems(projectID string) []
 				orcv1.AttentionAction_ATTENTION_ACTION_VIEW,
 			},
 			DecisionOptions: options,
-			ProjectId: decision.ProjectID,
+			ProjectId:       decision.ProjectID,
 		}
 		items = append(items, item)
 	}

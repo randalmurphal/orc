@@ -109,6 +109,23 @@ import {
 	type ProjectStatus,
 	type TaskSummary,
 } from '@/gen/orc/v1/project_pb';
+import {
+	RecentCompletionSchema,
+	type RecentCompletion,
+} from '@/gen/orc/v1/dashboard_pb';
+import {
+	AttentionItemSchema,
+	GetAttentionDashboardDataResponseSchema,
+	PhaseProgressSchema,
+	QueueSummarySchema,
+	RunningSummarySchema,
+	RunningTaskSchema,
+	type AttentionItem,
+	type GetAttentionDashboardDataResponse,
+	type RunningTask,
+	AttentionItemType,
+	AttentionAction,
+} from '@/gen/orc/v1/attention_dashboard_pb';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 
 /**
@@ -574,6 +591,77 @@ export function createMockProjectStatus(overrides: Partial<Omit<ProjectStatus, '
 		activeTasks: [],
 		totalTasks: 0,
 		completedToday: 0,
+		pendingRecommendations: 0,
+		activeThreadCount: 0,
+		recentCompletions: [],
+	});
+	return Object.assign(base, overrides);
+}
+
+export function createMockRecentCompletion(overrides: Partial<Omit<RecentCompletion, '$typeName' | '$unknown'>> = {}): RecentCompletion {
+	const base = create(RecentCompletionSchema, {
+		id: 'TASK-001',
+		title: 'Completed task',
+		success: true,
+		status: TaskStatus.COMPLETED,
+		completedAt: createTimestamp('2024-01-01T12:00:00Z'),
+	});
+	return Object.assign(base, overrides);
+}
+
+export function createMockRunningTask(overrides: Partial<Omit<RunningTask, '$typeName' | '$unknown'>> = {}): RunningTask {
+	const base = create(RunningTaskSchema, {
+		id: 'TASK-001',
+		title: 'Running task',
+		currentPhase: 'implement',
+		startedAt: createTimestamp('2024-01-01T12:00:00Z'),
+		elapsedTimeSeconds: BigInt(300),
+		initiativeId: '',
+		initiativeTitle: '',
+		phaseProgress: create(PhaseProgressSchema, {
+			currentPhase: 'implement',
+			steps: [],
+		}),
+		outputLines: [],
+		projectId: 'proj-001',
+		projectName: 'Test Project',
+	});
+	return Object.assign(base, overrides);
+}
+
+export function createMockAttentionItem(overrides: Partial<Omit<AttentionItem, '$typeName' | '$unknown'>> = {}): AttentionItem {
+	const base = create(AttentionItemSchema, {
+		id: 'proj-001::failed-TASK-001',
+		type: AttentionItemType.FAILED_TASK,
+		taskId: 'TASK-001',
+		title: 'Attention item',
+		description: 'Needs attention',
+		priority: TaskPriority.NORMAL,
+		createdAt: createTimestamp('2024-01-01T12:00:00Z'),
+		availableActions: [AttentionAction.RETRY, AttentionAction.VIEW],
+		projectId: 'proj-001',
+		signalKind: 'blocker',
+		referenceType: 'task',
+		referenceId: 'TASK-001',
+	});
+	return Object.assign(base, overrides);
+}
+
+export function createMockAttentionDashboardResponse(
+	overrides: Partial<Omit<GetAttentionDashboardDataResponse, '$typeName' | '$unknown'>> = {}
+): GetAttentionDashboardDataResponse {
+	const base = create(GetAttentionDashboardDataResponseSchema, {
+		runningSummary: create(RunningSummarySchema, {
+			taskCount: 0,
+			tasks: [],
+		}),
+		attentionItems: [],
+		queueSummary: create(QueueSummarySchema, {
+			taskCount: 0,
+			swimlanes: [],
+			unassignedTasks: [],
+		}),
+		pendingRecommendations: 0,
 	});
 	return Object.assign(base, overrides);
 }

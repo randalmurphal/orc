@@ -18,13 +18,22 @@ export const ProjectCard = memo(function ProjectCard({
 		<div className="project-card">
 			<div className="project-card__header">
 				<div className="project-card__info">
-					<h3 className="project-card__name">{project.projectName}</h3>
+					<button
+						type="button"
+						className="project-card__name-button"
+						onClick={() => onViewAll(project.projectId)}
+					>
+						<h3 className="project-card__name">{project.projectName}</h3>
+					</button>
 					<div className="project-card__stats">
 						<span className="project-card__stat">
 							{project.totalTasks} total
 						</span>
 						<span className="project-card__stat">
 							{project.completedToday} done today
+						</span>
+						<span className="project-card__stat">
+							{project.activeThreadCount} active threads
 						</span>
 						<span className="project-card__stat">
 							{project.pendingRecommendations} pending recommendations

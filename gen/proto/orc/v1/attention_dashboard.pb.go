@@ -454,6 +454,8 @@ type RunningTask struct {
 	InitiativeTitle    string                 `protobuf:"bytes,7,opt,name=initiative_title,json=initiativeTitle,proto3" json:"initiative_title,omitempty"`
 	PhaseProgress      *PhaseProgress         `protobuf:"bytes,8,opt,name=phase_progress,json=phaseProgress,proto3" json:"phase_progress,omitempty"`
 	OutputLines        []string               `protobuf:"bytes,9,rep,name=output_lines,json=outputLines,proto3" json:"output_lines,omitempty"`
+	ProjectId          string                 `protobuf:"bytes,10,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectName        string                 `protobuf:"bytes,11,opt,name=project_name,json=projectName,proto3" json:"project_name,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -549,6 +551,20 @@ func (x *RunningTask) GetOutputLines() []string {
 		return x.OutputLines
 	}
 	return nil
+}
+
+func (x *RunningTask) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *RunningTask) GetProjectName() string {
+	if x != nil {
+		return x.ProjectName
+	}
+	return ""
 }
 
 // Phase progress for pipeline visualization
@@ -1629,7 +1645,7 @@ const file_orc_v1_attention_dashboard_proto_rawDesc = "" +
 	"\x0eRunningSummary\x12\x1d\n" +
 	"\n" +
 	"task_count\x18\x01 \x01(\x05R\ttaskCount\x12)\n" +
-	"\x05tasks\x18\x02 \x03(\v2\x13.orc.v1.RunningTaskR\x05tasks\"\xf6\x02\n" +
+	"\x05tasks\x18\x02 \x03(\v2\x13.orc.v1.RunningTaskR\x05tasks\"\xb8\x03\n" +
 	"\vRunningTask\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12#\n" +
@@ -1640,7 +1656,11 @@ const file_orc_v1_attention_dashboard_proto_rawDesc = "" +
 	"\rinitiative_id\x18\x06 \x01(\tR\finitiativeId\x12)\n" +
 	"\x10initiative_title\x18\a \x01(\tR\x0finitiativeTitle\x12<\n" +
 	"\x0ephase_progress\x18\b \x01(\v2\x15.orc.v1.PhaseProgressR\rphaseProgress\x12!\n" +
-	"\foutput_lines\x18\t \x03(\tR\voutputLines\"]\n" +
+	"\foutput_lines\x18\t \x03(\tR\voutputLines\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\n" +
+	" \x01(\tR\tprojectId\x12!\n" +
+	"\fproject_name\x18\v \x01(\tR\vprojectName\"]\n" +
 	"\rPhaseProgress\x12#\n" +
 	"\rcurrent_phase\x18\x01 \x01(\tR\fcurrentPhase\x12'\n" +
 	"\x05steps\x18\x02 \x03(\v2\x11.orc.v1.PhaseStepR\x05steps\"P\n" +

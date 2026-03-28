@@ -1,67 +1,48 @@
-/**
- * Integration Tests for MyWorkPage - Task Click Wiring
- *
- * Success Criteria Coverage:
- * - SC-3: Clicking a task row sets project context via selectProject() AND navigates to /tasks/:id
- * - SC-4: MyWorkPage passes onTaskClick handler through ProjectCard to TaskRow
- * - SC-10: "View all" link sets project context and navigates to /board
- *
- * INTEGRATION TEST PATTERN:
- * These tests render MyWorkPage (the parent) and verify that clicking a TaskRow
- * (a deeply nested child) triggers the correct actions:
- * 1. selectProject() is called with the task's project ID
- * 2. Navigation to /tasks/:id occurs
- *
- * This catches wiring bugs where:
- * - onTaskClick handler is not passed from MyWorkPage to ProjectCard
- * - ProjectCard doesn't forward the handler to TaskRow
- * - Handler is wired but doesn't call selectProject or navigate
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { create } from '@bufbuild/protobuf';
 import { MyWorkPage } from './MyWorkPage';
-import { projectClient } from '@/lib/client';
+import { TooltipProvider } from '@/components/ui';
+import { attentionDashboardClient, projectClient } from '@/lib/client';
 import {
+	createMockAttentionDashboardResponse,
+	createMockAttentionItem,
 	createMockGetAllProjectsStatusResponse,
 	createMockProjectStatus,
-	createMockTaskSummary,
+	createMockRunningTask,
 } from '@/test/factories';
-import { TaskStatus } from '@/gen/orc/v1/task_pb';
-import { TooltipProvider } from '@/components/ui';
+import {
+	AttentionItemType,
+	RunningSummarySchema,
+} from '@/gen/orc/v1/attention_dashboard_pb';
 
-// Track navigate calls
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('react-router-dom')>();
+const mockSelectProject = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+	const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
 	return {
 		...actual,
 		useNavigate: () => mockNavigate,
 	};
 });
 
-// Mock the API client
 vi.mock('@/lib/client', () => ({
 	projectClient: {
 		getAllProjectsStatus: vi.fn(),
-		listProjects: vi.fn().mockResolvedValue({ projects: [] }),
 	},
-	taskClient: {
-		listTasks: vi.fn().mockResolvedValue({ tasks: [] }),
+	attentionDashboardClient: {
+		getAttentionDashboardData: vi.fn(),
+		performAttentionAction: vi.fn(),
 	},
 }));
 
-// Track selectProject calls
-const mockSelectProject = vi.fn();
 vi.mock('@/stores/projectStore', () => ({
 	useProjectStore: Object.assign(
 		vi.fn((selector?: (state: Record<string, unknown>) => unknown) => {
 			const state = {
-				projects: [],
-				currentProjectId: null,
 				selectProject: mockSelectProject,
-				loading: false,
 			};
 			return selector ? selector(state) : state;
 		}),
@@ -69,148 +50,108 @@ vi.mock('@/stores/projectStore', () => ({
 			getState: vi.fn(() => ({
 				selectProject: mockSelectProject,
 			})),
-		}
+		},
 	),
-	useCurrentProjectId: vi.fn(() => null),
-	useProjectLoading: vi.fn(() => false),
-	useCurrentProject: vi.fn(() => undefined),
-	useProjects: vi.fn(() => []),
 }));
 
-const mockProjects = [
-	createMockProjectStatus({
-		projectId: 'proj-orc',
-		projectName: 'orc',
-		activeTasks: [
-			createMockTaskSummary({
-				id: 'TASK-042',
-				title: 'Build dashboard',
-				status: TaskStatus.RUNNING,
-			}),
-			createMockTaskSummary({
-				id: 'TASK-043',
-				title: 'Fix bug',
-				status: TaskStatus.BLOCKED,
-			}),
-		],
-		totalTasks: 10,
-		completedToday: 2,
-	}),
-	createMockProjectStatus({
-		projectId: 'proj-llmkit',
-		projectName: 'llmkit',
-		activeTasks: [
-			createMockTaskSummary({
-				id: 'TASK-100',
-				title: 'Add streaming',
-				status: TaskStatus.CREATED,
-			}),
-		],
-		totalTasks: 5,
-		completedToday: 0,
-	}),
-];
+vi.mock('@/stores', () => ({
+	toast: {
+		error: vi.fn(),
+		warning: vi.fn(),
+	},
+}));
 
-function renderMyWorkPage() {
+function renderPage() {
 	return render(
 		<MemoryRouter initialEntries={['/']}>
 			<TooltipProvider delayDuration={0}>
 				<MyWorkPage />
 			</TooltipProvider>
-		</MemoryRouter>
+		</MemoryRouter>,
 	);
 }
 
-describe('MyWorkPage Integration - Task Click Wiring', () => {
+describe('CommandCenter navigation', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
-			createMockGetAllProjectsStatusResponse(mockProjects)
+			createMockGetAllProjectsStatusResponse([
+				createMockProjectStatus({
+					projectId: 'proj-alpha',
+					projectName: 'Project Alpha',
+					pendingRecommendations: 2,
+				}),
+				createMockProjectStatus({
+					projectId: 'proj-beta',
+					projectName: 'Project Beta',
+				}),
+			]),
+		);
+		vi.mocked(attentionDashboardClient.getAttentionDashboardData).mockResolvedValue(
+			createMockAttentionDashboardResponse({
+				runningSummary: create(RunningSummarySchema, {
+					taskCount: 1,
+					tasks: [
+						createMockRunningTask({
+							id: 'TASK-001',
+							title: 'Running alpha task',
+							projectId: 'proj-alpha',
+							projectName: 'Project Alpha',
+						}),
+					],
+				}),
+				attentionItems: [
+					createMockAttentionItem({
+						id: 'proj-beta::failed-TASK-002',
+						taskId: 'TASK-002',
+						title: 'Blocked beta task',
+						projectId: 'proj-beta',
+						type: AttentionItemType.FAILED_TASK,
+						signalKind: 'blocker',
+					}),
+				],
+				pendingRecommendations: 2,
+			}),
 		);
 	});
 
-	describe('SC-3 & SC-4: clicking task row sets project context and navigates', () => {
-		it('should call selectProject with correct project ID when task is clicked', async () => {
-			renderMyWorkPage();
+	it('selects the project before navigating when a running task is clicked', async () => {
+		renderPage();
 
-			await waitFor(() => {
-				expect(screen.getByText('TASK-042')).toBeInTheDocument();
-			});
+		await screen.findByText('Running alpha task');
 
-			// Click on TASK-042 which belongs to proj-orc
-			const taskEl = screen.getByText('TASK-042').closest('[role="button"]') ||
-				screen.getByText('TASK-042').closest('.task-row');
-			expect(taskEl).toBeInTheDocument();
-			fireEvent.click(taskEl!);
+		fireEvent.click(screen.getByRole('button', { name: /Running alpha task/i }));
 
-			expect(mockSelectProject).toHaveBeenCalledWith('proj-orc');
-		});
-
-		it('should navigate to /tasks/:id when task is clicked', async () => {
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText('TASK-042')).toBeInTheDocument();
-			});
-
-			const taskEl = screen.getByText('TASK-042').closest('[role="button"]') ||
-				screen.getByText('TASK-042').closest('.task-row');
-			fireEvent.click(taskEl!);
-
-			expect(mockNavigate).toHaveBeenCalledWith('/tasks/TASK-042');
-		});
-
-		it('should set correct project context for tasks in different projects', async () => {
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText('TASK-100')).toBeInTheDocument();
-			});
-
-			// Click TASK-100 from llmkit project
-			const taskEl = screen.getByText('TASK-100').closest('[role="button"]') ||
-				screen.getByText('TASK-100').closest('.task-row');
-			fireEvent.click(taskEl!);
-
-			// Should set llmkit project, not orc
-			expect(mockSelectProject).toHaveBeenCalledWith('proj-llmkit');
-			expect(mockNavigate).toHaveBeenCalledWith('/tasks/TASK-100');
-		});
-
-		it('should call BOTH selectProject and navigate (not just one)', async () => {
-			renderMyWorkPage();
-
-			await waitFor(() => {
-				expect(screen.getByText('TASK-043')).toBeInTheDocument();
-			});
-
-			const taskEl = screen.getByText('TASK-043').closest('[role="button"]') ||
-				screen.getByText('TASK-043').closest('.task-row');
-			fireEvent.click(taskEl!);
-
-			// Both must be called - this catches partial wiring
-			expect(mockSelectProject).toHaveBeenCalledTimes(1);
-			expect(mockNavigate).toHaveBeenCalledTimes(1);
-		});
+		expect(mockSelectProject).toHaveBeenCalledWith('proj-alpha');
+		expect(mockNavigate).toHaveBeenCalledWith('/tasks/TASK-001');
+		expect(mockSelectProject.mock.invocationCallOrder[0]).toBeLessThan(
+			mockNavigate.mock.invocationCallOrder[0],
+		);
 	});
 
-	describe('SC-10: view all link navigates to board with project context', () => {
-		it('should call selectProject and navigate to /board when "view all" is clicked', async () => {
-			renderMyWorkPage();
+	it('selects the project before navigating when an attention item is opened', async () => {
+		renderPage();
 
-			await waitFor(() => {
-				expect(screen.getByText('orc')).toBeInTheDocument();
-			});
+		await screen.findByText('Blocked beta task');
 
-			// Find the "view all" link for the orc project card
-			const viewAllLinks = screen.getAllByText(/view all/i);
-			expect(viewAllLinks.length).toBeGreaterThanOrEqual(1);
+		fireEvent.click(screen.getByRole('button', { name: /Blocked beta task/i }));
 
-			// Click the first "view all" (orc project)
-			fireEvent.click(viewAllLinks[0]);
+		expect(mockSelectProject).toHaveBeenCalledWith('proj-beta');
+		expect(mockNavigate).toHaveBeenCalledWith('/tasks/TASK-002');
+		expect(mockSelectProject.mock.invocationCallOrder[0]).toBeLessThan(
+			mockNavigate.mock.invocationCallOrder[0],
+		);
+	});
 
-			expect(mockSelectProject).toHaveBeenCalledWith('proj-orc');
-			expect(mockNavigate).toHaveBeenCalledWith('/board');
-		});
+	it('navigates project summary rows to the board in the selected project scope', async () => {
+		renderPage();
+
+		const recommendationSummary = (await screen.findByText('2 pending')).closest('button');
+		expect(recommendationSummary).toBeInTheDocument();
+
+		fireEvent.click(recommendationSummary!);
+
+		expect(mockSelectProject).toHaveBeenCalledWith('proj-alpha');
+		expect(mockNavigate).toHaveBeenCalledWith('/board');
 	});
 });
