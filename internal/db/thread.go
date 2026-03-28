@@ -708,6 +708,9 @@ func createRecommendationTx(tx *TxOps, rec *Recommendation) error {
 	if err := validateRecommendationForCreate(rec); err != nil {
 		return err
 	}
+	if err := ensureRecommendationDedupeAvailableTx(tx, rec); err != nil {
+		return err
+	}
 
 	query, args := recommendationInsertQuery(tx.Dialect(), tx.Now(), rec)
 	if _, err := tx.Exec(query, args...); err != nil {

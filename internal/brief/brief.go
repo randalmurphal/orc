@@ -9,24 +9,27 @@ import (
 	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // Section categories.
 const (
-	CategoryDecisions      = "decisions"
-	CategoryRecentFindings = "recent_findings"
-	CategoryHotFiles       = "hot_files"
-	CategoryPatterns        = "patterns"
-	CategoryKnownIssues    = "known_issues"
+	CategoryDecisions        = "decisions"
+	CategoryRecentFindings   = "recent_findings"
+	CategoryIndexedArtifacts = "indexed_artifacts"
+	CategoryHotFiles         = "hot_files"
+	CategoryPatterns         = "patterns"
+	CategoryKnownIssues      = "known_issues"
 )
 
 // Brief is the generated project context summary.
 type Brief struct {
-	GeneratedAt time.Time
-	TaskCount   int
-	TokenCount  int
-	Sections    []Section
+	GeneratedAt      time.Time
+	TaskCount        int
+	TokenCount       int
+	LatestArtifactID int64
+	Sections         []Section
 }
 
 // Section groups entries by category.
@@ -55,11 +58,12 @@ func DefaultConfig() Config {
 	return Config{
 		MaxTokens: 3000,
 		SectionBudgets: map[string]int{
-			CategoryDecisions:      800,
-			CategoryHotFiles:       600,
-			CategoryPatterns:       500,
-			CategoryKnownIssues:    500,
-			CategoryRecentFindings: 600,
+			CategoryDecisions:        800,
+			CategoryIndexedArtifacts: 600,
+			CategoryHotFiles:         600,
+			CategoryPatterns:         500,
+			CategoryKnownIssues:      500,
+			CategoryRecentFindings:   600,
 		},
 		StaleThreshold: 3,
 	}
@@ -93,19 +97,24 @@ func (g *Generator) Generate(ctx context.Context) (*Brief, error) {
 		return nil, fmt.Errorf("count completed tasks: %w", err)
 	}
 
+	latestArtifactID, err := g.latestArtifactID()
+	if err != nil {
+		return nil, fmt.Errorf("load latest indexed artifact metadata: %w", err)
+	}
+
 	// Check cache
 	if g.cache != nil {
 		cached, err := g.cache.Load()
 		if err != nil {
 			return nil, fmt.Errorf("load cache: %w", err)
 		}
-		if cached != nil && !g.cache.IsStale(taskCount, g.cfg.StaleThreshold) {
+		if cached != nil && !g.cache.IsStale(taskCount, g.cfg.StaleThreshold) && latestArtifactID <= cached.LatestArtifactID {
 			return cached, nil
 		}
 	}
 
 	// Generate fresh brief
-	brief, err := g.generate(ctx, taskCount)
+	brief, err := g.generate(ctx, taskCount, latestArtifactID)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +129,7 @@ func (g *Generator) Generate(ctx context.Context) (*Brief, error) {
 	return brief, nil
 }
 
-func (g *Generator) generate(ctx context.Context, taskCount int) (*Brief, error) {
+func (g *Generator) generate(ctx context.Context, taskCount int, latestArtifactID int64) (*Brief, error) {
 	var sections []Section
 
 	// Extract decisions from active initiatives
@@ -145,6 +154,16 @@ func (g *Generator) generate(ctx context.Context, taskCount int) (*Brief, error)
 		sections = append(sections, sec)
 	}
 
+	indexedArtifacts, err := ExtractIndexedArtifacts(ctx, g.backend)
+	if err != nil {
+		return nil, fmt.Errorf("extract indexed artifacts: %w", err)
+	}
+	if len(indexedArtifacts) > 0 {
+		sec := Section{Category: CategoryIndexedArtifacts, Entries: indexedArtifacts}
+		sec = ApplyTokenBudget(sec, g.cfg.SectionBudgets[CategoryIndexedArtifacts])
+		sections = append(sections, sec)
+	}
+
 	// Apply total budget across all sections
 	sections = ApplyTotalBudget(sections, g.cfg.MaxTokens)
 
@@ -157,11 +176,23 @@ func (g *Generator) generate(ctx context.Context, taskCount int) (*Brief, error)
 	}
 
 	return &Brief{
-		GeneratedAt: time.Now().Round(0), // Strip monotonic reading for JSON round-trip equality
-		TaskCount:   taskCount,
-		TokenCount:  totalTokens,
-		Sections:    sections,
+		GeneratedAt:      time.Now().Round(0), // Strip monotonic reading for JSON round-trip equality
+		TaskCount:        taskCount,
+		TokenCount:       totalTokens,
+		LatestArtifactID: latestArtifactID,
+		Sections:         sections,
 	}, nil
+}
+
+func (g *Generator) latestArtifactID() (int64, error) {
+	entries, err := g.backend.GetRecentArtifacts(db.RecentArtifactOpts{Limit: 1})
+	if err != nil {
+		return 0, err
+	}
+	if len(entries) == 0 {
+		return 0, nil
+	}
+	return entries[0].ID, nil
 }
 
 // Invalidate removes the cached brief, forcing regeneration on the next Generate call.

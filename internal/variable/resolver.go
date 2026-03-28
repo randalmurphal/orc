@@ -390,6 +390,7 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	vars["COMPLETION_RECOMMENDATIONS"] = rctx.CompletionRecommendations
 	vars["ATTENTION_SUMMARY"] = rctx.AttentionSummary
 	vars["HANDOFF_CONTEXT"] = rctx.HandoffContext
+	vars["INDEXED_ARTIFACTS"] = rctx.IndexedArtifacts
 
 	// Discussion workspace context
 	vars["THREAD_ID"] = rctx.ThreadID

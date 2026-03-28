@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -546,6 +547,15 @@ func (s *initiativeServer) AddDecision(
 	if err := backend.SaveInitiativeProto(init); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save initiative: %w", err))
 	}
+	if len(init.Decisions) > 0 {
+		if err := indexInitiativeDecision(backend, req.Msg.InitiativeId, init.Decisions[len(init.Decisions)-1]); err != nil {
+			s.logger.Warn("failed to index initiative decision",
+				"project_id", req.Msg.GetProjectId(),
+				"initiative_id", req.Msg.InitiativeId,
+				"error", err,
+			)
+		}
+	}
 
 	// Publish event
 	if s.publisher != nil {
@@ -555,6 +565,40 @@ func (s *initiativeServer) AddDecision(
 	return connect.NewResponse(&orcv1.AddDecisionResponse{
 		Initiative: init,
 	}), nil
+}
+
+// indexInitiativeDecision is best-effort: indexing failure must not block the primary operation.
+func indexInitiativeDecision(
+	backend storage.Backend,
+	initiativeID string,
+	decision *orcv1.InitiativeDecision,
+) error {
+	if decision == nil {
+		return fmt.Errorf("initiative decision is required")
+	}
+
+	entry := &db.ArtifactIndexEntry{
+		Kind:         db.ArtifactKindInitiativeDecision,
+		Title:        decision.GetDecision(),
+		Content:      formatInitiativeDecisionArtifact(decision),
+		DedupeKey:    fmt.Sprintf("initiative_decision:%s:%s", initiativeID, decision.GetId()),
+		InitiativeID: initiativeID,
+	}
+	return storage.SaveArtifactIndexEntryIfAbsent(backend, entry)
+}
+
+func formatInitiativeDecisionArtifact(decision *orcv1.InitiativeDecision) string {
+	var parts []string
+	if text := strings.TrimSpace(decision.GetDecision()); text != "" {
+		parts = append(parts, "Decision: "+text)
+	}
+	if rationale := strings.TrimSpace(decision.GetRationale()); rationale != "" {
+		parts = append(parts, "Rationale: "+rationale)
+	}
+	if by := strings.TrimSpace(decision.GetBy()); by != "" {
+		parts = append(parts, "Decided by: "+by)
+	}
+	return strings.Join(parts, "\n")
 }
 
 // GetReadyTasks returns tasks in an initiative that are ready to run.

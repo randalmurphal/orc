@@ -238,6 +238,18 @@ func (b *emptyBackend) CountRecommendationsByStatus(orcv1.RecommendationStatus) 
 	return 0, nil
 }
 func (b *emptyBackend) GetNextRecommendationID() (string, error) { return "", nil }
+func (b *emptyBackend) SaveArtifactIndexEntry(*db.ArtifactIndexEntry) error {
+	return nil
+}
+func (b *emptyBackend) QueryArtifactIndex(db.ArtifactIndexQueryOpts) ([]db.ArtifactIndexEntry, error) {
+	return nil, nil
+}
+func (b *emptyBackend) QueryArtifactIndexByDedupeKey(string) ([]db.ArtifactIndexEntry, error) {
+	return nil, nil
+}
+func (b *emptyBackend) GetRecentArtifacts(db.RecentArtifactOpts) ([]db.ArtifactIndexEntry, error) {
+	return nil, nil
+}
 func (b *emptyBackend) SaveAttentionSignal(*controlplane.PersistedAttentionSignal) error {
 	return nil
 }

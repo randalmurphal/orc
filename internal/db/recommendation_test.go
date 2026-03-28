@@ -267,7 +267,8 @@ func TestRecommendationDedupeKey(t *testing.T) {
 	require.NoError(t, pdb.CreateRecommendation(first))
 	err := pdb.CreateRecommendation(second)
 	require.Error(t, err)
-	require.True(t, strings.Contains(strings.ToLower(err.Error()), "unique"))
+	message := strings.ToLower(err.Error())
+	require.True(t, strings.Contains(message, "unique") || strings.Contains(message, "duplicate"))
 }
 
 func TestRecommendationListFilters(t *testing.T) {
