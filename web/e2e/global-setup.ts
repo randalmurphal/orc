@@ -101,26 +101,26 @@ export default async function globalSetup() {
 	};
 
 	// Task 1: Planned task (normal priority, feature)
-	runOrc('new "E2E Test: Planned Task" -d "A planned task for testing board rendering" -w medium -p normal -c feature');
+	runOrc('new "E2E Test: Planned Task" -d "A planned task for testing board rendering" --workflow implement-medium -p normal -c feature');
 
 	// Task 2: High priority bug
-	runOrc('new "E2E Test: High Priority Task" -d "A high priority task for testing sorting" -w small -p high -c bug');
+	runOrc('new "E2E Test: High Priority Task" -d "A high priority task for testing sorting" --workflow implement-small -p high -c bug');
 
 	// Task 3: Low priority refactor task
-	runOrc('new "E2E Test: Refactor Task" -d "A refactoring task for testing different categories" -w large -p low -c refactor');
+	runOrc('new "E2E Test: Refactor Task" -d "A refactoring task for testing different categories" --workflow implement-large -p low -c refactor');
 
 	// Task 4: Task to mark as completed
-	runOrc('new "E2E Test: Completed Task" -d "A completed task for testing Done column" -w small -p normal -c feature');
+	runOrc('new "E2E Test: Completed Task" -d "A completed task for testing Done column" --workflow implement-small -p normal -c feature');
 	// Mark task 4 as completed
 	runOrc('edit TASK-004 --status completed');
 
 	// Task 5: Task to mark as paused
-	runOrc('new "E2E Test: Paused Task" -d "A paused task for testing resume functionality" -w medium -p normal -c feature');
+	runOrc('new "E2E Test: Paused Task" -d "A paused task for testing resume functionality" --workflow implement-medium -p normal -c feature');
 	// Mark task 5 as paused
 	runOrc('edit TASK-005 --status paused');
 
 	// Task 6: Critical priority bug
-	runOrc('new "E2E Test: Critical Task" -d "A critical priority task for testing priority display" -w medium -p critical -c bug');
+	runOrc('new "E2E Test: Critical Task" -d "A critical priority task for testing priority display" --workflow implement-medium -p critical -c bug');
 
 	// Create test initiatives using orc CLI
 	console.log('   Creating test initiatives...');
