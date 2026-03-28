@@ -51,6 +51,7 @@ type RecommendationCandidate struct {
 	ProposedAction string `json:"proposed_action"`
 	Evidence       string `json:"evidence"`
 	DedupeKey      string `json:"dedupe_key"`
+	Confidence     string `json:"confidence,omitempty"`
 }
 
 // AttentionSignal is the provider-agnostic schema for task states that need

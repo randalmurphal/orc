@@ -387,6 +387,7 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 
 	// Control-plane context
 	vars["PENDING_RECOMMENDATIONS"] = rctx.PendingRecommendations
+	vars["COMPLETION_RECOMMENDATIONS"] = rctx.CompletionRecommendations
 	vars["ATTENTION_SUMMARY"] = rctx.AttentionSummary
 	vars["HANDOFF_CONTEXT"] = rctx.HandoffContext
 
