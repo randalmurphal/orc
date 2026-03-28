@@ -281,6 +281,7 @@ type ResolutionContext struct {
 	CompletionRecommendations string
 	AttentionSummary          string
 	HandoffContext            string
+	IndexedArtifacts          string
 
 	// Discussion workspace context injected through builtin variables.
 	ThreadID                   string

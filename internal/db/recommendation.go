@@ -100,6 +100,10 @@ func (p *ProjectDB) CreateRecommendation(rec *Recommendation) error {
 	}
 
 	return p.RunInTx(context.Background(), func(tx *TxOps) error {
+		if err := ensureRecommendationDedupeAvailableTx(tx, rec); err != nil {
+			return err
+		}
+
 		now := p.Driver().Now()
 		query, args := recommendationInsertQuery(tx.Dialect(), now, rec)
 		if _, err := tx.Exec(query, args...); err != nil {
@@ -895,6 +899,59 @@ func nullableRecommendationValue(value string) any {
 		return nil
 	}
 	return value
+}
+
+func ensureRecommendationDedupeAvailableTx(tx *TxOps, rec *Recommendation) error {
+	if strings.TrimSpace(rec.DedupeKey) == "" {
+		return nil
+	}
+
+	existingRecommendationID, err := recommendationIDByDedupeKeyTx(tx, rec.DedupeKey)
+	if err != nil {
+		return err
+	}
+	if existingRecommendationID != "" && existingRecommendationID != rec.ID {
+		return fmt.Errorf(
+			"%w: duplicate recommendation dedupe_key %s already exists on %s",
+			ErrRecommendationConflict,
+			rec.DedupeKey,
+			existingRecommendationID,
+		)
+	}
+
+	artifactMatches, err := queryArtifactIndexByDedupeKey(tx, tx.Dialect(), rec.DedupeKey)
+	if err != nil {
+		return err
+	}
+	if len(artifactMatches) > 0 {
+		match := artifactMatches[0]
+		return fmt.Errorf(
+			"%w: duplicate recommendation dedupe_key %s matches indexed artifact %d (%s)",
+			ErrRecommendationConflict,
+			rec.DedupeKey,
+			match.ID,
+			match.Kind,
+		)
+	}
+
+	return nil
+}
+
+func recommendationIDByDedupeKeyTx(tx *TxOps, dedupeKey string) (string, error) {
+	row := tx.QueryRow(fmt.Sprintf(`
+		SELECT id
+		FROM recommendations
+		WHERE dedupe_key = %s
+	`, placeholderForDialect(tx.Dialect(), 1)), dedupeKey)
+
+	var recommendationID string
+	if err := row.Scan(&recommendationID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("load recommendation by dedupe key %s: %w", dedupeKey, err)
+	}
+	return recommendationID, nil
 }
 
 func nullableRecommendationTime(value *time.Time) any {

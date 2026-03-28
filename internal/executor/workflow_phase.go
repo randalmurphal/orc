@@ -64,6 +64,7 @@ type controlPlaneVariableUsage struct {
 	CompletionRecommendations bool
 	AttentionSummary          bool
 	HandoffContext            bool
+	IndexedArtifacts          bool
 }
 
 type threadVariableUsage struct {
@@ -77,7 +78,7 @@ type threadVariableUsage struct {
 }
 
 func (u controlPlaneVariableUsage) Any() bool {
-	return u.PendingRecommendations || u.CompletionRecommendations || u.AttentionSummary || u.HandoffContext
+	return u.PendingRecommendations || u.CompletionRecommendations || u.AttentionSummary || u.HandoffContext || u.IndexedArtifacts
 }
 
 func (u controlPlaneVariableUsage) needsRecommendations() bool {
@@ -100,6 +101,7 @@ func detectControlPlaneVariableUsage(content string) controlPlaneVariableUsage {
 		CompletionRecommendations: strings.Contains(content, "{{COMPLETION_RECOMMENDATIONS}}"),
 		AttentionSummary:          strings.Contains(content, "{{ATTENTION_SUMMARY}}"),
 		HandoffContext:            strings.Contains(content, "{{HANDOFF_CONTEXT}}"),
+		IndexedArtifacts:          strings.Contains(content, "{{INDEXED_ARTIFACTS}}"),
 	}
 }
 
@@ -122,6 +124,7 @@ func mergeControlPlaneVariableUsage(parts ...controlPlaneVariableUsage) controlP
 		merged.CompletionRecommendations = merged.CompletionRecommendations || part.CompletionRecommendations
 		merged.AttentionSummary = merged.AttentionSummary || part.AttentionSummary
 		merged.HandoffContext = merged.HandoffContext || part.HandoffContext
+		merged.IndexedArtifacts = merged.IndexedArtifacts || part.IndexedArtifacts
 	}
 	return merged
 }

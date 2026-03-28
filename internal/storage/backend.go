@@ -248,6 +248,12 @@ type Backend interface {
 	CountRecommendationsByStatus(status orcv1.RecommendationStatus) (int, error)
 	GetNextRecommendationID() (string, error)
 
+	// Artifact index operations (project-scoped accepted recommendations, decisions, promoted drafts, outcomes)
+	SaveArtifactIndexEntry(entry *db.ArtifactIndexEntry) error
+	QueryArtifactIndex(opts db.ArtifactIndexQueryOpts) ([]db.ArtifactIndexEntry, error)
+	QueryArtifactIndexByDedupeKey(dedupeKey string) ([]db.ArtifactIndexEntry, error)
+	GetRecentArtifacts(opts db.RecentArtifactOpts) ([]db.ArtifactIndexEntry, error)
+
 	// Attention signal operations (project-scoped operator inbox)
 	SaveAttentionSignal(signal *controlplane.PersistedAttentionSignal) error
 	LoadAttentionSignal(id string) (*controlplane.PersistedAttentionSignal, error)

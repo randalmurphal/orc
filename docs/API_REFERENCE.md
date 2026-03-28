@@ -2178,7 +2178,7 @@ Project-scoped recommendation inbox API. Recommendations remain pending until a 
 | `RejectRecommendation` | Mark a recommendation rejected |
 | `DiscussRecommendation` | Mark a recommendation discussed and return a context pack |
 
-All request messages accept `project_id`. `ListRecommendations` also supports `status`, `kind`, and `source_task_id` filters. `ListRecommendationHistory` requires `recommendation_id`.
+All request messages accept `project_id`. `ListRecommendations` also supports `status`, `kind`, and `source_task_id` filters. `ListRecommendationHistory` requires `recommendation_id`. `CreateRecommendation` returns `AlreadyExists` when `dedupe_key` matches either an existing recommendation or an indexed accepted or promoted artifact in the same project.
 
 ### Recommendation Object
 
@@ -2194,7 +2194,7 @@ All request messages accept `project_id`. `ListRecommendations` also supports `s
 | `source_task_id` | string | Task that produced the recommendation |
 | `source_run_id` | string | Workflow run that produced the recommendation |
 | `source_thread_id` | string | Thread tied to the recommendation |
-| `dedupe_key` | string | Project-scoped dedupe key |
+| `dedupe_key` | string | Project-scoped dedupe key, enforced across live recommendations and indexed accepted or promoted artifacts |
 | `decided_by` | string (optional) | Actor who made the decision |
 | `decided_at` | timestamp | When the decision was recorded |
 | `decision_reason` | string (optional) | Human rationale for the decision |

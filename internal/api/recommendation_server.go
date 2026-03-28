@@ -185,6 +185,8 @@ func (s *recommendationServer) AcceptRecommendation(
 		return nil, err
 	}
 	if previousStatus != rec.Status {
+		s.indexAcceptedRecommendation(req.Msg.GetProjectId(), rec)
+		s.indexAcceptedRecommendationDecision(req.Msg.GetProjectId(), rec)
 		s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
 		s.publishPromotedArtifact(req.Msg.GetProjectId(), rec)
 	}
@@ -459,15 +461,10 @@ func (s *recommendationServer) buildPromotedDecision(
 		return nil, fmt.Errorf("initiative %s not found", initiativeID)
 	}
 
-	decisionText := strings.TrimSpace(rec.ProposedAction)
-	if decisionText == "" {
-		decisionText = rec.Title
-	}
-
 	return &db.InitiativeDecision{
 		ID:           "DEC-" + rec.Id,
 		InitiativeID: initiativeID,
-		Decision:     decisionText,
+		Decision:     promotedDecisionText(rec),
 		Rationale:    buildPromotedDecisionRationale(rec, decisionReason),
 		DecidedBy:    decidedBy,
 		DecidedAt:    time.Now(),
@@ -630,6 +627,159 @@ func promotedTaskCategory(rec *orcv1.Recommendation, sourceTask *orcv1.Task) str
 	default:
 		return taskproto.CategoryFromProto(orcv1.TaskCategory_TASK_CATEGORY_FEATURE)
 	}
+}
+
+// indexAcceptedRecommendation is best-effort: indexing failure must not block the primary operation.
+func (s *recommendationServer) indexAcceptedRecommendation(projectID string, rec *orcv1.Recommendation) {
+	backend, err := s.getBackend(projectID)
+	if err != nil {
+		s.logger.Warn("failed to load backend for accepted recommendation indexing",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"error", err,
+		)
+		return
+	}
+
+	initiativeID, err := artifactIndexInitiativeIDForRecommendation(backend, rec)
+	if err != nil {
+		s.logger.Warn("failed to resolve accepted recommendation initiative context",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"error", err,
+		)
+		initiativeID = ""
+	}
+
+	entry := &db.ArtifactIndexEntry{
+		Kind:           db.ArtifactKindAcceptedRecommendation,
+		Title:          rec.GetTitle(),
+		Content:        formatAcceptedRecommendationArtifact(rec),
+		DedupeKey:      rec.GetDedupeKey(),
+		InitiativeID:   initiativeID,
+		SourceTaskID:   rec.GetSourceTaskId(),
+		SourceRunID:    rec.GetSourceRunId(),
+		SourceThreadID: rec.GetSourceThreadId(),
+	}
+	if err := storage.SaveArtifactIndexEntryIfAbsent(backend, entry); err != nil {
+		s.logger.Warn("failed to index accepted recommendation",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"error", err,
+		)
+	}
+}
+
+// indexAcceptedRecommendationDecision is best-effort: indexing failure must not block the primary operation.
+func (s *recommendationServer) indexAcceptedRecommendationDecision(projectID string, rec *orcv1.Recommendation) {
+	if rec == nil || rec.GetPromotedToType() != db.RecommendationPromotionTypeInitiativeDecision || rec.GetPromotedToId() == "" {
+		return
+	}
+
+	backend, err := s.getBackend(projectID)
+	if err != nil {
+		s.logger.Warn("failed to load backend for initiative decision indexing",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"error", err,
+		)
+		return
+	}
+
+	initiativeID, err := artifactIndexInitiativeIDForRecommendation(backend, rec)
+	if err != nil {
+		s.logger.Warn("failed to resolve initiative decision context for recommendation",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"decision_id", rec.GetPromotedToId(),
+			"error", err,
+		)
+		return
+	}
+	if initiativeID == "" {
+		s.logger.Warn("missing initiative context for promoted initiative decision",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"decision_id", rec.GetPromotedToId(),
+		)
+		return
+	}
+
+	decision := &orcv1.InitiativeDecision{
+		Id:       rec.GetPromotedToId(),
+		Decision: promotedDecisionText(rec),
+		By:       rec.GetDecidedBy(),
+	}
+	rationale := buildPromotedDecisionRationale(rec, rec.GetDecisionReason())
+	decision.Rationale = &rationale
+	if err := indexInitiativeDecision(backend, initiativeID, decision); err != nil {
+		s.logger.Warn("failed to index promoted initiative decision",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"decision_id", rec.GetPromotedToId(),
+			"initiative_id", initiativeID,
+			"error", err,
+		)
+	}
+}
+
+func artifactIndexInitiativeIDForRecommendation(backend storage.Backend, rec *orcv1.Recommendation) (string, error) {
+	if rec.GetSourceTaskId() != "" {
+		taskItem, err := backend.LoadTask(rec.GetSourceTaskId())
+		if err != nil {
+			return "", fmt.Errorf("load source task %s: %w", rec.GetSourceTaskId(), err)
+		}
+		if taskItem != nil && strings.TrimSpace(taskItem.GetInitiativeId()) != "" {
+			return taskItem.GetInitiativeId(), nil
+		}
+	}
+
+	if rec.GetPromotedToType() == db.RecommendationPromotionTypeTask && rec.GetPromotedToId() != "" {
+		taskItem, err := backend.LoadTask(rec.GetPromotedToId())
+		if err != nil {
+			return "", fmt.Errorf("load promoted task %s: %w", rec.GetPromotedToId(), err)
+		}
+		if taskItem != nil && strings.TrimSpace(taskItem.GetInitiativeId()) != "" {
+			return taskItem.GetInitiativeId(), nil
+		}
+	}
+
+	if rec.GetSourceThreadId() == "" {
+		return "", nil
+	}
+	thread, err := backend.DB().GetThread(rec.GetSourceThreadId())
+	if err != nil {
+		return "", fmt.Errorf("load source thread %s: %w", rec.GetSourceThreadId(), err)
+	}
+	if thread == nil {
+		return "", nil
+	}
+	return db.ThreadAssociationTarget(thread, db.ThreadLinkTypeInitiative), nil
+}
+
+func formatAcceptedRecommendationArtifact(rec *orcv1.Recommendation) string {
+	var parts []string
+	if summary := strings.TrimSpace(rec.GetSummary()); summary != "" {
+		parts = append(parts, "Summary: "+summary)
+	}
+	if evidence := strings.TrimSpace(rec.GetEvidence()); evidence != "" {
+		parts = append(parts, "Evidence: "+evidence)
+	}
+	if action := strings.TrimSpace(rec.GetProposedAction()); action != "" {
+		parts = append(parts, "Accepted action: "+action)
+	}
+	if promotedTo := strings.TrimSpace(rec.GetPromotedToType()); promotedTo != "" || strings.TrimSpace(rec.GetPromotedToId()) != "" {
+		parts = append(parts, fmt.Sprintf("Promoted to: %s %s", promotedTo, strings.TrimSpace(rec.GetPromotedToId())))
+	}
+	return strings.Join(parts, "\n")
+}
+
+func promotedDecisionText(rec *orcv1.Recommendation) string {
+	decisionText := strings.TrimSpace(rec.GetProposedAction())
+	if decisionText != "" {
+		return decisionText
+	}
+	return strings.TrimSpace(rec.GetTitle())
 }
 
 func promotedTaskPriority(rec *orcv1.Recommendation, sourceTask *orcv1.Task) string {
