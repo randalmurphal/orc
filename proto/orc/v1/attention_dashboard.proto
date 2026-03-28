@@ -44,6 +44,8 @@ message RunningTask {
   string initiative_title = 7;
   PhaseProgress phase_progress = 8;
   repeated string output_lines = 9;
+  string project_id = 10;
+  string project_name = 11;
 }
 
 // Phase progress for pipeline visualization

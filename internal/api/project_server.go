@@ -242,13 +242,27 @@ func (s *projectServer) GetAllProjectsStatus(
 				fmt.Errorf("list tasks for project %s: %w", proj.ID, err))
 		}
 
+		activeThreadCount, err := pdb.CountActiveThreads()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal,
+				fmt.Errorf("count active threads for project %s: %w", proj.ID, err))
+		}
+
 		activeTasks := make([]*orcv1.TaskSummary, 0)
+		recentCompletions := make([]*orcv1.RecentCompletion, 0)
 		var completedToday int32
 		for _, dt := range dbTasks {
 			// Count completed_today
 			if dt.CompletedAt != nil && dt.Status == "completed" {
 				if dt.CompletedAt.UTC().After(todayStart) || dt.CompletedAt.UTC().Equal(todayStart) {
 					completedToday++
+					recentCompletions = appendRecentCompletionBounded(recentCompletions, &orcv1.RecentCompletion{
+						Id:          dt.ID,
+						Title:       dt.Title,
+						Success:     true,
+						CompletedAt: timestamppb.New(dt.CompletedAt.UTC()),
+						Status:      orcv1.TaskStatus_TASK_STATUS_COMPLETED,
+					})
 				}
 			}
 
@@ -297,6 +311,8 @@ func (s *projectServer) GetAllProjectsStatus(
 			TotalTasks:             int32(len(dbTasks)),
 			CompletedToday:         completedToday,
 			PendingRecommendations: int32(pendingRecommendations),
+			ActiveThreadCount:      int32(activeThreadCount),
+			RecentCompletions:      recentCompletions,
 		})
 	}
 

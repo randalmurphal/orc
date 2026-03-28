@@ -298,6 +298,47 @@ func TestThread_ListFilter(t *testing.T) {
 	}
 }
 
+func TestCountActiveThreads(t *testing.T) {
+	t.Parallel()
+
+	pdb := NewTestProjectDB(t)
+
+	count, err := pdb.CountActiveThreads()
+	if err != nil {
+		t.Fatalf("CountActiveThreads empty DB: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("CountActiveThreads empty DB = %d, want 0", count)
+	}
+
+	threads := []*Thread{
+		{Title: "Active one"},
+		{Title: "Active two"},
+		{Title: "Active three"},
+		{Title: "Archive one"},
+		{Title: "Archive two"},
+	}
+	for _, thread := range threads {
+		if err := pdb.CreateThread(thread); err != nil {
+			t.Fatalf("CreateThread(%q): %v", thread.Title, err)
+		}
+	}
+
+	for _, thread := range threads[3:] {
+		if err := pdb.ArchiveThread(thread.ID); err != nil {
+			t.Fatalf("ArchiveThread(%s): %v", thread.ID, err)
+		}
+	}
+
+	count, err = pdb.CountActiveThreads()
+	if err != nil {
+		t.Fatalf("CountActiveThreads mixed statuses: %v", err)
+	}
+	if count != 3 {
+		t.Fatalf("CountActiveThreads mixed statuses = %d, want 3", count)
+	}
+}
+
 func TestThread_ListFilter_NoMatch(t *testing.T) {
 	t.Parallel()
 	pdb := NewTestProjectDB(t)

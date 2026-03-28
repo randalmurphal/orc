@@ -75,17 +75,20 @@ describe('ProjectCard', () => {
 			expect(screen.getByText('Third task')).toBeInTheDocument();
 		});
 
-		it('should show total tasks and completed today stats', () => {
+		it('should show total tasks, thread count, and recommendation stats', () => {
 			renderProjectCard({
 				project: createMockProjectStatus({
 					totalTasks: 15,
 					completedToday: 3,
+					activeThreadCount: 4,
+					pendingRecommendations: 2,
 				}),
 			});
 
-			// Stats should be visible in the card
 			expect(screen.getByText(/15/)).toBeInTheDocument();
 			expect(screen.getByText(/3/)).toBeInTheDocument();
+			expect(screen.getByText(/4 active threads/i)).toBeInTheDocument();
+			expect(screen.getByText(/2 pending recommendations/i)).toBeInTheDocument();
 		});
 	});
 
@@ -99,6 +102,20 @@ describe('ProjectCard', () => {
 
 			const viewAllLink = screen.getByText(/view all/i);
 			fireEvent.click(viewAllLink);
+			expect(onViewAll).toHaveBeenCalledWith('proj-abc');
+		});
+
+		it('should call onViewAll when the project summary name is clicked', () => {
+			const onViewAll = vi.fn();
+			renderProjectCard({
+				project: createMockProjectStatus({
+					projectId: 'proj-abc',
+					projectName: 'Project Summary',
+				}),
+				onViewAll,
+			});
+
+			fireEvent.click(screen.getByRole('button', { name: /project summary/i }));
 			expect(onViewAll).toHaveBeenCalledWith('proj-abc');
 		});
 	});

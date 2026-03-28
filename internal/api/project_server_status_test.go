@@ -18,6 +18,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,6 +31,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -153,6 +155,94 @@ func TestGetAllProjectsStatus_ReturnsAllProjects(t *testing.T) {
 	}
 	if ps2.ProjectPath != proj2.Path {
 		t.Errorf("project 2 path = %q, want %q", ps2.ProjectPath, proj2.Path)
+	}
+}
+
+func TestAllProjectsStatusThreadsAndCompletions(t *testing.T) {
+	tmpDir := setupTestHome(t)
+	proj := setupTestProject(t, tmpDir, "threads-and-completions")
+
+	cache := NewProjectCache(10)
+	defer func() { _ = cache.Close() }()
+
+	backend, err := cache.GetBackend(proj.ID)
+	require.NoError(t, err)
+
+	activeToday := task.NewProtoTask("TASK-001", "Completed today")
+	activeToday.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	activeToday.CompletedAt = timestamppb.New(time.Now().UTC().Add(-30 * time.Minute))
+	require.NoError(t, backend.SaveTask(activeToday))
+
+	oldCompletion := task.NewProtoTask("TASK-002", "Completed yesterday")
+	oldCompletion.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	oldCompletion.CompletedAt = timestamppb.New(time.Now().UTC().Add(-25 * time.Hour))
+	require.NoError(t, backend.SaveTask(oldCompletion))
+
+	runningTask := task.NewProtoTask("TASK-003", "Still running")
+	runningTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	require.NoError(t, backend.SaveTask(runningTask))
+
+	pdb, err := cache.Get(proj.ID)
+	require.NoError(t, err)
+	for _, title := range []string{"Active thread 1", "Active thread 2", "Archived thread"} {
+		thread := &db.Thread{Title: title}
+		require.NoError(t, pdb.CreateThread(thread))
+		if title == "Archived thread" {
+			require.NoError(t, pdb.ArchiveThread(thread.ID))
+		}
+	}
+
+	server := NewProjectServer(nil, nil)
+	server.(*projectServer).SetProjectCache(cache)
+
+	resp, err := server.GetAllProjectsStatus(context.Background(), connect.NewRequest(&orcv1.GetAllProjectsStatusRequest{}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Projects, 1)
+
+	projectStatus := resp.Msg.Projects[0]
+	require.Equal(t, int32(2), projectStatus.ActiveThreadCount)
+	require.Equal(t, int32(1), projectStatus.CompletedToday)
+	require.Len(t, projectStatus.RecentCompletions, 1)
+	require.Equal(t, "TASK-001", projectStatus.RecentCompletions[0].Id)
+	require.Equal(t, "Completed today", projectStatus.RecentCompletions[0].Title)
+	require.Equal(t, orcv1.TaskStatus_TASK_STATUS_COMPLETED, projectStatus.RecentCompletions[0].Status)
+	require.NotNil(t, projectStatus.RecentCompletions[0].CompletedAt)
+}
+
+func TestAllProjectsStatusRecentCompletionsAreBounded(t *testing.T) {
+	tmpDir := setupTestHome(t)
+	proj := setupTestProject(t, tmpDir, "bounded-completions")
+
+	cache := NewProjectCache(10)
+	defer func() { _ = cache.Close() }()
+
+	backend, err := cache.GetBackend(proj.ID)
+	require.NoError(t, err)
+
+	now := time.Now().UTC()
+	for i := 0; i < recentCompletionsLimit+2; i++ {
+		completedTask := task.NewProtoTask(
+			fmt.Sprintf("TASK-%03d", i+1),
+			fmt.Sprintf("Completed task %d", i+1),
+		)
+		completedTask.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		completedTask.CompletedAt = timestamppb.New(now.Add(-time.Duration(i) * time.Minute))
+		require.NoError(t, backend.SaveTask(completedTask))
+	}
+
+	server := NewProjectServer(nil, nil)
+	server.(*projectServer).SetProjectCache(cache)
+
+	resp, err := server.GetAllProjectsStatus(context.Background(), connect.NewRequest(&orcv1.GetAllProjectsStatusRequest{}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Projects, 1)
+
+	projectStatus := resp.Msg.Projects[0]
+	require.Equal(t, int32(recentCompletionsLimit+2), projectStatus.CompletedToday)
+	require.Len(t, projectStatus.RecentCompletions, recentCompletionsLimit)
+
+	for i, completion := range projectStatus.RecentCompletions {
+		require.Equal(t, fmt.Sprintf("TASK-%03d", i+1), completion.Id)
 	}
 }
 

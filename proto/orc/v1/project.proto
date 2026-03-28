@@ -3,6 +3,7 @@ syntax = "proto3";
 package orc.v1;
 
 import "google/protobuf/timestamp.proto";
+import "orc/v1/dashboard.proto";
 import "orc/v1/task.proto";
 
 option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
@@ -245,6 +246,8 @@ message ProjectStatus {
   int32 total_tasks = 5;
   int32 completed_today = 6;
   int32 pending_recommendations = 7;
+  int32 active_thread_count = 8;
+  repeated RecentCompletion recent_completions = 9;
 }
 
 // Summary of a single task within a project
