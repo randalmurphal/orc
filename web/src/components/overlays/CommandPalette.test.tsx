@@ -149,11 +149,11 @@ describe('CommandPalette', () => {
 		expect(screen.queryByRole('option', { name: /resume task-running/i })).not.toBeInTheDocument();
 		expect(screen.getByRole('option', { name: /^approve task-blocked/i })).toBeInTheDocument();
 		expect(screen.queryByRole('option', { name: /approve task-failed/i })).not.toBeInTheDocument();
-		expect(screen.getByRole('option', { name: /^finalize task-created/i })).toBeInTheDocument();
-		expect(screen.getByRole('option', { name: /^finalize task-planned/i })).toBeInTheDocument();
-		expect(screen.getByRole('option', { name: /^finalize task-failed/i })).toBeInTheDocument();
-		expect(screen.queryByRole('option', { name: /finalize task-completed/i })).not.toBeInTheDocument();
+		expect(screen.getByRole('option', { name: /^finalize task-completed/i })).toBeInTheDocument();
+		expect(screen.queryByRole('option', { name: /finalize task-created/i })).not.toBeInTheDocument();
+		expect(screen.queryByRole('option', { name: /finalize task-planned/i })).not.toBeInTheDocument();
 		expect(screen.queryByRole('option', { name: /finalize task-running/i })).not.toBeInTheDocument();
+		expect(screen.queryByRole('option', { name: /finalize task-failed/i })).not.toBeInTheDocument();
 		expect(screen.getByRole('option', { name: /^close task-failed/i })).toBeInTheDocument();
 		expect(screen.queryByRole('option', { name: /close task-completed/i })).not.toBeInTheDocument();
 	});

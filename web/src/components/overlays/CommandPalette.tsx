@@ -75,11 +75,8 @@ function belongsToProject(projectId: string | null, candidate: unknown): boolean
 
 function canFinalizeTask(task: Task): boolean {
 	return [
-		TaskStatus.CREATED,
-		TaskStatus.PLANNED,
-		TaskStatus.PAUSED,
-		TaskStatus.BLOCKED,
-		TaskStatus.FAILED,
+		TaskStatus.COMPLETED,
+		TaskStatus.FINALIZING,
 	].includes(task.status);
 }
 
