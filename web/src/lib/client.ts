@@ -25,6 +25,7 @@ import { FeedbackService } from '@/gen/orc/v1/feedback_pb';
 import { AttentionDashboardService } from '@/gen/orc/v1/attention_dashboard_pb';
 import { RecommendationService } from '@/gen/orc/v1/recommendation_pb';
 import { ThreadService } from '@/gen/orc/v1/thread_pb';
+import { HandoffService } from '@/gen/orc/v1/handoff_pb';
 
 /**
  * Connect transport configured for the orc API.
@@ -53,3 +54,4 @@ export const feedbackClient = createClient(FeedbackService, transport);
 export const attentionDashboardClient = createClient(AttentionDashboardService, transport);
 export const recommendationClient = createClient(RecommendationService, transport);
 export const threadClient = createClient(ThreadService, transport);
+export const handoffClient = createClient(HandoffService, transport);

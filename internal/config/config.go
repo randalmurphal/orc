@@ -406,7 +406,7 @@ func RequireInitAt(basePath string) error {
 // 1. If current directory has .orc/config.yaml, use current directory
 // 2. If in a git worktree, find the main repo and check for .orc/config.yaml there
 // 3. Walk up directories looking for .orc/config.yaml
-// 4. If still not found, return current directory as fallback
+// 4. If still not found, try worktree-path extraction and validated fallback
 func FindProjectRoot() (string, error) {
 	// Allow override via environment variable (for testing)
 	if envRoot := os.Getenv("ORC_PROJECT_ROOT"); envRoot != "" {
@@ -431,9 +431,16 @@ func FindProjectRoot() (string, error) {
 		}
 	}
 
-	// Walk up directories looking for .orc/config.yaml
+	// Walk up directories looking for .orc/config.yaml.
+	// Stop before the shared temp root so a stray /tmp/.orc config doesn't
+	// cause unrelated temp directories to be treated as project children.
+	tempRoot, tempRootErr := filepath.Abs(os.TempDir())
 	dir := cwd
 	for {
+		absDir, absErr := filepath.Abs(dir)
+		if absErr == nil && tempRootErr == nil && absDir == tempRoot {
+			break
+		}
 		if hasConfigFile(dir) {
 			return dir, nil
 		}

@@ -7,6 +7,7 @@ import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { TaskEditModal } from '@/components/task-detail/TaskEditModal';
 import { ExportDropdown } from '@/components/task-detail/ExportDropdown';
+import { HandoffActions } from '@/components/handoff/HandoffActions';
 import { taskClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 import { getInitiativeBadgeTitle, useCurrentProjectId } from '@/stores';
@@ -18,6 +19,7 @@ import {
 } from '@/gen/orc/v1/task_pb';
 import type { Task, TaskPlan } from '@/gen/orc/v1/task_pb';
 import { TaskStatus, TaskCategory, TaskPriority } from '@/gen/orc/v1/task_pb';
+import { HandoffSourceType } from '@/gen/orc/v1/handoff_pb';
 import type { IconName } from '@/components/ui/Icon';
 import './TaskHeader.css';
 
@@ -257,6 +259,11 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 
 				<div className="task-actions">
 					{getActionButton()}
+					<HandoffActions
+						projectId={projectId ?? undefined}
+						sourceType={HandoffSourceType.TASK}
+						sourceId={task.id}
+					/>
 					<ExportDropdown taskId={task.id} />
 					<Button
 						variant="ghost"

@@ -1,35 +1,41 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { create } from '@bufbuild/protobuf';
-import { WorkflowProgress } from '@/components/task-detail/WorkflowProgress';
-import { TaskFooter } from '@/components/task-detail/TaskFooter';
-import { SplitPane } from '@/components/core/SplitPane';
-import { TranscriptTab } from '@/components/task-detail/TranscriptTab';
-import { ChangesTabEnhanced } from '@/components/task-detail/ChangesTabEnhanced';
-import { FeedbackPanel } from '@/components/task-detail/FeedbackPanel';
-import { Icon } from '@/components/ui/Icon';
-import { Button } from '@/components/ui/Button';
-import { taskClient } from '@/lib/client';
-import { useTaskSubscription, useDocumentTitle } from '@/hooks';
-import { useTask as useStoreTask } from '@/stores/taskStore';
-import { useCurrentProjectId, useTaskSessionMetrics } from '@/stores';
-import type { Task, TaskPlan } from '@/gen/orc/v1/task_pb';
-import { GetTaskRequestSchema, GetTaskPlanRequestSchema, TaskStatus } from '@/gen/orc/v1/task_pb';
-import type { InitiativeNote } from '@/gen/orc/v1/initiative_pb';
-import { initiativeClient } from '@/lib/client';
-import './TaskDetail.css';
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useParams, Link } from "react-router-dom";
+import { create } from "@bufbuild/protobuf";
+import { WorkflowProgress } from "@/components/task-detail/WorkflowProgress";
+import { TaskFooter } from "@/components/task-detail/TaskFooter";
+import { SplitPane } from "@/components/core/SplitPane";
+import { TranscriptTab } from "@/components/task-detail/TranscriptTab";
+import { ChangesTabEnhanced } from "@/components/task-detail/ChangesTabEnhanced";
+import { FeedbackPanel } from "@/components/task-detail/FeedbackPanel";
+import { HandoffActions } from "@/components/handoff/HandoffActions";
+import { Icon } from "@/components/ui/Icon";
+import { Button } from "@/components/ui/Button";
+import { taskClient } from "@/lib/client";
+import { useTaskSubscription, useDocumentTitle } from "@/hooks";
+import { useTask as useStoreTask } from "@/stores/taskStore";
+import { useCurrentProjectId, useTaskSessionMetrics } from "@/stores";
+import type { Task, TaskPlan } from "@/gen/orc/v1/task_pb";
+import {
+  GetTaskRequestSchema,
+  GetTaskPlanRequestSchema,
+  TaskStatus,
+} from "@/gen/orc/v1/task_pb";
+import type { InitiativeNote } from "@/gen/orc/v1/initiative_pb";
+import { initiativeClient } from "@/lib/client";
+import { HandoffSourceType } from "@/gen/orc/v1/handoff_pb";
+import "./TaskDetail.css";
 
 /**
  * Format elapsed time since a timestamp
  */
 function formatElapsedTime(startedAt: { seconds: bigint } | undefined): string {
-	if (!startedAt) return '—';
-	const startMs = Number(startedAt.seconds) * 1000;
-	const elapsed = Date.now() - startMs;
-	const totalSeconds = Math.floor(elapsed / 1000);
-	const minutes = Math.floor(totalSeconds / 60);
-	const seconds = totalSeconds % 60;
-	return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  if (!startedAt) return "—";
+  const startMs = Number(startedAt.seconds) * 1000;
+  const elapsed = Date.now() - startMs;
+  const totalSeconds = Math.floor(elapsed / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 /**
@@ -42,319 +48,348 @@ function formatElapsedTime(startedAt: { seconds: bigint } | undefined): string {
  * - Footer with metrics and action buttons
  */
 export function TaskDetail() {
-	const { id } = useParams<{ id: string }>();
-	const projectId = useCurrentProjectId();
+  const { id } = useParams<{ id: string }>();
+  const projectId = useCurrentProjectId();
 
-	// State
-	const [task, setTask] = useState<Task | null>(null);
-	const [plan, setPlan] = useState<TaskPlan | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [elapsedTime, setElapsedTime] = useState('—');
+  // State
+  const [task, setTask] = useState<Task | null>(null);
+  const [plan, setPlan] = useState<TaskPlan | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [elapsedTime, setElapsedTime] = useState("—");
 
-	// Task-generated notes state
-	const [generatedNotes, setGeneratedNotes] = useState<InitiativeNote[]>([]);
-	const [notesExpanded, setNotesExpanded] = useState(true);
+  // Task-generated notes state
+  const [generatedNotes, setGeneratedNotes] = useState<InitiativeNote[]>([]);
+  const [notesExpanded, setNotesExpanded] = useState(true);
 
-	// Set document title based on task
-	useDocumentTitle(task ? `${task.id}: ${task.title}` : id);
+  // Set document title based on task
+  useDocumentTitle(task ? `${task.id}: ${task.title}` : id);
 
-	// Subscribe to real-time updates
-	const { state: taskState, transcript: streamingTranscript } = useTaskSubscription(id);
+  // Subscribe to real-time updates
+  const { state: taskState, transcript: streamingTranscript } =
+    useTaskSubscription(id);
 
-	// Get task from store (updated by WebSocket events)
-	const storeTask = useStoreTask(id ?? '');
-	const liveSessionMetrics = useTaskSessionMetrics(id ?? '');
+  // Get task from store (updated by WebSocket events)
+  const storeTask = useStoreTask(id ?? "");
+  const liveSessionMetrics = useTaskSessionMetrics(id ?? "");
 
-	// Sync local task state with store task when WebSocket updates arrive
-	useEffect(() => {
-		if (storeTask) {
-			setTask((prev) => {
-				if (prev) {
-					return { ...prev, ...storeTask };
-				}
-				return storeTask;
-			});
-		}
-	}, [storeTask]);
+  // Sync local task state with store task when WebSocket updates arrive
+  useEffect(() => {
+    if (storeTask) {
+      setTask((prev) => {
+        if (prev) {
+          return { ...prev, ...storeTask };
+        }
+        return storeTask;
+      });
+    }
+  }, [storeTask]);
 
-	// Load task data
-	const loadTask = useCallback(async () => {
-		if (!id || !projectId) return;
+  // Load task data
+  const loadTask = useCallback(async () => {
+    if (!id || !projectId) return;
 
-		setLoading(true);
-		setError(null);
+    setLoading(true);
+    setError(null);
 
-		try {
-			const [taskResponse, planResponse] = await Promise.all([
-				taskClient.getTask(create(GetTaskRequestSchema, { projectId, taskId: id })),
-				taskClient.getTaskPlan(create(GetTaskPlanRequestSchema, { projectId, taskId: id })).catch(() => null),
-			]);
+    try {
+      const [taskResponse, planResponse] = await Promise.all([
+        taskClient.getTask(
+          create(GetTaskRequestSchema, { projectId, taskId: id }),
+        ),
+        taskClient
+          .getTaskPlan(
+            create(GetTaskPlanRequestSchema, { projectId, taskId: id }),
+          )
+          .catch(() => null),
+      ]);
 
-			if (taskResponse.task) {
-				setTask(taskResponse.task);
-			}
-			if (planResponse?.plan) {
-				setPlan(planResponse.plan);
-			}
-		} catch (e) {
-			setError(e instanceof Error ? e.message : 'Failed to load task');
-		} finally {
-			setLoading(false);
-		}
-	}, [id, projectId]);
+      if (taskResponse.task) {
+        setTask(taskResponse.task);
+      }
+      if (planResponse?.plan) {
+        setPlan(planResponse.plan);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load task");
+    } finally {
+      setLoading(false);
+    }
+  }, [id, projectId]);
 
-	// Load notes generated by this task
-	const loadGeneratedNotes = useCallback(async () => {
-		if (!id || !projectId) return;
-		try {
-			const response = await initiativeClient.listTaskGeneratedNotes({
-				projectId,
-				taskId: id,
-			});
-			setGeneratedNotes(response.notes || []);
-		} catch (e) {
-			console.error('Failed to load task-generated notes:', e);
-		}
-	}, [id, projectId]);
+  // Load notes generated by this task
+  const loadGeneratedNotes = useCallback(async () => {
+    if (!id || !projectId) return;
+    try {
+      const response = await initiativeClient.listTaskGeneratedNotes({
+        projectId,
+        taskId: id,
+      });
+      setGeneratedNotes(response.notes || []);
+    } catch (e) {
+      console.error("Failed to load task-generated notes:", e);
+    }
+  }, [id, projectId]);
 
-	// Initial load
-	useEffect(() => {
-		loadTask();
-	}, [loadTask]);
+  // Initial load
+  useEffect(() => {
+    loadTask();
+  }, [loadTask]);
 
-	// Load notes when task is loaded
-	useEffect(() => {
-		if (task) {
-			loadGeneratedNotes();
-		}
-	}, [task, loadGeneratedNotes]);
+  // Load notes when task is loaded
+  useEffect(() => {
+    if (task) {
+      loadGeneratedNotes();
+    }
+  }, [task, loadGeneratedNotes]);
 
-	// Update elapsed time every second when task is running
-	useEffect(() => {
-		if (!task?.startedAt) return;
+  // Update elapsed time every second when task is running
+  useEffect(() => {
+    if (!task?.startedAt) return;
 
-		// Initial update
-		setElapsedTime(formatElapsedTime(task.startedAt));
+    // Initial update
+    setElapsedTime(formatElapsedTime(task.startedAt));
 
-		// Update every second
-		const interval = setInterval(() => {
-			setElapsedTime(formatElapsedTime(task.startedAt));
-		}, 1000);
+    // Update every second
+    const interval = setInterval(() => {
+      setElapsedTime(formatElapsedTime(task.startedAt));
+    }, 1000);
 
-		return () => clearInterval(interval);
-	}, [task?.startedAt]);
+    return () => clearInterval(interval);
+  }, [task?.startedAt]);
 
-	// Handle task update (from footer actions)
-	const handleTaskUpdate = useCallback((updatedTask: Task) => {
-		setTask(updatedTask);
-	}, []);
+  // Handle task update (from footer actions)
+  const handleTaskUpdate = useCallback((updatedTask: Task) => {
+    setTask(updatedTask);
+  }, []);
 
-	// Handle phase click from WorkflowProgress - scroll to transcript section
-	const handlePhaseClick = useCallback((phaseName: string) => {
-		// Find the transcript section with matching data-phase attribute
-		const element = document.querySelector(`[data-phase="${CSS.escape(phaseName)}"]`);
-		if (element) {
-			element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-		}
-	}, []);
+  // Handle phase click from WorkflowProgress - scroll to transcript section
+  const handlePhaseClick = useCallback((phaseName: string) => {
+    // Find the transcript section with matching data-phase attribute
+    const element = document.querySelector(
+      `[data-phase="${CSS.escape(phaseName)}"]`,
+    );
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
 
-	// Build metrics from task state
-	const metrics = useMemo(() => {
-		const useLiveMetrics =
-			liveSessionMetrics &&
-			(task?.status === TaskStatus.RUNNING || task?.status === TaskStatus.FINALIZING);
+  // Build metrics from task state
+  const metrics = useMemo(() => {
+    const useLiveMetrics =
+      liveSessionMetrics &&
+      (task?.status === TaskStatus.RUNNING ||
+        task?.status === TaskStatus.FINALIZING);
 
-		if (useLiveMetrics) {
-			return {
-				tokens: liveSessionMetrics.totalTokens,
-				cost: liveSessionMetrics.estimatedCostUSD,
-				inputTokens: liveSessionMetrics.inputTokens,
-				outputTokens: liveSessionMetrics.outputTokens,
-			};
-		}
+    if (useLiveMetrics) {
+      return {
+        tokens: liveSessionMetrics.totalTokens,
+        cost: liveSessionMetrics.estimatedCostUSD,
+        inputTokens: liveSessionMetrics.inputTokens,
+        outputTokens: liveSessionMetrics.outputTokens,
+      };
+    }
 
-		const executionTokens = task?.execution?.tokens;
-		const executionCost = task?.execution?.cost;
-		if (!executionTokens && !executionCost) {
-			return null;
-		}
+    const executionTokens = task?.execution?.tokens;
+    const executionCost = task?.execution?.cost;
+    if (!executionTokens && !executionCost) {
+      return null;
+    }
 
-		return {
-			tokens: executionTokens?.totalTokens ?? 0,
-			cost: executionCost?.totalCostUsd ?? 0,
-			inputTokens: executionTokens?.inputTokens ?? 0,
-			outputTokens: executionTokens?.outputTokens ?? 0,
-		};
-	}, [liveSessionMetrics, task]);
+    return {
+      tokens: executionTokens?.totalTokens ?? 0,
+      cost: executionCost?.totalCostUsd ?? 0,
+      inputTokens: executionTokens?.inputTokens ?? 0,
+      outputTokens: executionTokens?.outputTokens ?? 0,
+    };
+  }, [liveSessionMetrics, task]);
 
-	// Loading state
-	if (loading) {
-		return (
-			<div className="task-detail-page">
-				<div className="task-detail-loading">
-					<div className="loading-spinner" />
-					<span>Loading task...</span>
-				</div>
-			</div>
-		);
-	}
+  // Loading state
+  if (loading) {
+    return (
+      <div className="task-detail-page">
+        <div className="task-detail-loading">
+          <div className="loading-spinner" />
+          <span>Loading task...</span>
+        </div>
+      </div>
+    );
+  }
 
-	// Error state
-	if (error || !task) {
-		return (
-			<div className="task-detail-page">
-				<div className="task-detail-error">
-					<Icon name="alert-circle" size={32} />
-					<h2>Failed to load task</h2>
-					<p>{error || 'Task not found'}</p>
-					<Button variant="secondary" onClick={loadTask}>
-						Retry
-					</Button>
-				</div>
-			</div>
-		);
-	}
+  // Error state
+  if (error || !task) {
+    return (
+      <div className="task-detail-page">
+        <div className="task-detail-error">
+          <Icon name="alert-circle" size={32} />
+          <h2>Failed to load task</h2>
+          <p>{error || "Task not found"}</p>
+          <Button variant="secondary" onClick={loadTask}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
-	return (
-		<div className="task-detail-page">
-			{/* Header */}
-			<header className="task-detail-header">
-				<div className="task-detail-header__top">
-					<Link to="/board" className="task-detail-header__back">
-						<Icon name="arrow-left" size={16} />
-						Back to Board
-					</Link>
-					<div className="task-detail-header__info">
-						<span className="task-detail-header__id">{task.id}</span>
-						<h1 className="task-detail-header__title">{task.title}</h1>
-					</div>
-					<div className="task-detail-header__meta">
-						{task.workflowId && (
-							<span className="task-detail-header__workflow">
-								<Icon name="workflow" size={14} />
-								{task.workflowId}
-							</span>
-						)}
-						{task.branch && (
-							<span className="task-detail-header__branch">
-								<Icon name="branch" size={14} />
-								<code>{task.branch}</code>
-							</span>
-						)}
-						<span className="task-detail-header__elapsed">
-							<Icon name="clock" size={14} />
-							{elapsedTime}
-						</span>
-					</div>
-				</div>
+  return (
+    <div className="task-detail-page">
+      {/* Header */}
+      <header className="task-detail-header">
+        <div className="task-detail-header__top">
+          <Link to="/board" className="task-detail-header__back">
+            <Icon name="arrow-left" size={16} />
+            Back to Board
+          </Link>
+          <div className="task-detail-header__info">
+            <span className="task-detail-header__id">{task.id}</span>
+            <h1 className="task-detail-header__title">{task.title}</h1>
+          </div>
+          <div className="task-detail-header__meta">
+            {task.workflowId && (
+              <span className="task-detail-header__workflow">
+                <Icon name="workflow" size={14} />
+                {task.workflowId}
+              </span>
+            )}
+            {task.branch && (
+              <span className="task-detail-header__branch">
+                <Icon name="branch" size={14} />
+                <code>{task.branch}</code>
+              </span>
+            )}
+            <span className="task-detail-header__elapsed">
+              <Icon name="clock" size={14} />
+              {elapsedTime}
+            </span>
+            <div className="task-detail-header__actions">
+              <HandoffActions
+                projectId={projectId ?? undefined}
+                sourceType={HandoffSourceType.TASK}
+                sourceId={task.id}
+              />
+            </div>
+          </div>
+        </div>
 
-				{/* Workflow Progress */}
-				<WorkflowProgress task={task} plan={plan} onPhaseClick={handlePhaseClick} />
-			</header>
+        {/* Workflow Progress */}
+        <WorkflowProgress
+          task={task}
+          plan={plan}
+          onPhaseClick={handlePhaseClick}
+        />
+      </header>
 
-			{/* Main content: Split pane */}
-			<div className="task-detail-content">
-				<SplitPane
-					left={
-						<div className="task-detail-panel">
-							<h2 className="task-detail-panel__title">Live Output</h2>
-							<div className="task-detail-panel__content">
-								<TranscriptTab
-									taskId={task.id}
-									streamingLines={streamingTranscript}
-									currentPhase={task.currentPhase ?? undefined}
-									isRunning={
-										task.status === TaskStatus.RUNNING ||
-										task.status === TaskStatus.FINALIZING
-									}
-								/>
-							</div>
-						</div>
-					}
-					right={
-						<div className="task-detail-panel">
-							<h2 className="task-detail-panel__title">Changes</h2>
-							<div className="task-detail-panel__content">
-								<ChangesTabEnhanced taskId={task.id} />
-							</div>
-						</div>
-					}
-					persistKey="task-detail"
-					initialRatio={60}
-					minLeftWidth={200}
-					minRightWidth={200}
-					leftEmptyMessage="No output yet"
-					rightEmptyMessage="No changes yet"
-				/>
+      {/* Main content: Split pane */}
+      <div className="task-detail-content">
+        <SplitPane
+          left={
+            <div className="task-detail-panel">
+              <h2 className="task-detail-panel__title">Live Output</h2>
+              <div className="task-detail-panel__content">
+                <TranscriptTab
+                  taskId={task.id}
+                  streamingLines={streamingTranscript}
+                  currentPhase={task.currentPhase ?? undefined}
+                  isRunning={
+                    task.status === TaskStatus.RUNNING ||
+                    task.status === TaskStatus.FINALIZING
+                  }
+                />
+              </div>
+            </div>
+          }
+          right={
+            <div className="task-detail-panel">
+              <h2 className="task-detail-panel__title">Changes</h2>
+              <div className="task-detail-panel__content">
+                <ChangesTabEnhanced taskId={task.id} />
+              </div>
+            </div>
+          }
+          persistKey="task-detail"
+          initialRatio={60}
+          minLeftWidth={200}
+          minRightWidth={200}
+          leftEmptyMessage="No output yet"
+          rightEmptyMessage="No changes yet"
+        />
 
-				{/* Feedback Panel - shown for running tasks or when feedback is available */}
-				{(task.status === TaskStatus.RUNNING || task.status === TaskStatus.PAUSED) && projectId && (
-					<div className="task-detail-feedback">
-						<FeedbackPanel
-							task={task}
-							onTaskUpdate={(updatedTask) => {
-								// Task status updated via feedback (e.g., paused)
-								setTask(updatedTask);
-							}}
-						/>
-					</div>
-				)}
+        {/* Feedback Panel - shown for running tasks or when feedback is available */}
+        {(task.status === TaskStatus.RUNNING ||
+          task.status === TaskStatus.PAUSED) &&
+          projectId && (
+            <div className="task-detail-feedback">
+              <FeedbackPanel
+                task={task}
+                onTaskUpdate={(updatedTask) => {
+                  // Task status updated via feedback (e.g., paused)
+                  setTask(updatedTask);
+                }}
+              />
+            </div>
+          )}
 
-				{/* Notes Generated Section - shown when task has generated notes */}
-				{generatedNotes.length > 0 && (
-					<div className="task-detail-notes">
-						<div className="task-detail-notes__header">
-							<h3>
-								<Icon name="brain" size={16} />
-								Notes Generated ({generatedNotes.length})
-							</h3>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => setNotesExpanded((prev) => !prev)}
-								aria-expanded={notesExpanded}
-							>
-								<Icon name={notesExpanded ? 'chevron-up' : 'chevron-down'} size={16} />
-							</Button>
-						</div>
-						{notesExpanded && (
-							<div className="task-detail-notes__list">
-								{generatedNotes.map((note) => (
-									<div key={note.id} className="task-detail-note">
-										<span className={`task-detail-note__type type-${note.noteType}`}>
-											{note.noteType}
-										</span>
-										<p className="task-detail-note__content">{note.content}</p>
-										{note.relevantFiles && note.relevantFiles.length > 0 && (
-											<div className="task-detail-note__files">
-												{note.relevantFiles.map((file, idx) => (
-													<code key={idx}>{file}</code>
-												))}
-											</div>
-										)}
-									</div>
-								))}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+        {/* Notes Generated Section - shown when task has generated notes */}
+        {generatedNotes.length > 0 && (
+          <div className="task-detail-notes">
+            <div className="task-detail-notes__header">
+              <h3>
+                <Icon name="brain" size={16} />
+                Notes Generated ({generatedNotes.length})
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setNotesExpanded((prev) => !prev)}
+                aria-expanded={notesExpanded}
+              >
+                <Icon
+                  name={notesExpanded ? "chevron-up" : "chevron-down"}
+                  size={16}
+                />
+              </Button>
+            </div>
+            {notesExpanded && (
+              <div className="task-detail-notes__list">
+                {generatedNotes.map((note) => (
+                  <div key={note.id} className="task-detail-note">
+                    <span
+                      className={`task-detail-note__type type-${note.noteType}`}
+                    >
+                      {note.noteType}
+                    </span>
+                    <p className="task-detail-note__content">{note.content}</p>
+                    {note.relevantFiles && note.relevantFiles.length > 0 && (
+                      <div className="task-detail-note__files">
+                        {note.relevantFiles.map((file, idx) => (
+                          <code key={idx}>{file}</code>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-			{/* Footer */}
-			<TaskFooter
-				task={task}
-				plan={plan}
-				taskState={taskState && task.currentPhase
-					? {
-						error: taskState.phases[task.currentPhase]?.error,
-						phase: task.currentPhase,
-					}
-					: null
-				}
-				metrics={metrics}
-				onTaskUpdate={handleTaskUpdate}
-			/>
-		</div>
-	);
+      {/* Footer */}
+      <TaskFooter
+        task={task}
+        plan={plan}
+        taskState={
+          taskState && task.currentPhase
+            ? {
+                error: taskState.phases[task.currentPhase]?.error,
+                phase: task.currentPhase,
+              }
+            : null
+        }
+        metrics={metrics}
+        onTaskUpdate={handleTaskUpdate}
+      />
+    </div>
+  );
 }
