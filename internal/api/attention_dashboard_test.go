@@ -18,6 +18,8 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,6 +35,39 @@ import (
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
+
+type trackingTranscriptBackend struct {
+	storage.Backend
+	getTranscriptsCalls          atomic.Int64
+	getTranscriptsPaginatedCalls atomic.Int64
+	lastPaginationOpts           atomic.Value
+}
+
+func (b *trackingTranscriptBackend) GetTranscripts(taskID string) ([]storage.Transcript, error) {
+	b.getTranscriptsCalls.Add(1)
+	return b.Backend.GetTranscripts(taskID)
+}
+
+func (b *trackingTranscriptBackend) GetTranscriptsPaginated(
+	taskID string,
+	opts storage.TranscriptPaginationOpts,
+) ([]storage.Transcript, storage.PaginationResult, error) {
+	b.getTranscriptsPaginatedCalls.Add(1)
+	b.lastPaginationOpts.Store(opts)
+	return b.Backend.GetTranscriptsPaginated(taskID, opts)
+}
+
+type failingTranscriptBackend struct {
+	storage.Backend
+	err error
+}
+
+func (b *failingTranscriptBackend) GetTranscriptsPaginated(
+	taskID string,
+	opts storage.TranscriptPaginationOpts,
+) ([]storage.Transcript, storage.PaginationResult, error) {
+	return nil, storage.PaginationResult{}, b.err
+}
 
 // ============================================================================
 // SC-1: GetAttentionDashboardData returns three main sections
@@ -182,6 +217,56 @@ func TestGetRunningTaskDetails_IncludesPipelineProgress(t *testing.T) {
 	// Should map to the 5-phase pipeline model
 	// Note: mapPhaseToDisplay is internal to the server, so we verify phase exists
 	assert.NotEmpty(t, runningTaskData.PhaseProgress.CurrentPhase)
+}
+
+func TestGetRunningTaskDetails_UsesBoundedTranscriptPagination(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	runningTask := task.NewProtoTask("TASK-004", "Transcript bounded task")
+	runningTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	currentPhase := "implement"
+	runningTask.CurrentPhase = &currentPhase
+	require.NoError(t, backend.SaveTask(runningTask))
+
+	trackingBackend := &trackingTranscriptBackend{Backend: backend}
+	server := NewAttentionDashboardServer(trackingBackend, nil, nil, nil)
+
+	resp, err := server.GetAttentionDashboardData(context.Background(), connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{}))
+	require.NoError(t, err)
+	require.NotNil(t, resp.Msg.RunningSummary)
+
+	assert.Equal(t, int64(0), trackingBackend.getTranscriptsCalls.Load(), "running summary should not load full transcript history")
+	assert.Equal(t, int64(1), trackingBackend.getTranscriptsPaginatedCalls.Load(), "running summary should use a single bounded transcript query per running task")
+
+	storedOpts := trackingBackend.lastPaginationOpts.Load()
+	require.NotNil(t, storedOpts)
+
+	opts, ok := storedOpts.(storage.TranscriptPaginationOpts)
+	require.True(t, ok)
+	assert.Equal(t, runningSummaryTranscriptDirection, opts.Direction)
+	assert.Equal(t, runningSummaryTranscriptScanLimit, opts.Limit)
+}
+
+func TestGetAttentionDashboardData_FailsWhenTranscriptLoadFails(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	runningTask := task.NewProtoTask("TASK-005", "Broken transcript task")
+	runningTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	require.NoError(t, backend.SaveTask(runningTask))
+
+	server := NewAttentionDashboardServer(&failingTranscriptBackend{
+		Backend: backend,
+		err:     fmt.Errorf("boom"),
+	}, nil, nil, nil)
+
+	_, err := server.GetAttentionDashboardData(context.Background(), connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{}))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to build running summary")
+	assert.Contains(t, err.Error(), "get recent transcripts")
 }
 
 // ============================================================================

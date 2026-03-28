@@ -24,6 +24,12 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+const (
+	runningSummaryOutputLineLimit     = 5
+	runningSummaryTranscriptScanLimit = 40
+	runningSummaryTranscriptDirection = "desc"
+)
+
 // attentionDashboardServer implements the AttentionDashboardServiceHandler interface.
 type attentionDashboardServer struct {
 	orcv1connect.UnimplementedAttentionDashboardServiceHandler
@@ -110,7 +116,10 @@ func (s *attentionDashboardServer) GetAttentionDashboardData(
 	}
 
 	// Build running summary
-	runningSummary := s.buildRunningSummary(backend, tasks, now)
+	runningSummary, err := s.buildRunningSummary(backend, tasks, now)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build running summary: %w", err))
+	}
 
 	// Build attention items (blocked, failed, pending decisions, gate approvals)
 	attentionItems, err := s.buildAttentionItems(backend, tasks, activeSignals, projectID)
@@ -195,7 +204,10 @@ func (s *attentionDashboardServer) buildCrossProjectRunningSummary() (*orcv1.Run
 			return nil, fmt.Errorf("load tasks for project %s: %w", proj.ID, err)
 		}
 
-		projectSummary := s.buildRunningSummary(backend, tasks, now)
+		projectSummary, err := s.buildRunningSummary(backend, tasks, now)
+		if err != nil {
+			return nil, fmt.Errorf("build running summary for project %s: %w", proj.ID, err)
+		}
 		for _, runningTask := range projectSummary.Tasks {
 			runningTask.ProjectId = proj.ID
 			runningTask.ProjectName = proj.Name
@@ -220,7 +232,7 @@ func (s *attentionDashboardServer) buildCrossProjectRunningSummary() (*orcv1.Run
 }
 
 // buildRunningSummary creates the running tasks summary with progress and timing.
-func (s *attentionDashboardServer) buildRunningSummary(backend storage.Backend, tasks []*orcv1.Task, now time.Time) *orcv1.RunningSummary {
+func (s *attentionDashboardServer) buildRunningSummary(backend storage.Backend, tasks []*orcv1.Task, now time.Time) (*orcv1.RunningSummary, error) {
 	var runningTasks []*orcv1.RunningTask
 
 	for _, t := range tasks {
@@ -250,7 +262,10 @@ func (s *attentionDashboardServer) buildRunningSummary(backend storage.Backend, 
 		phaseProgress := s.buildPhaseProgress(t)
 
 		// Load recent output lines from transcripts
-		outputLines := s.loadOutputLines(backend, t.Id)
+		outputLines, err := s.loadOutputLines(backend, t.Id)
+		if err != nil {
+			return nil, fmt.Errorf("load output lines for task %s: %w", t.Id, err)
+		}
 
 		runningTask := &orcv1.RunningTask{
 			Id:                 t.Id,
@@ -270,7 +285,7 @@ func (s *attentionDashboardServer) buildRunningSummary(backend storage.Backend, 
 	return &orcv1.RunningSummary{
 		TaskCount: int32(len(runningTasks)),
 		Tasks:     runningTasks,
-	}
+	}, nil
 }
 
 // buildPhaseProgress creates phase progress for pipeline visualization.
@@ -324,18 +339,20 @@ func mapPhaseToDisplay(phase string) string {
 }
 
 // loadOutputLines loads recent output lines from transcripts for a task.
-func (s *attentionDashboardServer) loadOutputLines(backend storage.Backend, taskID string) []string {
-	transcripts, err := backend.GetTranscripts(taskID)
+func (s *attentionDashboardServer) loadOutputLines(backend storage.Backend, taskID string) ([]string, error) {
+	transcripts, _, err := backend.GetTranscriptsPaginated(taskID, storage.TranscriptPaginationOpts{
+		Direction: runningSummaryTranscriptDirection,
+		Limit:     runningSummaryTranscriptScanLimit,
+	})
 	if err != nil {
-		// If we can't load transcripts, return empty lines
-		return []string{}
+		return nil, fmt.Errorf("get recent transcripts: %w", err)
 	}
 
 	var outputLines []string
 
-	// Find recent assistant messages (limit to last 5-10)
-	for i := len(transcripts) - 1; i >= 0 && len(outputLines) < 5; i-- {
-		transcript := transcripts[i]
+	// Descending pagination returns newest rows first. Prepend each extracted line so
+	// the final slice is oldest-to-newest within the bounded recent window.
+	for _, transcript := range transcripts {
 		if transcript.Role == "assistant" && strings.TrimSpace(transcript.Content) != "" {
 			// Take first line or first 100 chars of content as summary
 			content := strings.TrimSpace(transcript.Content)
@@ -346,13 +363,16 @@ func (s *attentionDashboardServer) loadOutputLines(backend storage.Backend, task
 					line = line[:97] + "..."
 				}
 				if line != "" {
-					outputLines = append([]string{line}, outputLines...) // Prepend to maintain chronological order
+					outputLines = append([]string{line}, outputLines...)
+					if len(outputLines) == runningSummaryOutputLineLimit {
+						break
+					}
 				}
 			}
 		}
 	}
 
-	return outputLines
+	return outputLines, nil
 }
 
 // calculateInitiativeCompletion calculates the completion percentage for an initiative.
