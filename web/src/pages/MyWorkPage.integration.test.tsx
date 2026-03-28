@@ -143,7 +143,7 @@ describe('CommandCenter navigation', () => {
 		);
 	});
 
-	it('navigates project summary rows to the board in the selected project scope', async () => {
+	it('navigates project summary rows to the project home in the selected project scope', async () => {
 		renderPage();
 
 		const recommendationSummary = (await screen.findByText('2 pending')).closest('button');
@@ -152,6 +152,6 @@ describe('CommandCenter navigation', () => {
 		fireEvent.click(recommendationSummary!);
 
 		expect(mockSelectProject).toHaveBeenCalledWith('proj-alpha');
-		expect(mockNavigate).toHaveBeenCalledWith('/board');
+		expect(mockNavigate).toHaveBeenCalledWith('/project');
 	});
 });

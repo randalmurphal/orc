@@ -178,9 +178,9 @@ export function MyWorkPage() {
 		navigate(`/tasks/${taskId}`);
 	}, [navigate, selectProject]);
 
-	const openProjectBoard = useCallback((projectId: string) => {
+	const openProjectHome = useCallback((projectId: string) => {
 		selectProject(projectId);
-		navigate('/board');
+		navigate('/project');
 	}, [navigate, selectProject]);
 
 	const openAttentionItem = useCallback((item: AttentionItem) => {
@@ -193,8 +193,8 @@ export function MyWorkPage() {
 			return;
 		}
 
-		openProjectBoard(item.projectId);
-	}, [openProjectBoard, openTask]);
+		openProjectHome(item.projectId);
+	}, [openProjectHome, openTask]);
 
 	const handleAttentionAction = useCallback(async (
 		item: AttentionItem,
@@ -394,7 +394,7 @@ export function MyWorkPage() {
 								key={project.projectId}
 								type="button"
 								className="command-center-summary-row"
-								onClick={() => openProjectBoard(project.projectId)}
+								onClick={() => openProjectHome(project.projectId)}
 							>
 								<span className="command-center-summary-row__title">{project.projectName}</span>
 								<span className="command-center-summary-row__meta">
@@ -436,7 +436,7 @@ export function MyWorkPage() {
 			<section className="my-work-page__projects-block" aria-label="Projects">
 				<div className="my-work-page__projects-header">
 					<h2 className="my-work-page__projects-title">Projects</h2>
-					<p className="my-work-page__projects-copy">Project summaries stay secondary here. Open the board when you want project-scoped execution detail.</p>
+					<p className="my-work-page__projects-copy">Project summaries stay secondary here. Open the project home when you want the scoped execution, discussion, and handoff view.</p>
 				</div>
 				<div className="my-work-page__projects">
 					{projects.map((project) => (
@@ -444,7 +444,8 @@ export function MyWorkPage() {
 							key={project.projectId}
 							project={project}
 							onTaskClick={openTask}
-							onViewAll={openProjectBoard}
+							onViewAll={openProjectHome}
+							viewAllLabel="Open project"
 						/>
 					))}
 				</div>
