@@ -568,6 +568,9 @@ func formatCompletionRecommendations(
 		if recommendation.GetSourceTaskId() != currentTask.GetId() {
 			continue
 		}
+		if recommendation.GetStatus() != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING {
+			continue
+		}
 
 		candidates = append(candidates, controlplane.RecommendationCandidate{
 			Kind:           recommendationKindName(recommendation.GetKind()),
