@@ -99,6 +99,32 @@
 	gap: 8px;
 }
 
+.recommendation-card__history-toggle {
+	display: flex;
+	justify-content: flex-start;
+}
+
+.recommendation-card__note {
+	display: grid;
+	gap: 6px;
+}
+
+.recommendation-card__note span {
+	font-weight: 600;
+}
+
+.recommendation-card__note textarea {
+	width: 100%;
+	min-height: 84px;
+	border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+	border-radius: 8px;
+	background: rgba(0, 0, 0, 0.12);
+	color: var(--text-primary);
+	padding: 10px 12px;
+	resize: vertical;
+	font: inherit;
+}
+
 .recommendation-card__context-pack {
 	margin: 0;
 	padding: 12px;
@@ -107,6 +133,14 @@
 	color: var(--text-secondary);
 	white-space: pre-wrap;
 	font-size: 12px;
+}
+
+.recommendation-card__history {
+	margin: 0;
+	padding-left: 20px;
+	display: grid;
+	gap: 6px;
+	color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {

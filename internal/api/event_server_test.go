@@ -386,6 +386,40 @@ func TestInternalEventToProto_RecommendationEventsIncludeProjectID(t *testing.T)
 	}
 }
 
+func TestInternalEventToProto_TaskCreatedFromProtoTaskIncludesProjectID(t *testing.T) {
+	t.Parallel()
+
+	initiativeID := "INIT-001"
+	taskItem := &orcv1.Task{
+		Id:           "TASK-123",
+		Title:        "Promoted cleanup task",
+		InitiativeId: &initiativeID,
+	}
+	event := events.NewProjectEvent(events.EventTaskCreated, "proj-123", taskItem.Id, taskItem)
+
+	result := internalEventToProto(event)
+	if result == nil {
+		t.Fatal("expected proto event, got nil")
+	}
+	if result.ProjectId == nil || *result.ProjectId != "proj-123" {
+		t.Fatalf("project_id = %v, want proj-123", result.ProjectId)
+	}
+
+	payload := result.GetTaskCreated()
+	if payload == nil {
+		t.Fatal("expected task_created payload")
+	}
+	if payload.TaskId != "TASK-123" {
+		t.Fatalf("task_id = %q, want TASK-123", payload.TaskId)
+	}
+	if payload.Title != "Promoted cleanup task" {
+		t.Fatalf("title = %q, want Promoted cleanup task", payload.Title)
+	}
+	if payload.InitiativeId == nil || *payload.InitiativeId != initiativeID {
+		t.Fatalf("initiative_id = %v, want %q", payload.InitiativeId, initiativeID)
+	}
+}
+
 // TestInternalEventToProto_EventWarning tests conversion of EventWarning events.
 func TestInternalEventToProto_EventWarning(t *testing.T) {
 	t.Parallel()

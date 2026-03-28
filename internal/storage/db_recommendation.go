@@ -68,6 +68,26 @@ func (d *DatabaseBackend) LoadAllRecommendations() ([]*orcv1.Recommendation, err
 	return recommendations, nil
 }
 
+func (d *DatabaseBackend) LoadRecommendationHistory(id string) ([]*orcv1.RecommendationHistoryEntry, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	items, err := d.db.ListRecommendationHistory(id)
+	if err != nil {
+		return nil, err
+	}
+
+	history := make([]*orcv1.RecommendationHistoryEntry, 0, len(items))
+	for i := range items {
+		entry, convertErr := dbRecommendationHistoryToProto(&items[i])
+		if convertErr != nil {
+			return nil, convertErr
+		}
+		history = append(history, entry)
+	}
+	return history, nil
+}
+
 func (d *DatabaseBackend) UpdateRecommendationStatus(
 	id string,
 	status orcv1.RecommendationStatus,
@@ -152,6 +172,31 @@ func dbRecommendationToProto(rec *db.Recommendation) (*orcv1.Recommendation, err
 		protoRec.PromotedAt = timestamppb.New(*rec.PromotedAt)
 	}
 	return protoRec, nil
+}
+
+func dbRecommendationHistoryToProto(entry *db.RecommendationHistory) (*orcv1.RecommendationHistoryEntry, error) {
+	if entry == nil {
+		return nil, fmt.Errorf("recommendation history entry is required")
+	}
+
+	fromStatus, err := dbRecommendationStatusToProto(entry.FromStatus)
+	if err != nil {
+		return nil, err
+	}
+	toStatus, err := dbRecommendationStatusToProto(entry.ToStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return &orcv1.RecommendationHistoryEntry{
+		Id:               entry.ID,
+		RecommendationId: entry.RecommendationID,
+		FromStatus:       fromStatus,
+		ToStatus:         toStatus,
+		DecidedBy:        entry.DecidedBy,
+		DecisionReason:   entry.DecisionReason,
+		CreatedAt:        timestamppb.New(entry.CreatedAt),
+	}, nil
 }
 
 func copyRecommendation(dst *orcv1.Recommendation, src *orcv1.Recommendation) {
@@ -252,6 +297,8 @@ func protoRecommendationKindToDB(kind orcv1.RecommendationKind) (string, error) 
 
 func dbRecommendationStatusToProto(status string) (orcv1.RecommendationStatus, error) {
 	switch status {
+	case "":
+		return orcv1.RecommendationStatus_RECOMMENDATION_STATUS_UNSPECIFIED, nil
 	case db.RecommendationStatusPending:
 		return orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING, nil
 	case db.RecommendationStatusAccepted:

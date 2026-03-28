@@ -344,7 +344,16 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 	// Convert based on event type
 	switch e.Type {
 	case events.EventTaskCreated:
-		if task, ok := e.Data.(map[string]any); ok {
+		if task, ok := e.Data.(*orcv1.Task); ok {
+			payload := &orcv1.TaskCreatedEvent{
+				TaskId: task.GetId(),
+				Title:  task.GetTitle(),
+			}
+			if task.InitiativeId != nil && *task.InitiativeId != "" {
+				payload.InitiativeId = task.InitiativeId
+			}
+			result.Payload = &orcv1.Event_TaskCreated{TaskCreated: payload}
+		} else if task, ok := e.Data.(map[string]any); ok {
 			result.Payload = &orcv1.Event_TaskCreated{
 				TaskCreated: &orcv1.TaskCreatedEvent{
 					TaskId: e.TaskID,

@@ -228,6 +228,9 @@ func (b *emptyBackend) LoadRecommendation(string) (*orcv1.Recommendation, error)
 	return nil, nil
 }
 func (b *emptyBackend) LoadAllRecommendations() ([]*orcv1.Recommendation, error) { return nil, nil }
+func (b *emptyBackend) LoadRecommendationHistory(string) ([]*orcv1.RecommendationHistoryEntry, error) {
+	return nil, nil
+}
 func (b *emptyBackend) UpdateRecommendationStatus(string, orcv1.RecommendationStatus, string, string) (*orcv1.Recommendation, error) {
 	return nil, nil
 }

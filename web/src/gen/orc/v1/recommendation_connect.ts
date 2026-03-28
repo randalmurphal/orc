@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AcceptRecommendationRequest, AcceptRecommendationResponse, CreateRecommendationRequest, CreateRecommendationResponse, DiscussRecommendationRequest, DiscussRecommendationResponse, GetRecommendationRequest, GetRecommendationResponse, ListRecommendationsRequest, ListRecommendationsResponse, RejectRecommendationRequest, RejectRecommendationResponse } from "./recommendation_pb.js";
+import { AcceptRecommendationRequest, AcceptRecommendationResponse, CreateRecommendationRequest, CreateRecommendationResponse, DiscussRecommendationRequest, DiscussRecommendationResponse, GetRecommendationRequest, GetRecommendationResponse, ListRecommendationHistoryRequest, ListRecommendationHistoryResponse, ListRecommendationsRequest, ListRecommendationsResponse, RejectRecommendationRequest, RejectRecommendationResponse } from "./recommendation_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -37,6 +37,15 @@ export const RecommendationService = {
       name: "ListRecommendations",
       I: ListRecommendationsRequest,
       O: ListRecommendationsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.RecommendationService.ListRecommendationHistory
+     */
+    listRecommendationHistory: {
+      name: "ListRecommendationHistory",
+      I: ListRecommendationHistoryRequest,
+      O: ListRecommendationHistoryResponse,
       kind: MethodKind.Unary,
     },
     /**

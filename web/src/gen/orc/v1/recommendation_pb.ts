@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file orc/v1/recommendation.proto.
  */
 export const file_orc_v1_recommendation: GenFile = /*@__PURE__*/
-  fileDesc("ChtvcmMvdjEvcmVjb21tZW5kYXRpb24ucHJvdG8SBm9yYy52MSL+BAoOUmVjb21tZW5kYXRpb24SCgoCaWQYASABKAkSKAoEa2luZBgCIAEoDjIaLm9yYy52MS5SZWNvbW1lbmRhdGlvbktpbmQSLAoGc3RhdHVzGAMgASgOMhwub3JjLnYxLlJlY29tbWVuZGF0aW9uU3RhdHVzEg0KBXRpdGxlGAQgASgJEg8KB3N1bW1hcnkYBSABKAkSFwoPcHJvcG9zZWRfYWN0aW9uGAYgASgJEhAKCGV2aWRlbmNlGAcgASgJEhYKDnNvdXJjZV90YXNrX2lkGAggASgJEhUKDXNvdXJjZV9ydW5faWQYCSABKAkSEgoKZGVkdXBlX2tleRgKIAEoCRIXCgpkZWNpZGVkX2J5GAsgASgJSACIAQESLgoKZGVjaWRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASHAoPZGVjaXNpb25fcmVhc29uGA0gASgJSAGIAQESLgoKY3JlYXRlZF9hdBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgPIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGAoQc291cmNlX3RocmVhZF9pZBgQIAEoCRIYChBwcm9tb3RlZF90b190eXBlGBEgASgJEhYKDnByb21vdGVkX3RvX2lkGBIgASgJEhMKC3Byb21vdGVkX2J5GBMgASgJEi8KC3Byb21vdGVkX2F0GBQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEINCgtfZGVjaWRlZF9ieUISChBfZGVjaXNpb25fcmVhc29uImEKG0NyZWF0ZVJlY29tbWVuZGF0aW9uUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEi4KDnJlY29tbWVuZGF0aW9uGAIgASgLMhYub3JjLnYxLlJlY29tbWVuZGF0aW9uIk4KHENyZWF0ZVJlY29tbWVuZGF0aW9uUmVzcG9uc2USLgoOcmVjb21tZW5kYXRpb24YASABKAsyFi5vcmMudjEuUmVjb21tZW5kYXRpb24iSQoYR2V0UmVjb21tZW5kYXRpb25SZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSGQoRcmVjb21tZW5kYXRpb25faWQYAiABKAkiSwoZR2V0UmVjb21tZW5kYXRpb25SZXNwb25zZRIuCg5yZWNvbW1lbmRhdGlvbhgBIAEoCzIWLm9yYy52MS5SZWNvbW1lbmRhdGlvbiKgAQoaTGlzdFJlY29tbWVuZGF0aW9uc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIsCgZzdGF0dXMYAiABKA4yHC5vcmMudjEuUmVjb21tZW5kYXRpb25TdGF0dXMSKAoEa2luZBgDIAEoDjIaLm9yYy52MS5SZWNvbW1lbmRhdGlvbktpbmQSFgoOc291cmNlX3Rhc2tfaWQYBCABKAkiTgobTGlzdFJlY29tbWVuZGF0aW9uc1Jlc3BvbnNlEi8KD3JlY29tbWVuZGF0aW9ucxgBIAMoCzIWLm9yYy52MS5SZWNvbW1lbmRhdGlvbiJ5ChtBY2NlcHRSZWNvbW1lbmRhdGlvblJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIZChFyZWNvbW1lbmRhdGlvbl9pZBgCIAEoCRISCgpkZWNpZGVkX2J5GAMgASgJEhcKD2RlY2lzaW9uX3JlYXNvbhgEIAEoCSJOChxBY2NlcHRSZWNvbW1lbmRhdGlvblJlc3BvbnNlEi4KDnJlY29tbWVuZGF0aW9uGAEgASgLMhYub3JjLnYxLlJlY29tbWVuZGF0aW9uInkKG1JlamVjdFJlY29tbWVuZGF0aW9uUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhkKEXJlY29tbWVuZGF0aW9uX2lkGAIgASgJEhIKCmRlY2lkZWRfYnkYAyABKAkSFwoPZGVjaXNpb25fcmVhc29uGAQgASgJIk4KHFJlamVjdFJlY29tbWVuZGF0aW9uUmVzcG9uc2USLgoOcmVjb21tZW5kYXRpb24YASABKAsyFi5vcmMudjEuUmVjb21tZW5kYXRpb24iegocRGlzY3Vzc1JlY29tbWVuZGF0aW9uUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhkKEXJlY29tbWVuZGF0aW9uX2lkGAIgASgJEhIKCmRlY2lkZWRfYnkYAyABKAkSFwoPZGVjaXNpb25fcmVhc29uGAQgASgJImUKHURpc2N1c3NSZWNvbW1lbmRhdGlvblJlc3BvbnNlEi4KDnJlY29tbWVuZGF0aW9uGAEgASgLMhYub3JjLnYxLlJlY29tbWVuZGF0aW9uEhQKDGNvbnRleHRfcGFjaxgCIAEoCSrFAQoSUmVjb21tZW5kYXRpb25LaW5kEiMKH1JFQ09NTUVOREFUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIfChtSRUNPTU1FTkRBVElPTl9LSU5EX0NMRUFOVVAQARIcChhSRUNPTU1FTkRBVElPTl9LSU5EX1JJU0sQAhIhCh1SRUNPTU1FTkRBVElPTl9LSU5EX0ZPTExPV19VUBADEigKJFJFQ09NTUVOREFUSU9OX0tJTkRfREVDSVNJT05fUkVRVUVTVBAEKs0BChRSZWNvbW1lbmRhdGlvblN0YXR1cxIlCiFSRUNPTU1FTkRBVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIhCh1SRUNPTU1FTkRBVElPTl9TVEFUVVNfUEVORElORxABEiIKHlJFQ09NTUVOREFUSU9OX1NUQVRVU19BQ0NFUFRFRBACEiIKHlJFQ09NTUVOREFUSU9OX1NUQVRVU19SRUpFQ1RFRBADEiMKH1JFQ09NTUVOREFUSU9OX1NUQVRVU19ESVNDVVNTRUQQBDLgBAoVUmVjb21tZW5kYXRpb25TZXJ2aWNlEmEKFENyZWF0ZVJlY29tbWVuZGF0aW9uEiMub3JjLnYxLkNyZWF0ZVJlY29tbWVuZGF0aW9uUmVxdWVzdBokLm9yYy52MS5DcmVhdGVSZWNvbW1lbmRhdGlvblJlc3BvbnNlElgKEUdldFJlY29tbWVuZGF0aW9uEiAub3JjLnYxLkdldFJlY29tbWVuZGF0aW9uUmVxdWVzdBohLm9yYy52MS5HZXRSZWNvbW1lbmRhdGlvblJlc3BvbnNlEl4KE0xpc3RSZWNvbW1lbmRhdGlvbnMSIi5vcmMudjEuTGlzdFJlY29tbWVuZGF0aW9uc1JlcXVlc3QaIy5vcmMudjEuTGlzdFJlY29tbWVuZGF0aW9uc1Jlc3BvbnNlEmEKFEFjY2VwdFJlY29tbWVuZGF0aW9uEiMub3JjLnYxLkFjY2VwdFJlY29tbWVuZGF0aW9uUmVxdWVzdBokLm9yYy52MS5BY2NlcHRSZWNvbW1lbmRhdGlvblJlc3BvbnNlEmEKFFJlamVjdFJlY29tbWVuZGF0aW9uEiMub3JjLnYxLlJlamVjdFJlY29tbWVuZGF0aW9uUmVxdWVzdBokLm9yYy52MS5SZWplY3RSZWNvbW1lbmRhdGlvblJlc3BvbnNlEmQKFURpc2N1c3NSZWNvbW1lbmRhdGlvbhIkLm9yYy52MS5EaXNjdXNzUmVjb21tZW5kYXRpb25SZXF1ZXN0GiUub3JjLnYxLkRpc2N1c3NSZWNvbW1lbmRhdGlvblJlc3BvbnNlQo8BCgpjb20ub3JjLnYxQhNSZWNvbW1lbmRhdGlvblByb3RvUAFaM2dpdGh1Yi5jb20vcmFuZGFsbXVycGhhbC9vcmMvZ2VuL3Byb3RvL29yYy92MTtvcmN2MaICA09YWKoCBk9yYy5WMcoCBk9yY1xWMeICEk9yY1xWMVxHUEJNZXRhZGF0YeoCB09yYzo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("ChtvcmMvdjEvcmVjb21tZW5kYXRpb24ucHJvdG8SBm9yYy52MSL+BAoOUmVjb21tZW5kYXRpb24SCgoCaWQYASABKAkSKAoEa2luZBgCIAEoDjIaLm9yYy52MS5SZWNvbW1lbmRhdGlvbktpbmQSLAoGc3RhdHVzGAMgASgOMhwub3JjLnYxLlJlY29tbWVuZGF0aW9uU3RhdHVzEg0KBXRpdGxlGAQgASgJEg8KB3N1bW1hcnkYBSABKAkSFwoPcHJvcG9zZWRfYWN0aW9uGAYgASgJEhAKCGV2aWRlbmNlGAcgASgJEhYKDnNvdXJjZV90YXNrX2lkGAggASgJEhUKDXNvdXJjZV9ydW5faWQYCSABKAkSEgoKZGVkdXBlX2tleRgKIAEoCRIXCgpkZWNpZGVkX2J5GAsgASgJSACIAQESLgoKZGVjaWRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASHAoPZGVjaXNpb25fcmVhc29uGA0gASgJSAGIAQESLgoKY3JlYXRlZF9hdBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgPIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGAoQc291cmNlX3RocmVhZF9pZBgQIAEoCRIYChBwcm9tb3RlZF90b190eXBlGBEgASgJEhYKDnByb21vdGVkX3RvX2lkGBIgASgJEhMKC3Byb21vdGVkX2J5GBMgASgJEi8KC3Byb21vdGVkX2F0GBQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEINCgtfZGVjaWRlZF9ieUISChBfZGVjaXNpb25fcmVhc29uIoQCChpSZWNvbW1lbmRhdGlvbkhpc3RvcnlFbnRyeRIKCgJpZBgBIAEoAxIZChFyZWNvbW1lbmRhdGlvbl9pZBgCIAEoCRIxCgtmcm9tX3N0YXR1cxgDIAEoDjIcLm9yYy52MS5SZWNvbW1lbmRhdGlvblN0YXR1cxIvCgl0b19zdGF0dXMYBCABKA4yHC5vcmMudjEuUmVjb21tZW5kYXRpb25TdGF0dXMSEgoKZGVjaWRlZF9ieRgFIAEoCRIXCg9kZWNpc2lvbl9yZWFzb24YBiABKAkSLgoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiYQobQ3JlYXRlUmVjb21tZW5kYXRpb25SZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSLgoOcmVjb21tZW5kYXRpb24YAiABKAsyFi5vcmMudjEuUmVjb21tZW5kYXRpb24iTgocQ3JlYXRlUmVjb21tZW5kYXRpb25SZXNwb25zZRIuCg5yZWNvbW1lbmRhdGlvbhgBIAEoCzIWLm9yYy52MS5SZWNvbW1lbmRhdGlvbiJJChhHZXRSZWNvbW1lbmRhdGlvblJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIZChFyZWNvbW1lbmRhdGlvbl9pZBgCIAEoCSJLChlHZXRSZWNvbW1lbmRhdGlvblJlc3BvbnNlEi4KDnJlY29tbWVuZGF0aW9uGAEgASgLMhYub3JjLnYxLlJlY29tbWVuZGF0aW9uIqABChpMaXN0UmVjb21tZW5kYXRpb25zUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEiwKBnN0YXR1cxgCIAEoDjIcLm9yYy52MS5SZWNvbW1lbmRhdGlvblN0YXR1cxIoCgRraW5kGAMgASgOMhoub3JjLnYxLlJlY29tbWVuZGF0aW9uS2luZBIWCg5zb3VyY2VfdGFza19pZBgEIAEoCSJOChtMaXN0UmVjb21tZW5kYXRpb25zUmVzcG9uc2USLwoPcmVjb21tZW5kYXRpb25zGAEgAygLMhYub3JjLnYxLlJlY29tbWVuZGF0aW9uIlEKIExpc3RSZWNvbW1lbmRhdGlvbkhpc3RvcnlSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSGQoRcmVjb21tZW5kYXRpb25faWQYAiABKAkiWAohTGlzdFJlY29tbWVuZGF0aW9uSGlzdG9yeVJlc3BvbnNlEjMKB2hpc3RvcnkYASADKAsyIi5vcmMudjEuUmVjb21tZW5kYXRpb25IaXN0b3J5RW50cnkieQobQWNjZXB0UmVjb21tZW5kYXRpb25SZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSGQoRcmVjb21tZW5kYXRpb25faWQYAiABKAkSEgoKZGVjaWRlZF9ieRgDIAEoCRIXCg9kZWNpc2lvbl9yZWFzb24YBCABKAkiTgocQWNjZXB0UmVjb21tZW5kYXRpb25SZXNwb25zZRIuCg5yZWNvbW1lbmRhdGlvbhgBIAEoCzIWLm9yYy52MS5SZWNvbW1lbmRhdGlvbiJ5ChtSZWplY3RSZWNvbW1lbmRhdGlvblJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIZChFyZWNvbW1lbmRhdGlvbl9pZBgCIAEoCRISCgpkZWNpZGVkX2J5GAMgASgJEhcKD2RlY2lzaW9uX3JlYXNvbhgEIAEoCSJOChxSZWplY3RSZWNvbW1lbmRhdGlvblJlc3BvbnNlEi4KDnJlY29tbWVuZGF0aW9uGAEgASgLMhYub3JjLnYxLlJlY29tbWVuZGF0aW9uInoKHERpc2N1c3NSZWNvbW1lbmRhdGlvblJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIZChFyZWNvbW1lbmRhdGlvbl9pZBgCIAEoCRISCgpkZWNpZGVkX2J5GAMgASgJEhcKD2RlY2lzaW9uX3JlYXNvbhgEIAEoCSJlCh1EaXNjdXNzUmVjb21tZW5kYXRpb25SZXNwb25zZRIuCg5yZWNvbW1lbmRhdGlvbhgBIAEoCzIWLm9yYy52MS5SZWNvbW1lbmRhdGlvbhIUCgxjb250ZXh0X3BhY2sYAiABKAkqxQEKElJlY29tbWVuZGF0aW9uS2luZBIjCh9SRUNPTU1FTkRBVElPTl9LSU5EX1VOU1BFQ0lGSUVEEAASHwobUkVDT01NRU5EQVRJT05fS0lORF9DTEVBTlVQEAESHAoYUkVDT01NRU5EQVRJT05fS0lORF9SSVNLEAISIQodUkVDT01NRU5EQVRJT05fS0lORF9GT0xMT1dfVVAQAxIoCiRSRUNPTU1FTkRBVElPTl9LSU5EX0RFQ0lTSU9OX1JFUVVFU1QQBCrNAQoUUmVjb21tZW5kYXRpb25TdGF0dXMSJQohUkVDT01NRU5EQVRJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASIQodUkVDT01NRU5EQVRJT05fU1RBVFVTX1BFTkRJTkcQARIiCh5SRUNPTU1FTkRBVElPTl9TVEFUVVNfQUNDRVBURUQQAhIiCh5SRUNPTU1FTkRBVElPTl9TVEFUVVNfUkVKRUNURUQQAxIjCh9SRUNPTU1FTkRBVElPTl9TVEFUVVNfRElTQ1VTU0VEEAQy0gUKFVJlY29tbWVuZGF0aW9uU2VydmljZRJhChRDcmVhdGVSZWNvbW1lbmRhdGlvbhIjLm9yYy52MS5DcmVhdGVSZWNvbW1lbmRhdGlvblJlcXVlc3QaJC5vcmMudjEuQ3JlYXRlUmVjb21tZW5kYXRpb25SZXNwb25zZRJYChFHZXRSZWNvbW1lbmRhdGlvbhIgLm9yYy52MS5HZXRSZWNvbW1lbmRhdGlvblJlcXVlc3QaIS5vcmMudjEuR2V0UmVjb21tZW5kYXRpb25SZXNwb25zZRJeChNMaXN0UmVjb21tZW5kYXRpb25zEiIub3JjLnYxLkxpc3RSZWNvbW1lbmRhdGlvbnNSZXF1ZXN0GiMub3JjLnYxLkxpc3RSZWNvbW1lbmRhdGlvbnNSZXNwb25zZRJwChlMaXN0UmVjb21tZW5kYXRpb25IaXN0b3J5Eigub3JjLnYxLkxpc3RSZWNvbW1lbmRhdGlvbkhpc3RvcnlSZXF1ZXN0Gikub3JjLnYxLkxpc3RSZWNvbW1lbmRhdGlvbkhpc3RvcnlSZXNwb25zZRJhChRBY2NlcHRSZWNvbW1lbmRhdGlvbhIjLm9yYy52MS5BY2NlcHRSZWNvbW1lbmRhdGlvblJlcXVlc3QaJC5vcmMudjEuQWNjZXB0UmVjb21tZW5kYXRpb25SZXNwb25zZRJhChRSZWplY3RSZWNvbW1lbmRhdGlvbhIjLm9yYy52MS5SZWplY3RSZWNvbW1lbmRhdGlvblJlcXVlc3QaJC5vcmMudjEuUmVqZWN0UmVjb21tZW5kYXRpb25SZXNwb25zZRJkChVEaXNjdXNzUmVjb21tZW5kYXRpb24SJC5vcmMudjEuRGlzY3Vzc1JlY29tbWVuZGF0aW9uUmVxdWVzdBolLm9yYy52MS5EaXNjdXNzUmVjb21tZW5kYXRpb25SZXNwb25zZUKPAQoKY29tLm9yYy52MUITUmVjb21tZW5kYXRpb25Qcm90b1ABWjNnaXRodWIuY29tL3JhbmRhbG11cnBoYWwvb3JjL2dlbi9wcm90by9vcmMvdjE7b3JjdjGiAgNPWFiqAgZPcmMuVjHKAgZPcmNcVjHiAhJPcmNcVjFcR1BCTWV0YWRhdGHqAgdPcmM6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message orc.v1.Recommendation
@@ -127,6 +127,53 @@ export const RecommendationSchema: GenMessage<Recommendation> = /*@__PURE__*/
   messageDesc(file_orc_v1_recommendation, 0);
 
 /**
+ * @generated from message orc.v1.RecommendationHistoryEntry
+ */
+export type RecommendationHistoryEntry = Message<"orc.v1.RecommendationHistoryEntry"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string recommendation_id = 2;
+   */
+  recommendationId: string;
+
+  /**
+   * @generated from field: orc.v1.RecommendationStatus from_status = 3;
+   */
+  fromStatus: RecommendationStatus;
+
+  /**
+   * @generated from field: orc.v1.RecommendationStatus to_status = 4;
+   */
+  toStatus: RecommendationStatus;
+
+  /**
+   * @generated from field: string decided_by = 5;
+   */
+  decidedBy: string;
+
+  /**
+   * @generated from field: string decision_reason = 6;
+   */
+  decisionReason: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 7;
+   */
+  createdAt?: Timestamp;
+};
+
+/**
+ * Describes the message orc.v1.RecommendationHistoryEntry.
+ * Use `create(RecommendationHistoryEntrySchema)` to create a new message.
+ */
+export const RecommendationHistoryEntrySchema: GenMessage<RecommendationHistoryEntry> = /*@__PURE__*/
+  messageDesc(file_orc_v1_recommendation, 1);
+
+/**
  * @generated from message orc.v1.CreateRecommendationRequest
  */
 export type CreateRecommendationRequest = Message<"orc.v1.CreateRecommendationRequest"> & {
@@ -146,7 +193,7 @@ export type CreateRecommendationRequest = Message<"orc.v1.CreateRecommendationRe
  * Use `create(CreateRecommendationRequestSchema)` to create a new message.
  */
 export const CreateRecommendationRequestSchema: GenMessage<CreateRecommendationRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 1);
+  messageDesc(file_orc_v1_recommendation, 2);
 
 /**
  * @generated from message orc.v1.CreateRecommendationResponse
@@ -163,7 +210,7 @@ export type CreateRecommendationResponse = Message<"orc.v1.CreateRecommendationR
  * Use `create(CreateRecommendationResponseSchema)` to create a new message.
  */
 export const CreateRecommendationResponseSchema: GenMessage<CreateRecommendationResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 2);
+  messageDesc(file_orc_v1_recommendation, 3);
 
 /**
  * @generated from message orc.v1.GetRecommendationRequest
@@ -185,7 +232,7 @@ export type GetRecommendationRequest = Message<"orc.v1.GetRecommendationRequest"
  * Use `create(GetRecommendationRequestSchema)` to create a new message.
  */
 export const GetRecommendationRequestSchema: GenMessage<GetRecommendationRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 3);
+  messageDesc(file_orc_v1_recommendation, 4);
 
 /**
  * @generated from message orc.v1.GetRecommendationResponse
@@ -202,7 +249,7 @@ export type GetRecommendationResponse = Message<"orc.v1.GetRecommendationRespons
  * Use `create(GetRecommendationResponseSchema)` to create a new message.
  */
 export const GetRecommendationResponseSchema: GenMessage<GetRecommendationResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 4);
+  messageDesc(file_orc_v1_recommendation, 5);
 
 /**
  * @generated from message orc.v1.ListRecommendationsRequest
@@ -234,7 +281,7 @@ export type ListRecommendationsRequest = Message<"orc.v1.ListRecommendationsRequ
  * Use `create(ListRecommendationsRequestSchema)` to create a new message.
  */
 export const ListRecommendationsRequestSchema: GenMessage<ListRecommendationsRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 5);
+  messageDesc(file_orc_v1_recommendation, 6);
 
 /**
  * @generated from message orc.v1.ListRecommendationsResponse
@@ -251,7 +298,46 @@ export type ListRecommendationsResponse = Message<"orc.v1.ListRecommendationsRes
  * Use `create(ListRecommendationsResponseSchema)` to create a new message.
  */
 export const ListRecommendationsResponseSchema: GenMessage<ListRecommendationsResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 6);
+  messageDesc(file_orc_v1_recommendation, 7);
+
+/**
+ * @generated from message orc.v1.ListRecommendationHistoryRequest
+ */
+export type ListRecommendationHistoryRequest = Message<"orc.v1.ListRecommendationHistoryRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string recommendation_id = 2;
+   */
+  recommendationId: string;
+};
+
+/**
+ * Describes the message orc.v1.ListRecommendationHistoryRequest.
+ * Use `create(ListRecommendationHistoryRequestSchema)` to create a new message.
+ */
+export const ListRecommendationHistoryRequestSchema: GenMessage<ListRecommendationHistoryRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_recommendation, 8);
+
+/**
+ * @generated from message orc.v1.ListRecommendationHistoryResponse
+ */
+export type ListRecommendationHistoryResponse = Message<"orc.v1.ListRecommendationHistoryResponse"> & {
+  /**
+   * @generated from field: repeated orc.v1.RecommendationHistoryEntry history = 1;
+   */
+  history: RecommendationHistoryEntry[];
+};
+
+/**
+ * Describes the message orc.v1.ListRecommendationHistoryResponse.
+ * Use `create(ListRecommendationHistoryResponseSchema)` to create a new message.
+ */
+export const ListRecommendationHistoryResponseSchema: GenMessage<ListRecommendationHistoryResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_recommendation, 9);
 
 /**
  * @generated from message orc.v1.AcceptRecommendationRequest
@@ -283,7 +369,7 @@ export type AcceptRecommendationRequest = Message<"orc.v1.AcceptRecommendationRe
  * Use `create(AcceptRecommendationRequestSchema)` to create a new message.
  */
 export const AcceptRecommendationRequestSchema: GenMessage<AcceptRecommendationRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 7);
+  messageDesc(file_orc_v1_recommendation, 10);
 
 /**
  * @generated from message orc.v1.AcceptRecommendationResponse
@@ -300,7 +386,7 @@ export type AcceptRecommendationResponse = Message<"orc.v1.AcceptRecommendationR
  * Use `create(AcceptRecommendationResponseSchema)` to create a new message.
  */
 export const AcceptRecommendationResponseSchema: GenMessage<AcceptRecommendationResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 8);
+  messageDesc(file_orc_v1_recommendation, 11);
 
 /**
  * @generated from message orc.v1.RejectRecommendationRequest
@@ -332,7 +418,7 @@ export type RejectRecommendationRequest = Message<"orc.v1.RejectRecommendationRe
  * Use `create(RejectRecommendationRequestSchema)` to create a new message.
  */
 export const RejectRecommendationRequestSchema: GenMessage<RejectRecommendationRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 9);
+  messageDesc(file_orc_v1_recommendation, 12);
 
 /**
  * @generated from message orc.v1.RejectRecommendationResponse
@@ -349,7 +435,7 @@ export type RejectRecommendationResponse = Message<"orc.v1.RejectRecommendationR
  * Use `create(RejectRecommendationResponseSchema)` to create a new message.
  */
 export const RejectRecommendationResponseSchema: GenMessage<RejectRecommendationResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 10);
+  messageDesc(file_orc_v1_recommendation, 13);
 
 /**
  * @generated from message orc.v1.DiscussRecommendationRequest
@@ -381,7 +467,7 @@ export type DiscussRecommendationRequest = Message<"orc.v1.DiscussRecommendation
  * Use `create(DiscussRecommendationRequestSchema)` to create a new message.
  */
 export const DiscussRecommendationRequestSchema: GenMessage<DiscussRecommendationRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 11);
+  messageDesc(file_orc_v1_recommendation, 14);
 
 /**
  * @generated from message orc.v1.DiscussRecommendationResponse
@@ -403,7 +489,7 @@ export type DiscussRecommendationResponse = Message<"orc.v1.DiscussRecommendatio
  * Use `create(DiscussRecommendationResponseSchema)` to create a new message.
  */
 export const DiscussRecommendationResponseSchema: GenMessage<DiscussRecommendationResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_recommendation, 12);
+  messageDesc(file_orc_v1_recommendation, 15);
 
 /**
  * @generated from enum orc.v1.RecommendationKind
@@ -504,6 +590,14 @@ export const RecommendationService: GenService<{
     methodKind: "unary";
     input: typeof ListRecommendationsRequestSchema;
     output: typeof ListRecommendationsResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.RecommendationService.ListRecommendationHistory
+   */
+  listRecommendationHistory: {
+    methodKind: "unary";
+    input: typeof ListRecommendationHistoryRequestSchema;
+    output: typeof ListRecommendationHistoryResponseSchema;
   },
   /**
    * @generated from rpc orc.v1.RecommendationService.AcceptRecommendation
