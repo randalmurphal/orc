@@ -7,11 +7,12 @@ import (
 
 // categoryDisplayNames maps category IDs to display names for section headers.
 var categoryDisplayNames = map[string]string{
-	CategoryDecisions:      "Decisions",
-	CategoryRecentFindings: "Recent Findings",
-	CategoryHotFiles:       "Hot Files",
-	CategoryPatterns:       "Patterns",
-	CategoryKnownIssues:    "Known Issues",
+	CategoryDecisions:        "Decisions",
+	CategoryRecentFindings:   "Recent Findings",
+	CategoryIndexedArtifacts: "Indexed Artifacts",
+	CategoryHotFiles:         "Hot Files",
+	CategoryPatterns:         "Patterns",
+	CategoryKnownIssues:      "Known Issues",
 }
 
 // FormatBrief renders a brief as structured markdown text.

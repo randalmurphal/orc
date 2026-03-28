@@ -482,6 +482,7 @@ func (we *WorkflowExecutor) populateControlPlaneContext(
 	rctx.CompletionRecommendations = ""
 	rctx.HandoffContext = ""
 	rctx.AttentionSummary = ""
+	rctx.IndexedArtifacts = ""
 
 	if usage.needsRecommendations() {
 		recommendations, err := we.backend.LoadAllRecommendations()
@@ -505,30 +506,41 @@ func (we *WorkflowExecutor) populateControlPlaneContext(
 	}
 
 	if !usage.AttentionSummary {
-		return nil
+		if !usage.IndexedArtifacts {
+			return nil
+		}
+	} else {
+		signals, err := we.backend.LoadActiveAttentionSignals()
+		if err != nil {
+			return fmt.Errorf("load attention signals for control-plane context: %w", err)
+		}
+		tasks, err := we.backend.LoadAllTasks()
+		if err != nil {
+			return fmt.Errorf("load tasks for control-plane context: %w", err)
+		}
+		signals = controlplane.MergeTaskAttentionSignals("", tasks, signals)
+		promptSignals, err := buildPromptAttentionSignals(we.backend, signals)
+		if err != nil {
+			return fmt.Errorf("format attention signals for control-plane context: %w", err)
+		}
+		promptSignals = append(promptSignals, promptPendingDecisionSignals(we.projectIDForEvents(), we.pendingDecisions)...)
+		sort.Slice(promptSignals, func(i, j int) bool {
+			if promptSignals[i].TaskID == promptSignals[j].TaskID {
+				return promptSignals[i].Kind < promptSignals[j].Kind
+			}
+			return promptSignals[i].TaskID < promptSignals[j].TaskID
+		})
+		rctx.AttentionSummary = controlplane.FormatAttentionSummary(promptSignals)
 	}
 
-	signals, err := we.backend.LoadActiveAttentionSignals()
-	if err != nil {
-		return fmt.Errorf("load attention signals for control-plane context: %w", err)
-	}
-	tasks, err := we.backend.LoadAllTasks()
-	if err != nil {
-		return fmt.Errorf("load tasks for control-plane context: %w", err)
-	}
-	signals = controlplane.MergeTaskAttentionSignals("", tasks, signals)
-	promptSignals, err := buildPromptAttentionSignals(we.backend, signals)
-	if err != nil {
-		return fmt.Errorf("format attention signals for control-plane context: %w", err)
-	}
-	promptSignals = append(promptSignals, promptPendingDecisionSignals(we.projectIDForEvents(), we.pendingDecisions)...)
-	sort.Slice(promptSignals, func(i, j int) bool {
-		if promptSignals[i].TaskID == promptSignals[j].TaskID {
-			return promptSignals[i].Kind < promptSignals[j].Kind
+	if usage.IndexedArtifacts {
+		indexedArtifacts, err := we.loadIndexedArtifactsContext(currentTask)
+		if err != nil {
+			return fmt.Errorf("load indexed artifacts for control-plane context: %w", err)
 		}
-		return promptSignals[i].TaskID < promptSignals[j].TaskID
-	})
-	rctx.AttentionSummary = controlplane.FormatAttentionSummary(promptSignals)
+		rctx.IndexedArtifacts = indexedArtifacts
+	}
+
 	return nil
 }
 
@@ -855,6 +867,107 @@ func handoffRisks(taskID string, recommendations []*orcv1.Recommendation) []stri
 
 	sort.Strings(risks)
 	return risks
+}
+
+func (we *WorkflowExecutor) loadIndexedArtifactsContext(currentTask *orcv1.Task) (string, error) {
+	opts := db.RecentArtifactOpts{Limit: 12}
+	if currentTask != nil {
+		opts.SourceTaskID = currentTask.GetId()
+		opts.InitiativeID = task.GetInitiativeIDProto(currentTask)
+	}
+
+	entries, err := we.backend.GetRecentArtifacts(opts)
+	if err != nil {
+		return "", err
+	}
+	return formatIndexedArtifacts(entries), nil
+}
+
+func formatIndexedArtifacts(entries []db.ArtifactIndexEntry) string {
+	if len(entries) == 0 {
+		return ""
+	}
+
+	sections := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		var section strings.Builder
+		fmt.Fprintf(&section, "\n- [%s] %s", indexedArtifactLabel(entry.Kind), entry.Title)
+		if entry.Content != "" {
+			fmt.Fprintf(&section, "\n  Content: %s", strings.ReplaceAll(entry.Content, "\n", "\n  "))
+		}
+		if entry.SourceTaskID != "" {
+			fmt.Fprintf(&section, "\n  Task: %s", entry.SourceTaskID)
+		}
+		if entry.InitiativeID != "" {
+			fmt.Fprintf(&section, "\n  Initiative: %s", entry.InitiativeID)
+		}
+		if entry.SourceThreadID != "" {
+			fmt.Fprintf(&section, "\n  Thread: %s", entry.SourceThreadID)
+		}
+		if entry.DedupeKey != "" {
+			fmt.Fprintf(&section, "\n  Dedupe key: %s", entry.DedupeKey)
+		}
+		sections = append(sections, section.String())
+	}
+
+	return truncateIndexedArtifacts("## Indexed Artifacts\n", sections, controlplane.MaxRecommendationSummaryBytes)
+}
+
+func indexedArtifactLabel(kind string) string {
+	switch kind {
+	case db.ArtifactKindAcceptedRecommendation:
+		return "accepted_recommendation"
+	case db.ArtifactKindInitiativeDecision:
+		return "initiative_decision"
+	case db.ArtifactKindPromotedDraft:
+		return "promoted_draft"
+	case db.ArtifactKindTaskOutcome:
+		return "task_outcome"
+	default:
+		return kind
+	}
+}
+
+func truncateIndexedArtifacts(header string, items []string, maxBytes int) string {
+	if len(items) == 0 || maxBytes <= 0 {
+		return ""
+	}
+
+	var builder strings.Builder
+	builder.WriteString(header)
+
+	included := 0
+	for index, item := range items {
+		omitted := len(items) - index - 1
+		candidate := builder.String() + item
+		if omitted > 0 {
+			candidate += indexedArtifactOmissionLine(omitted)
+		}
+		if len([]byte(candidate)) > maxBytes {
+			break
+		}
+
+		builder.WriteString(item)
+		included++
+	}
+
+	omitted := len(items) - included
+	if omitted > 0 {
+		notice := indexedArtifactOmissionLine(omitted)
+		if len([]byte(builder.String()+notice)) <= maxBytes {
+			builder.WriteString(notice)
+		}
+	}
+
+	result := strings.TrimSpace(builder.String())
+	if result == strings.TrimSpace(header) {
+		return ""
+	}
+	return result
+}
+
+func indexedArtifactOmissionLine(omitted int) string {
+	return fmt.Sprintf("\n... and %d more artifacts", omitted)
 }
 
 // populateProjectBrief generates a project brief and populates rctx.ProjectBrief.

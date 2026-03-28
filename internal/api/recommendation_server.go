@@ -185,6 +185,7 @@ func (s *recommendationServer) AcceptRecommendation(
 		return nil, err
 	}
 	if previousStatus != rec.Status {
+		s.indexAcceptedRecommendation(req.Msg.GetProjectId(), rec)
 		s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
 		s.publishPromotedArtifact(req.Msg.GetProjectId(), rec)
 	}
@@ -630,6 +631,112 @@ func promotedTaskCategory(rec *orcv1.Recommendation, sourceTask *orcv1.Task) str
 	default:
 		return taskproto.CategoryFromProto(orcv1.TaskCategory_TASK_CATEGORY_FEATURE)
 	}
+}
+
+func (s *recommendationServer) indexAcceptedRecommendation(projectID string, rec *orcv1.Recommendation) {
+	backend, err := s.getBackend(projectID)
+	if err != nil {
+		s.logger.Warn("failed to load backend for accepted recommendation indexing",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"error", err,
+		)
+		return
+	}
+
+	initiativeID, err := artifactIndexInitiativeIDForRecommendation(backend, rec)
+	if err != nil {
+		s.logger.Warn("failed to resolve accepted recommendation initiative context",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"error", err,
+		)
+		return
+	}
+
+	entry := &db.ArtifactIndexEntry{
+		Kind:           db.ArtifactKindAcceptedRecommendation,
+		Title:          rec.GetTitle(),
+		Content:        formatAcceptedRecommendationArtifact(rec),
+		DedupeKey:      rec.GetDedupeKey(),
+		InitiativeID:   initiativeID,
+		SourceTaskID:   rec.GetSourceTaskId(),
+		SourceRunID:    rec.GetSourceRunId(),
+		SourceThreadID: rec.GetSourceThreadId(),
+	}
+	if err := saveArtifactIndexEntryIfAbsent(backend, entry); err != nil {
+		s.logger.Warn("failed to index accepted recommendation",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"error", err,
+		)
+	}
+}
+
+func saveArtifactIndexEntryIfAbsent(backend storage.Backend, entry *db.ArtifactIndexEntry) error {
+	if strings.TrimSpace(entry.DedupeKey) != "" {
+		matches, err := backend.QueryArtifactIndexByDedupeKey(entry.DedupeKey)
+		if err != nil {
+			return err
+		}
+		for _, match := range matches {
+			if match.Kind == entry.Kind {
+				return nil
+			}
+		}
+	}
+	return backend.SaveArtifactIndexEntry(entry)
+}
+
+func artifactIndexInitiativeIDForRecommendation(backend storage.Backend, rec *orcv1.Recommendation) (string, error) {
+	if rec.GetSourceTaskId() != "" {
+		taskItem, err := backend.LoadTask(rec.GetSourceTaskId())
+		if err != nil {
+			return "", fmt.Errorf("load source task %s: %w", rec.GetSourceTaskId(), err)
+		}
+		if taskItem != nil {
+			return taskItem.GetInitiativeId(), nil
+		}
+	}
+
+	if rec.GetPromotedToType() == db.RecommendationPromotionTypeTask && rec.GetPromotedToId() != "" {
+		taskItem, err := backend.LoadTask(rec.GetPromotedToId())
+		if err != nil {
+			return "", fmt.Errorf("load promoted task %s: %w", rec.GetPromotedToId(), err)
+		}
+		if taskItem != nil {
+			return taskItem.GetInitiativeId(), nil
+		}
+	}
+
+	if rec.GetSourceThreadId() == "" {
+		return "", nil
+	}
+	thread, err := backend.DB().GetThread(rec.GetSourceThreadId())
+	if err != nil {
+		return "", fmt.Errorf("load source thread %s: %w", rec.GetSourceThreadId(), err)
+	}
+	if thread == nil {
+		return "", nil
+	}
+	return db.ThreadAssociationTarget(thread, db.ThreadLinkTypeInitiative), nil
+}
+
+func formatAcceptedRecommendationArtifact(rec *orcv1.Recommendation) string {
+	var parts []string
+	if summary := strings.TrimSpace(rec.GetSummary()); summary != "" {
+		parts = append(parts, "Summary: "+summary)
+	}
+	if evidence := strings.TrimSpace(rec.GetEvidence()); evidence != "" {
+		parts = append(parts, "Evidence: "+evidence)
+	}
+	if action := strings.TrimSpace(rec.GetProposedAction()); action != "" {
+		parts = append(parts, "Accepted action: "+action)
+	}
+	if promotedTo := strings.TrimSpace(rec.GetPromotedToType()); promotedTo != "" || strings.TrimSpace(rec.GetPromotedToId()) != "" {
+		parts = append(parts, fmt.Sprintf("Promoted to: %s %s", promotedTo, strings.TrimSpace(rec.GetPromotedToId())))
+	}
+	return strings.Join(parts, "\n")
 }
 
 func promotedTaskPriority(rec *orcv1.Recommendation, sourceTask *orcv1.Task) string {

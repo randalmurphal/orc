@@ -461,6 +461,14 @@ func (s *threadServer) PromoteRecommendationDraft(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("convert recommendation: %w", err))
 	}
+	if err := s.indexPromotedDraft(backend, draft, rec); err != nil {
+		s.logger.Warn("failed to index promoted recommendation draft",
+			"project_id", req.Msg.ProjectId,
+			"thread_id", req.Msg.ThreadId,
+			"draft_id", req.Msg.DraftId,
+			"error", err,
+		)
+	}
 	s.publishThreadRecommendationCreated(req.Msg.ProjectId, recommendation)
 
 	thread, err := backend.DB().GetThread(req.Msg.ThreadId)
@@ -473,6 +481,50 @@ func (s *threadServer) PromoteRecommendationDraft(
 		Recommendation: recommendation,
 		Thread:         threadToProto(thread),
 	}), nil
+}
+
+func (s *threadServer) indexPromotedDraft(
+	backend storage.Backend,
+	draft *db.ThreadRecommendationDraft,
+	rec *db.Recommendation,
+) error {
+	if draft == nil || rec == nil {
+		return fmt.Errorf("draft and recommendation are required")
+	}
+
+	thread, err := backend.DB().GetThread(draft.ThreadID)
+	if err != nil {
+		return fmt.Errorf("load thread %s: %w", draft.ThreadID, err)
+	}
+
+	entry := &db.ArtifactIndexEntry{
+		Kind:           db.ArtifactKindPromotedDraft,
+		Title:          draft.Title,
+		Content:        formatPromotedDraftArtifact(draft, rec),
+		DedupeKey:      rec.DedupeKey,
+		SourceTaskID:   rec.SourceTaskID,
+		SourceRunID:    rec.SourceRunID,
+		SourceThreadID: draft.ThreadID,
+	}
+	if thread != nil {
+		entry.InitiativeID = db.ThreadAssociationTarget(thread, db.ThreadLinkTypeInitiative)
+	}
+	return saveArtifactIndexEntryIfAbsent(backend, entry)
+}
+
+func formatPromotedDraftArtifact(draft *db.ThreadRecommendationDraft, rec *db.Recommendation) string {
+	var parts []string
+	if summary := strings.TrimSpace(draft.Summary); summary != "" {
+		parts = append(parts, "Summary: "+summary)
+	}
+	if evidence := strings.TrimSpace(draft.Evidence); evidence != "" {
+		parts = append(parts, "Evidence: "+evidence)
+	}
+	if action := strings.TrimSpace(draft.ProposedAction); action != "" {
+		parts = append(parts, "Proposed action: "+action)
+	}
+	parts = append(parts, fmt.Sprintf("Promoted recommendation: %s", rec.ID))
+	return strings.Join(parts, "\n")
 }
 
 // CreateDecisionDraft persists an initiative decision draft in a thread.

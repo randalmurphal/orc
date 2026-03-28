@@ -3,8 +3,10 @@ package brief
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 )
@@ -76,4 +78,43 @@ func ExtractFindings(ctx context.Context, backend *storage.DatabaseBackend) ([]E
 		}
 	}
 	return entries, nil
+}
+
+// ExtractIndexedArtifacts pulls recent indexed artifacts into the brief.
+func ExtractIndexedArtifacts(ctx context.Context, backend *storage.DatabaseBackend) ([]Entry, error) {
+	entries, err := backend.GetRecentArtifacts(db.RecentArtifactOpts{Limit: 10})
+	if err != nil {
+		return nil, fmt.Errorf("get recent artifacts: %w", err)
+	}
+
+	result := make([]Entry, 0, len(entries))
+	for _, entry := range entries {
+		content := strings.TrimSpace(entry.Title)
+		if entry.Content != "" {
+			if content == "" {
+				content = strings.TrimSpace(entry.Content)
+			} else {
+				content = content + ": " + strings.TrimSpace(entry.Content)
+			}
+		}
+		if content == "" {
+			continue
+		}
+
+		source := entry.Kind
+		if entry.InitiativeID != "" {
+			source = entry.InitiativeID
+		} else if entry.SourceTaskID != "" {
+			source = entry.SourceTaskID
+		} else if entry.SourceThreadID != "" {
+			source = entry.SourceThreadID
+		}
+
+		result = append(result, Entry{
+			Content: content,
+			Source:  source,
+			Impact:  0.85,
+		})
+	}
+	return result, nil
 }

@@ -1609,6 +1609,12 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				"run_id", run.ID,
 				"error", err)
 		}
+		if err := we.indexTaskOutcomes(t, run); err != nil {
+			we.logger.Warn("failed to index task outcomes",
+				"task_id", t.Id,
+				"run_id", run.ID,
+				"error", err)
+		}
 	}
 
 	// Clear execution state and release executor claim
@@ -2102,6 +2108,105 @@ func recommendationKindProtoForCandidate(kind string) (orcv1.RecommendationKind,
 	default:
 		return orcv1.RecommendationKind_RECOMMENDATION_KIND_UNSPECIFIED, fmt.Errorf("invalid recommendation kind %q", kind)
 	}
+}
+
+func (we *WorkflowExecutor) indexTaskOutcomes(t *orcv1.Task, run *db.WorkflowRun) error {
+	if t == nil || run == nil {
+		return nil
+	}
+
+	initiativeID := task.GetInitiativeIDProto(t)
+	var persistErr error
+
+	allFindings, err := we.backend.LoadAllReviewFindings(t.Id)
+	if err != nil {
+		return fmt.Errorf("load review findings for task outcome indexing: %w", err)
+	}
+	for _, round := range allFindings {
+		for issueIndex, issue := range round.GetIssues() {
+			if strings.TrimSpace(issue.GetSeverity()) != "high" {
+				continue
+			}
+
+			entry := &db.ArtifactIndexEntry{
+				Kind:         db.ArtifactKindTaskOutcome,
+				Title:        firstNonEmpty(strings.TrimSpace(issue.GetDescription()), fmt.Sprintf("High-severity review finding for %s", t.Id)),
+				Content:      formatTaskOutcomeFinding(round, issue),
+				DedupeKey:    fmt.Sprintf("task_outcome:%s:review:%d:%d", t.Id, round.GetRound(), issueIndex),
+				InitiativeID: initiativeID,
+				SourceTaskID: t.Id,
+				SourceRunID:  run.ID,
+			}
+			if err := saveTaskOutcomeArtifactIfAbsent(we.backend, entry); err != nil {
+				persistErr = errors.Join(persistErr, err)
+			}
+		}
+	}
+
+	notes, err := we.backend.GetInitiativeNotesBySourceTask(t.Id)
+	if err != nil {
+		return fmt.Errorf("load initiative notes for task outcome indexing: %w", err)
+	}
+	for _, note := range notes {
+		entry := &db.ArtifactIndexEntry{
+			Kind:         db.ArtifactKindTaskOutcome,
+			Title:        firstNonEmpty(strings.TrimSpace(note.Content), fmt.Sprintf("Initiative %s note from %s", note.NoteType, t.Id)),
+			Content:      formatTaskOutcomeNote(note),
+			DedupeKey:    fmt.Sprintf("task_outcome:%s:note:%s", t.Id, note.ID),
+			InitiativeID: note.InitiativeID,
+			SourceTaskID: t.Id,
+			SourceRunID:  run.ID,
+		}
+		if err := saveTaskOutcomeArtifactIfAbsent(we.backend, entry); err != nil {
+			persistErr = errors.Join(persistErr, err)
+		}
+	}
+
+	return persistErr
+}
+
+func saveTaskOutcomeArtifactIfAbsent(backend storage.Backend, entry *db.ArtifactIndexEntry) error {
+	matches, err := backend.QueryArtifactIndexByDedupeKey(entry.DedupeKey)
+	if err != nil {
+		return err
+	}
+	for _, match := range matches {
+		if match.Kind == entry.Kind {
+			return nil
+		}
+	}
+	return backend.SaveArtifactIndexEntry(entry)
+}
+
+func formatTaskOutcomeFinding(round *orcv1.ReviewRoundFindings, issue *orcv1.ReviewFinding) string {
+	var parts []string
+	if description := strings.TrimSpace(issue.GetDescription()); description != "" {
+		parts = append(parts, "Finding: "+description)
+	}
+	if severity := strings.TrimSpace(issue.GetSeverity()); severity != "" {
+		parts = append(parts, "Severity: "+severity)
+	}
+	if file := strings.TrimSpace(issue.GetFile()); file != "" {
+		parts = append(parts, "File: "+file)
+	}
+	if summary := strings.TrimSpace(round.GetSummary()); summary != "" {
+		parts = append(parts, "Round summary: "+summary)
+	}
+	return strings.Join(parts, "\n")
+}
+
+func formatTaskOutcomeNote(note db.InitiativeNote) string {
+	var parts []string
+	if note.NoteType != "" {
+		parts = append(parts, "Note type: "+note.NoteType)
+	}
+	if note.Content != "" {
+		parts = append(parts, "Content: "+note.Content)
+	}
+	if len(note.RelevantFiles) > 0 {
+		parts = append(parts, "Relevant files: "+strings.Join(note.RelevantFiles, ", "))
+	}
+	return strings.Join(parts, "\n")
 }
 
 func (we *WorkflowExecutor) publishRecommendationCreated(rec *orcv1.Recommendation) {

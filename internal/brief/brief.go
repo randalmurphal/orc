@@ -14,11 +14,12 @@ import (
 
 // Section categories.
 const (
-	CategoryDecisions      = "decisions"
-	CategoryRecentFindings = "recent_findings"
-	CategoryHotFiles       = "hot_files"
-	CategoryPatterns        = "patterns"
-	CategoryKnownIssues    = "known_issues"
+	CategoryDecisions        = "decisions"
+	CategoryRecentFindings   = "recent_findings"
+	CategoryIndexedArtifacts = "indexed_artifacts"
+	CategoryHotFiles         = "hot_files"
+	CategoryPatterns         = "patterns"
+	CategoryKnownIssues      = "known_issues"
 )
 
 // Brief is the generated project context summary.
@@ -55,11 +56,12 @@ func DefaultConfig() Config {
 	return Config{
 		MaxTokens: 3000,
 		SectionBudgets: map[string]int{
-			CategoryDecisions:      800,
-			CategoryHotFiles:       600,
-			CategoryPatterns:       500,
-			CategoryKnownIssues:    500,
-			CategoryRecentFindings: 600,
+			CategoryDecisions:        800,
+			CategoryIndexedArtifacts: 600,
+			CategoryHotFiles:         600,
+			CategoryPatterns:         500,
+			CategoryKnownIssues:      500,
+			CategoryRecentFindings:   600,
 		},
 		StaleThreshold: 3,
 	}
@@ -142,6 +144,16 @@ func (g *Generator) generate(ctx context.Context, taskCount int) (*Brief, error)
 	if len(findings) > 0 {
 		sec := Section{Category: CategoryRecentFindings, Entries: findings}
 		sec = ApplyTokenBudget(sec, g.cfg.SectionBudgets[CategoryRecentFindings])
+		sections = append(sections, sec)
+	}
+
+	indexedArtifacts, err := ExtractIndexedArtifacts(ctx, g.backend)
+	if err != nil {
+		return nil, fmt.Errorf("extract indexed artifacts: %w", err)
+	}
+	if len(indexedArtifacts) > 0 {
+		sec := Section{Category: CategoryIndexedArtifacts, Entries: indexedArtifacts}
+		sec = ApplyTokenBudget(sec, g.cfg.SectionBudgets[CategoryIndexedArtifacts])
 		sections = append(sections, sec)
 	}
 
