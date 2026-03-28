@@ -2137,7 +2137,7 @@ func (we *WorkflowExecutor) indexTaskOutcomes(t *orcv1.Task, run *db.WorkflowRun
 				SourceTaskID: t.Id,
 				SourceRunID:  run.ID,
 			}
-			if err := saveTaskOutcomeArtifactIfAbsent(we.backend, entry); err != nil {
+			if err := storage.SaveArtifactIndexEntryIfAbsent(we.backend, entry); err != nil {
 				persistErr = errors.Join(persistErr, err)
 			}
 		}
@@ -2157,25 +2157,12 @@ func (we *WorkflowExecutor) indexTaskOutcomes(t *orcv1.Task, run *db.WorkflowRun
 			SourceTaskID: t.Id,
 			SourceRunID:  run.ID,
 		}
-		if err := saveTaskOutcomeArtifactIfAbsent(we.backend, entry); err != nil {
+		if err := storage.SaveArtifactIndexEntryIfAbsent(we.backend, entry); err != nil {
 			persistErr = errors.Join(persistErr, err)
 		}
 	}
 
 	return persistErr
-}
-
-func saveTaskOutcomeArtifactIfAbsent(backend storage.Backend, entry *db.ArtifactIndexEntry) error {
-	matches, err := backend.QueryArtifactIndexByDedupeKey(entry.DedupeKey)
-	if err != nil {
-		return err
-	}
-	for _, match := range matches {
-		if match.Kind == entry.Kind {
-			return nil
-		}
-	}
-	return backend.SaveArtifactIndexEntry(entry)
 }
 
 func formatTaskOutcomeFinding(round *orcv1.ReviewRoundFindings, issue *orcv1.ReviewFinding) string {

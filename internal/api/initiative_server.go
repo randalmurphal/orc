@@ -583,7 +583,7 @@ func indexInitiativeDecision(
 		DedupeKey:    fmt.Sprintf("initiative_decision:%s:%s", initiativeID, decision.GetId()),
 		InitiativeID: initiativeID,
 	}
-	return saveArtifactIndexEntryIfAbsent(backend, entry)
+	return storage.SaveArtifactIndexEntryIfAbsent(backend, entry)
 }
 
 func formatInitiativeDecisionArtifact(decision *orcv1.InitiativeDecision) string {

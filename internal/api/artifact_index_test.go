@@ -124,3 +124,48 @@ func TestArtifactIndex_InitiativeDecision(t *testing.T) {
 	require.Len(t, results, 1)
 	require.Contains(t, results[0].Content, "Rationale: Latency regressed")
 }
+
+func TestArtifactIndex_AcceptedRecommendationDecisionPromotion(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	storageFixturesForRecommendation(t, backend)
+	server := NewRecommendationServer(backend, slog.Default(), events.NewMemoryPublisher()).(*recommendationServer)
+	server.SetProjectCache(testProjectCacheForBackend("proj-001", backend))
+
+	createResp, err := server.CreateRecommendation(context.Background(), connect.NewRequest(&orcv1.CreateRecommendationRequest{
+		ProjectId: "proj-001",
+		Recommendation: &orcv1.Recommendation{
+			Kind:           orcv1.RecommendationKind_RECOMMENDATION_KIND_DECISION_REQUEST,
+			Status:         orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING,
+			Title:          "Freeze the rollout behind a feature flag",
+			Summary:        "The operator should decide whether the rollout stays gated.",
+			ProposedAction: "Keep the feature flag enabled until the latency regression is gone.",
+			Evidence:       "Latency climbed 18% on the last canary run.",
+			SourceTaskId:   "TASK-001",
+			SourceRunId:    "RUN-001",
+			SourceThreadId: "THR-001",
+			DedupeKey:      "decision:task-001:feature-flag:indexing",
+		},
+	}))
+	require.NoError(t, err)
+
+	acceptResp, err := server.AcceptRecommendation(context.Background(), connect.NewRequest(&orcv1.AcceptRecommendationRequest{
+		ProjectId:        "proj-001",
+		RecommendationId: createResp.Msg.Recommendation.Id,
+		DecidedBy:        "operator",
+		DecisionReason:   "until the regression is fixed",
+	}))
+	require.NoError(t, err)
+
+	results, err := backend.QueryArtifactIndex(db.ArtifactIndexQueryOpts{
+		Kind:         db.ArtifactKindInitiativeDecision,
+		InitiativeID: "INIT-001",
+		Limit:        10,
+	})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "initiative_decision:INIT-001:"+acceptResp.Msg.Recommendation.PromotedToId, results[0].DedupeKey)
+	require.Contains(t, results[0].Content, "Operator note: until the regression is fixed")
+	require.Contains(t, results[0].Content, "Decided by: operator")
+}

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/randalmurphal/orc/internal/db"
 )
@@ -47,4 +48,27 @@ func (d *DatabaseBackend) GetRecentArtifacts(opts db.RecentArtifactOpts) ([]db.A
 		return nil, fmt.Errorf("get recent artifacts: %w", err)
 	}
 	return entries, nil
+}
+
+func SaveArtifactIndexEntryIfAbsent(backend Backend, entry *db.ArtifactIndexEntry) error {
+	if backend == nil {
+		return fmt.Errorf("backend is required")
+	}
+	if entry == nil {
+		return fmt.Errorf("artifact index entry is required")
+	}
+
+	if strings.TrimSpace(entry.DedupeKey) != "" {
+		matches, err := backend.QueryArtifactIndexByDedupeKey(entry.DedupeKey)
+		if err != nil {
+			return err
+		}
+		for _, match := range matches {
+			if match.Kind == entry.Kind {
+				return nil
+			}
+		}
+	}
+
+	return backend.SaveArtifactIndexEntry(entry)
 }

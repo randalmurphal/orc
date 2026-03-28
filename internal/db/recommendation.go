@@ -902,6 +902,10 @@ func nullableRecommendationValue(value string) any {
 }
 
 func ensureRecommendationDedupeAvailableTx(tx *TxOps, rec *Recommendation) error {
+	if strings.TrimSpace(rec.DedupeKey) == "" {
+		return nil
+	}
+
 	existingRecommendationID, err := recommendationIDByDedupeKeyTx(tx, rec.DedupeKey)
 	if err != nil {
 		return err

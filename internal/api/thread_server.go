@@ -509,7 +509,7 @@ func (s *threadServer) indexPromotedDraft(
 	if thread != nil {
 		entry.InitiativeID = db.ThreadAssociationTarget(thread, db.ThreadLinkTypeInitiative)
 	}
-	return saveArtifactIndexEntryIfAbsent(backend, entry)
+	return storage.SaveArtifactIndexEntryIfAbsent(backend, entry)
 }
 
 func formatPromotedDraftArtifact(draft *db.ThreadRecommendationDraft, rec *db.Recommendation) string {

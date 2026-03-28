@@ -10,6 +10,7 @@ import (
 	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -542,6 +543,48 @@ func TestGenerator_RegeneratesWhenStale(t *testing.T) {
 	}
 }
 
+func TestGenerator_RegeneratesWhenIndexedArtifactsChange(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+
+	dir := t.TempDir()
+	cfg := DefaultConfig()
+	cfg.CachePath = filepath.Join(dir, "brief.cache")
+	cfg.StaleThreshold = 3
+
+	gen := NewGenerator(backend, cfg)
+
+	brief1, err := gen.Generate(context.Background())
+	if err != nil {
+		t.Fatalf("first Generate() error: %v", err)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+	if err := backend.SaveArtifactIndexEntry(&db.ArtifactIndexEntry{
+		Kind:      db.ArtifactKindAcceptedRecommendation,
+		Title:     "Accepted cleanup",
+		Content:   "Summary: Remove duplicate polling.",
+		DedupeKey: "cleanup:artifact-cache-regeneration",
+	}); err != nil {
+		t.Fatalf("save artifact index entry: %v", err)
+	}
+
+	brief2, err := gen.Generate(context.Background())
+	if err != nil {
+		t.Fatalf("second Generate() error: %v", err)
+	}
+
+	if !brief2.GeneratedAt.After(brief1.GeneratedAt) {
+		t.Fatal("expected indexed artifact change to regenerate cached brief")
+	}
+
+	section := findSection(brief2, CategoryIndexedArtifacts)
+	if section == nil || len(section.Entries) == 0 {
+		t.Fatal("expected regenerated brief to include indexed artifacts")
+	}
+}
+
 // ============================================================================
 // SC-6: Empty/fresh project produces empty brief
 // ============================================================================
@@ -648,9 +691,9 @@ func TestFormatBrief_OnlyPopulatedSections(t *testing.T) {
 		TaskCount:   5,
 		Sections: []Section{
 			{Category: CategoryDecisions, Entries: []Entry{{Content: "Use JWT", Source: "INIT-001", Impact: 0.9}}},
-			{Category: CategoryHotFiles, Entries: nil},                   // Empty
-			{Category: CategoryRecentFindings, Entries: []Entry{}},       // Empty
-			{Category: CategoryPatterns, Entries: nil},                   // Empty
+			{Category: CategoryHotFiles, Entries: nil},             // Empty
+			{Category: CategoryRecentFindings, Entries: []Entry{}}, // Empty
+			{Category: CategoryPatterns, Entries: nil},             // Empty
 			{Category: CategoryKnownIssues, Entries: []Entry{{Content: "FTS5 issue", Source: "TASK-791", Impact: 0.7}}},
 		},
 		TokenCount: 100,
@@ -807,8 +850,8 @@ func findSection(brief *Brief, category string) *Section {
 	return nil
 }
 
-func strPtr(s string) *string  { return &s }
-func int32Ptr(i int32) *int32  { return &i }
+func strPtr(s string) *string { return &s }
+func int32Ptr(i int32) *int32 { return &i }
 
 func taskIDForIndex(i int) string {
 	return fmt.Sprintf("TASK-%03d", i+1)

@@ -186,6 +186,7 @@ func (s *recommendationServer) AcceptRecommendation(
 	}
 	if previousStatus != rec.Status {
 		s.indexAcceptedRecommendation(req.Msg.GetProjectId(), rec)
+		s.indexAcceptedRecommendationDecision(req.Msg.GetProjectId(), rec)
 		s.publishRecommendationDecided(req.Msg.GetProjectId(), rec, previousStatus)
 		s.publishPromotedArtifact(req.Msg.GetProjectId(), rec)
 	}
@@ -460,15 +461,10 @@ func (s *recommendationServer) buildPromotedDecision(
 		return nil, fmt.Errorf("initiative %s not found", initiativeID)
 	}
 
-	decisionText := strings.TrimSpace(rec.ProposedAction)
-	if decisionText == "" {
-		decisionText = rec.Title
-	}
-
 	return &db.InitiativeDecision{
 		ID:           "DEC-" + rec.Id,
 		InitiativeID: initiativeID,
-		Decision:     decisionText,
+		Decision:     promotedDecisionText(rec),
 		Rationale:    buildPromotedDecisionRationale(rec, decisionReason),
 		DecidedBy:    decidedBy,
 		DecidedAt:    time.Now(),
@@ -651,7 +647,7 @@ func (s *recommendationServer) indexAcceptedRecommendation(projectID string, rec
 			"recommendation_id", rec.GetId(),
 			"error", err,
 		)
-		return
+		initiativeID = ""
 	}
 
 	entry := &db.ArtifactIndexEntry{
@@ -664,7 +660,7 @@ func (s *recommendationServer) indexAcceptedRecommendation(projectID string, rec
 		SourceRunID:    rec.GetSourceRunId(),
 		SourceThreadID: rec.GetSourceThreadId(),
 	}
-	if err := saveArtifactIndexEntryIfAbsent(backend, entry); err != nil {
+	if err := storage.SaveArtifactIndexEntryIfAbsent(backend, entry); err != nil {
 		s.logger.Warn("failed to index accepted recommendation",
 			"project_id", projectID,
 			"recommendation_id", rec.GetId(),
@@ -673,19 +669,56 @@ func (s *recommendationServer) indexAcceptedRecommendation(projectID string, rec
 	}
 }
 
-func saveArtifactIndexEntryIfAbsent(backend storage.Backend, entry *db.ArtifactIndexEntry) error {
-	if strings.TrimSpace(entry.DedupeKey) != "" {
-		matches, err := backend.QueryArtifactIndexByDedupeKey(entry.DedupeKey)
-		if err != nil {
-			return err
-		}
-		for _, match := range matches {
-			if match.Kind == entry.Kind {
-				return nil
-			}
-		}
+func (s *recommendationServer) indexAcceptedRecommendationDecision(projectID string, rec *orcv1.Recommendation) {
+	if rec == nil || rec.GetPromotedToType() != db.RecommendationPromotionTypeInitiativeDecision || rec.GetPromotedToId() == "" {
+		return
 	}
-	return backend.SaveArtifactIndexEntry(entry)
+
+	backend, err := s.getBackend(projectID)
+	if err != nil {
+		s.logger.Warn("failed to load backend for initiative decision indexing",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"error", err,
+		)
+		return
+	}
+
+	initiativeID, err := artifactIndexInitiativeIDForRecommendation(backend, rec)
+	if err != nil {
+		s.logger.Warn("failed to resolve initiative decision context for recommendation",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"decision_id", rec.GetPromotedToId(),
+			"error", err,
+		)
+		return
+	}
+	if initiativeID == "" {
+		s.logger.Warn("missing initiative context for promoted initiative decision",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"decision_id", rec.GetPromotedToId(),
+		)
+		return
+	}
+
+	decision := &orcv1.InitiativeDecision{
+		Id:       rec.GetPromotedToId(),
+		Decision: promotedDecisionText(rec),
+		By:       rec.GetDecidedBy(),
+	}
+	rationale := buildPromotedDecisionRationale(rec, rec.GetDecisionReason())
+	decision.Rationale = &rationale
+	if err := indexInitiativeDecision(backend, initiativeID, decision); err != nil {
+		s.logger.Warn("failed to index promoted initiative decision",
+			"project_id", projectID,
+			"recommendation_id", rec.GetId(),
+			"decision_id", rec.GetPromotedToId(),
+			"initiative_id", initiativeID,
+			"error", err,
+		)
+	}
 }
 
 func artifactIndexInitiativeIDForRecommendation(backend storage.Backend, rec *orcv1.Recommendation) (string, error) {
@@ -737,6 +770,14 @@ func formatAcceptedRecommendationArtifact(rec *orcv1.Recommendation) string {
 		parts = append(parts, fmt.Sprintf("Promoted to: %s %s", promotedTo, strings.TrimSpace(rec.GetPromotedToId())))
 	}
 	return strings.Join(parts, "\n")
+}
+
+func promotedDecisionText(rec *orcv1.Recommendation) string {
+	decisionText := strings.TrimSpace(rec.GetProposedAction())
+	if decisionText != "" {
+		return decisionText
+	}
+	return strings.TrimSpace(rec.GetTitle())
 }
 
 func promotedTaskPriority(rec *orcv1.Recommendation, sourceTask *orcv1.Task) string {
