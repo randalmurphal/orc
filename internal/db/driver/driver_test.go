@@ -393,10 +393,84 @@ func TestSQLiteMigrateWithFKDisable(t *testing.T) {
 		t.Errorf("expected 1 row in parent view, got %d: %v", count, err)
 	}
 
+	// Verify child rows survived the rewrite.
+	err = drv.QueryRow(ctx, "SELECT COUNT(*) FROM child").Scan(&count)
+	if err != nil || count != 1 {
+		t.Errorf("expected 1 row in child after migration, got %d: %v", count, err)
+	}
+
 	// Verify FKs are re-enabled after migration
 	var fkEnabled int
 	err = drv.QueryRow(ctx, "PRAGMA foreign_keys").Scan(&fkEnabled)
 	if err != nil || fkEnabled != 1 {
 		t.Errorf("foreign keys should be re-enabled after migration, got %d", fkEnabled)
+	}
+}
+
+func TestSQLiteMigrateWithFKDisable_IgnoresPreExistingUnrelatedViolations(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "migrate_existing_fk_violations.db")
+
+	drv := NewSQLite()
+	if err := drv.Open(dbPath); err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = drv.Close() }()
+
+	ctx := context.Background()
+
+	if _, err := drv.Exec(ctx, `
+		CREATE TABLE legacy_parent (id INTEGER PRIMARY KEY);
+		CREATE TABLE legacy_child (
+			id INTEGER PRIMARY KEY,
+			parent_id INTEGER REFERENCES legacy_parent(id)
+		);
+	`); err != nil {
+		t.Fatalf("create legacy tables: %v", err)
+	}
+	if _, err := drv.Exec(ctx, "PRAGMA foreign_keys = OFF"); err != nil {
+		t.Fatalf("disable foreign keys for legacy setup: %v", err)
+	}
+	if _, err := drv.Exec(ctx, "INSERT INTO legacy_child (id, parent_id) VALUES (1, 999)"); err != nil {
+		t.Fatalf("insert legacy FK violation: %v", err)
+	}
+	if _, err := drv.Exec(ctx, "PRAGMA foreign_keys = ON"); err != nil {
+		t.Fatalf("re-enable foreign keys for legacy setup: %v", err)
+	}
+
+	schemaDir := filepath.Join(tmpDir, "schema")
+	if err := os.MkdirAll(schemaDir, 0755); err != nil {
+		t.Fatalf("create schema dir: %v", err)
+	}
+
+	migration1 := `
+		CREATE TABLE base (id INTEGER PRIMARY KEY, name TEXT);
+		INSERT INTO base (id, name) VALUES (1, 'before');
+	`
+	if err := os.WriteFile(filepath.Join(schemaDir, "test_001.sql"), []byte(migration1), 0644); err != nil {
+		t.Fatalf("write migration 1: %v", err)
+	}
+
+	migration2 := `-- orc:disable_fk
+		CREATE TABLE base_new (id INTEGER PRIMARY KEY, name TEXT, note TEXT);
+		INSERT INTO base_new (id, name, note) SELECT id, name, 'migrated' FROM base;
+		DROP TABLE base;
+		ALTER TABLE base_new RENAME TO base;
+	`
+	if err := os.WriteFile(filepath.Join(schemaDir, "test_002.sql"), []byte(migration2), 0644); err != nil {
+		t.Fatalf("write migration 2: %v", err)
+	}
+
+	mockFS := &mockSchemaFS{dir: tmpDir}
+	if err := drv.Migrate(ctx, mockFS, "test"); err != nil {
+		t.Fatalf("Migrate failed with pre-existing unrelated FK violations: %v", err)
+	}
+
+	var count int
+	if err := drv.QueryRow(ctx, "SELECT COUNT(*) FROM base WHERE note = 'migrated'").Scan(&count); err != nil {
+		t.Fatalf("verify migrated table: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected migrated row to survive, got %d", count)
 	}
 }

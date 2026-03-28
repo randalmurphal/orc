@@ -32,6 +32,7 @@ type TxRunner interface {
 type TxOps struct {
 	tx      driver.Tx
 	dialect driver.Dialect
+	now     string
 	ctx     context.Context
 }
 
@@ -61,6 +62,11 @@ func (t *TxOps) Context() context.Context {
 // Dialect returns the database dialect.
 func (t *TxOps) Dialect() driver.Dialect {
 	return t.dialect
+}
+
+// Now returns the SQL expression for the current timestamp.
+func (t *TxOps) Now() string {
+	return t.now
 }
 
 // ProjectDB provides operations on a project database.
@@ -188,6 +194,7 @@ func (p *ProjectDB) RunInTx(ctx context.Context, fn func(tx *TxOps) error) error
 	txOps := &TxOps{
 		tx:      tx,
 		dialect: p.Dialect(),
+		now:     p.Driver().Now(),
 		ctx:     ctx,
 	}
 

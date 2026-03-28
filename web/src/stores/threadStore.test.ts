@@ -40,6 +40,30 @@ function createMockThread(overrides: Record<string, unknown> = {}) {
 	});
 }
 
+function createDeferred<T>() {
+	let resolvePromise: ((value: T | PromiseLike<T>) => void) | undefined;
+	let rejectPromise: ((reason?: unknown) => void) | undefined;
+	const promise = new Promise<T>((resolve, reject) => {
+		resolvePromise = resolve;
+		rejectPromise = reject;
+	});
+	return {
+		promise,
+		resolve(value: T) {
+			if (resolvePromise === undefined) {
+				throw new Error('Deferred promise resolved before initialization');
+			}
+			resolvePromise(value);
+		},
+		reject(reason?: unknown) {
+			if (rejectPromise === undefined) {
+				throw new Error('Deferred promise rejected before initialization');
+			}
+			rejectPromise(reason);
+		},
+	};
+}
+
 // =============================================================================
 // TESTS
 // =============================================================================
@@ -126,7 +150,7 @@ describe('threadStore', () => {
 			await useThreadStore.getState().loadThreads('proj-001');
 
 			const state = useThreadStore.getState();
-			expect(state.error).toBe('Failed to load threads');
+			expect(state.error).toBe('Failed to load threads Network error');
 			expect(state.loading).toBe(false);
 			expect(state.threads).toEqual([]);
 		});
@@ -147,6 +171,31 @@ describe('threadStore', () => {
 			expect(state.threads).toHaveLength(1);
 			expect(state.threads[0].id).toBe('new-thread');
 		});
+
+		it('should ignore stale responses after switching projects', async () => {
+			const firstLoad = createDeferred<{ threads: ReturnType<typeof createMockThread>[] }>();
+			const secondLoad = createDeferred<{ threads: ReturnType<typeof createMockThread>[] }>();
+
+			vi.mocked(threadClient.listThreads)
+				.mockReturnValueOnce(firstLoad.promise as never)
+				.mockReturnValueOnce(secondLoad.promise as never);
+
+			const firstPromise = useThreadStore.getState().loadThreads('proj-001');
+			useThreadStore.getState().reset();
+			const secondPromise = useThreadStore.getState().loadThreads('proj-002');
+
+			secondLoad.resolve({
+				threads: [createMockThread({ id: 'thread-b', title: 'Project B thread' })],
+			});
+			await secondPromise;
+			expect(useThreadStore.getState().threads[0]?.id).toBe('thread-b');
+
+			firstLoad.resolve({
+				threads: [createMockThread({ id: 'thread-a', title: 'Project A thread' })],
+			});
+			await firstPromise;
+			expect(useThreadStore.getState().threads[0]?.id).toBe('thread-b');
+		});
 	});
 
 	describe('createThread (SC-4)', () => {
@@ -158,6 +207,9 @@ describe('threadStore', () => {
 
 			vi.mocked(threadClient.createThread).mockResolvedValue({
 				thread: newThread,
+			} as never);
+			vi.mocked(threadClient.listThreads).mockResolvedValue({
+				threads: [newThread],
 			} as never);
 
 			const result = await useThreadStore.getState().createThread('proj-001', 'New Thread');
@@ -178,6 +230,9 @@ describe('threadStore', () => {
 			vi.mocked(threadClient.createThread).mockResolvedValue({
 				thread: newThread,
 			} as never);
+			vi.mocked(threadClient.listThreads).mockResolvedValue({
+				threads: [newThread],
+			} as never);
 
 			await useThreadStore.getState().createThread('proj-001', 'New Thread');
 
@@ -192,8 +247,70 @@ describe('threadStore', () => {
 			const result = await useThreadStore.getState().createThread('proj-001', 'New Thread');
 
 			expect(result).toBeNull();
-			// Error should be accessible for UI to display toast
-			expect(useThreadStore.getState().error).toBeTruthy();
+			expect(useThreadStore.getState().error).toBe('Failed to create thread Creation failed');
+		});
+
+		it('should ignore stale create results after switching projects', async () => {
+			const createDeferredResponse = createDeferred<{ thread?: ReturnType<typeof createMockThread> }>();
+
+			vi.mocked(threadClient.createThread).mockReturnValue(createDeferredResponse.promise as never);
+
+			const createPromise = useThreadStore.getState().createThread('proj-001', 'Project A thread');
+			useThreadStore.getState().reset();
+
+			createDeferredResponse.resolve({
+				thread: createMockThread({ id: 'thread-a', title: 'Project A thread' }),
+			});
+
+			const result = await createPromise;
+			const state = useThreadStore.getState();
+			expect(result).toBeNull();
+			expect(state.threads).toEqual([]);
+			expect(state.selectedThreadId).toBeNull();
+			expect(state.error).toBeNull();
+		});
+
+		it('keeps the created thread selected when a same-project list refresh overlaps the create response', async () => {
+			const staleListLoad = createDeferred<{ threads: ReturnType<typeof createMockThread>[] }>();
+			const refreshAfterCreate = createDeferred<{ threads: ReturnType<typeof createMockThread>[] }>();
+			const createdThread = createMockThread({
+				id: 'thread-new',
+				title: 'New Thread',
+			});
+
+			vi.mocked(threadClient.createThread).mockResolvedValue({
+				thread: createdThread,
+			} as never);
+			vi.mocked(threadClient.listThreads)
+				.mockReturnValueOnce(staleListLoad.promise as never)
+				.mockReturnValueOnce(refreshAfterCreate.promise as never);
+
+			const createPromise = useThreadStore.getState().createThread('proj-001', 'New Thread');
+			const overlappingLoadPromise = useThreadStore.getState().loadThreads('proj-001');
+
+			await expect(createPromise).resolves.toMatchObject({ id: 'thread-new' });
+			expect(useThreadStore.getState().selectedThreadId).toBe('thread-new');
+			expect(useThreadStore.getState().threads).toEqual([createdThread]);
+
+			staleListLoad.resolve({
+				threads: [createMockThread({ id: 'thread-old', title: 'Old Thread' })],
+			});
+			await overlappingLoadPromise;
+
+			expect(useThreadStore.getState().selectedThreadId).toBe('thread-new');
+			expect(useThreadStore.getState().threads).toEqual([createdThread]);
+
+			refreshAfterCreate.resolve({
+				threads: [
+					createMockThread({ id: 'thread-old', title: 'Old Thread' }),
+					createdThread,
+				],
+			});
+			await refreshAfterCreate.promise;
+			await Promise.resolve();
+
+			expect(useThreadStore.getState().threads.map((thread) => thread.id)).toEqual(['thread-old', 'thread-new']);
+			expect(useThreadStore.getState().selectedThreadId).toBe('thread-new');
 		});
 	});
 

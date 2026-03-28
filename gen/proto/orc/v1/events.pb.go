@@ -1620,6 +1620,58 @@ func (x *RecommendationDecidedEvent) GetPromotedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type ThreadUpdatedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ThreadId      string                 `protobuf:"bytes,1,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	UpdateType    string                 `protobuf:"bytes,2,opt,name=update_type,json=updateType,proto3" json:"update_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ThreadUpdatedEvent) Reset() {
+	*x = ThreadUpdatedEvent{}
+	mi := &file_orc_v1_events_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadUpdatedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadUpdatedEvent) ProtoMessage() {}
+
+func (x *ThreadUpdatedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_events_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadUpdatedEvent.ProtoReflect.Descriptor instead.
+func (*ThreadUpdatedEvent) Descriptor() ([]byte, []int) {
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ThreadUpdatedEvent) GetThreadId() string {
+	if x != nil {
+		return x.ThreadId
+	}
+	return ""
+}
+
+func (x *ThreadUpdatedEvent) GetUpdateType() string {
+	if x != nil {
+		return x.UpdateType
+	}
+	return ""
+}
+
 // Event with typed payload (replaces WebSocket's untyped data)
 type Event struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1654,6 +1706,7 @@ type Event struct {
 	//	*Event_SessionMetrics
 	//	*Event_RecommendationCreated
 	//	*Event_RecommendationDecided
+	//	*Event_ThreadUpdated
 	Payload       isEvent_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1661,7 +1714,7 @@ type Event struct {
 
 func (x *Event) Reset() {
 	*x = Event{}
-	mi := &file_orc_v1_events_proto_msgTypes[20]
+	mi := &file_orc_v1_events_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1673,7 +1726,7 @@ func (x *Event) String() string {
 func (*Event) ProtoMessage() {}
 
 func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[20]
+	mi := &file_orc_v1_events_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1686,7 +1739,7 @@ func (x *Event) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Event.ProtoReflect.Descriptor instead.
 func (*Event) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{20}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Event) GetId() string {
@@ -1895,6 +1948,15 @@ func (x *Event) GetRecommendationDecided() *RecommendationDecidedEvent {
 	return nil
 }
 
+func (x *Event) GetThreadUpdated() *ThreadUpdatedEvent {
+	if x != nil {
+		if x, ok := x.Payload.(*Event_ThreadUpdated); ok {
+			return x.ThreadUpdated
+		}
+	}
+	return nil
+}
+
 type isEvent_Payload interface {
 	isEvent_Payload()
 }
@@ -1975,6 +2037,10 @@ type Event_RecommendationDecided struct {
 	RecommendationDecided *RecommendationDecidedEvent `protobuf:"bytes,28,opt,name=recommendation_decided,json=recommendationDecided,proto3,oneof"`
 }
 
+type Event_ThreadUpdated struct {
+	ThreadUpdated *ThreadUpdatedEvent `protobuf:"bytes,29,opt,name=thread_updated,json=threadUpdated,proto3,oneof"`
+}
+
 func (*Event_TaskCreated) isEvent_Payload() {}
 
 func (*Event_TaskUpdated) isEvent_Payload() {}
@@ -2013,6 +2079,8 @@ func (*Event_RecommendationCreated) isEvent_Payload() {}
 
 func (*Event_RecommendationDecided) isEvent_Payload() {}
 
+func (*Event_ThreadUpdated) isEvent_Payload() {}
+
 // Timeline event for historical event log
 type TimelineEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2031,7 +2099,7 @@ type TimelineEvent struct {
 
 func (x *TimelineEvent) Reset() {
 	*x = TimelineEvent{}
-	mi := &file_orc_v1_events_proto_msgTypes[21]
+	mi := &file_orc_v1_events_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2043,7 +2111,7 @@ func (x *TimelineEvent) String() string {
 func (*TimelineEvent) ProtoMessage() {}
 
 func (x *TimelineEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[21]
+	mi := &file_orc_v1_events_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2056,7 +2124,7 @@ func (x *TimelineEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineEvent.ProtoReflect.Descriptor instead.
 func (*TimelineEvent) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{21}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *TimelineEvent) GetId() string {
@@ -2140,7 +2208,7 @@ type SubscribeRequest struct {
 
 func (x *SubscribeRequest) Reset() {
 	*x = SubscribeRequest{}
-	mi := &file_orc_v1_events_proto_msgTypes[22]
+	mi := &file_orc_v1_events_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2152,7 +2220,7 @@ func (x *SubscribeRequest) String() string {
 func (*SubscribeRequest) ProtoMessage() {}
 
 func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[22]
+	mi := &file_orc_v1_events_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2165,7 +2233,7 @@ func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{22}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *SubscribeRequest) GetProjectIds() []string {
@@ -2212,7 +2280,7 @@ type SubscribeResponse struct {
 
 func (x *SubscribeResponse) Reset() {
 	*x = SubscribeResponse{}
-	mi := &file_orc_v1_events_proto_msgTypes[23]
+	mi := &file_orc_v1_events_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2224,7 +2292,7 @@ func (x *SubscribeResponse) String() string {
 func (*SubscribeResponse) ProtoMessage() {}
 
 func (x *SubscribeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[23]
+	mi := &file_orc_v1_events_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2237,7 +2305,7 @@ func (x *SubscribeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeResponse.ProtoReflect.Descriptor instead.
 func (*SubscribeResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{23}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *SubscribeResponse) GetEvent() *Event {
@@ -2267,7 +2335,7 @@ type GetEventsRequest struct {
 
 func (x *GetEventsRequest) Reset() {
 	*x = GetEventsRequest{}
-	mi := &file_orc_v1_events_proto_msgTypes[24]
+	mi := &file_orc_v1_events_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2279,7 +2347,7 @@ func (x *GetEventsRequest) String() string {
 func (*GetEventsRequest) ProtoMessage() {}
 
 func (x *GetEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[24]
+	mi := &file_orc_v1_events_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2292,7 +2360,7 @@ func (x *GetEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsRequest.ProtoReflect.Descriptor instead.
 func (*GetEventsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{24}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetEventsRequest) GetProjectId() string {
@@ -2354,7 +2422,7 @@ type GetEventsResponse struct {
 
 func (x *GetEventsResponse) Reset() {
 	*x = GetEventsResponse{}
-	mi := &file_orc_v1_events_proto_msgTypes[25]
+	mi := &file_orc_v1_events_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2366,7 +2434,7 @@ func (x *GetEventsResponse) String() string {
 func (*GetEventsResponse) ProtoMessage() {}
 
 func (x *GetEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[25]
+	mi := &file_orc_v1_events_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2379,7 +2447,7 @@ func (x *GetEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsResponse.ProtoReflect.Descriptor instead.
 func (*GetEventsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{25}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetEventsResponse) GetEvents() []*Event {
@@ -2409,7 +2477,7 @@ type GetTimelineRequest struct {
 
 func (x *GetTimelineRequest) Reset() {
 	*x = GetTimelineRequest{}
-	mi := &file_orc_v1_events_proto_msgTypes[26]
+	mi := &file_orc_v1_events_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2421,7 +2489,7 @@ func (x *GetTimelineRequest) String() string {
 func (*GetTimelineRequest) ProtoMessage() {}
 
 func (x *GetTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[26]
+	mi := &file_orc_v1_events_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2434,7 +2502,7 @@ func (x *GetTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{26}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetTimelineRequest) GetProjectId() string {
@@ -2475,7 +2543,7 @@ type GetTimelineResponse struct {
 
 func (x *GetTimelineResponse) Reset() {
 	*x = GetTimelineResponse{}
-	mi := &file_orc_v1_events_proto_msgTypes[27]
+	mi := &file_orc_v1_events_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2487,7 +2555,7 @@ func (x *GetTimelineResponse) String() string {
 func (*GetTimelineResponse) ProtoMessage() {}
 
 func (x *GetTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[27]
+	mi := &file_orc_v1_events_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2500,7 +2568,7 @@ func (x *GetTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTimelineResponse.ProtoReflect.Descriptor instead.
 func (*GetTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{27}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetTimelineResponse) GetEvents() []*TimelineEvent {
@@ -2656,7 +2724,11 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	" \x01(\tR\n" +
 	"promotedBy\x12;\n" +
 	"\vpromoted_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"promotedAt\"\xe0\v\n" +
+	"promotedAt\"R\n" +
+	"\x12ThreadUpdatedEvent\x12\x1b\n" +
+	"\tthread_id\x18\x01 \x01(\tR\bthreadId\x12\x1f\n" +
+	"\vupdate_type\x18\x02 \x01(\tR\n" +
+	"updateType\"\xa5\f\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\"\n" +
@@ -2682,7 +2754,8 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	"\theartbeat\x18\x19 \x01(\v2\x16.orc.v1.HeartbeatEventH\x00R\theartbeat\x12F\n" +
 	"\x0fsession_metrics\x18\x1a \x01(\v2\x1b.orc.v1.SessionMetricsEventH\x00R\x0esessionMetrics\x12[\n" +
 	"\x16recommendation_created\x18\x1b \x01(\v2\".orc.v1.RecommendationCreatedEventH\x00R\x15recommendationCreated\x12[\n" +
-	"\x16recommendation_decided\x18\x1c \x01(\v2\".orc.v1.RecommendationDecidedEventH\x00R\x15recommendationDecidedB\t\n" +
+	"\x16recommendation_decided\x18\x1c \x01(\v2\".orc.v1.RecommendationDecidedEventH\x00R\x15recommendationDecided\x12C\n" +
+	"\x0ethread_updated\x18\x1d \x01(\v2\x1a.orc.v1.ThreadUpdatedEventH\x00R\rthreadUpdatedB\t\n" +
 	"\apayloadB\r\n" +
 	"\v_project_idB\n" +
 	"\n" +
@@ -2788,7 +2861,7 @@ func file_orc_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_orc_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_orc_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_orc_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_orc_v1_events_proto_goTypes = []any{
 	(ActivityState)(0),                 // 0: orc.v1.ActivityState
 	(TimelineEventType)(0),             // 1: orc.v1.TimelineEventType
@@ -2812,41 +2885,42 @@ var file_orc_v1_events_proto_goTypes = []any{
 	(*HeartbeatEvent)(nil),             // 19: orc.v1.HeartbeatEvent
 	(*RecommendationCreatedEvent)(nil), // 20: orc.v1.RecommendationCreatedEvent
 	(*RecommendationDecidedEvent)(nil), // 21: orc.v1.RecommendationDecidedEvent
-	(*Event)(nil),                      // 22: orc.v1.Event
-	(*TimelineEvent)(nil),              // 23: orc.v1.TimelineEvent
-	(*SubscribeRequest)(nil),           // 24: orc.v1.SubscribeRequest
-	(*SubscribeResponse)(nil),          // 25: orc.v1.SubscribeResponse
-	(*GetEventsRequest)(nil),           // 26: orc.v1.GetEventsRequest
-	(*GetEventsResponse)(nil),          // 27: orc.v1.GetEventsResponse
-	(*GetTimelineRequest)(nil),         // 28: orc.v1.GetTimelineRequest
-	(*GetTimelineResponse)(nil),        // 29: orc.v1.GetTimelineResponse
-	(*Task)(nil),                       // 30: orc.v1.Task
-	(PhaseStatus)(0),                   // 31: orc.v1.PhaseStatus
-	(*TokenUsage)(nil),                 // 32: orc.v1.TokenUsage
-	(*timestamppb.Timestamp)(nil),      // 33: google.protobuf.Timestamp
-	(*SessionInfo)(nil),                // 34: orc.v1.SessionInfo
-	(RecommendationKind)(0),            // 35: orc.v1.RecommendationKind
-	(RecommendationStatus)(0),          // 36: orc.v1.RecommendationStatus
-	(*PageRequest)(nil),                // 37: orc.v1.PageRequest
-	(*PageResponse)(nil),               // 38: orc.v1.PageResponse
+	(*ThreadUpdatedEvent)(nil),         // 22: orc.v1.ThreadUpdatedEvent
+	(*Event)(nil),                      // 23: orc.v1.Event
+	(*TimelineEvent)(nil),              // 24: orc.v1.TimelineEvent
+	(*SubscribeRequest)(nil),           // 25: orc.v1.SubscribeRequest
+	(*SubscribeResponse)(nil),          // 26: orc.v1.SubscribeResponse
+	(*GetEventsRequest)(nil),           // 27: orc.v1.GetEventsRequest
+	(*GetEventsResponse)(nil),          // 28: orc.v1.GetEventsResponse
+	(*GetTimelineRequest)(nil),         // 29: orc.v1.GetTimelineRequest
+	(*GetTimelineResponse)(nil),        // 30: orc.v1.GetTimelineResponse
+	(*Task)(nil),                       // 31: orc.v1.Task
+	(PhaseStatus)(0),                   // 32: orc.v1.PhaseStatus
+	(*TokenUsage)(nil),                 // 33: orc.v1.TokenUsage
+	(*timestamppb.Timestamp)(nil),      // 34: google.protobuf.Timestamp
+	(*SessionInfo)(nil),                // 35: orc.v1.SessionInfo
+	(RecommendationKind)(0),            // 36: orc.v1.RecommendationKind
+	(RecommendationStatus)(0),          // 37: orc.v1.RecommendationStatus
+	(*PageRequest)(nil),                // 38: orc.v1.PageRequest
+	(*PageResponse)(nil),               // 39: orc.v1.PageResponse
 }
 var file_orc_v1_events_proto_depIdxs = []int32{
-	30, // 0: orc.v1.TaskUpdatedEvent.task:type_name -> orc.v1.Task
-	31, // 1: orc.v1.PhaseChangedEvent.status:type_name -> orc.v1.PhaseStatus
-	32, // 2: orc.v1.TokensUpdatedEvent.tokens:type_name -> orc.v1.TokenUsage
+	31, // 0: orc.v1.TaskUpdatedEvent.task:type_name -> orc.v1.Task
+	32, // 1: orc.v1.PhaseChangedEvent.status:type_name -> orc.v1.PhaseStatus
+	33, // 2: orc.v1.TokensUpdatedEvent.tokens:type_name -> orc.v1.TokenUsage
 	0,  // 3: orc.v1.ActivityEvent.activity:type_name -> orc.v1.ActivityState
-	33, // 4: orc.v1.DecisionRequiredEvent.requested_at:type_name -> google.protobuf.Timestamp
-	33, // 5: orc.v1.DecisionResolvedEvent.resolved_at:type_name -> google.protobuf.Timestamp
+	34, // 4: orc.v1.DecisionRequiredEvent.requested_at:type_name -> google.protobuf.Timestamp
+	34, // 5: orc.v1.DecisionResolvedEvent.resolved_at:type_name -> google.protobuf.Timestamp
 	13, // 6: orc.v1.FilesChangedEvent.files:type_name -> orc.v1.FileChangedInfo
-	34, // 7: orc.v1.SessionUpdateEvent.session:type_name -> orc.v1.SessionInfo
-	33, // 8: orc.v1.HeartbeatEvent.timestamp:type_name -> google.protobuf.Timestamp
-	35, // 9: orc.v1.RecommendationCreatedEvent.kind:type_name -> orc.v1.RecommendationKind
-	36, // 10: orc.v1.RecommendationCreatedEvent.status:type_name -> orc.v1.RecommendationStatus
-	33, // 11: orc.v1.RecommendationCreatedEvent.promoted_at:type_name -> google.protobuf.Timestamp
-	36, // 12: orc.v1.RecommendationDecidedEvent.previous_status:type_name -> orc.v1.RecommendationStatus
-	36, // 13: orc.v1.RecommendationDecidedEvent.status:type_name -> orc.v1.RecommendationStatus
-	33, // 14: orc.v1.RecommendationDecidedEvent.promoted_at:type_name -> google.protobuf.Timestamp
-	33, // 15: orc.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
+	35, // 7: orc.v1.SessionUpdateEvent.session:type_name -> orc.v1.SessionInfo
+	34, // 8: orc.v1.HeartbeatEvent.timestamp:type_name -> google.protobuf.Timestamp
+	36, // 9: orc.v1.RecommendationCreatedEvent.kind:type_name -> orc.v1.RecommendationKind
+	37, // 10: orc.v1.RecommendationCreatedEvent.status:type_name -> orc.v1.RecommendationStatus
+	34, // 11: orc.v1.RecommendationCreatedEvent.promoted_at:type_name -> google.protobuf.Timestamp
+	37, // 12: orc.v1.RecommendationDecidedEvent.previous_status:type_name -> orc.v1.RecommendationStatus
+	37, // 13: orc.v1.RecommendationDecidedEvent.status:type_name -> orc.v1.RecommendationStatus
+	34, // 14: orc.v1.RecommendationDecidedEvent.promoted_at:type_name -> google.protobuf.Timestamp
+	34, // 15: orc.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
 	2,  // 16: orc.v1.Event.task_created:type_name -> orc.v1.TaskCreatedEvent
 	3,  // 17: orc.v1.Event.task_updated:type_name -> orc.v1.TaskUpdatedEvent
 	4,  // 18: orc.v1.Event.task_deleted:type_name -> orc.v1.TaskDeletedEvent
@@ -2866,29 +2940,30 @@ var file_orc_v1_events_proto_depIdxs = []int32{
 	16, // 32: orc.v1.Event.session_metrics:type_name -> orc.v1.SessionMetricsEvent
 	20, // 33: orc.v1.Event.recommendation_created:type_name -> orc.v1.RecommendationCreatedEvent
 	21, // 34: orc.v1.Event.recommendation_decided:type_name -> orc.v1.RecommendationDecidedEvent
-	1,  // 35: orc.v1.TimelineEvent.event_type:type_name -> orc.v1.TimelineEventType
-	33, // 36: orc.v1.TimelineEvent.created_at:type_name -> google.protobuf.Timestamp
-	22, // 37: orc.v1.SubscribeResponse.event:type_name -> orc.v1.Event
-	37, // 38: orc.v1.GetEventsRequest.page:type_name -> orc.v1.PageRequest
-	33, // 39: orc.v1.GetEventsRequest.since:type_name -> google.protobuf.Timestamp
-	33, // 40: orc.v1.GetEventsRequest.until:type_name -> google.protobuf.Timestamp
-	22, // 41: orc.v1.GetEventsResponse.events:type_name -> orc.v1.Event
-	38, // 42: orc.v1.GetEventsResponse.page:type_name -> orc.v1.PageResponse
-	37, // 43: orc.v1.GetTimelineRequest.page:type_name -> orc.v1.PageRequest
-	1,  // 44: orc.v1.GetTimelineRequest.types:type_name -> orc.v1.TimelineEventType
-	23, // 45: orc.v1.GetTimelineResponse.events:type_name -> orc.v1.TimelineEvent
-	38, // 46: orc.v1.GetTimelineResponse.page:type_name -> orc.v1.PageResponse
-	24, // 47: orc.v1.EventService.Subscribe:input_type -> orc.v1.SubscribeRequest
-	26, // 48: orc.v1.EventService.GetEvents:input_type -> orc.v1.GetEventsRequest
-	28, // 49: orc.v1.EventService.GetTimeline:input_type -> orc.v1.GetTimelineRequest
-	25, // 50: orc.v1.EventService.Subscribe:output_type -> orc.v1.SubscribeResponse
-	27, // 51: orc.v1.EventService.GetEvents:output_type -> orc.v1.GetEventsResponse
-	29, // 52: orc.v1.EventService.GetTimeline:output_type -> orc.v1.GetTimelineResponse
-	50, // [50:53] is the sub-list for method output_type
-	47, // [47:50] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	22, // 35: orc.v1.Event.thread_updated:type_name -> orc.v1.ThreadUpdatedEvent
+	1,  // 36: orc.v1.TimelineEvent.event_type:type_name -> orc.v1.TimelineEventType
+	34, // 37: orc.v1.TimelineEvent.created_at:type_name -> google.protobuf.Timestamp
+	23, // 38: orc.v1.SubscribeResponse.event:type_name -> orc.v1.Event
+	38, // 39: orc.v1.GetEventsRequest.page:type_name -> orc.v1.PageRequest
+	34, // 40: orc.v1.GetEventsRequest.since:type_name -> google.protobuf.Timestamp
+	34, // 41: orc.v1.GetEventsRequest.until:type_name -> google.protobuf.Timestamp
+	23, // 42: orc.v1.GetEventsResponse.events:type_name -> orc.v1.Event
+	39, // 43: orc.v1.GetEventsResponse.page:type_name -> orc.v1.PageResponse
+	38, // 44: orc.v1.GetTimelineRequest.page:type_name -> orc.v1.PageRequest
+	1,  // 45: orc.v1.GetTimelineRequest.types:type_name -> orc.v1.TimelineEventType
+	24, // 46: orc.v1.GetTimelineResponse.events:type_name -> orc.v1.TimelineEvent
+	39, // 47: orc.v1.GetTimelineResponse.page:type_name -> orc.v1.PageResponse
+	25, // 48: orc.v1.EventService.Subscribe:input_type -> orc.v1.SubscribeRequest
+	27, // 49: orc.v1.EventService.GetEvents:input_type -> orc.v1.GetEventsRequest
+	29, // 50: orc.v1.EventService.GetTimeline:input_type -> orc.v1.GetTimelineRequest
+	26, // 51: orc.v1.EventService.Subscribe:output_type -> orc.v1.SubscribeResponse
+	28, // 52: orc.v1.EventService.GetEvents:output_type -> orc.v1.GetEventsResponse
+	30, // 53: orc.v1.EventService.GetTimeline:output_type -> orc.v1.GetTimelineResponse
+	51, // [51:54] is the sub-list for method output_type
+	48, // [48:51] is the sub-list for method input_type
+	48, // [48:48] is the sub-list for extension type_name
+	48, // [48:48] is the sub-list for extension extendee
+	0,  // [0:48] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_events_proto_init() }
@@ -2906,7 +2981,7 @@ func file_orc_v1_events_proto_init() {
 	file_orc_v1_events_proto_msgTypes[10].OneofWrappers = []any{}
 	file_orc_v1_events_proto_msgTypes[15].OneofWrappers = []any{}
 	file_orc_v1_events_proto_msgTypes[16].OneofWrappers = []any{}
-	file_orc_v1_events_proto_msgTypes[20].OneofWrappers = []any{
+	file_orc_v1_events_proto_msgTypes[21].OneofWrappers = []any{
 		(*Event_TaskCreated)(nil),
 		(*Event_TaskUpdated)(nil),
 		(*Event_TaskDeleted)(nil),
@@ -2926,17 +3001,18 @@ func file_orc_v1_events_proto_init() {
 		(*Event_SessionMetrics)(nil),
 		(*Event_RecommendationCreated)(nil),
 		(*Event_RecommendationDecided)(nil),
+		(*Event_ThreadUpdated)(nil),
 	}
-	file_orc_v1_events_proto_msgTypes[21].OneofWrappers = []any{}
 	file_orc_v1_events_proto_msgTypes[22].OneofWrappers = []any{}
-	file_orc_v1_events_proto_msgTypes[24].OneofWrappers = []any{}
+	file_orc_v1_events_proto_msgTypes[23].OneofWrappers = []any{}
+	file_orc_v1_events_proto_msgTypes[25].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_events_proto_rawDesc), len(file_orc_v1_events_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   28,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

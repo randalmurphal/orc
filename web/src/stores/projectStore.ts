@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { Project } from '@/gen/orc/v1/project_pb';
+import { useThreadStore } from './threadStore';
 
 const STORAGE_KEY = 'orc_current_project_id';
 const URL_PARAM = 'project';
@@ -50,6 +51,10 @@ function setStoredProjectId(id: string | null): void {
 	} catch {
 		// Ignore localStorage errors
 	}
+}
+
+function resetThreadStoreForProjectChange(): void {
+	useThreadStore.getState().reset();
 }
 
 interface ProjectStore {
@@ -109,10 +114,12 @@ export const useProjectStore = create<ProjectStore>()(
 				// Current project not in list, fall back to first project
 				const firstProject = projects[0];
 				if (firstProject) {
+					resetThreadStoreForProjectChange();
 					set({ projects, currentProjectId: firstProject.id });
 					setStoredProjectId(firstProject.id);
 					setUrlProjectId(firstProject.id, true);
 				} else {
+					resetThreadStoreForProjectChange();
 					set({ projects, currentProjectId: null });
 				}
 			} else {
@@ -121,7 +128,10 @@ export const useProjectStore = create<ProjectStore>()(
 		},
 
 		selectProject: (id) => {
-			const { _isHandlingPopState } = get();
+			const { _isHandlingPopState, currentProjectId } = get();
+			if (id !== currentProjectId) {
+				resetThreadStoreForProjectChange();
+			}
 			set({ currentProjectId: id });
 			setStoredProjectId(id);
 
@@ -136,6 +146,7 @@ export const useProjectStore = create<ProjectStore>()(
 			const { currentProjectId } = get();
 
 			if (projectId !== currentProjectId) {
+				resetThreadStoreForProjectChange();
 				set({ _isHandlingPopState: true });
 				set({ currentProjectId: projectId });
 				setStoredProjectId(projectId);

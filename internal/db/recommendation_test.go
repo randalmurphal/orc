@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +41,103 @@ func TestRecommendationCRUD(t *testing.T) {
 	deleted, err := pdb.GetRecommendation(rec.ID)
 	require.NoError(t, err)
 	require.Nil(t, deleted)
+}
+
+func TestRecommendationDelete_RemovesSyntheticThreadLink(t *testing.T) {
+	t.Parallel()
+
+	pdb := newRecommendationTestDB(t)
+	require.NoError(t, pdb.SaveWorkflow(&Workflow{ID: "wf", Name: "wf"}))
+	require.NoError(t, pdb.SaveTask(&Task{ID: "TASK-001", Title: "task", WorkflowID: "wf", Status: "planned"}))
+
+	thread := &Thread{
+		Title:  "Recommendation thread",
+		TaskID: "TASK-001",
+	}
+	require.NoError(t, pdb.CreateThread(thread))
+
+	draft := &ThreadRecommendationDraft{
+		ThreadID:       thread.ID,
+		Kind:           RecommendationKindFollowUp,
+		Title:          "Follow up",
+		Summary:        "Need a recommendation link in the thread view.",
+		ProposedAction: "Promote the draft.",
+		Evidence:       "Thread links should mirror recommendations through one source of truth.",
+	}
+	require.NoError(t, pdb.CreateThreadRecommendationDraft(draft))
+
+	_, rec, err := pdb.PromoteThreadRecommendationDraft(context.Background(), thread.ID, draft.ID, "operator")
+	require.NoError(t, err)
+
+	gotThread, err := pdb.GetThread(thread.ID)
+	require.NoError(t, err)
+	require.Len(t, gotThread.Links, 2)
+	require.Equal(t, ThreadLinkTypeRecommendation, gotThread.Links[1].LinkType)
+
+	require.NoError(t, pdb.DeleteRecommendation(rec.ID))
+
+	gotThread, err = pdb.GetThread(thread.ID)
+	require.NoError(t, err)
+	require.Len(t, gotThread.Links, 1)
+	require.Equal(t, ThreadLinkTypeTask, gotThread.Links[0].LinkType)
+}
+
+func TestRecommendationCreate_AllowsThreadOnlyProvenance(t *testing.T) {
+	t.Parallel()
+
+	pdb := newRecommendationTestDB(t)
+
+	thread := &Thread{Title: "Generic discussion"}
+	require.NoError(t, pdb.CreateThread(thread))
+
+	rec := &Recommendation{
+		Kind:           RecommendationKindFollowUp,
+		Status:         RecommendationStatusPending,
+		Title:          "Follow up on generic thread",
+		Summary:        "Project-scoped threads still need promotable recommendations.",
+		ProposedAction: "Keep thread-only provenance when no task/run exists.",
+		Evidence:       "Sidebar-created threads do not carry execution provenance.",
+		SourceThreadID: thread.ID,
+		DedupeKey:      "follow-up:generic-thread:promotion",
+	}
+
+	require.NoError(t, pdb.CreateRecommendation(rec))
+	require.NotEmpty(t, rec.ID)
+	require.Empty(t, rec.SourceTaskID)
+	require.Empty(t, rec.SourceRunID)
+	require.Equal(t, thread.ID, rec.SourceThreadID)
+
+	loaded, err := pdb.GetRecommendation(rec.ID)
+	require.NoError(t, err)
+	require.NotNil(t, loaded)
+	require.Empty(t, loaded.SourceTaskID)
+	require.Empty(t, loaded.SourceRunID)
+	require.Equal(t, thread.ID, loaded.SourceThreadID)
+}
+
+func TestRecommendationCreate_AllowsTaskWithoutRunProvenance(t *testing.T) {
+	t.Parallel()
+
+	pdb := newRecommendationTestDB(t)
+
+	require.NoError(t, pdb.SaveWorkflow(&Workflow{ID: "wf", Name: "wf"}))
+	require.NoError(t, pdb.SaveTask(&Task{ID: "TASK-001", Title: "task", WorkflowID: "wf", Status: "planned"}))
+
+	rec := &Recommendation{
+		Kind:           RecommendationKindFollowUp,
+		Status:         RecommendationStatusPending,
+		Title:          "Follow up on task thread",
+		Summary:        "Task-linked threads without runs still need valid provenance.",
+		ProposedAction: "Allow task provenance without requiring a workflow run.",
+		Evidence:       "A manual thread linked to a task has no source run yet.",
+		SourceTaskID:   "TASK-001",
+		SourceThreadID: "THR-001",
+		DedupeKey:      "follow-up:task-thread:no-run",
+	}
+
+	require.NoError(t, pdb.CreateRecommendation(rec))
+	require.Equal(t, "TASK-001", rec.SourceTaskID)
+	require.Empty(t, rec.SourceRunID)
 }
 
 func TestRecommendationTransition(t *testing.T) {

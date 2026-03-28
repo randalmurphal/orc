@@ -165,6 +165,17 @@ func (p *PersistentPublisher) eventToLog(e Event) *db.EventLog {
 	var iteration *int
 	var durationMs *int64
 
+	// Thread workspace events are project-scoped UI sync signals, not task timeline entries.
+	// Persisting them into event_log breaks projects where the thread is not linked to a task.
+	switch e.Type {
+	case EventThreadMessage, EventThreadTyping, EventThreadStatus, EventThreadUpdated:
+		return nil
+	case EventRecommendationCreated, EventRecommendationDecided:
+		if e.TaskID == "" {
+			return nil
+		}
+	}
+
 	// Extract phase/iteration from typed event data
 	switch data := e.Data.(type) {
 	case PhaseUpdate:

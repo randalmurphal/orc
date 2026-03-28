@@ -80,6 +80,8 @@ const (
 	EventThreadTyping EventType = "thread_typing"
 	// EventThreadStatus indicates a thread status change (e.g., archived).
 	EventThreadStatus EventType = "thread_status"
+	// EventThreadUpdated indicates thread workspace state changed and clients should resync.
+	EventThreadUpdated EventType = "thread_updated"
 )
 
 // Event represents a published event.
@@ -311,4 +313,10 @@ type ThreadStatusData struct {
 	ThreadID  string `json:"thread_id"`
 	OldStatus string `json:"old_status"`
 	NewStatus string `json:"new_status"`
+}
+
+// ThreadUpdatedData represents a thread workspace mutation that should trigger a refresh.
+type ThreadUpdatedData struct {
+	ThreadID   string `json:"thread_id"`
+	UpdateType string `json:"update_type"`
 }

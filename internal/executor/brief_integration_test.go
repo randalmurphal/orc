@@ -96,7 +96,9 @@ func TestEnrichContext_PopulatesProjectBrief(t *testing.T) {
 	}
 
 	// Act: call enrichContextForPhase
-	we.enrichContextForPhase(rctx, "implement", tsk)
+	if err := we.enrichContextForPhase(rctx, "implement", tsk, threadVariableUsage{}); err != nil {
+		t.Fatalf("enrichContextForPhase() error = %v", err)
+	}
 
 	// Assert: ProjectBrief should be populated
 	if rctx.ProjectBrief == "" {
@@ -141,7 +143,9 @@ func TestEnrichContext_SkipsForNonDatabaseBackend(t *testing.T) {
 	}
 
 	// Should not panic or error — just skip brief generation
-	we.enrichContextForPhase(rctx, "implement", tsk)
+	if err := we.enrichContextForPhase(rctx, "implement", tsk, threadVariableUsage{}); err != nil {
+		t.Fatalf("enrichContextForPhase() error = %v", err)
+	}
 
 	// ProjectBrief should remain empty
 	if rctx.ProjectBrief != "" {
@@ -185,7 +189,9 @@ func TestBrief_CachedAcrossPhases(t *testing.T) {
 		TaskID:    tsk.Id,
 		TaskTitle: tsk.Title,
 	}
-	we.enrichContextForPhase(rctx1, "implement", tsk)
+	if err := we.enrichContextForPhase(rctx1, "implement", tsk, threadVariableUsage{}); err != nil {
+		t.Fatalf("enrichContextForPhase() error = %v", err)
+	}
 
 	if rctx1.ProjectBrief == "" {
 		t.Fatal("first enrichContextForPhase should populate ProjectBrief")
@@ -196,7 +202,9 @@ func TestBrief_CachedAcrossPhases(t *testing.T) {
 		TaskID:    tsk.Id,
 		TaskTitle: tsk.Title,
 	}
-	we.enrichContextForPhase(rctx2, "review", tsk)
+	if err := we.enrichContextForPhase(rctx2, "review", tsk, threadVariableUsage{}); err != nil {
+		t.Fatalf("enrichContextForPhase() error = %v", err)
+	}
 
 	if rctx2.ProjectBrief == "" {
 		t.Fatal("second enrichContextForPhase should populate ProjectBrief from cache")
@@ -284,7 +292,9 @@ func TestEnrichContext_BDD1_FullProjectContext(t *testing.T) {
 		TaskTitle: tsk.Title,
 	}
 
-	we.enrichContextForPhase(rctx, "implement", tsk)
+	if err := we.enrichContextForPhase(rctx, "implement", tsk, threadVariableUsage{}); err != nil {
+		t.Fatalf("enrichContextForPhase() error = %v", err)
+	}
 
 	// Should contain decisions section
 	if !strings.Contains(rctx.ProjectBrief, "### Decisions") {
@@ -436,7 +446,9 @@ func TestEnrichControlPlaneContext(t *testing.T) {
 		TaskTitle: targetTask.Title,
 	}
 
-	we.enrichContextForPhase(rctx, "implement", targetTask)
+	if err := we.enrichContextForPhase(rctx, "implement", targetTask, threadVariableUsage{}); err != nil {
+		t.Fatalf("enrichContextForPhase() error = %v", err)
+	}
 	if err := we.populateControlPlaneContext(rctx, "implement", targetTask, controlPlaneVariableUsage{
 		PendingRecommendations: true,
 		AttentionSummary:       true,

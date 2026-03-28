@@ -95,6 +95,7 @@ export function ContextPanel({ mode, onModeChange, threadId }: ContextPanelProps
 			}
 			return (
 				<DiscussionPanel
+					key={threadId}
 					threadId={threadId}
 					projectId={projectId ?? ''}
 				/>

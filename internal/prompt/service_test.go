@@ -372,6 +372,24 @@ func TestGetVariableReference_ControlPlaneVars(t *testing.T) {
 	}
 }
 
+func TestGetVariableReference_ThreadVars(t *testing.T) {
+	vars := GetVariableReference()
+	required := []string{
+		"{{THREAD_ID}}",
+		"{{THREAD_TITLE}}",
+		"{{THREAD_CONTEXT}}",
+		"{{THREAD_HISTORY}}",
+		"{{THREAD_LINKED_CONTEXT}}",
+		"{{THREAD_RECOMMENDATION_DRAFTS}}",
+		"{{THREAD_DECISION_DRAFTS}}",
+	}
+	for _, name := range required {
+		if vars[name] == "" {
+			t.Fatalf("GetVariableReference() must include %s", name)
+		}
+	}
+}
+
 func TestFinalizePromptExists(t *testing.T) {
 	tmpDir := t.TempDir()
 	svc := NewService(filepath.Join(tmpDir, ".orc"))

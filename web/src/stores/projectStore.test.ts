@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useProjectStore } from './projectStore';
+import { useThreadStore } from './threadStore';
 import { resetUrlMocks, setMockSearch } from '../test-setup';
 import type { Project } from '@/gen/orc/v1/project_pb';
 
@@ -18,6 +19,7 @@ describe('ProjectStore', () => {
 	beforeEach(() => {
 		// Reset store and mocks before each test
 		useProjectStore.getState().reset();
+		useThreadStore.getState().reset();
 		resetUrlMocks();
 		localStorage.clear();
 	});
@@ -94,6 +96,21 @@ describe('ProjectStore', () => {
 
 			expect(window.history.pushState).not.toHaveBeenCalled();
 		});
+
+		it('should reset thread state when switching projects', () => {
+			useThreadStore.setState({
+				threads: [{ id: 'thread-001' } as never],
+				selectedThreadId: 'thread-001',
+				error: 'stale error',
+			});
+
+			useProjectStore.setState({ currentProjectId: 'proj-001' });
+			useProjectStore.getState().selectProject('proj-002');
+
+			expect(useThreadStore.getState().threads).toEqual([]);
+			expect(useThreadStore.getState().selectedThreadId).toBeNull();
+			expect(useThreadStore.getState().error).toBeNull();
+		});
 	});
 
 	describe('handlePopState', () => {
@@ -125,6 +142,23 @@ describe('ProjectStore', () => {
 
 			// pushState should not be called (replaceState might be for localStorage sync)
 			expect(window.history.pushState).not.toHaveBeenCalled();
+		});
+
+		it('should reset thread state when project changes from browser navigation', () => {
+			useThreadStore.setState({
+				threads: [{ id: 'thread-001' } as never],
+				selectedThreadId: 'thread-001',
+			});
+			useProjectStore.setState({ currentProjectId: 'proj-001' });
+
+			const event = new PopStateEvent('popstate', {
+				state: { projectId: 'proj-002' },
+			});
+
+			useProjectStore.getState().handlePopState(event);
+
+			expect(useThreadStore.getState().threads).toEqual([]);
+			expect(useThreadStore.getState().selectedThreadId).toBeNull();
 		});
 	});
 

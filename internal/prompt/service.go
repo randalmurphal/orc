@@ -290,6 +290,15 @@ func GetVariableReference() map[string]string {
 			controlplane.MaxHandoffPackBytes/1024,
 		),
 
+		// Discussion workspace context
+		"{{THREAD_ID}}":                    "Most recently updated discussion thread ID related to the current task or initiative when available.",
+		"{{THREAD_TITLE}}":                 "Title of the most recently updated related discussion thread when available.",
+		"{{THREAD_CONTEXT}}":               "Combined discussion workspace context including linked artifacts, drafts, and recent history.",
+		"{{THREAD_HISTORY}}":               "Recent discussion messages from the most recently updated related thread.",
+		"{{THREAD_LINKED_CONTEXT}}":        "Typed task, initiative, recommendation, file, and diff links attached to the related discussion thread.",
+		"{{THREAD_RECOMMENDATION_DRAFTS}}": "Recommendation drafts currently captured in the related discussion thread.",
+		"{{THREAD_DECISION_DRAFTS}}":       "Decision drafts currently captured in the related discussion thread.",
+
 		// Phase outputs (dynamic — derived from phase template output_var_name)
 		"{{OUTPUT_<PHASE_ID>}}": "Generic phase output (e.g., {{OUTPUT_SPEC}}, {{OUTPUT_IMPLEMENT}})",
 	}

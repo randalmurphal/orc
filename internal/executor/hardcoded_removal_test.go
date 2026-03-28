@@ -45,7 +45,9 @@ func TestEnrichContextForPhase_DoesNotSetReviewRoundDirectly(t *testing.T) {
 	}
 
 	// Call enrichContextForPhase for the review phase
-	we.enrichContextForPhase(rctx, "review", tsk)
+	if err := we.enrichContextForPhase(rctx, "review", tsk, threadVariableUsage{}); err != nil {
+		t.Fatalf("enrichContextForPhase() error = %v", err)
+	}
 
 	// SC-1: ReviewRound should NOT be set by enrichContextForPhase
 	// The hardcoded loadReviewContextProto sets it to 1, so this fails until removal
@@ -89,7 +91,9 @@ func TestEnrichContextForPhase_DoesNotSetReviewFindingsDirectly(t *testing.T) {
 	}
 
 	// Call enrichContextForPhase for the review phase
-	we.enrichContextForPhase(rctx, "review", tsk)
+	if err := we.enrichContextForPhase(rctx, "review", tsk, threadVariableUsage{}); err != nil {
+		t.Fatalf("enrichContextForPhase() error = %v", err)
+	}
 
 	// SC-1: ReviewRound should NOT be set by enrichContextForPhase
 	if rctx.ReviewRound != 0 {

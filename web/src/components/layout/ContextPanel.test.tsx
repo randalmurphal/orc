@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ContextPanel } from './ContextPanel';
 import { AppShellProvider } from './AppShellContext';
+import { EventProvider } from '@/hooks';
 import { TooltipProvider } from '@/components/ui';
 import { useThreadStore } from '@/stores/threadStore';
 
@@ -14,9 +15,11 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 	return (
 		<MemoryRouter>
 			<TooltipProvider delayDuration={0}>
-				<AppShellProvider>
-					{children}
-				</AppShellProvider>
+				<EventProvider autoConnect={false}>
+					<AppShellProvider>
+						{children}
+					</AppShellProvider>
+				</EventProvider>
 			</TooltipProvider>
 		</MemoryRouter>
 	);

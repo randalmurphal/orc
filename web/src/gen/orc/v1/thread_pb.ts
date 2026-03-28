@@ -6,13 +6,15 @@ import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegen
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { Recommendation, RecommendationKind } from "./recommendation_pb";
+import { file_orc_v1_recommendation } from "./recommendation_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file orc/v1/thread.proto.
  */
 export const file_orc_v1_thread: GenFile = /*@__PURE__*/
-  fileDesc("ChNvcmMvdjEvdGhyZWFkLnByb3RvEgZvcmMudjEijgIKBlRocmVhZBIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIOCgZzdGF0dXMYAyABKAkSDwoHdGFza19pZBgEIAEoCRIVCg1pbml0aWF0aXZlX2lkGAUgASgJEhIKCnNlc3Npb25faWQYBiABKAkSFAoMZmlsZV9jb250ZXh0GAcgASgJEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEicKCG1lc3NhZ2VzGAogAygLMhUub3JjLnYxLlRocmVhZE1lc3NhZ2UifQoNVGhyZWFkTWVzc2FnZRIKCgJpZBgBIAEoAxIRCgl0aHJlYWRfaWQYAiABKAkSDAoEcm9sZRgDIAEoCRIPCgdjb250ZW50GAQgASgJEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIrQBChNDcmVhdGVUaHJlYWRSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSFAoHdGFza19pZBgDIAEoCUgAiAEBEhoKDWluaXRpYXRpdmVfaWQYBCABKAlIAYgBARIZCgxmaWxlX2NvbnRleHQYBSABKAlIAogBAUIKCghfdGFza19pZEIQCg5faW5pdGlhdGl2ZV9pZEIPCg1fZmlsZV9jb250ZXh0IjYKFENyZWF0ZVRocmVhZFJlc3BvbnNlEh4KBnRocmVhZBgBIAEoCzIOLm9yYy52MS5UaHJlYWQiOQoQR2V0VGhyZWFkUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhEKCXRocmVhZF9pZBgCIAEoCSIzChFHZXRUaHJlYWRSZXNwb25zZRIeCgZ0aHJlYWQYASABKAsyDi5vcmMudjEuVGhyZWFkIkkKEkxpc3RUaHJlYWRzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgd0YXNrX2lkGAMgASgJIjYKE0xpc3RUaHJlYWRzUmVzcG9uc2USHwoHdGhyZWFkcxgBIAMoCzIOLm9yYy52MS5UaHJlYWQiUgoYU2VuZFRocmVhZE1lc3NhZ2VSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJdGhyZWFkX2lkGAIgASgJEg8KB2NvbnRlbnQYAyABKAkiegoZU2VuZFRocmVhZE1lc3NhZ2VSZXNwb25zZRIrCgx1c2VyX21lc3NhZ2UYASABKAsyFS5vcmMudjEuVGhyZWFkTWVzc2FnZRIwChFhc3Npc3RhbnRfbWVzc2FnZRgCIAEoCzIVLm9yYy52MS5UaHJlYWRNZXNzYWdlIj0KFEFyY2hpdmVUaHJlYWRSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJdGhyZWFkX2lkGAIgASgJIjcKFUFyY2hpdmVUaHJlYWRSZXNwb25zZRIeCgZ0aHJlYWQYASABKAsyDi5vcmMudjEuVGhyZWFkIjwKE0RlbGV0ZVRocmVhZFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIRCgl0aHJlYWRfaWQYAiABKAkiFgoURGVsZXRlVGhyZWFkUmVzcG9uc2UiaQobUmVjb3JkVGhyZWFkRGVjaXNpb25SZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJdGhyZWFkX2lkGAIgASgJEhAKCGRlY2lzaW9uGAMgASgJEhEKCXJhdGlvbmFsZRgEIAEoCSIzChxSZWNvcmRUaHJlYWREZWNpc2lvblJlc3BvbnNlEhMKC2RlY2lzaW9uX2lkGAEgASgJMq4ECg1UaHJlYWRTZXJ2aWNlEkkKDENyZWF0ZVRocmVhZBIbLm9yYy52MS5DcmVhdGVUaHJlYWRSZXF1ZXN0Ghwub3JjLnYxLkNyZWF0ZVRocmVhZFJlc3BvbnNlEkAKCUdldFRocmVhZBIYLm9yYy52MS5HZXRUaHJlYWRSZXF1ZXN0Ghkub3JjLnYxLkdldFRocmVhZFJlc3BvbnNlEkYKC0xpc3RUaHJlYWRzEhoub3JjLnYxLkxpc3RUaHJlYWRzUmVxdWVzdBobLm9yYy52MS5MaXN0VGhyZWFkc1Jlc3BvbnNlElIKC1NlbmRNZXNzYWdlEiAub3JjLnYxLlNlbmRUaHJlYWRNZXNzYWdlUmVxdWVzdBohLm9yYy52MS5TZW5kVGhyZWFkTWVzc2FnZVJlc3BvbnNlEkwKDUFyY2hpdmVUaHJlYWQSHC5vcmMudjEuQXJjaGl2ZVRocmVhZFJlcXVlc3QaHS5vcmMudjEuQXJjaGl2ZVRocmVhZFJlc3BvbnNlEkkKDERlbGV0ZVRocmVhZBIbLm9yYy52MS5EZWxldGVUaHJlYWRSZXF1ZXN0Ghwub3JjLnYxLkRlbGV0ZVRocmVhZFJlc3BvbnNlElsKDlJlY29yZERlY2lzaW9uEiMub3JjLnYxLlJlY29yZFRocmVhZERlY2lzaW9uUmVxdWVzdBokLm9yYy52MS5SZWNvcmRUaHJlYWREZWNpc2lvblJlc3BvbnNlQocBCgpjb20ub3JjLnYxQgtUaHJlYWRQcm90b1ABWjNnaXRodWIuY29tL3JhbmRhbG11cnBoYWwvb3JjL2dlbi9wcm90by9vcmMvdjE7b3JjdjGiAgNPWFiqAgZPcmMuVjHKAgZPcmNcVjHiAhJPcmNcVjFcR1BCTWV0YWRhdGHqAgdPcmM6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChNvcmMvdjEvdGhyZWFkLnByb3RvEgZvcmMudjEiqQMKBlRocmVhZBIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIOCgZzdGF0dXMYAyABKAkSDwoHdGFza19pZBgEIAEoCRIVCg1pbml0aWF0aXZlX2lkGAUgASgJEhIKCnNlc3Npb25faWQYBiABKAkSFAoMZmlsZV9jb250ZXh0GAcgASgJEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEicKCG1lc3NhZ2VzGAogAygLMhUub3JjLnYxLlRocmVhZE1lc3NhZ2USIQoFbGlua3MYCyADKAsyEi5vcmMudjEuVGhyZWFkTGluaxJAChVyZWNvbW1lbmRhdGlvbl9kcmFmdHMYDCADKAsyIS5vcmMudjEuVGhyZWFkUmVjb21tZW5kYXRpb25EcmFmdBI0Cg9kZWNpc2lvbl9kcmFmdHMYDSADKAsyGy5vcmMudjEuVGhyZWFkRGVjaXNpb25EcmFmdCJ9Cg1UaHJlYWRNZXNzYWdlEgoKAmlkGAEgASgDEhEKCXRocmVhZF9pZBgCIAEoCRIMCgRyb2xlGAMgASgJEg8KB2NvbnRlbnQYBCABKAkSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAikAEKClRocmVhZExpbmsSCgoCaWQYASABKAMSEQoJdGhyZWFkX2lkGAIgASgJEhEKCWxpbmtfdHlwZRgDIAEoCRIRCgl0YXJnZXRfaWQYBCABKAkSDQoFdGl0bGUYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAizAMKGVRocmVhZFJlY29tbWVuZGF0aW9uRHJhZnQSCgoCaWQYASABKAkSEQoJdGhyZWFkX2lkGAIgASgJEigKBGtpbmQYAyABKA4yGi5vcmMudjEuUmVjb21tZW5kYXRpb25LaW5kEg0KBXRpdGxlGAQgASgJEg8KB3N1bW1hcnkYBSABKAkSFwoPcHJvcG9zZWRfYWN0aW9uGAYgASgJEhAKCGV2aWRlbmNlGAcgASgJEhIKCmRlZHVwZV9rZXkYCCABKAkSFgoOc291cmNlX3Rhc2tfaWQYCSABKAkSFQoNc291cmNlX3J1bl9pZBgKIAEoCRIOCgZzdGF0dXMYCyABKAkSIgoacHJvbW90ZWRfcmVjb21tZW5kYXRpb25faWQYDCABKAkSEwoLcHJvbW90ZWRfYnkYDSABKAkSLwoLcHJvbW90ZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmNyZWF0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYECABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIsQCChNUaHJlYWREZWNpc2lvbkRyYWZ0EgoKAmlkGAEgASgJEhEKCXRocmVhZF9pZBgCIAEoCRIVCg1pbml0aWF0aXZlX2lkGAMgASgJEhAKCGRlY2lzaW9uGAQgASgJEhEKCXJhdGlvbmFsZRgFIAEoCRIOCgZzdGF0dXMYBiABKAkSHAoUcHJvbW90ZWRfZGVjaXNpb25faWQYByABKAkSEwoLcHJvbW90ZWRfYnkYCCABKAkSLwoLcHJvbW90ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmNyZWF0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wItwBChNDcmVhdGVUaHJlYWRSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSFAoHdGFza19pZBgDIAEoCUgAiAEBEhoKDWluaXRpYXRpdmVfaWQYBCABKAlIAYgBARIZCgxmaWxlX2NvbnRleHQYBSABKAlIAogBARImCgVsaW5rcxgGIAMoCzIXLm9yYy52MS5UaHJlYWRMaW5rSW5wdXRCCgoIX3Rhc2tfaWRCEAoOX2luaXRpYXRpdmVfaWRCDwoNX2ZpbGVfY29udGV4dCI2ChRDcmVhdGVUaHJlYWRSZXNwb25zZRIeCgZ0aHJlYWQYASABKAsyDi5vcmMudjEuVGhyZWFkIjkKEEdldFRocmVhZFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIRCgl0aHJlYWRfaWQYAiABKAkiMwoRR2V0VGhyZWFkUmVzcG9uc2USHgoGdGhyZWFkGAEgASgLMg4ub3JjLnYxLlRocmVhZCJgChJMaXN0VGhyZWFkc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDwoHdGFza19pZBgDIAEoCRIVCg1pbml0aWF0aXZlX2lkGAQgASgJIjYKE0xpc3RUaHJlYWRzUmVzcG9uc2USHwoHdGhyZWFkcxgBIAMoCzIOLm9yYy52MS5UaHJlYWQiUgoYU2VuZFRocmVhZE1lc3NhZ2VSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJdGhyZWFkX2lkGAIgASgJEg8KB2NvbnRlbnQYAyABKAkiegoZU2VuZFRocmVhZE1lc3NhZ2VSZXNwb25zZRIrCgx1c2VyX21lc3NhZ2UYASABKAsyFS5vcmMudjEuVGhyZWFkTWVzc2FnZRIwChFhc3Npc3RhbnRfbWVzc2FnZRgCIAEoCzIVLm9yYy52MS5UaHJlYWRNZXNzYWdlIj0KFEFyY2hpdmVUaHJlYWRSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJdGhyZWFkX2lkGAIgASgJIjcKFUFyY2hpdmVUaHJlYWRSZXNwb25zZRIeCgZ0aHJlYWQYASABKAsyDi5vcmMudjEuVGhyZWFkIjwKE0RlbGV0ZVRocmVhZFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIRCgl0aHJlYWRfaWQYAiABKAkiFgoURGVsZXRlVGhyZWFkUmVzcG9uc2UiRgoPVGhyZWFkTGlua0lucHV0EhEKCWxpbmtfdHlwZRgBIAEoCRIRCgl0YXJnZXRfaWQYAiABKAkSDQoFdGl0bGUYAyABKAkiZAoUQWRkVGhyZWFkTGlua1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIRCgl0aHJlYWRfaWQYAiABKAkSJQoEbGluaxgDIAEoCzIXLm9yYy52MS5UaHJlYWRMaW5rSW5wdXQiNwoVQWRkVGhyZWFkTGlua1Jlc3BvbnNlEh4KBnRocmVhZBgBIAEoCzIOLm9yYy52MS5UaHJlYWQigQEKJkNyZWF0ZVRocmVhZFJlY29tbWVuZGF0aW9uRHJhZnRSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJdGhyZWFkX2lkGAIgASgJEjAKBWRyYWZ0GAMgASgLMiEub3JjLnYxLlRocmVhZFJlY29tbWVuZGF0aW9uRHJhZnQiewonQ3JlYXRlVGhyZWFkUmVjb21tZW5kYXRpb25EcmFmdFJlc3BvbnNlEjAKBWRyYWZ0GAEgASgLMiEub3JjLnYxLlRocmVhZFJlY29tbWVuZGF0aW9uRHJhZnQSHgoGdGhyZWFkGAIgASgLMg4ub3JjLnYxLlRocmVhZCJ3CidQcm9tb3RlVGhyZWFkUmVjb21tZW5kYXRpb25EcmFmdFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIRCgl0aHJlYWRfaWQYAiABKAkSEAoIZHJhZnRfaWQYAyABKAkSEwoLcHJvbW90ZWRfYnkYBCABKAkirAEKKFByb21vdGVUaHJlYWRSZWNvbW1lbmRhdGlvbkRyYWZ0UmVzcG9uc2USMAoFZHJhZnQYASABKAsyIS5vcmMudjEuVGhyZWFkUmVjb21tZW5kYXRpb25EcmFmdBIuCg5yZWNvbW1lbmRhdGlvbhgCIAEoCzIWLm9yYy52MS5SZWNvbW1lbmRhdGlvbhIeCgZ0aHJlYWQYAyABKAsyDi5vcmMudjEuVGhyZWFkInUKIENyZWF0ZVRocmVhZERlY2lzaW9uRHJhZnRSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJdGhyZWFkX2lkGAIgASgJEioKBWRyYWZ0GAMgASgLMhsub3JjLnYxLlRocmVhZERlY2lzaW9uRHJhZnQibwohQ3JlYXRlVGhyZWFkRGVjaXNpb25EcmFmdFJlc3BvbnNlEioKBWRyYWZ0GAEgASgLMhsub3JjLnYxLlRocmVhZERlY2lzaW9uRHJhZnQSHgoGdGhyZWFkGAIgASgLMg4ub3JjLnYxLlRocmVhZCJxCiFQcm9tb3RlVGhyZWFkRGVjaXNpb25EcmFmdFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIRCgl0aHJlYWRfaWQYAiABKAkSEAoIZHJhZnRfaWQYAyABKAkSEwoLcHJvbW90ZWRfYnkYBCABKAkihQEKIlByb21vdGVUaHJlYWREZWNpc2lvbkRyYWZ0UmVzcG9uc2USKgoFZHJhZnQYASABKAsyGy5vcmMudjEuVGhyZWFkRGVjaXNpb25EcmFmdBITCgtkZWNpc2lvbl9pZBgCIAEoCRIeCgZ0aHJlYWQYAyABKAsyDi5vcmMudjEuVGhyZWFkImkKG1JlY29yZFRocmVhZERlY2lzaW9uUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhEKCXRocmVhZF9pZBgCIAEoCRIQCghkZWNpc2lvbhgDIAEoCRIRCglyYXRpb25hbGUYBCABKAkiMwocUmVjb3JkVGhyZWFkRGVjaXNpb25SZXNwb25zZRITCgtkZWNpc2lvbl9pZBgBIAEoCTLQCAoNVGhyZWFkU2VydmljZRJJCgxDcmVhdGVUaHJlYWQSGy5vcmMudjEuQ3JlYXRlVGhyZWFkUmVxdWVzdBocLm9yYy52MS5DcmVhdGVUaHJlYWRSZXNwb25zZRJACglHZXRUaHJlYWQSGC5vcmMudjEuR2V0VGhyZWFkUmVxdWVzdBoZLm9yYy52MS5HZXRUaHJlYWRSZXNwb25zZRJGCgtMaXN0VGhyZWFkcxIaLm9yYy52MS5MaXN0VGhyZWFkc1JlcXVlc3QaGy5vcmMudjEuTGlzdFRocmVhZHNSZXNwb25zZRJSCgtTZW5kTWVzc2FnZRIgLm9yYy52MS5TZW5kVGhyZWFkTWVzc2FnZVJlcXVlc3QaIS5vcmMudjEuU2VuZFRocmVhZE1lc3NhZ2VSZXNwb25zZRJMCg1BcmNoaXZlVGhyZWFkEhwub3JjLnYxLkFyY2hpdmVUaHJlYWRSZXF1ZXN0Gh0ub3JjLnYxLkFyY2hpdmVUaHJlYWRSZXNwb25zZRJJCgxEZWxldGVUaHJlYWQSGy5vcmMudjEuRGVsZXRlVGhyZWFkUmVxdWVzdBocLm9yYy52MS5EZWxldGVUaHJlYWRSZXNwb25zZRJGCgdBZGRMaW5rEhwub3JjLnYxLkFkZFRocmVhZExpbmtSZXF1ZXN0Gh0ub3JjLnYxLkFkZFRocmVhZExpbmtSZXNwb25zZRJ8ChlDcmVhdGVSZWNvbW1lbmRhdGlvbkRyYWZ0Ei4ub3JjLnYxLkNyZWF0ZVRocmVhZFJlY29tbWVuZGF0aW9uRHJhZnRSZXF1ZXN0Gi8ub3JjLnYxLkNyZWF0ZVRocmVhZFJlY29tbWVuZGF0aW9uRHJhZnRSZXNwb25zZRJ/ChpQcm9tb3RlUmVjb21tZW5kYXRpb25EcmFmdBIvLm9yYy52MS5Qcm9tb3RlVGhyZWFkUmVjb21tZW5kYXRpb25EcmFmdFJlcXVlc3QaMC5vcmMudjEuUHJvbW90ZVRocmVhZFJlY29tbWVuZGF0aW9uRHJhZnRSZXNwb25zZRJqChNDcmVhdGVEZWNpc2lvbkRyYWZ0Eigub3JjLnYxLkNyZWF0ZVRocmVhZERlY2lzaW9uRHJhZnRSZXF1ZXN0Gikub3JjLnYxLkNyZWF0ZVRocmVhZERlY2lzaW9uRHJhZnRSZXNwb25zZRJtChRQcm9tb3RlRGVjaXNpb25EcmFmdBIpLm9yYy52MS5Qcm9tb3RlVGhyZWFkRGVjaXNpb25EcmFmdFJlcXVlc3QaKi5vcmMudjEuUHJvbW90ZVRocmVhZERlY2lzaW9uRHJhZnRSZXNwb25zZRJbCg5SZWNvcmREZWNpc2lvbhIjLm9yYy52MS5SZWNvcmRUaHJlYWREZWNpc2lvblJlcXVlc3QaJC5vcmMudjEuUmVjb3JkVGhyZWFkRGVjaXNpb25SZXNwb25zZUKHAQoKY29tLm9yYy52MUILVGhyZWFkUHJvdG9QAVozZ2l0aHViLmNvbS9yYW5kYWxtdXJwaGFsL29yYy9nZW4vcHJvdG8vb3JjL3YxO29yY3YxogIDT1hYqgIGT3JjLlYxygIGT3JjXFYx4gIST3JjXFYxXEdQQk1ldGFkYXRh6gIHT3JjOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_orc_v1_recommendation]);
 
 /**
  * Thread represents a conversation thread.
@@ -69,6 +71,21 @@ export type Thread = Message<"orc.v1.Thread"> & {
    * @generated from field: repeated orc.v1.ThreadMessage messages = 10;
    */
   messages: ThreadMessage[];
+
+  /**
+   * @generated from field: repeated orc.v1.ThreadLink links = 11;
+   */
+  links: ThreadLink[];
+
+  /**
+   * @generated from field: repeated orc.v1.ThreadRecommendationDraft recommendation_drafts = 12;
+   */
+  recommendationDrafts: ThreadRecommendationDraft[];
+
+  /**
+   * @generated from field: repeated orc.v1.ThreadDecisionDraft decision_drafts = 13;
+   */
+  decisionDrafts: ThreadDecisionDraft[];
 };
 
 /**
@@ -118,6 +135,213 @@ export const ThreadMessageSchema: GenMessage<ThreadMessage> = /*@__PURE__*/
   messageDesc(file_orc_v1_thread, 1);
 
 /**
+ * ThreadLink represents typed context linked to a thread.
+ *
+ * @generated from message orc.v1.ThreadLink
+ */
+export type ThreadLink = Message<"orc.v1.ThreadLink"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string thread_id = 2;
+   */
+  threadId: string;
+
+  /**
+   * @generated from field: string link_type = 3;
+   */
+  linkType: string;
+
+  /**
+   * @generated from field: string target_id = 4;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: string title = 5;
+   */
+  title: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 6;
+   */
+  createdAt?: Timestamp;
+};
+
+/**
+ * Describes the message orc.v1.ThreadLink.
+ * Use `create(ThreadLinkSchema)` to create a new message.
+ */
+export const ThreadLinkSchema: GenMessage<ThreadLink> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 2);
+
+/**
+ * ThreadRecommendationDraft captures a recommendation draft shaped in a discussion.
+ *
+ * @generated from message orc.v1.ThreadRecommendationDraft
+ */
+export type ThreadRecommendationDraft = Message<"orc.v1.ThreadRecommendationDraft"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
+   */
+  threadId: string;
+
+  /**
+   * @generated from field: orc.v1.RecommendationKind kind = 3;
+   */
+  kind: RecommendationKind;
+
+  /**
+   * @generated from field: string title = 4;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string summary = 5;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: string proposed_action = 6;
+   */
+  proposedAction: string;
+
+  /**
+   * @generated from field: string evidence = 7;
+   */
+  evidence: string;
+
+  /**
+   * @generated from field: string dedupe_key = 8;
+   */
+  dedupeKey: string;
+
+  /**
+   * @generated from field: string source_task_id = 9;
+   */
+  sourceTaskId: string;
+
+  /**
+   * @generated from field: string source_run_id = 10;
+   */
+  sourceRunId: string;
+
+  /**
+   * @generated from field: string status = 11;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string promoted_recommendation_id = 12;
+   */
+  promotedRecommendationId: string;
+
+  /**
+   * @generated from field: string promoted_by = 13;
+   */
+  promotedBy: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp promoted_at = 14;
+   */
+  promotedAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 15;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 16;
+   */
+  updatedAt?: Timestamp;
+};
+
+/**
+ * Describes the message orc.v1.ThreadRecommendationDraft.
+ * Use `create(ThreadRecommendationDraftSchema)` to create a new message.
+ */
+export const ThreadRecommendationDraftSchema: GenMessage<ThreadRecommendationDraft> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 3);
+
+/**
+ * ThreadDecisionDraft captures an initiative decision draft shaped in a discussion.
+ *
+ * @generated from message orc.v1.ThreadDecisionDraft
+ */
+export type ThreadDecisionDraft = Message<"orc.v1.ThreadDecisionDraft"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
+   */
+  threadId: string;
+
+  /**
+   * @generated from field: string initiative_id = 3;
+   */
+  initiativeId: string;
+
+  /**
+   * @generated from field: string decision = 4;
+   */
+  decision: string;
+
+  /**
+   * @generated from field: string rationale = 5;
+   */
+  rationale: string;
+
+  /**
+   * @generated from field: string status = 6;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string promoted_decision_id = 7;
+   */
+  promotedDecisionId: string;
+
+  /**
+   * @generated from field: string promoted_by = 8;
+   */
+  promotedBy: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp promoted_at = 9;
+   */
+  promotedAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 10;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 11;
+   */
+  updatedAt?: Timestamp;
+};
+
+/**
+ * Describes the message orc.v1.ThreadDecisionDraft.
+ * Use `create(ThreadDecisionDraftSchema)` to create a new message.
+ */
+export const ThreadDecisionDraftSchema: GenMessage<ThreadDecisionDraft> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 4);
+
+/**
  * CreateThread
  *
  * @generated from message orc.v1.CreateThreadRequest
@@ -147,6 +371,11 @@ export type CreateThreadRequest = Message<"orc.v1.CreateThreadRequest"> & {
    * @generated from field: optional string file_context = 5;
    */
   fileContext?: string;
+
+  /**
+   * @generated from field: repeated orc.v1.ThreadLinkInput links = 6;
+   */
+  links: ThreadLinkInput[];
 };
 
 /**
@@ -154,7 +383,7 @@ export type CreateThreadRequest = Message<"orc.v1.CreateThreadRequest"> & {
  * Use `create(CreateThreadRequestSchema)` to create a new message.
  */
 export const CreateThreadRequestSchema: GenMessage<CreateThreadRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 2);
+  messageDesc(file_orc_v1_thread, 5);
 
 /**
  * @generated from message orc.v1.CreateThreadResponse
@@ -171,7 +400,7 @@ export type CreateThreadResponse = Message<"orc.v1.CreateThreadResponse"> & {
  * Use `create(CreateThreadResponseSchema)` to create a new message.
  */
 export const CreateThreadResponseSchema: GenMessage<CreateThreadResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 3);
+  messageDesc(file_orc_v1_thread, 6);
 
 /**
  * GetThread
@@ -195,7 +424,7 @@ export type GetThreadRequest = Message<"orc.v1.GetThreadRequest"> & {
  * Use `create(GetThreadRequestSchema)` to create a new message.
  */
 export const GetThreadRequestSchema: GenMessage<GetThreadRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 4);
+  messageDesc(file_orc_v1_thread, 7);
 
 /**
  * @generated from message orc.v1.GetThreadResponse
@@ -212,7 +441,7 @@ export type GetThreadResponse = Message<"orc.v1.GetThreadResponse"> & {
  * Use `create(GetThreadResponseSchema)` to create a new message.
  */
 export const GetThreadResponseSchema: GenMessage<GetThreadResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 5);
+  messageDesc(file_orc_v1_thread, 8);
 
 /**
  * ListThreads
@@ -234,6 +463,11 @@ export type ListThreadsRequest = Message<"orc.v1.ListThreadsRequest"> & {
    * @generated from field: string task_id = 3;
    */
   taskId: string;
+
+  /**
+   * @generated from field: string initiative_id = 4;
+   */
+  initiativeId: string;
 };
 
 /**
@@ -241,7 +475,7 @@ export type ListThreadsRequest = Message<"orc.v1.ListThreadsRequest"> & {
  * Use `create(ListThreadsRequestSchema)` to create a new message.
  */
 export const ListThreadsRequestSchema: GenMessage<ListThreadsRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 6);
+  messageDesc(file_orc_v1_thread, 9);
 
 /**
  * @generated from message orc.v1.ListThreadsResponse
@@ -258,7 +492,7 @@ export type ListThreadsResponse = Message<"orc.v1.ListThreadsResponse"> & {
  * Use `create(ListThreadsResponseSchema)` to create a new message.
  */
 export const ListThreadsResponseSchema: GenMessage<ListThreadsResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 7);
+  messageDesc(file_orc_v1_thread, 10);
 
 /**
  * SendMessage
@@ -287,7 +521,7 @@ export type SendThreadMessageRequest = Message<"orc.v1.SendThreadMessageRequest"
  * Use `create(SendThreadMessageRequestSchema)` to create a new message.
  */
 export const SendThreadMessageRequestSchema: GenMessage<SendThreadMessageRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 8);
+  messageDesc(file_orc_v1_thread, 11);
 
 /**
  * @generated from message orc.v1.SendThreadMessageResponse
@@ -309,7 +543,7 @@ export type SendThreadMessageResponse = Message<"orc.v1.SendThreadMessageRespons
  * Use `create(SendThreadMessageResponseSchema)` to create a new message.
  */
 export const SendThreadMessageResponseSchema: GenMessage<SendThreadMessageResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 9);
+  messageDesc(file_orc_v1_thread, 12);
 
 /**
  * ArchiveThread
@@ -333,7 +567,7 @@ export type ArchiveThreadRequest = Message<"orc.v1.ArchiveThreadRequest"> & {
  * Use `create(ArchiveThreadRequestSchema)` to create a new message.
  */
 export const ArchiveThreadRequestSchema: GenMessage<ArchiveThreadRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 10);
+  messageDesc(file_orc_v1_thread, 13);
 
 /**
  * @generated from message orc.v1.ArchiveThreadResponse
@@ -350,7 +584,7 @@ export type ArchiveThreadResponse = Message<"orc.v1.ArchiveThreadResponse"> & {
  * Use `create(ArchiveThreadResponseSchema)` to create a new message.
  */
 export const ArchiveThreadResponseSchema: GenMessage<ArchiveThreadResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 11);
+  messageDesc(file_orc_v1_thread, 14);
 
 /**
  * DeleteThread
@@ -374,7 +608,7 @@ export type DeleteThreadRequest = Message<"orc.v1.DeleteThreadRequest"> & {
  * Use `create(DeleteThreadRequestSchema)` to create a new message.
  */
 export const DeleteThreadRequestSchema: GenMessage<DeleteThreadRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 12);
+  messageDesc(file_orc_v1_thread, 15);
 
 /**
  * @generated from message orc.v1.DeleteThreadResponse
@@ -387,7 +621,294 @@ export type DeleteThreadResponse = Message<"orc.v1.DeleteThreadResponse"> & {
  * Use `create(DeleteThreadResponseSchema)` to create a new message.
  */
 export const DeleteThreadResponseSchema: GenMessage<DeleteThreadResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 13);
+  messageDesc(file_orc_v1_thread, 16);
+
+/**
+ * @generated from message orc.v1.ThreadLinkInput
+ */
+export type ThreadLinkInput = Message<"orc.v1.ThreadLinkInput"> & {
+  /**
+   * @generated from field: string link_type = 1;
+   */
+  linkType: string;
+
+  /**
+   * @generated from field: string target_id = 2;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: string title = 3;
+   */
+  title: string;
+};
+
+/**
+ * Describes the message orc.v1.ThreadLinkInput.
+ * Use `create(ThreadLinkInputSchema)` to create a new message.
+ */
+export const ThreadLinkInputSchema: GenMessage<ThreadLinkInput> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 17);
+
+/**
+ * @generated from message orc.v1.AddThreadLinkRequest
+ */
+export type AddThreadLinkRequest = Message<"orc.v1.AddThreadLinkRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
+   */
+  threadId: string;
+
+  /**
+   * @generated from field: orc.v1.ThreadLinkInput link = 3;
+   */
+  link?: ThreadLinkInput;
+};
+
+/**
+ * Describes the message orc.v1.AddThreadLinkRequest.
+ * Use `create(AddThreadLinkRequestSchema)` to create a new message.
+ */
+export const AddThreadLinkRequestSchema: GenMessage<AddThreadLinkRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 18);
+
+/**
+ * @generated from message orc.v1.AddThreadLinkResponse
+ */
+export type AddThreadLinkResponse = Message<"orc.v1.AddThreadLinkResponse"> & {
+  /**
+   * @generated from field: orc.v1.Thread thread = 1;
+   */
+  thread?: Thread;
+};
+
+/**
+ * Describes the message orc.v1.AddThreadLinkResponse.
+ * Use `create(AddThreadLinkResponseSchema)` to create a new message.
+ */
+export const AddThreadLinkResponseSchema: GenMessage<AddThreadLinkResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 19);
+
+/**
+ * @generated from message orc.v1.CreateThreadRecommendationDraftRequest
+ */
+export type CreateThreadRecommendationDraftRequest = Message<"orc.v1.CreateThreadRecommendationDraftRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
+   */
+  threadId: string;
+
+  /**
+   * @generated from field: orc.v1.ThreadRecommendationDraft draft = 3;
+   */
+  draft?: ThreadRecommendationDraft;
+};
+
+/**
+ * Describes the message orc.v1.CreateThreadRecommendationDraftRequest.
+ * Use `create(CreateThreadRecommendationDraftRequestSchema)` to create a new message.
+ */
+export const CreateThreadRecommendationDraftRequestSchema: GenMessage<CreateThreadRecommendationDraftRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 20);
+
+/**
+ * @generated from message orc.v1.CreateThreadRecommendationDraftResponse
+ */
+export type CreateThreadRecommendationDraftResponse = Message<"orc.v1.CreateThreadRecommendationDraftResponse"> & {
+  /**
+   * @generated from field: orc.v1.ThreadRecommendationDraft draft = 1;
+   */
+  draft?: ThreadRecommendationDraft;
+
+  /**
+   * @generated from field: orc.v1.Thread thread = 2;
+   */
+  thread?: Thread;
+};
+
+/**
+ * Describes the message orc.v1.CreateThreadRecommendationDraftResponse.
+ * Use `create(CreateThreadRecommendationDraftResponseSchema)` to create a new message.
+ */
+export const CreateThreadRecommendationDraftResponseSchema: GenMessage<CreateThreadRecommendationDraftResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 21);
+
+/**
+ * @generated from message orc.v1.PromoteThreadRecommendationDraftRequest
+ */
+export type PromoteThreadRecommendationDraftRequest = Message<"orc.v1.PromoteThreadRecommendationDraftRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
+   */
+  threadId: string;
+
+  /**
+   * @generated from field: string draft_id = 3;
+   */
+  draftId: string;
+
+  /**
+   * @generated from field: string promoted_by = 4;
+   */
+  promotedBy: string;
+};
+
+/**
+ * Describes the message orc.v1.PromoteThreadRecommendationDraftRequest.
+ * Use `create(PromoteThreadRecommendationDraftRequestSchema)` to create a new message.
+ */
+export const PromoteThreadRecommendationDraftRequestSchema: GenMessage<PromoteThreadRecommendationDraftRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 22);
+
+/**
+ * @generated from message orc.v1.PromoteThreadRecommendationDraftResponse
+ */
+export type PromoteThreadRecommendationDraftResponse = Message<"orc.v1.PromoteThreadRecommendationDraftResponse"> & {
+  /**
+   * @generated from field: orc.v1.ThreadRecommendationDraft draft = 1;
+   */
+  draft?: ThreadRecommendationDraft;
+
+  /**
+   * @generated from field: orc.v1.Recommendation recommendation = 2;
+   */
+  recommendation?: Recommendation;
+
+  /**
+   * @generated from field: orc.v1.Thread thread = 3;
+   */
+  thread?: Thread;
+};
+
+/**
+ * Describes the message orc.v1.PromoteThreadRecommendationDraftResponse.
+ * Use `create(PromoteThreadRecommendationDraftResponseSchema)` to create a new message.
+ */
+export const PromoteThreadRecommendationDraftResponseSchema: GenMessage<PromoteThreadRecommendationDraftResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 23);
+
+/**
+ * @generated from message orc.v1.CreateThreadDecisionDraftRequest
+ */
+export type CreateThreadDecisionDraftRequest = Message<"orc.v1.CreateThreadDecisionDraftRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
+   */
+  threadId: string;
+
+  /**
+   * @generated from field: orc.v1.ThreadDecisionDraft draft = 3;
+   */
+  draft?: ThreadDecisionDraft;
+};
+
+/**
+ * Describes the message orc.v1.CreateThreadDecisionDraftRequest.
+ * Use `create(CreateThreadDecisionDraftRequestSchema)` to create a new message.
+ */
+export const CreateThreadDecisionDraftRequestSchema: GenMessage<CreateThreadDecisionDraftRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 24);
+
+/**
+ * @generated from message orc.v1.CreateThreadDecisionDraftResponse
+ */
+export type CreateThreadDecisionDraftResponse = Message<"orc.v1.CreateThreadDecisionDraftResponse"> & {
+  /**
+   * @generated from field: orc.v1.ThreadDecisionDraft draft = 1;
+   */
+  draft?: ThreadDecisionDraft;
+
+  /**
+   * @generated from field: orc.v1.Thread thread = 2;
+   */
+  thread?: Thread;
+};
+
+/**
+ * Describes the message orc.v1.CreateThreadDecisionDraftResponse.
+ * Use `create(CreateThreadDecisionDraftResponseSchema)` to create a new message.
+ */
+export const CreateThreadDecisionDraftResponseSchema: GenMessage<CreateThreadDecisionDraftResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 25);
+
+/**
+ * @generated from message orc.v1.PromoteThreadDecisionDraftRequest
+ */
+export type PromoteThreadDecisionDraftRequest = Message<"orc.v1.PromoteThreadDecisionDraftRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string thread_id = 2;
+   */
+  threadId: string;
+
+  /**
+   * @generated from field: string draft_id = 3;
+   */
+  draftId: string;
+
+  /**
+   * @generated from field: string promoted_by = 4;
+   */
+  promotedBy: string;
+};
+
+/**
+ * Describes the message orc.v1.PromoteThreadDecisionDraftRequest.
+ * Use `create(PromoteThreadDecisionDraftRequestSchema)` to create a new message.
+ */
+export const PromoteThreadDecisionDraftRequestSchema: GenMessage<PromoteThreadDecisionDraftRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 26);
+
+/**
+ * @generated from message orc.v1.PromoteThreadDecisionDraftResponse
+ */
+export type PromoteThreadDecisionDraftResponse = Message<"orc.v1.PromoteThreadDecisionDraftResponse"> & {
+  /**
+   * @generated from field: orc.v1.ThreadDecisionDraft draft = 1;
+   */
+  draft?: ThreadDecisionDraft;
+
+  /**
+   * @generated from field: string decision_id = 2;
+   */
+  decisionId: string;
+
+  /**
+   * @generated from field: orc.v1.Thread thread = 3;
+   */
+  thread?: Thread;
+};
+
+/**
+ * Describes the message orc.v1.PromoteThreadDecisionDraftResponse.
+ * Use `create(PromoteThreadDecisionDraftResponseSchema)` to create a new message.
+ */
+export const PromoteThreadDecisionDraftResponseSchema: GenMessage<PromoteThreadDecisionDraftResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_thread, 27);
 
 /**
  * RecordDecision
@@ -421,7 +942,7 @@ export type RecordThreadDecisionRequest = Message<"orc.v1.RecordThreadDecisionRe
  * Use `create(RecordThreadDecisionRequestSchema)` to create a new message.
  */
 export const RecordThreadDecisionRequestSchema: GenMessage<RecordThreadDecisionRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 14);
+  messageDesc(file_orc_v1_thread, 28);
 
 /**
  * @generated from message orc.v1.RecordThreadDecisionResponse
@@ -438,7 +959,7 @@ export type RecordThreadDecisionResponse = Message<"orc.v1.RecordThreadDecisionR
  * Use `create(RecordThreadDecisionResponseSchema)` to create a new message.
  */
 export const RecordThreadDecisionResponseSchema: GenMessage<RecordThreadDecisionResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_thread, 15);
+  messageDesc(file_orc_v1_thread, 29);
 
 /**
  * @generated from service orc.v1.ThreadService
@@ -503,6 +1024,56 @@ export const ThreadService: GenService<{
     methodKind: "unary";
     input: typeof DeleteThreadRequestSchema;
     output: typeof DeleteThreadResponseSchema;
+  },
+  /**
+   * Add a typed link to a thread.
+   *
+   * @generated from rpc orc.v1.ThreadService.AddLink
+   */
+  addLink: {
+    methodKind: "unary";
+    input: typeof AddThreadLinkRequestSchema;
+    output: typeof AddThreadLinkResponseSchema;
+  },
+  /**
+   * Create a recommendation draft in a thread.
+   *
+   * @generated from rpc orc.v1.ThreadService.CreateRecommendationDraft
+   */
+  createRecommendationDraft: {
+    methodKind: "unary";
+    input: typeof CreateThreadRecommendationDraftRequestSchema;
+    output: typeof CreateThreadRecommendationDraftResponseSchema;
+  },
+  /**
+   * Promote a recommendation draft into the recommendation inbox.
+   *
+   * @generated from rpc orc.v1.ThreadService.PromoteRecommendationDraft
+   */
+  promoteRecommendationDraft: {
+    methodKind: "unary";
+    input: typeof PromoteThreadRecommendationDraftRequestSchema;
+    output: typeof PromoteThreadRecommendationDraftResponseSchema;
+  },
+  /**
+   * Create an initiative decision draft in a thread.
+   *
+   * @generated from rpc orc.v1.ThreadService.CreateDecisionDraft
+   */
+  createDecisionDraft: {
+    methodKind: "unary";
+    input: typeof CreateThreadDecisionDraftRequestSchema;
+    output: typeof CreateThreadDecisionDraftResponseSchema;
+  },
+  /**
+   * Promote a decision draft into a real initiative decision.
+   *
+   * @generated from rpc orc.v1.ThreadService.PromoteDecisionDraft
+   */
+  promoteDecisionDraft: {
+    methodKind: "unary";
+    input: typeof PromoteThreadDecisionDraftRequestSchema;
+    output: typeof PromoteThreadDecisionDraftResponseSchema;
   },
   /**
    * Record a decision from a thread discussion to its linked initiative.

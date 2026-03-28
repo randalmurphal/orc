@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Icon } from '@/components/ui';
 import { useCurrentProjectId } from '@/stores/projectStore';
 import {
@@ -9,8 +9,9 @@ import {
 	rejectRecommendation,
 } from '@/lib/api/recommendation';
 import type { Recommendation, RecommendationHistoryEntry } from '@/gen/orc/v1/recommendation_pb';
-import { RecommendationKind, RecommendationStatus } from '@/gen/orc/v1/recommendation_pb';
+import { RecommendationStatus } from '@/gen/orc/v1/recommendation_pb';
 import { onRecommendationSignal } from '@/lib/events/recommendationSignals';
+import { recommendationKindLabel } from '@/lib/recommendations';
 import { timestampToDate } from '@/lib/time';
 import './RecommendationInbox.css';
 
@@ -21,6 +22,14 @@ export function RecommendationInbox() {
 	const [error, setError] = useState<string | null>(null);
 	const [busyId, setBusyId] = useState<string | null>(null);
 	const [contextPacks, setContextPacks] = useState<Record<string, string>>({});
+	const currentProjectIdRef = useRef(projectId);
+	const latestLoadRequestIdRef = useRef(0);
+	currentProjectIdRef.current = projectId;
+
+	const isCurrentProjectRequest = useCallback((requestId: number, requestProjectId: string) => (
+		currentProjectIdRef.current === requestProjectId && latestLoadRequestIdRef.current === requestId
+	), []);
+
 	const [decisionNotes, setDecisionNotes] = useState<Record<string, string>>({});
 	const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
 	const [historyById, setHistoryById] = useState<Record<string, RecommendationHistoryEntry[]>>({});
@@ -47,21 +56,39 @@ export function RecommendationInbox() {
 	}, []);
 
 	const loadRecommendations = useCallback(async () => {
+		const requestId = latestLoadRequestIdRef.current + 1;
+		latestLoadRequestIdRef.current = requestId;
+		const requestProjectId = projectId;
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await listRecommendations(projectId);
+			const response = await listRecommendations(requestProjectId);
+			if (!isCurrentProjectRequest(requestId, requestProjectId)) {
+				return;
+			}
 			setRecommendations(response.recommendations);
 		} catch (err) {
+			if (!isCurrentProjectRequest(requestId, requestProjectId)) {
+				return;
+			}
 			setError(err instanceof Error ? err.message : 'Failed to load recommendations');
 		} finally {
-			setLoading(false);
+			if (isCurrentProjectRequest(requestId, requestProjectId)) {
+				setLoading(false);
+			}
 		}
-	}, [projectId]);
+	}, [isCurrentProjectRequest, projectId]);
 
 	useEffect(() => {
 		loadRecommendations();
 	}, [loadRecommendations]);
+
+	useEffect(() => {
+		setRecommendations([]);
+		setContextPacks({});
+		setBusyId(null);
+		setError(null);
+	}, [projectId]);
 
 	useEffect(() => {
 		return onRecommendationSignal((signal) => {
@@ -84,19 +111,27 @@ export function RecommendationInbox() {
 	) => {
 		const decidedBy = 'operator';
 		const decisionReason = (decisionNotes[recommendation.id] ?? '').trim();
-		setBusyId(recommendation.id);
+		const decisionProjectId = projectId;
+		const stateKey = recommendationStateKey(decisionProjectId, recommendation.id);
+		setBusyId(stateKey);
 		setError(null);
 		try {
 			if (action === 'accept') {
-				await acceptRecommendation(projectId, recommendation.id, decidedBy, decisionReason);
+				await acceptRecommendation(decisionProjectId, recommendation.id, decidedBy, decisionReason);
 			} else if (action === 'reject') {
-				await rejectRecommendation(projectId, recommendation.id, decidedBy, decisionReason);
+				await rejectRecommendation(decisionProjectId, recommendation.id, decidedBy, decisionReason);
 			} else {
-				const response = await discussRecommendation(projectId, recommendation.id, decidedBy, decisionReason);
+				const response = await discussRecommendation(decisionProjectId, recommendation.id, decidedBy, decisionReason);
+				if (currentProjectIdRef.current !== decisionProjectId) {
+					return;
+				}
 				setContextPacks((current) => ({
 					...current,
-					[recommendation.id]: response.contextPack,
+					[stateKey]: response.contextPack,
 				}));
+			}
+			if (currentProjectIdRef.current !== decisionProjectId) {
+				return;
 			}
 			setDecisionNotes((current) => ({
 				...current,
@@ -105,9 +140,13 @@ export function RecommendationInbox() {
 			invalidateHistory(recommendation.id);
 			await loadRecommendations();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to update recommendation');
+			if (currentProjectIdRef.current === decisionProjectId) {
+				setError(err instanceof Error ? err.message : 'Failed to update recommendation');
+			}
 		} finally {
-			setBusyId(null);
+			if (currentProjectIdRef.current === decisionProjectId) {
+				setBusyId(null);
+			}
 		}
 	}, [decisionNotes, invalidateHistory, loadRecommendations, projectId]);
 
@@ -214,7 +253,7 @@ export function RecommendationInbox() {
 										[recommendation.id]: value,
 									}));
 								}}
-								disabled={busyId === recommendation.id}
+								disabled={busyId === recommendationStateKey(projectId, recommendation.id)}
 								placeholder="Optional rationale for the acceptance, rejection, or discussion request."
 								rows={3}
 							/>
@@ -224,7 +263,7 @@ export function RecommendationInbox() {
 							<Button
 								variant="primary"
 								size="sm"
-								disabled={busyId === recommendation.id || !canAcceptRecommendation(recommendation.status)}
+								disabled={busyId === recommendationStateKey(projectId, recommendation.id) || !canAcceptRecommendation(recommendation.status)}
 								onClick={() => handleDecision(recommendation, 'accept')}
 							>
 								Accept
@@ -232,7 +271,7 @@ export function RecommendationInbox() {
 							<Button
 								variant="ghost"
 								size="sm"
-								disabled={busyId === recommendation.id || !canRejectRecommendation(recommendation.status)}
+								disabled={busyId === recommendationStateKey(projectId, recommendation.id) || !canRejectRecommendation(recommendation.status)}
 								onClick={() => handleDecision(recommendation, 'reject')}
 							>
 								Reject
@@ -240,7 +279,7 @@ export function RecommendationInbox() {
 							<Button
 								variant="secondary"
 								size="sm"
-								disabled={busyId === recommendation.id || !canDiscussRecommendation(recommendation.status)}
+								disabled={busyId === recommendationStateKey(projectId, recommendation.id) || !canDiscussRecommendation(recommendation.status)}
 								onClick={() => handleDecision(recommendation, 'discuss')}
 							>
 								Discuss
@@ -298,8 +337,8 @@ export function RecommendationInbox() {
 							</div>
 						)}
 
-						{contextPacks[recommendation.id] && (
-							<pre className="recommendation-card__context-pack">{contextPacks[recommendation.id]}</pre>
+						{contextPacks[recommendationStateKey(projectId, recommendation.id)] && (
+							<pre className="recommendation-card__context-pack">{contextPacks[recommendationStateKey(projectId, recommendation.id)]}</pre>
 						)}
 					</article>
 				))}
@@ -334,19 +373,6 @@ function recommendationStatusLabel(status: RecommendationStatus): string {
 	}
 }
 
-function recommendationKindLabel(kind: RecommendationKind): string {
-	switch (kind) {
-		case RecommendationKind.RISK:
-			return 'Risk';
-		case RecommendationKind.FOLLOW_UP:
-			return 'Follow-up';
-		case RecommendationKind.DECISION_REQUEST:
-			return 'Decision request';
-		default:
-			return 'Cleanup';
-	}
-}
-
 function canAcceptRecommendation(status: RecommendationStatus): boolean {
 	return status === RecommendationStatus.PENDING || status === RecommendationStatus.DISCUSSED;
 }
@@ -357,6 +383,10 @@ function canRejectRecommendation(status: RecommendationStatus): boolean {
 
 function canDiscussRecommendation(status: RecommendationStatus): boolean {
 	return status === RecommendationStatus.PENDING;
+}
+
+function recommendationStateKey(projectId: string, recommendationId: string): string {
+	return `${projectId}:${recommendationId}`;
 }
 
 function formatDecisionSummary(recommendation: Recommendation): string {

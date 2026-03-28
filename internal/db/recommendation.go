@@ -548,11 +548,13 @@ func validateRecommendationForCreate(rec *Recommendation) error {
 	if rec.Evidence == "" {
 		return fmt.Errorf("recommendation evidence is required")
 	}
-	if rec.SourceTaskID == "" {
-		return fmt.Errorf("recommendation source_task_id is required")
+	hasTaskProvenance := rec.SourceTaskID != "" || rec.SourceRunID != ""
+	hasThreadProvenance := rec.SourceThreadID != ""
+	if !hasTaskProvenance && !hasThreadProvenance {
+		return fmt.Errorf("recommendation provenance requires source_thread_id or source_task_id/source_run_id")
 	}
-	if rec.SourceRunID == "" {
-		return fmt.Errorf("recommendation source_run_id is required")
+	if rec.SourceRunID != "" && rec.SourceTaskID == "" {
+		return fmt.Errorf("recommendation source_task_id is required when source_run_id is set")
 	}
 	if rec.DedupeKey == "" {
 		return fmt.Errorf("recommendation dedupe_key is required")
@@ -598,8 +600,8 @@ func recommendationInsertQuery(dialect driver.Dialect, now string, rec *Recommen
 				rec.Summary,
 				rec.ProposedAction,
 				rec.Evidence,
-				rec.SourceTaskID,
-				rec.SourceRunID,
+				nullableRecommendationValue(rec.SourceTaskID),
+				nullableRecommendationValue(rec.SourceRunID),
 				nullableRecommendationValue(rec.SourceThreadID),
 				rec.DedupeKey,
 				nullableRecommendationValue(rec.PromotedToType),
@@ -623,8 +625,8 @@ func recommendationInsertQuery(dialect driver.Dialect, now string, rec *Recommen
 			rec.Summary,
 			rec.ProposedAction,
 			rec.Evidence,
-			rec.SourceTaskID,
-			rec.SourceRunID,
+			nullableRecommendationValue(rec.SourceTaskID),
+			nullableRecommendationValue(rec.SourceRunID),
 			nullableRecommendationValue(rec.SourceThreadID),
 			rec.DedupeKey,
 			nullableRecommendationValue(rec.PromotedToType),
@@ -798,6 +800,8 @@ func getRecommendationTx(tx *TxOps, id string) (*Recommendation, error) {
 
 func scanRecommendation(scanner recommendationRowScanner) (*Recommendation, error) {
 	rec := &Recommendation{}
+	var sourceTaskID sql.NullString
+	var sourceRunID sql.NullString
 	var sourceThreadID sql.NullString
 	var decidedBy sql.NullString
 	var decisionReason sql.NullString
@@ -817,8 +821,8 @@ func scanRecommendation(scanner recommendationRowScanner) (*Recommendation, erro
 		&rec.Summary,
 		&rec.ProposedAction,
 		&rec.Evidence,
-		&rec.SourceTaskID,
-		&rec.SourceRunID,
+		&sourceTaskID,
+		&sourceRunID,
 		&sourceThreadID,
 		&rec.DedupeKey,
 		&decidedBy,
@@ -835,6 +839,8 @@ func scanRecommendation(scanner recommendationRowScanner) (*Recommendation, erro
 		return nil, err
 	}
 
+	rec.SourceTaskID = sourceTaskID.String
+	rec.SourceRunID = sourceRunID.String
 	rec.SourceThreadID = sourceThreadID.String
 	rec.DecidedBy = decidedBy.String
 	if t, ok := scannedTimestamp(decidedAt); ok {

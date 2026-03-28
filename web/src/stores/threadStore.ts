@@ -4,6 +4,33 @@ import type { Thread } from '@/gen/orc/v1/thread_pb';
 import { ListThreadsRequestSchema, CreateThreadRequestSchema } from '@/gen/orc/v1/thread_pb';
 import { create as createMsg } from '@bufbuild/protobuf';
 import { threadClient } from '@/lib/client';
+import { withErrorDetails } from '@/lib/errors';
+
+let latestThreadLoadRequestId = 0;
+let threadStoreGeneration = 0;
+
+function beginThreadLoadRequest() {
+	latestThreadLoadRequestId += 1;
+	return latestThreadLoadRequestId;
+}
+
+function isCurrentThreadLoadRequest(requestId: number) {
+	return requestId === latestThreadLoadRequestId;
+}
+
+function currentThreadStoreGeneration() {
+	return threadStoreGeneration;
+}
+
+function resetThreadStoreGeneration() {
+	threadStoreGeneration += 1;
+	return threadStoreGeneration;
+}
+
+function isCurrentThreadStoreGeneration(generation: number) {
+	return generation === threadStoreGeneration;
+}
+
 
 interface ThreadStore {
 	// State
@@ -18,6 +45,7 @@ interface ThreadStore {
 	// Actions
 	loadThreads: (projectId: string) => Promise<void>;
 	createThread: (projectId: string, title: string) => Promise<Thread | null>;
+	refreshThreadList: (projectId: string) => Promise<void>;
 	selectThread: (threadId: string | null) => void;
 	reset: () => void;
 }
@@ -40,44 +68,79 @@ export const useThreadStore = create<ThreadStore>()(
 		},
 
 		loadThreads: async (projectId: string) => {
+			const requestId = beginThreadLoadRequest();
 			set({ loading: true, error: null });
 			try {
 				const response = await threadClient.listThreads(
 					createMsg(ListThreadsRequestSchema, { projectId })
 				);
+				if (!isCurrentThreadLoadRequest(requestId)) {
+					return;
+				}
 				set({ threads: response.threads, loading: false });
-			} catch {
-				set({ threads: [], error: 'Failed to load threads', loading: false });
+			} catch (err) {
+				if (!isCurrentThreadLoadRequest(requestId)) {
+					return;
+				}
+				set({
+					threads: [],
+					error: withErrorDetails('Failed to load threads', err),
+					loading: false,
+				});
 			}
 		},
 
 		createThread: async (projectId: string, title: string) => {
+			const generation = currentThreadStoreGeneration();
 			try {
 				const response = await threadClient.createThread(
 					createMsg(CreateThreadRequestSchema, { projectId, title })
 				);
+				if (!isCurrentThreadStoreGeneration(generation)) {
+					return null;
+				}
 				const thread = response.thread;
 				if (thread) {
 					set((state) => ({
-						threads: [...state.threads, thread],
+						threads: upsertThread(state.threads, thread),
 						selectedThreadId: thread.id,
 					}));
+					void get().loadThreads(projectId).catch(() => {});
 					return thread;
 				}
 				return null;
-			} catch {
-				set({ error: 'Failed to create thread' });
+			} catch (err) {
+				if (!isCurrentThreadStoreGeneration(generation)) {
+					return null;
+				}
+				set({ error: withErrorDetails('Failed to create thread', err) });
 				return null;
 			}
+		},
+
+		refreshThreadList: async (projectId: string) => {
+			await get().loadThreads(projectId);
 		},
 
 		selectThread: (threadId: string | null) => {
 			set({ selectedThreadId: threadId });
 		},
 
-		reset: () => set(initialState),
+		reset: () => {
+			beginThreadLoadRequest();
+			resetThreadStoreGeneration();
+			set(initialState);
+		},
 	}))
 );
+
+function upsertThread(threads: Thread[], thread: Thread): Thread[] {
+	const existingIndex = threads.findIndex((candidate) => candidate.id === thread.id);
+	if (existingIndex === -1) {
+		return [...threads, thread];
+	}
+	return threads.map((candidate, index) => (index === existingIndex ? thread : candidate));
+}
 
 // Selector hooks
 export const useThreads = () => useThreadStore((state) => state.threads);

@@ -65,12 +65,32 @@ type controlPlaneVariableUsage struct {
 	HandoffContext         bool
 }
 
+type threadVariableUsage struct {
+	ThreadID                   bool
+	ThreadTitle                bool
+	ThreadContext              bool
+	ThreadHistory              bool
+	ThreadLinkedContext        bool
+	ThreadRecommendationDrafts bool
+	ThreadDecisionDrafts       bool
+}
+
 func (u controlPlaneVariableUsage) Any() bool {
 	return u.PendingRecommendations || u.AttentionSummary || u.HandoffContext
 }
 
 func (u controlPlaneVariableUsage) needsRecommendations() bool {
 	return u.PendingRecommendations || u.HandoffContext
+}
+
+func (u threadVariableUsage) Any() bool {
+	return u.ThreadID ||
+		u.ThreadTitle ||
+		u.ThreadContext ||
+		u.ThreadHistory ||
+		u.ThreadLinkedContext ||
+		u.ThreadRecommendationDrafts ||
+		u.ThreadDecisionDrafts
 }
 
 func detectControlPlaneVariableUsage(content string) controlPlaneVariableUsage {
@@ -81,12 +101,38 @@ func detectControlPlaneVariableUsage(content string) controlPlaneVariableUsage {
 	}
 }
 
+func detectThreadVariableUsage(content string) threadVariableUsage {
+	return threadVariableUsage{
+		ThreadID:                   strings.Contains(content, "{{THREAD_ID}}"),
+		ThreadTitle:                strings.Contains(content, "{{THREAD_TITLE}}"),
+		ThreadContext:              strings.Contains(content, "{{THREAD_CONTEXT}}"),
+		ThreadHistory:              strings.Contains(content, "{{THREAD_HISTORY}}"),
+		ThreadLinkedContext:        strings.Contains(content, "{{THREAD_LINKED_CONTEXT}}"),
+		ThreadRecommendationDrafts: strings.Contains(content, "{{THREAD_RECOMMENDATION_DRAFTS}}"),
+		ThreadDecisionDrafts:       strings.Contains(content, "{{THREAD_DECISION_DRAFTS}}"),
+	}
+}
+
 func mergeControlPlaneVariableUsage(parts ...controlPlaneVariableUsage) controlPlaneVariableUsage {
 	merged := controlPlaneVariableUsage{}
 	for _, part := range parts {
 		merged.PendingRecommendations = merged.PendingRecommendations || part.PendingRecommendations
 		merged.AttentionSummary = merged.AttentionSummary || part.AttentionSummary
 		merged.HandoffContext = merged.HandoffContext || part.HandoffContext
+	}
+	return merged
+}
+
+func mergeThreadVariableUsage(parts ...threadVariableUsage) threadVariableUsage {
+	merged := threadVariableUsage{}
+	for _, part := range parts {
+		merged.ThreadID = merged.ThreadID || part.ThreadID
+		merged.ThreadTitle = merged.ThreadTitle || part.ThreadTitle
+		merged.ThreadContext = merged.ThreadContext || part.ThreadContext
+		merged.ThreadHistory = merged.ThreadHistory || part.ThreadHistory
+		merged.ThreadLinkedContext = merged.ThreadLinkedContext || part.ThreadLinkedContext
+		merged.ThreadRecommendationDrafts = merged.ThreadRecommendationDrafts || part.ThreadRecommendationDrafts
+		merged.ThreadDecisionDrafts = merged.ThreadDecisionDrafts || part.ThreadDecisionDrafts
 	}
 	return merged
 }
@@ -123,6 +169,41 @@ func (we *WorkflowExecutor) phaseControlPlaneVariableUsage(
 		usage,
 		detectControlPlaneVariableUsage(cfg.SystemPrompt),
 		detectControlPlaneVariableUsage(cfg.AppendSystemPrompt),
+	), nil
+}
+
+func (we *WorkflowExecutor) phaseThreadVariableUsage(
+	tmpl *db.PhaseTemplate,
+	phase *db.WorkflowPhase,
+) (threadVariableUsage, error) {
+	effectiveType := tmpl.Type
+	if phase != nil && phase.TypeOverride != "" {
+		effectiveType = phase.TypeOverride
+	}
+	if effectiveType == "" {
+		effectiveType = "llm"
+	}
+
+	usage := threadVariableUsage{}
+	if effectiveType == "llm" {
+		promptContent, err := we.loadPhasePrompt(tmpl)
+		if err != nil {
+			return threadVariableUsage{}, fmt.Errorf("load phase prompt for thread usage: %w", err)
+		}
+		usage = detectThreadVariableUsage(promptContent)
+	} else if tmpl.PromptContent != "" {
+		usage = detectThreadVariableUsage(tmpl.PromptContent)
+	}
+
+	cfg := we.getEffectivePhaseClaudeConfig(tmpl, phase)
+	if cfg == nil {
+		return usage, nil
+	}
+
+	return mergeThreadVariableUsage(
+		usage,
+		detectThreadVariableUsage(cfg.SystemPrompt),
+		detectThreadVariableUsage(cfg.AppendSystemPrompt),
 	), nil
 }
 

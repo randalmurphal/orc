@@ -281,6 +281,15 @@ type ResolutionContext struct {
 	AttentionSummary       string
 	HandoffContext         string
 
+	// Discussion workspace context injected through builtin variables.
+	ThreadID                   string
+	ThreadTitle                string
+	ThreadContext              string
+	ThreadHistory              string
+	ThreadLinkedContext        string
+	ThreadRecommendationDrafts string
+	ThreadDecisionDrafts       string
+
 	// Provider context (which LLM provider is executing this phase)
 	Provider string // "claude", "codex", "ollama", etc.
 
