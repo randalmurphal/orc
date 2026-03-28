@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package orc.v1;
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+enum HandoffSourceType {
+  HANDOFF_SOURCE_TYPE_UNSPECIFIED = 0;
+  HANDOFF_SOURCE_TYPE_TASK = 1;
+  HANDOFF_SOURCE_TYPE_THREAD = 2;
+  HANDOFF_SOURCE_TYPE_RECOMMENDATION = 3;
+  HANDOFF_SOURCE_TYPE_ATTENTION_ITEM = 4;
+}
+
+enum HandoffTarget {
+  HANDOFF_TARGET_UNSPECIFIED = 0;
+  HANDOFF_TARGET_CLAUDE_CODE = 1;
+  HANDOFF_TARGET_CODEX = 2;
+}
+
+message GenerateHandoffRequest {
+  string project_id = 1;
+  HandoffSourceType source_type = 2;
+  string source_id = 3;
+  HandoffTarget target = 4;
+}
+
+message GenerateHandoffResponse {
+  string context_pack = 1;
+  string bootstrap_prompt = 2;
+  string cli_command = 3;
+}
+
+service HandoffService {
+  rpc GenerateHandoff(GenerateHandoffRequest) returns (GenerateHandoffResponse);
+}

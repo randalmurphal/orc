@@ -617,20 +617,7 @@ func formatHandoffContext(
 	phaseID string,
 	recommendations []*orcv1.Recommendation,
 ) string {
-	if currentTask == nil {
-		return ""
-	}
-
-	pack := controlplane.HandoffPack{
-		TaskID:       currentTask.GetId(),
-		TaskTitle:    currentTask.GetTitle(),
-		CurrentPhase: phaseID,
-		Summary:      task.GetDescriptionProto(currentTask),
-		NextSteps:    handoffNextSteps(currentTask.GetId(), recommendations),
-		Risks:        handoffRisks(currentTask.GetId(), recommendations),
-	}
-
-	return controlplane.FormatHandoffPack(pack)
+	return controlplane.BuildTaskContextPack(currentTask, phaseID, recommendations)
 }
 
 func buildPromptAttentionSignals(
@@ -793,80 +780,6 @@ func promptAttentionSignal(
 	}
 
 	return promptSignal, nil
-}
-
-func handoffNextSteps(taskID string, recommendations []*orcv1.Recommendation) []string {
-	steps := make([]string, 0)
-	seen := make(map[string]struct{})
-
-	for _, recommendation := range recommendations {
-		if recommendation.GetSourceTaskId() != taskID {
-			continue
-		}
-		if recommendation.GetStatus() != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING {
-			continue
-		}
-		if recommendation.GetKind() == orcv1.RecommendationKind_RECOMMENDATION_KIND_RISK {
-			continue
-		}
-
-		step := strings.TrimSpace(recommendation.GetProposedAction())
-		if step == "" {
-			step = strings.TrimSpace(recommendation.GetSummary())
-		}
-		if step == "" {
-			step = strings.TrimSpace(recommendation.GetTitle())
-		}
-		if step == "" {
-			continue
-		}
-		if _, exists := seen[step]; exists {
-			continue
-		}
-
-		seen[step] = struct{}{}
-		steps = append(steps, step)
-	}
-
-	sort.Strings(steps)
-	return steps
-}
-
-func handoffRisks(taskID string, recommendations []*orcv1.Recommendation) []string {
-	risks := make([]string, 0)
-	seen := make(map[string]struct{})
-
-	for _, recommendation := range recommendations {
-		if recommendation.GetSourceTaskId() != taskID {
-			continue
-		}
-		if recommendation.GetStatus() != orcv1.RecommendationStatus_RECOMMENDATION_STATUS_PENDING {
-			continue
-		}
-		if recommendation.GetKind() != orcv1.RecommendationKind_RECOMMENDATION_KIND_RISK {
-			continue
-		}
-
-		risk := strings.TrimSpace(recommendation.GetTitle())
-		summary := strings.TrimSpace(recommendation.GetSummary())
-		if risk == "" {
-			risk = summary
-		} else if summary != "" {
-			risk = risk + ": " + summary
-		}
-		if risk == "" {
-			continue
-		}
-		if _, exists := seen[risk]; exists {
-			continue
-		}
-
-		seen[risk] = struct{}{}
-		risks = append(risks, risk)
-	}
-
-	sort.Strings(risks)
-	return risks
 }
 
 func (we *WorkflowExecutor) loadIndexedArtifactsContext(currentTask *orcv1.Task) (string, error) {

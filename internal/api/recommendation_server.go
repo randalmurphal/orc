@@ -17,6 +17,7 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -538,27 +539,7 @@ func (s *recommendationServer) publishRecommendationDecided(projectID string, re
 }
 
 func buildRecommendationContextPack(rec *orcv1.Recommendation) string {
-	if rec == nil {
-		return ""
-	}
-	contextPack := fmt.Sprintf(
-		"Recommendation %s\nKind: %s\nTitle: %s\nSummary: %s\nProposed action: %s\nEvidence: %s\nSource task: %s\nSource run: %s",
-		rec.Id,
-		strings.ToLower(strings.TrimPrefix(rec.Kind.String(), "RECOMMENDATION_KIND_")),
-		rec.Title,
-		rec.Summary,
-		rec.ProposedAction,
-		rec.Evidence,
-		rec.SourceTaskId,
-		rec.SourceRunId,
-	)
-	if rec.SourceThreadId != "" {
-		contextPack += fmt.Sprintf("\nSource thread: %s", rec.SourceThreadId)
-	}
-	if rec.PromotedToType != "" || rec.PromotedToId != "" {
-		contextPack += fmt.Sprintf("\nPromoted to: %s %s", rec.PromotedToType, rec.PromotedToId)
-	}
-	return contextPack
+	return controlplane.BuildRecommendationContextPack(rec)
 }
 
 func isRecommendationDedupeError(err error) bool {

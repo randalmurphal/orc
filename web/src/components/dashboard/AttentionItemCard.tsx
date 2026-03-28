@@ -1,8 +1,10 @@
+import { HandoffActions } from '@/components/handoff/HandoffActions';
 import type { AttentionItem } from '@/gen/orc/v1/attention_dashboard_pb';
 import {
 	AttentionAction,
 	AttentionItemType,
 } from '@/gen/orc/v1/attention_dashboard_pb';
+import { HandoffSourceType } from '@/gen/orc/v1/handoff_pb';
 
 export interface AttentionItemCardProps {
 	item: AttentionItem;
@@ -86,6 +88,11 @@ export function AttentionItemCard({
 			</button>
 
 			<div className="command-center-attention-item__actions">
+				<HandoffActions
+					projectId={item.projectId || undefined}
+					sourceType={HandoffSourceType.ATTENTION_ITEM}
+					sourceId={item.id}
+				/>
 				{item.availableActions.map((action) => {
 					if (action === AttentionAction.UNSPECIFIED) {
 						return null;
