@@ -305,7 +305,7 @@ export function MyWorkPage() {
 	return (
 		<div className="my-work-page">
 			<header className="my-work-page__hero">
-				<div>
+				<div className="my-work-page__hero-text">
 					<p className="my-work-page__eyebrow">Operator control plane</p>
 					<h1 className="my-work-page__title">Command Center</h1>
 					<p className="my-work-page__subtitle">

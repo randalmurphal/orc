@@ -13,6 +13,7 @@
 
 .my-work-page__hero {
 	display: flex;
+	flex-wrap: wrap;
 	justify-content: space-between;
 	align-items: flex-end;
 	gap: 24px;
@@ -35,11 +36,17 @@
 	color: var(--text-muted);
 }
 
+.my-work-page__hero-text {
+	min-width: 0;
+	flex: 1 1 300px;
+}
+
 .my-work-page__title {
 	margin: 0;
 	font-size: clamp(28px, 4vw, 40px);
 	line-height: 1;
 	color: var(--text-primary);
+	overflow-wrap: break-word;
 }
 
 .my-work-page__subtitle {

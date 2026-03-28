@@ -19,6 +19,7 @@
 
 .project-home__hero {
 	display: flex;
+	flex-wrap: wrap;
 	justify-content: space-between;
 	align-items: flex-end;
 	gap: 24px;
@@ -33,6 +34,8 @@
 }
 
 .project-home__hero-copy {
+	min-width: 0;
+	flex: 1 1 300px;
 	max-width: 720px;
 }
 
@@ -50,6 +53,7 @@
 	font-size: clamp(30px, 4vw, 44px);
 	line-height: 1;
 	color: var(--text-primary);
+	overflow-wrap: break-word;
 }
 
 .project-home__subtitle {
