@@ -33,10 +33,6 @@ vi.mock("@radix-ui/react-dropdown-menu", () => ({
   ),
 }));
 
-vi.mock("@/stores/projectStore", () => ({
-  useCurrentProjectId: () => "proj-001",
-}));
-
 vi.mock("@/lib/api/handoff", () => ({
   generateHandoff: vi.fn(),
 }));
@@ -71,6 +67,7 @@ describe("HandoffActions", () => {
   it("calls GenerateHandoff with source props and copies the Claude command", async () => {
     render(
       <HandoffActions
+        projectId="proj-001"
         sourceType={HandoffSourceType.TASK}
         sourceId="TASK-001"
       />,
@@ -109,6 +106,7 @@ describe("HandoffActions", () => {
 
     render(
       <HandoffActions
+        projectId="proj-001"
         sourceType={HandoffSourceType.RECOMMENDATION}
         sourceId="REC-001"
       />,
@@ -141,6 +139,7 @@ describe("HandoffActions", () => {
 
     render(
       <HandoffActions
+        projectId="proj-001"
         sourceType={HandoffSourceType.THREAD}
         sourceId="THR-001"
       />,
@@ -166,6 +165,7 @@ describe("HandoffActions", () => {
 
     render(
       <HandoffActions
+        projectId="proj-001"
         sourceType={HandoffSourceType.ATTENTION_ITEM}
         sourceId="proj-001:failed-TASK-001"
       />,

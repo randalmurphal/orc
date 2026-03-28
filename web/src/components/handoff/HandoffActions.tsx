@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Icon } from '@/components/ui/Icon';
 import { generateHandoff } from '@/lib/api/handoff';
-import { useCurrentProjectId } from '@/stores/projectStore';
 import { toast } from '@/stores/uiStore';
 import {
 	HandoffSourceType,
@@ -19,13 +18,11 @@ interface HandoffActionsProps {
 type HandoffCopyAction = 'claude' | 'codex' | 'bootstrap' | 'context';
 
 export function HandoffActions({ projectId, sourceType, sourceId }: HandoffActionsProps) {
-	const currentProjectId = useCurrentProjectId();
-	const effectiveProjectId = projectId ?? currentProjectId ?? '';
 	const [isOpen, setIsOpen] = useState(false);
 	const [loadingAction, setLoadingAction] = useState<HandoffCopyAction | null>(null);
 
 	const handleCopy = useCallback(async (action: HandoffCopyAction) => {
-		if (!effectiveProjectId) {
+		if (!projectId) {
 			toast.error('No project selected');
 			return;
 		}
@@ -36,7 +33,7 @@ export function HandoffActions({ projectId, sourceType, sourceId }: HandoffActio
 
 		setLoadingAction(action);
 		try {
-			const response = await generateHandoff(effectiveProjectId, sourceType, sourceId, target);
+			const response = await generateHandoff(projectId, sourceType, sourceId, target);
 			const text = copiedTextForAction(action, response);
 			await navigator.clipboard.writeText(text);
 			toast.success(successMessage(action));
@@ -46,7 +43,7 @@ export function HandoffActions({ projectId, sourceType, sourceId }: HandoffActio
 		} finally {
 			setLoadingAction(null);
 		}
-	}, [effectiveProjectId, sourceId, sourceType]);
+	}, [projectId, sourceId, sourceType]);
 
 	return (
 		<div className="handoff-actions">

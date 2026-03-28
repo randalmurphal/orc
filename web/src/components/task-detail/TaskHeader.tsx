@@ -260,6 +260,7 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 				<div className="task-actions">
 					{getActionButton()}
 					<HandoffActions
+						projectId={projectId ?? undefined}
 						sourceType={HandoffSourceType.TASK}
 						sourceId={task.id}
 					/>
