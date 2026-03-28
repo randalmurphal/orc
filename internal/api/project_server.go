@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sort"
 	"time"
 
 	"connectrpc.com/connect"
@@ -257,7 +256,7 @@ func (s *projectServer) GetAllProjectsStatus(
 			if dt.CompletedAt != nil && dt.Status == "completed" {
 				if dt.CompletedAt.UTC().After(todayStart) || dt.CompletedAt.UTC().Equal(todayStart) {
 					completedToday++
-					recentCompletions = append(recentCompletions, &orcv1.RecentCompletion{
+					recentCompletions = appendRecentCompletionBounded(recentCompletions, &orcv1.RecentCompletion{
 						Id:          dt.ID,
 						Title:       dt.Title,
 						Success:     true,
@@ -303,10 +302,6 @@ func (s *projectServer) GetAllProjectsStatus(
 			return nil, connect.NewError(connect.CodeInternal,
 				fmt.Errorf("count pending recommendations for project %s: %w", proj.ID, err))
 		}
-
-		sort.Slice(recentCompletions, func(i, j int) bool {
-			return recentCompletions[i].CompletedAt.AsTime().After(recentCompletions[j].CompletedAt.AsTime())
-		})
 
 		statuses = append(statuses, &orcv1.ProjectStatus{
 			ProjectId:              proj.ID,

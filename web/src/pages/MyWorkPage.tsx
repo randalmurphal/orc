@@ -20,6 +20,7 @@ import type { ProjectStatus } from '@/gen/orc/v1/project_pb';
 import './MyWorkPage.css';
 
 const refreshIntervalMs = 15_000;
+const recentCompletionsDisplayLimit = 10;
 
 interface ProjectRecentCompletion {
 	projectId: string;
@@ -266,7 +267,8 @@ export function MyWorkPage() {
 				projectName: project.projectName,
 				completion,
 			})))
-			.sort((left, right) => completionTimestamp(right.completion) - completionTimestamp(left.completion));
+			.sort((left, right) => completionTimestamp(right.completion) - completionTimestamp(left.completion))
+			.slice(0, recentCompletionsDisplayLimit);
 	}, [projects]);
 
 	if (loading) {

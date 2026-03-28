@@ -18,6 +18,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -206,6 +207,43 @@ func TestAllProjectsStatusThreadsAndCompletions(t *testing.T) {
 	require.Equal(t, "Completed today", projectStatus.RecentCompletions[0].Title)
 	require.Equal(t, orcv1.TaskStatus_TASK_STATUS_COMPLETED, projectStatus.RecentCompletions[0].Status)
 	require.NotNil(t, projectStatus.RecentCompletions[0].CompletedAt)
+}
+
+func TestAllProjectsStatusRecentCompletionsAreBounded(t *testing.T) {
+	tmpDir := setupTestHome(t)
+	proj := setupTestProject(t, tmpDir, "bounded-completions")
+
+	cache := NewProjectCache(10)
+	defer func() { _ = cache.Close() }()
+
+	backend, err := cache.GetBackend(proj.ID)
+	require.NoError(t, err)
+
+	now := time.Now().UTC()
+	for i := 0; i < recentCompletionsLimit+2; i++ {
+		completedTask := task.NewProtoTask(
+			fmt.Sprintf("TASK-%03d", i+1),
+			fmt.Sprintf("Completed task %d", i+1),
+		)
+		completedTask.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		completedTask.CompletedAt = timestamppb.New(now.Add(-time.Duration(i) * time.Minute))
+		require.NoError(t, backend.SaveTask(completedTask))
+	}
+
+	server := NewProjectServer(nil, nil)
+	server.(*projectServer).SetProjectCache(cache)
+
+	resp, err := server.GetAllProjectsStatus(context.Background(), connect.NewRequest(&orcv1.GetAllProjectsStatusRequest{}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Projects, 1)
+
+	projectStatus := resp.Msg.Projects[0]
+	require.Equal(t, int32(recentCompletionsLimit+2), projectStatus.CompletedToday)
+	require.Len(t, projectStatus.RecentCompletions, recentCompletionsLimit)
+
+	for i, completion := range projectStatus.RecentCompletions {
+		require.Equal(t, fmt.Sprintf("TASK-%03d", i+1), completion.Id)
+	}
 }
 
 // ============================================================================

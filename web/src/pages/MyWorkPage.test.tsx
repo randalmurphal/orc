@@ -12,6 +12,7 @@ import {
 	createMockProjectStatus,
 	createMockRecentCompletion,
 	createMockRunningTask,
+	createTimestamp,
 } from '@/test/factories';
 import { AttentionAction, AttentionItemType } from '@/gen/orc/v1/attention_dashboard_pb';
 import {
@@ -205,6 +206,50 @@ describe('CommandCenter MyWorkPage', () => {
 		expect(screen.getByText('No active discussions')).toBeInTheDocument();
 		expect(screen.getByText('No pending recommendations')).toBeInTheDocument();
 		expect(screen.getByText('No recent completions')).toBeInTheDocument();
+	});
+
+	it('renders only the 10 most recent completions across projects', async () => {
+		const alphaCompletions = Array.from({ length: 8 }, (_, index) => {
+			return createMockRecentCompletion({
+				id: `ALPHA-${index + 1}`,
+				title: `Alpha completion ${index + 1}`,
+				completedAt: createTimestamp(new Date(Date.UTC(2024, 0, 1, 12, 20-index))),
+			});
+		});
+		const betaCompletions = Array.from({ length: 8 }, (_, index) => {
+			return createMockRecentCompletion({
+				id: `BETA-${index + 1}`,
+				title: `Beta completion ${index + 1}`,
+				completedAt: createTimestamp(new Date(Date.UTC(2024, 0, 1, 11, 20-index))),
+			});
+		});
+
+		vi.mocked(projectClient.getAllProjectsStatus).mockResolvedValue(
+			createMockGetAllProjectsStatusResponse([
+				createMockProjectStatus({
+					projectId: 'proj-alpha',
+					projectName: 'Project Alpha',
+					recentCompletions: alphaCompletions,
+				}),
+				createMockProjectStatus({
+					projectId: 'proj-beta',
+					projectName: 'Project Beta',
+					recentCompletions: betaCompletions,
+				}),
+			]),
+		);
+
+		renderPage();
+
+		await screen.findByText('Command Center');
+
+		expect(screen.getByText('10', { selector: '.command-center-section__count' })).toBeInTheDocument();
+		expect(screen.getByText('Alpha completion 1')).toBeInTheDocument();
+		expect(screen.getByText('Alpha completion 8')).toBeInTheDocument();
+		expect(screen.getByText('Beta completion 1')).toBeInTheDocument();
+		expect(screen.getByText('Beta completion 2')).toBeInTheDocument();
+		expect(screen.queryByText('Beta completion 3')).not.toBeInTheDocument();
+		expect(screen.queryByText('Beta completion 8')).not.toBeInTheDocument();
 	});
 
 	it('polls every 15 seconds and refreshes on recommendation and attention signals', async () => {

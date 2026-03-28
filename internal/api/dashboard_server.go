@@ -148,7 +148,7 @@ func (s *dashboardServer) GetStats(
 		case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 			statusCounts.Completed++
 			if t.CompletedAt != nil && t.CompletedAt.AsTime().After(today.Add(-7*24*time.Hour)) {
-				recentCompletions = append(recentCompletions, &orcv1.RecentCompletion{
+				recentCompletions = appendRecentCompletionBounded(recentCompletions, &orcv1.RecentCompletion{
 					Id:          t.Id,
 					Title:       t.Title,
 					Success:     true,
@@ -159,7 +159,7 @@ func (s *dashboardServer) GetStats(
 		case orcv1.TaskStatus_TASK_STATUS_FAILED:
 			statusCounts.Failed++
 			if t.UpdatedAt != nil && t.UpdatedAt.AsTime().After(today.Add(-7*24*time.Hour)) {
-				recentCompletions = append(recentCompletions, &orcv1.RecentCompletion{
+				recentCompletions = appendRecentCompletionBounded(recentCompletions, &orcv1.RecentCompletion{
 					Id:          t.Id,
 					Title:       t.Title,
 					Success:     false,
@@ -180,14 +180,6 @@ func (s *dashboardServer) GetStats(
 			todayTokens.TotalTokens = todayTokens.InputTokens + todayTokens.OutputTokens
 			todayCost += t.Execution.Cost.TotalCostUsd
 		}
-	}
-
-	// Sort recent completions by date (newest first), limit to 10
-	sort.Slice(recentCompletions, func(i, j int) bool {
-		return recentCompletions[i].CompletedAt.AsTime().After(recentCompletions[j].CompletedAt.AsTime())
-	})
-	if len(recentCompletions) > 10 {
-		recentCompletions = recentCompletions[:10]
 	}
 
 	stats := &orcv1.DashboardStats{
