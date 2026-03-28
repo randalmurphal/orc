@@ -56,18 +56,20 @@ vi.mock('@/lib/client', () => ({
 		listReviewComments: vi.fn().mockResolvedValue({ comments: [] }),
 		getDiff: vi.fn().mockResolvedValue({ files: [] }),
 	},
-	initiativeClient: {
-		getInitiative: vi.fn().mockResolvedValue({
-			initiative: {
-				id: 'INIT-001',
+		initiativeClient: {
+			getInitiative: vi.fn().mockResolvedValue({
+				initiative: {
+					id: 'INIT-001',
 				title: 'Test Initiative',
 				status: 1, // InitiativeStatus.ACTIVE
 				tasks: [],
 				decisions: [],
-			},
-		}),
-		listInitiatives: vi.fn().mockResolvedValue({ initiatives: [] }),
-	},
+				},
+			}),
+			listInitiatives: vi.fn().mockResolvedValue({ initiatives: [] }),
+			listInitiativeNotes: vi.fn().mockResolvedValue({ notes: [] }),
+			listTaskGeneratedNotes: vi.fn().mockResolvedValue({ notes: [] }),
+		},
 	configClient: {
 		getConfigStats: vi.fn().mockResolvedValue({
 			stats: {
@@ -103,9 +105,23 @@ vi.mock('@/lib/client', () => ({
 		listProjects: vi.fn().mockResolvedValue({ projects: [] }),
 		getAllProjectsStatus: vi.fn().mockResolvedValue({ projects: [] }),
 	},
-	decisionClient: {
-		resolveDecision: vi.fn().mockResolvedValue({}),
-	},
+		attentionDashboardClient: {
+			getAttentionDashboardData: vi.fn().mockResolvedValue({
+				runningSummary: { taskCount: 0, tasks: [] },
+				attentionItems: [],
+				pendingRecommendations: 0,
+			}),
+			performAttentionAction: vi.fn().mockResolvedValue({ success: true }),
+		},
+		feedbackClient: {
+			listFeedback: vi.fn().mockResolvedValue({ feedback: [] }),
+			addFeedback: vi.fn().mockResolvedValue({}),
+			sendFeedback: vi.fn().mockResolvedValue({}),
+			deleteFeedback: vi.fn().mockResolvedValue({}),
+		},
+		decisionClient: {
+			resolveDecision: vi.fn().mockResolvedValue({}),
+		},
 	knowledgeClient: {
 		listKnowledge: vi.fn().mockResolvedValue({ entries: [] }),
 		getKnowledgeStatus: vi.fn().mockResolvedValue({ status: null }),

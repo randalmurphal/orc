@@ -24,6 +24,14 @@ vi.mock('@/lib/client', () => ({
 		}),
 		getAllProjectsStatus: vi.fn().mockResolvedValue({ projects: [] }),
 	},
+	attentionDashboardClient: {
+		getAttentionDashboardData: vi.fn().mockResolvedValue({
+			runningSummary: { taskCount: 0, tasks: [] },
+			attentionItems: [],
+			pendingRecommendations: 0,
+		}),
+		performAttentionAction: vi.fn().mockResolvedValue({ success: true }),
+	},
 	taskClient: {
 		listTasks: vi.fn().mockResolvedValue({ tasks: [] }),
 	},
