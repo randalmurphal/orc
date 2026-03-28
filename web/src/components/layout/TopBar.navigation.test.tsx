@@ -8,7 +8,7 @@ import { createTimestamp } from '@/test/factories';
 import { ProjectSchema } from '@/gen/orc/v1/project_pb';
 
 /**
- * SC-5: Top navigation shows Home, Board, Knowledge, Workflows, Settings tabs
+ * SC-5: Top navigation shows Home, Project, Board, Inbox, Knowledge, Workflows, Settings tabs
  * replacing the icon-based navigation
  *
  * These tests verify the navigation restructure in TopBar.
@@ -65,6 +65,14 @@ describe('TopBar navigation tabs (SC-5)', () => {
 		expect(homeLink).toHaveAttribute('href', '/');
 	});
 
+	it('should render Project navigation tab', () => {
+		renderWithRouter(<TopBar />);
+
+		const projectLink = screen.getByRole('link', { name: /project/i });
+		expect(projectLink).toBeInTheDocument();
+		expect(projectLink).toHaveAttribute('href', '/project');
+	});
+
 	it('should render Board navigation tab', () => {
 		renderWithRouter(<TopBar />);
 
@@ -97,19 +105,21 @@ describe('TopBar navigation tabs (SC-5)', () => {
 		expect(settingsLink).toHaveAttribute('href', '/settings');
 	});
 
-	it('should have exactly 5 navigation tabs', () => {
+	it('should have exactly 7 navigation tabs', () => {
 		renderWithRouter(<TopBar />);
 
 		// Get all navigation links within the nav tab area
 		const navTabs = screen.getAllByRole('link').filter(link => {
 			const href = link.getAttribute('href');
 			return href === '/' ||
+				href === '/project' ||
 				href === '/board' ||
+				href === '/recommendations' ||
 				href === '/knowledge' ||
 				href === '/workflows' ||
 				href === '/settings';
 		});
-		expect(navTabs).toHaveLength(5);
+		expect(navTabs).toHaveLength(7);
 	});
 
 	it('should NOT render Timeline in primary navigation', () => {
@@ -129,11 +139,10 @@ describe('TopBar navigation tabs (SC-5)', () => {
 	});
 
 	it('should show active indicator on current route', () => {
-		renderWithRouter(<TopBar />, ['/board']);
+		renderWithRouter(<TopBar />, ['/project']);
 
-		const boardLink = screen.getByRole('link', { name: /board/i });
-		// Active tab should have a visual indicator class
-		expect(boardLink.className).toMatch(/active/);
+		const projectLink = screen.getByRole('link', { name: /project/i });
+		expect(projectLink.className).toMatch(/active/);
 	});
 
 	it('should show active indicator on Home for root route', () => {

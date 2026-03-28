@@ -54,6 +54,7 @@ describe('TopBar', () => {
 		it('should render navigation tabs', () => {
 			renderWithRouter(<TopBar />);
 			expect(screen.getByText('Home')).toBeInTheDocument();
+			expect(screen.getByText('Project')).toBeInTheDocument();
 			expect(screen.getByText('Board')).toBeInTheDocument();
 			expect(screen.getByText('Settings')).toBeInTheDocument();
 		});

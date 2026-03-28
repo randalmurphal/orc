@@ -7,12 +7,14 @@ export interface ProjectCardProps {
 	project: ProjectStatus;
 	onTaskClick: (projectId: string, taskId: string) => void;
 	onViewAll: (projectId: string) => void;
+	viewAllLabel?: string;
 }
 
 export const ProjectCard = memo(function ProjectCard({
 	project,
 	onTaskClick,
 	onViewAll,
+	viewAllLabel = 'View all',
 }: ProjectCardProps) {
 	return (
 		<div className="project-card">
@@ -44,7 +46,7 @@ export const ProjectCard = memo(function ProjectCard({
 					className="project-card__view-all"
 					onClick={() => onViewAll(project.projectId)}
 				>
-					View all
+					{viewAllLabel}
 				</button>
 			</div>
 			<div className="project-card__tasks">

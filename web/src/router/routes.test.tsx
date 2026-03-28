@@ -21,6 +21,10 @@ vi.mock('@/lib/events', () => ({
 	handleEvent: vi.fn(),
 }));
 
+vi.mock('@/pages/ProjectHomePage', () => ({
+	ProjectHomePage: () => <div data-testid="project-home-page">Project Home Page</div>,
+}));
+
 // Mock global fetch for DependencySidebar raw API calls
 vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
 	if (typeof url === 'string' && url.includes('/dependencies')) {
@@ -363,6 +367,16 @@ describe('Routes', () => {
 				// BoardView renders with the board-view class
 				const boardView = document.querySelector('.board-view');
 				expect(boardView).toBeInTheDocument();
+			});
+		});
+	});
+
+	describe('/project route', () => {
+		it('renders ProjectHomePage at /project', async () => {
+			renderWithRouter('/project');
+
+			await waitFor(() => {
+				expect(screen.getByTestId('project-home-page')).toBeInTheDocument();
 			});
 		});
 	});

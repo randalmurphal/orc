@@ -111,6 +111,8 @@ import {
 } from '@/gen/orc/v1/project_pb';
 import {
 	RecentCompletionSchema,
+	DashboardStatsSchema,
+	type DashboardStats,
 	type RecentCompletion,
 } from '@/gen/orc/v1/dashboard_pb';
 import {
@@ -126,6 +128,16 @@ import {
 	AttentionItemType,
 	AttentionAction,
 } from '@/gen/orc/v1/attention_dashboard_pb';
+import {
+	RecommendationSchema,
+	type Recommendation,
+	RecommendationKind,
+	RecommendationStatus,
+} from '@/gen/orc/v1/recommendation_pb';
+import {
+	ThreadSchema,
+	type Thread,
+} from '@/gen/orc/v1/thread_pb';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 
 /**
@@ -609,6 +621,16 @@ export function createMockRecentCompletion(overrides: Partial<Omit<RecentComplet
 	return Object.assign(base, overrides);
 }
 
+export function createMockDashboardStats(overrides: Partial<Omit<DashboardStats, '$typeName' | '$unknown'>> = {}): DashboardStats {
+	const base = create(DashboardStatsSchema, {
+		recentCompletions: [],
+		runningTasks: [],
+		pendingDecisions: 0,
+		todayCostUsd: 0,
+	});
+	return Object.assign(base, overrides);
+}
+
 export function createMockRunningTask(overrides: Partial<Omit<RunningTask, '$typeName' | '$unknown'>> = {}): RunningTask {
 	const base = create(RunningTaskSchema, {
 		id: 'TASK-001',
@@ -662,6 +684,51 @@ export function createMockAttentionDashboardResponse(
 			unassignedTasks: [],
 		}),
 		pendingRecommendations: 0,
+	});
+	return Object.assign(base, overrides);
+}
+
+export function createMockRecommendation(
+	overrides: Partial<Omit<Recommendation, '$typeName' | '$unknown'>> = {}
+): Recommendation {
+	const base = create(RecommendationSchema, {
+		id: 'REC-001',
+		kind: RecommendationKind.FOLLOW_UP,
+		status: RecommendationStatus.PENDING,
+		title: 'Follow up on the flaky validation path',
+		summary: 'The latest run still leaves a manual verification gap.',
+		proposedAction: 'Review the evidence and decide whether to add a focused regression test.',
+		evidence: 'Observed during review.',
+		sourceTaskId: 'TASK-001',
+		sourceRunId: 'run-001',
+		dedupeKey: 'rec-001',
+		sourceThreadId: '',
+		promotedToType: '',
+		promotedToId: '',
+		promotedBy: '',
+		createdAt: createTimestamp('2024-01-01T12:00:00Z'),
+		updatedAt: createTimestamp('2024-01-01T12:00:00Z'),
+	});
+	return Object.assign(base, overrides);
+}
+
+export function createMockThread(
+	overrides: Partial<Omit<Thread, '$typeName' | '$unknown'>> = {}
+): Thread {
+	const base = create(ThreadSchema, {
+		id: 'thread-001',
+		title: 'Operator handoff thread',
+		status: 'active',
+		taskId: 'TASK-001',
+		initiativeId: '',
+		sessionId: '',
+		fileContext: '',
+		createdAt: createTimestamp('2024-01-01T12:00:00Z'),
+		updatedAt: createTimestamp('2024-01-01T13:00:00Z'),
+		messages: [],
+		links: [],
+		recommendationDrafts: [],
+		decisionDrafts: [],
 	});
 	return Object.assign(base, overrides);
 }

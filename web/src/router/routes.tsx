@@ -23,6 +23,7 @@ const WorkflowsPage = lazy(() => import('@/pages/WorkflowsPage').then(m => ({ de
 const WorkflowEditorPage = lazy(() => import('@/components/workflow-editor').then(m => ({ default: m.WorkflowEditorPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 const MyWorkPage = lazy(() => import('@/pages/MyWorkPage').then(m => ({ default: m.MyWorkPage })));
+const ProjectHomePage = lazy(() => import('@/pages/ProjectHomePage').then(m => ({ default: m.ProjectHomePage })));
 const RecommendationsPage = lazy(() => import('@/pages/RecommendationsPage').then(m => ({ default: m.RecommendationsPage })));
 
 // Environment pages (accessed via Settings navigation)
@@ -165,6 +166,14 @@ export const routes: RouteObject[] = [
 				),
 			},
 			// Board - Main kanban board view
+			{
+				path: 'project',
+				element: (
+					<LazyRoute>
+						<ProjectHomePage />
+					</LazyRoute>
+				),
+			},
 			{
 				path: 'board',
 				element: (

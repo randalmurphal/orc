@@ -2,7 +2,7 @@
  * TopBar component - 48px fixed header with navigation tabs, search, session metrics, and actions.
  *
  * Features:
- * - Navigation tabs: Home, Board, Knowledge, Workflows, Settings
+ * - Navigation tabs: Home, Project, Board, Inbox, Knowledge, Workflows, Settings
  * - Search box with Cmd+K shortcut (search functionality is future task)
  * - Session metrics: duration, tokens, cost with colored icon badges
  * - Pause/Resume button that integrates with sessionStore
@@ -41,6 +41,7 @@ interface SessionStatProps {
 
 const NAV_TABS = [
 	{ label: 'Home', path: '/', end: true },
+	{ label: 'Project', path: '/project', end: false },
 	{ label: 'Board', path: '/board', end: false },
 	{ label: 'Inbox', path: '/recommendations', end: false },
 	{ label: 'Knowledge', path: '/knowledge', end: false },
