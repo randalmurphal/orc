@@ -148,8 +148,16 @@ func (s *threadServer) CreateThread(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("create thread: %w", err))
 	}
 
+	reloaded, err := backend.DB().GetThread(thread.ID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload created thread %s: %w", thread.ID, err))
+	}
+	if reloaded == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("created thread %s not found after save", thread.ID))
+	}
+
 	return connect.NewResponse(&orcv1.CreateThreadResponse{
-		Thread: threadToProto(thread),
+		Thread: threadToProto(reloaded),
 	}), nil
 }
 
@@ -364,6 +372,8 @@ func (s *threadServer) DeleteThread(
 		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete thread: %w", err))
 	}
+
+	s.publishThreadUpdated(req.Msg.ProjectId, req.Msg.ThreadId, "deleted")
 
 	return connect.NewResponse(&orcv1.DeleteThreadResponse{}), nil
 }
@@ -690,6 +700,8 @@ func threadRecommendationDraftToProto(draft *db.ThreadRecommendationDraft) *orcv
 	}
 	kind, err := recommendationKindStringToProto(draft.Kind)
 	if err != nil {
+		slog.Warn("invalid recommendation draft kind, falling back to UNSPECIFIED",
+			"draft_id", draft.ID, "kind", draft.Kind, "error", err)
 		kind = orcv1.RecommendationKind_RECOMMENDATION_KIND_UNSPECIFIED
 	}
 	proto := &orcv1.ThreadRecommendationDraft{

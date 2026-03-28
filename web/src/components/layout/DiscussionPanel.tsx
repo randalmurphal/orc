@@ -15,6 +15,7 @@ import {
 import { RecommendationKind } from '@/gen/orc/v1/recommendation_pb';
 import { useEvents } from '@/hooks/useEvents';
 import { threadClient } from '@/lib/client';
+import { withErrorDetails } from '@/lib/errors';
 import { recommendationKindLabel } from '@/lib/recommendations';
 import './DiscussionPanel.css';
 
@@ -755,12 +756,6 @@ function linkTargetPlaceholder(linkType: string, threadTaskId: string, threadIni
 	}
 }
 
-function withErrorDetails(prefix: string, err: unknown): string {
-	if (err instanceof Error && err.message) {
-		return `${prefix} ${err.message}`;
-	}
-	return prefix;
-}
 
 function threadRequestKey(projectId: string, threadId: string): string {
 	return `${projectId}:${threadId}`;

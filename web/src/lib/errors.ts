@@ -18,3 +18,10 @@ export function handleStoreError(error: unknown, context: string): string {
 	console.error(`[${context}]`, error);
 	return message;
 }
+
+export function withErrorDetails(prefix: string, err: unknown): string {
+	if (err instanceof Error && err.message) {
+		return `${prefix} ${err.message}`;
+	}
+	return prefix;
+}

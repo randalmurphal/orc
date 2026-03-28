@@ -890,13 +890,6 @@ func placeholderForDialect(dialect driver.Dialect, index int) string {
 	return fmt.Sprintf("$%d", index)
 }
 
-func nowExpressionForDialect(dialect driver.Dialect) string {
-	if dialect == driver.DialectSQLite {
-		return "datetime('now')"
-	}
-	return "NOW()"
-}
-
 func nullableRecommendationValue(value string) any {
 	if value == "" {
 		return nil

@@ -694,7 +694,7 @@ func createRecommendationTx(tx *TxOps, rec *Recommendation) error {
 		return err
 	}
 
-	query, args := recommendationInsertQuery(tx.Dialect(), nowExpressionForDialect(tx.Dialect()), rec)
+	query, args := recommendationInsertQuery(tx.Dialect(), tx.Now(), rec)
 	if _, err := tx.Exec(query, args...); err != nil {
 		return fmt.Errorf("insert recommendation: %w", err)
 	}

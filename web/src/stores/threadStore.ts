@@ -4,6 +4,7 @@ import type { Thread } from '@/gen/orc/v1/thread_pb';
 import { ListThreadsRequestSchema, CreateThreadRequestSchema } from '@/gen/orc/v1/thread_pb';
 import { create as createMsg } from '@bufbuild/protobuf';
 import { threadClient } from '@/lib/client';
+import { withErrorDetails } from '@/lib/errors';
 
 let latestThreadLoadRequestId = 0;
 let threadStoreGeneration = 0;
@@ -30,12 +31,6 @@ function isCurrentThreadStoreGeneration(generation: number) {
 	return generation === threadStoreGeneration;
 }
 
-function withErrorDetails(prefix: string, err: unknown): string {
-	if (err instanceof Error && err.message) {
-		return `${prefix} ${err.message}`;
-	}
-	return prefix;
-}
 
 interface ThreadStore {
 	// State
