@@ -9,8 +9,8 @@
  *
  * Test Coverage (13 tests):
  * - Global Shortcuts (6 tests): Shift+Alt+K/N/B/P, ?, Escape
- * - Navigation Sequences (3 tests): g+d, g+t, g+e
- * - Task List Context (3 tests): j/k navigation, Enter, /
+ * - Navigation Sequences (3 tests): g+d (->stats), g+t (->board), g+s (->stats)
+ * - Task List Context (3 tests): j/k navigation, Enter, / (->command palette)
  * - Input Fields (1 test): shortcuts disabled when typing
  */
 import { test, expect } from './fixtures';
@@ -155,44 +155,44 @@ test.describe('Keyboard Shortcuts - Global', () => {
 });
 
 test.describe('Keyboard Shortcuts - Navigation Sequences', () => {
-	test('should navigate to dashboard with g then d', async ({ page }) => {
+	test('should navigate to stats with g then d (legacy dashboard redirect)', async ({ page }) => {
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(300);
 
-		// Press g then d for go-to-dashboard sequence
+		// Press g then d - legacy "go-to-dashboard" redirects to /stats
 		await page.keyboard.press('g');
 		await page.keyboard.press('d');
 
-		// Should navigate to dashboard
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 3000 });
+		// Should navigate to stats (legacy dashboard route redirects here)
+		await expect(page).toHaveURL(/\/stats/, { timeout: 3000 });
 	});
 
-	test('should navigate to tasks with g then t', async ({ page }) => {
-		// Start from dashboard
-		await page.goto('/dashboard');
+	test('should navigate to board with g then t', async ({ page }) => {
+		// Start from stats page
+		await page.goto('/stats');
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(300);
 
-		// Press g then t for go-to-tasks sequence
+		// Press g then t - legacy "go-to-tasks" redirects to /board
 		await page.keyboard.press('g');
 		await page.keyboard.press('t');
 
-		// Should navigate to tasks (home page) - pathname is / or empty
-		await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/(\?|$)/, { timeout: 3000 });
+		// Should navigate to board (legacy tasks route redirects here)
+		await expect(page).toHaveURL(/\/board/, { timeout: 3000 });
 	});
 
-	test('should navigate to environment with g then e', async ({ page }) => {
-		await page.goto('/');
+	test('should navigate to stats with g then s', async ({ page }) => {
+		await page.goto('/board');
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(300);
 
-		// Press g then e for go-to-environment sequence
+		// Press g then s for go-to-stats sequence
 		await page.keyboard.press('g');
-		await page.keyboard.press('e');
+		await page.keyboard.press('s');
 
-		// Should navigate to environment
-		await expect(page).toHaveURL(/\/environment/, { timeout: 3000 });
+		// Should navigate to stats
+		await expect(page).toHaveURL(/\/stats/, { timeout: 3000 });
 	});
 });
 
@@ -262,29 +262,25 @@ test.describe('Keyboard Shortcuts - Task List Context', () => {
 		}
 	});
 
-	test('should focus search with / key', async ({ page }) => {
+	test('should open command palette with / key', async ({ page }) => {
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(300);
 
-		// Press / to focus search
+		// Press / to open command palette (replaced the old search input)
 		await page.keyboard.press('/');
-		await page.waitForTimeout(100);
 
-		// Search input should be focused
-		const searchInput = page.locator('input[placeholder*="Search"]');
-		if (await searchInput.isVisible()) {
-			// Check if input is focused by typing and verifying value
-			await page.keyboard.type('test query');
-			await expect(searchInput).toHaveValue('test query');
-		} else {
-			// Search not visible on this page - check command palette as fallback
-			// Some implementations open command palette on /
-			const palette = page.locator('[role="dialog"]');
-			const paletteVisible = await palette.isVisible().catch(() => false);
-			// Either search is focused or command palette opened
-			expect(paletteVisible || await searchInput.isVisible()).toBe(true);
-		}
+		// Command palette dialog should be visible
+		const palette = page.locator('[aria-label="Command palette"]');
+		await expect(palette).toBeVisible({ timeout: 3000 });
+
+		// Should have search input focused inside the palette
+		const searchInput = palette.locator('input[aria-label="Search commands"]');
+		await expect(searchInput).toBeVisible();
+
+		// Close with Escape
+		await page.keyboard.press('Escape');
+		await expect(palette).not.toBeVisible();
 	});
 });
 
@@ -294,19 +290,25 @@ test.describe('Keyboard Shortcuts - Input Fields', () => {
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(300);
 
-		// Click on search input
-		const searchInput = page.locator('input[placeholder*="Search"]');
-		if (await searchInput.isVisible()) {
-			await searchInput.click();
+		// Open command palette to get an input field
+		await page.keyboard.press('Shift+Alt+k');
+		const palette = page.locator('[aria-label="Command palette"]');
+		await expect(palette).toBeVisible({ timeout: 3000 });
 
-			// Type g d - should not navigate (would be go-to-dashboard sequence)
-			await page.keyboard.type('gd');
+		// The command palette search input should be focused
+		const searchInput = palette.locator('input[aria-label="Search commands"]');
+		await expect(searchInput).toBeVisible();
 
-			// Should still be on home page
-			await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/(\?|$)/);
+		// Type g d - should not navigate (would be go-to-dashboard sequence)
+		await page.keyboard.type('gd');
 
-			// Input should have the text
-			await expect(searchInput).toHaveValue('gd');
-		}
+		// Should still have command palette open (not navigated away)
+		await expect(palette).toBeVisible();
+
+		// Input should have the text
+		await expect(searchInput).toHaveValue('gd');
+
+		// Close palette
+		await page.keyboard.press('Escape');
 	});
 });

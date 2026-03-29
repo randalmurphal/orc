@@ -4,77 +4,76 @@
 import { test, expect } from './fixtures';
 
 test.describe('Navigation', () => {
-	test('should navigate between main pages', async ({ page }) => {
-		// Start at home
+	test('should navigate between main pages via top nav', async ({ page }) => {
+		// Start at home (Command Center)
 		await page.goto('/');
-		await expect(page).toHaveTitle(/orc - Tasks/);
+		await expect(page.locator('h1')).toContainText('Command Center');
 
-		// Navigate to prompts
-		const promptsLink = page.locator('a[href="/prompts"], nav a:has-text("Prompts")');
-		if (await promptsLink.isVisible()) {
-			await promptsLink.click();
-			await expect(page).toHaveURL('/prompts');
-			await expect(page).toHaveTitle(/Prompts/);
-		}
+		// Navigate to Project
+		await page.getByRole('link', { name: 'Project' }).click();
+		await expect(page).toHaveURL(/\/project/);
 
-		// Navigate to hooks
-		const hooksLink = page.locator('a[href="/hooks"], nav a:has-text("Hooks")');
-		if (await hooksLink.isVisible()) {
-			await hooksLink.click();
-			await expect(page).toHaveURL('/hooks');
-		}
+		// Navigate to Board
+		await page.getByRole('link', { name: 'Board' }).click();
+		await expect(page).toHaveURL(/\/board/);
 
-		// Navigate to skills
-		const skillsLink = page.locator('a[href="/skills"], nav a:has-text("Skills")');
-		if (await skillsLink.isVisible()) {
-			await skillsLink.click();
-			await expect(page).toHaveURL('/skills');
-		}
+		// Navigate to Inbox (Recommendations)
+		await page.getByRole('link', { name: 'Inbox' }).click();
+		await expect(page).toHaveURL(/\/recommendations/);
 
-		// Navigate to config
-		const configLink = page.locator('a[href="/config"], nav a:has-text("Config")');
-		if (await configLink.isVisible()) {
-			await configLink.click();
-			await expect(page).toHaveURL('/config');
-		}
+		// Navigate to Workflows
+		await page.getByRole('link', { name: 'Workflows' }).click();
+		await expect(page).toHaveURL(/\/workflows/);
 
-		// Navigate back to tasks (use exact match to avoid 'All Tasks')
-		const tasksLink = page.locator('a[href="/"], nav a:has-text("Tasks")').first();
-		if (await tasksLink.isVisible()) {
-			await tasksLink.click();
-			await expect(page).toHaveURL('/');
-		}
+		// Navigate to Settings
+		await page.getByRole('link', { name: 'Settings' }).click();
+		await expect(page).toHaveURL(/\/settings/);
+
+		// Navigate back to Home
+		await page.getByRole('link', { name: 'Home' }).click();
+		await expect(page).toHaveURL(/\//);
 	});
 
-	test('should have navigation menu', async ({ page }) => {
+	test('should have top navigation bar', async ({ page }) => {
 		await page.goto('/');
 
-		// Look for sidebar with navigation
-		const sidebar = page.locator('.sidebar, [class*="sidebar"]');
-		const hasSidebar = await sidebar.first().isVisible().catch(() => false);
+		// TopBar should have navigation links
+		const nav = page.getByRole('navigation').first();
+		await expect(nav).toBeVisible();
 
-		// Sidebar should exist
-		expect(hasSidebar).toBeTruthy();
+		// All primary nav links should exist
+		await expect(page.getByRole('link', { name: 'Home' })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Project' })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Board' })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Inbox' })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Workflows' })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible();
 	});
 
 	test('should highlight current page in navigation', async ({ page }) => {
-		await page.goto('/prompts');
+		await page.goto('/board');
 
-		// The prompts nav link should be marked as active/current
-		const activeLink = page.locator('nav a.active, nav a[aria-current="page"], .nav-item.active');
-		const hasActiveLink = await activeLink.isVisible().catch(() => false);
+		// The Board nav link should be marked as active
+		const boardLink = page.getByRole('link', { name: 'Board' });
+		await expect(boardLink).toBeVisible();
+		// Active links get aria-current or an active class
+		const isCurrent = await boardLink.getAttribute('aria-current');
+		const hasActiveClass = await boardLink.evaluate(el => el.classList.contains('active'));
+		expect(isCurrent === 'page' || hasActiveClass).toBeTruthy();
+	});
 
-		// Active state should be shown (implementation may vary)
-		// This is a soft check since styling varies
-		if (hasActiveLink) {
-			await expect(activeLink).toBeVisible();
-		}
+	test('should have project sidebar', async ({ page }) => {
+		await page.goto('/');
+
+		// Left sidebar should show project name and thread list
+		const sidebar = page.getByRole('navigation', { name: 'Main navigation' });
+		await expect(sidebar).toBeVisible();
 	});
 });
 
 test.describe('Layout', () => {
 	test('should have consistent header across pages', async ({ page }) => {
-		const pages = ['/', '/prompts', '/hooks', '/skills'];
+		const pages = ['/', '/project', '/board', '/recommendations', '/workflows'];
 
 		for (const path of pages) {
 			await page.goto(path);

@@ -263,6 +263,9 @@ func (b *emptyBackend) ResolveAttentionSignal(string, string) (*controlplane.Per
 	return nil, nil
 }
 func (b *emptyBackend) CountActiveAttentionSignals() (int, error) { return 0, nil }
+func (b *emptyBackend) ResolveAttentionSignalsByTaskID(string) (int, error) {
+	return 0, nil
+}
 
 // Phase output methods
 func (b *emptyBackend) SavePhaseOutput(*storage.PhaseOutputInfo) error { return nil }
