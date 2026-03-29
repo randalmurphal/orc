@@ -220,6 +220,10 @@ type PhaseOutputInfo struct {
 
 // Backend defines the storage operations for orc.
 // All implementations must be safe for concurrent access.
+//
+// IMPORTANT: This interface is the ONLY access path to storage. Never use
+// the underlying database directly - always go through Backend methods.
+// (INIT-039 knowledge sharing verification: TASK-781)
 type Backend interface {
 	// Task operations (using orcv1.Task - the ONLY task type)
 	SaveTask(t *orcv1.Task) error
