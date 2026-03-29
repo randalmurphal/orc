@@ -389,6 +389,14 @@ Use --force to close anyway (e.g., if work is already complete)`, id, id, id)
 				return fmt.Errorf("clear task executor: %w", err)
 			}
 
+			// Resolve any active attention signals for this task
+			resolvedCount, resolveErr := backend.ResolveAttentionSignalsByTaskID(t.Id)
+			if resolveErr != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to resolve attention signals for %s: %v\n", t.Id, resolveErr)
+			} else if resolvedCount > 0 && !quiet {
+				fmt.Printf("Resolved %d attention signal(s)\n", resolvedCount)
+			}
+
 			// Output results
 			if plain {
 				if forceClosing {

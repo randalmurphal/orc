@@ -32,6 +32,13 @@ func (d *DatabaseBackend) ResolveAttentionSignal(id string, resolvedBy string) (
 	return d.db.ResolveAttentionSignal(id, resolvedBy)
 }
 
+func (d *DatabaseBackend) ResolveAttentionSignalsByTaskID(taskID string) (int, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.ResolveAttentionSignalsByTaskID(taskID)
+}
+
 func (d *DatabaseBackend) CountActiveAttentionSignals() (int, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()

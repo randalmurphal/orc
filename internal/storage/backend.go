@@ -259,6 +259,7 @@ type Backend interface {
 	LoadAttentionSignal(id string) (*controlplane.PersistedAttentionSignal, error)
 	LoadActiveAttentionSignals() ([]*controlplane.PersistedAttentionSignal, error)
 	ResolveAttentionSignal(id string, resolvedBy string) (*controlplane.PersistedAttentionSignal, error)
+	ResolveAttentionSignalsByTaskID(taskID string) (int, error)
 	CountActiveAttentionSignals() (int, error)
 
 	// Phase output operations (unified storage for all phase artifacts)

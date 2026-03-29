@@ -114,6 +114,30 @@ func (p *ProjectDB) ResolveAttentionSignal(id, resolvedBy string) (*controlplane
 	return p.resolveAttentionSignal(context.Background(), id, resolvedBy)
 }
 
+func (p *ProjectDB) ResolveAttentionSignalsByTaskID(taskID string) (int, error) {
+	now := p.Driver().Now()
+	placeholder := p.Placeholder(1)
+	query := fmt.Sprintf(`
+		UPDATE attention_signals
+		SET status = 'resolved',
+		    updated_at = %s,
+		    resolved_at = %s,
+		    resolved_by = 'task-closed'
+		WHERE reference_id = %s
+		  AND resolved_at IS NULL
+	`, now, now, placeholder)
+
+	result, err := p.Exec(query, taskID)
+	if err != nil {
+		return 0, fmt.Errorf("resolve attention signals for task %s: %w", taskID, err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("get rows affected for task %s: %w", taskID, err)
+	}
+	return int(count), nil
+}
+
 func (p *ProjectDB) CountActiveAttentionSignals() (int, error) {
 	var count int
 	if err := p.QueryRow(`
