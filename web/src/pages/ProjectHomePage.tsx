@@ -384,25 +384,13 @@ export function ProjectHomePage() {
 		<div className="project-home">
 			<header className="project-home__hero">
 				<div className="project-home__hero-copy">
-					<p className="project-home__eyebrow">Project control plane</p>
+					<span className="project-home__eyebrow">Project home</span>
 					<h1 className="project-home__title">{project?.name ?? projectId}</h1>
-					<p className="project-home__subtitle">
-						Execution, discussion, recommendations, and handoff stay in one place for the selected project.
-					</p>
 				</div>
 				<div className="project-home__hero-stats">
-					<div className="project-home__hero-stat">
-						<span className="project-home__hero-value">{runningTasks.length}</span>
-						<span className="project-home__hero-label">Running</span>
-					</div>
-					<div className="project-home__hero-stat">
-						<span className="project-home__hero-value">{attentionItems.length}</span>
-						<span className="project-home__hero-label">Needs attention</span>
-					</div>
-					<div className="project-home__hero-stat">
-						<span className="project-home__hero-value">{projectRecommendations.length}</span>
-						<span className="project-home__hero-label">Recommendations</span>
-					</div>
+					<span className="project-home__stat">{runningTasks.length} <span>running</span></span>
+					<span className="project-home__stat">{attentionItems.length} <span>attention</span></span>
+					<span className="project-home__stat">{projectRecommendations.length} <span>recommendations</span></span>
 				</div>
 			</header>
 

@@ -29,18 +29,25 @@
 	gap: 8px;
 }
 
-.discussion-panel__section-label {
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.08em;
+.discussion-panel__section-label,
+.discussion-panel__form-label {
+	font-size: var(--text-md);
+	font-weight: var(--font-semibold);
+	letter-spacing: var(--tracking-wide);
 	text-transform: uppercase;
-	color: var(--text-secondary);
+	color: var(--text-muted);
 }
 
 .discussion-panel__link-list,
 .discussion-panel__draft-list {
 	display: flex;
 	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.discussion-panel__form-group {
+	display: flex;
+	flex-direction: column;
 	gap: 8px;
 }
 
@@ -112,21 +119,54 @@
 }
 
 .discussion-panel__draft-card button:disabled {
-	opacity: 0.5;
+	opacity: 0.4;
 	cursor: not-allowed;
+	position: relative;
+}
+
+.discussion-panel__draft-card button:disabled::after {
+	content: "Only draft-status items can be promoted";
+	position: absolute;
+	bottom: calc(100% + 6px);
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 4px 8px;
+	border-radius: var(--radius-md);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border-light);
+	color: var(--text-secondary);
+	font-size: 11px;
+	font-weight: 400;
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.discussion-panel__draft-card button:disabled:hover::after {
+	opacity: 1;
 }
 
 .discussion-panel__context input,
 .discussion-panel__context select,
-.discussion-panel__context textarea {
+.discussion-panel__context textarea,
+.discussion-panel__input {
 	width: 100%;
-	padding: 8px 10px;
+	padding: 8px 12px;
 	border: 1px solid var(--border-light);
-	border-radius: 8px;
-	background: var(--bg-base);
+	border-radius: var(--radius-md);
+	background: var(--bg-surface);
 	color: var(--text-primary);
-	font-size: 12px;
+	font-size: var(--text-xl);
 	font-family: inherit;
+}
+
+.discussion-panel__context select {
+	appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+	padding-right: 30px;
 }
 
 .discussion-panel__context textarea {
@@ -136,10 +176,19 @@
 
 .discussion-panel__context input:focus,
 .discussion-panel__context select:focus,
-.discussion-panel__context textarea:focus {
+.discussion-panel__context textarea:focus,
+.discussion-panel__input:focus {
 	outline: none;
-	border-color: var(--primary);
-	box-shadow: 0 0 0 2px var(--primary-dim);
+	border-color: var(--blue);
+	box-shadow: 0 0 0 2px var(--blue-dim);
+}
+
+.discussion-panel__context input:disabled,
+.discussion-panel__context select:disabled,
+.discussion-panel__context textarea:disabled,
+.discussion-panel__input:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
 }
 
 .discussion-panel__secondary-button {
@@ -155,7 +204,7 @@
 }
 
 .discussion-panel__secondary-button:disabled {
-	opacity: 0.5;
+	opacity: 0.4;
 	cursor: not-allowed;
 }
 

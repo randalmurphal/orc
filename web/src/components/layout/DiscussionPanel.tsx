@@ -541,10 +541,11 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 						</div>
 					)}
 
-					<div className="discussion-panel__section">
-						<div className="discussion-panel__section-label">Add linked context</div>
+					<div className="discussion-panel__section discussion-panel__form-group">
+						<div className="discussion-panel__section-label discussion-panel__form-label">Add linked context</div>
 						<div className="discussion-panel__form-grid">
 							<select
+								className="discussion-panel__input"
 								aria-label="Link type"
 								value={linkType}
 								onChange={(e) => setLinkType(e.target.value)}
@@ -557,6 +558,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 								<option value="diff">Diff</option>
 							</select>
 							<input
+								className="discussion-panel__input"
 								aria-label="Link target"
 								value={linkTargetId}
 								onChange={(e) => setLinkTargetId(e.target.value)}
@@ -564,6 +566,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 								disabled={addingLink}
 							/>
 							<input
+								className="discussion-panel__input"
 								aria-label="Link title"
 								value={linkTitle}
 								onChange={(e) => setLinkTitle(e.target.value)}
@@ -581,10 +584,11 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 						</div>
 					</div>
 
-					<div className="discussion-panel__section">
-						<div className="discussion-panel__section-label">Create recommendation draft</div>
+					<div className="discussion-panel__section discussion-panel__form-group">
+						<div className="discussion-panel__section-label discussion-panel__form-label">Create recommendation draft</div>
 						<div className="discussion-panel__form-grid">
 							<select
+								className="discussion-panel__input"
 								aria-label="Recommendation kind"
 								value={recommendationKind}
 								onChange={(e) => setRecommendationKind(e.target.value)}
@@ -596,6 +600,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 								<option value="decision_request">Decision request</option>
 							</select>
 							<input
+								className="discussion-panel__input"
 								aria-label="Recommendation title"
 								value={recommendationTitle}
 								onChange={(e) => setRecommendationTitle(e.target.value)}
@@ -603,6 +608,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 								disabled={creatingDraft !== null}
 							/>
 							<textarea
+								className="discussion-panel__input"
 								aria-label="Recommendation summary"
 								value={recommendationSummary}
 								onChange={(e) => setRecommendationSummary(e.target.value)}
@@ -611,6 +617,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 								rows={2}
 							/>
 							<textarea
+								className="discussion-panel__input"
 								aria-label="Recommendation proposed action"
 								value={recommendationAction}
 								onChange={(e) => setRecommendationAction(e.target.value)}
@@ -619,6 +626,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 								rows={2}
 							/>
 							<textarea
+								className="discussion-panel__input"
 								aria-label="Recommendation evidence"
 								value={recommendationEvidence}
 								onChange={(e) => setRecommendationEvidence(e.target.value)}
@@ -637,10 +645,11 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 						</div>
 					</div>
 
-					<div className="discussion-panel__section">
-						<div className="discussion-panel__section-label">Create decision draft</div>
+					<div className="discussion-panel__section discussion-panel__form-group">
+						<div className="discussion-panel__section-label discussion-panel__form-label">Create decision draft</div>
 						<div className="discussion-panel__form-grid">
 							<input
+								className="discussion-panel__input"
 								aria-label="Decision initiative"
 								value={decisionInitiativeId}
 								onChange={(e) => {
@@ -651,6 +660,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 								disabled={creatingDraft !== null}
 							/>
 							<input
+								className="discussion-panel__input"
 								aria-label="Decision text"
 								value={decisionText}
 								onChange={(e) => setDecisionText(e.target.value)}
@@ -658,6 +668,7 @@ export function DiscussionPanel({ threadId, projectId, messages: initialMessages
 								disabled={creatingDraft !== null}
 							/>
 							<textarea
+								className="discussion-panel__input"
 								aria-label="Decision rationale"
 								value={decisionRationale}
 								onChange={(e) => setDecisionRationale(e.target.value)}

@@ -311,7 +311,11 @@ export function RecommendationInbox() {
           const stateKey = recommendationStateKey(projectId, recommendation.id);
 
           return (
-            <article key={recommendation.id} className="recommendation-card">
+            <article
+              key={recommendation.id}
+              className={`recommendation-card${recommendation.status !== RecommendationStatus.PENDING ? ' recommendation-card--decided' : ''}`}
+              data-status={recommendationStatusClass(recommendation.status)}
+            >
               <div className="recommendation-card__meta">
                 <span
                   className={`recommendation-card__status recommendation-card__status--${recommendationStatusClass(recommendation.status)}`}

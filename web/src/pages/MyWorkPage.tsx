@@ -293,9 +293,9 @@ export function MyWorkPage() {
 
 	if (projects.length === 0) {
 		return (
-			<div className="my-work-page__empty">
+			<div className="orc-empty-state">
 				<p>No projects found</p>
-				<p>
+				<p className="orc-empty-state__hint">
 					Run <code>orc init</code> in a project directory to get started.
 				</p>
 			</div>
@@ -306,25 +306,13 @@ export function MyWorkPage() {
 		<div className="my-work-page">
 			<header className="my-work-page__hero">
 				<div className="my-work-page__hero-text">
-					<p className="my-work-page__eyebrow">Operator control plane</p>
+					<span className="my-work-page__eyebrow">Operator control plane</span>
 					<h1 className="my-work-page__title">Command Center</h1>
-					<p className="my-work-page__subtitle">
-						Cross-project triage for what is running, blocked, waiting for discussion, and ready for handoff.
-					</p>
 				</div>
 				<div className="my-work-page__hero-stats">
-					<div className="my-work-page__hero-stat">
-						<span className="my-work-page__hero-value">{projects.length}</span>
-						<span className="my-work-page__hero-label">Projects</span>
-					</div>
-					<div className="my-work-page__hero-stat">
-						<span className="my-work-page__hero-value">{runningTasks.length}</span>
-						<span className="my-work-page__hero-label">Running</span>
-					</div>
-					<div className="my-work-page__hero-stat">
-						<span className="my-work-page__hero-value">{attentionItems.length + discussionItems.length}</span>
-						<span className="my-work-page__hero-label">Signals</span>
-					</div>
+					<span className="my-work-page__stat">{projects.length} <span>projects</span></span>
+					<span className="my-work-page__stat">{runningTasks.length} <span>running</span></span>
+					<span className="my-work-page__stat">{attentionItems.length + discussionItems.length} <span>signals</span></span>
 				</div>
 			</header>
 
