@@ -149,7 +149,7 @@ describe('AppShell → TopBar navigation tabs wiring', () => {
 		expect(within(banner).getByRole('link', { name: /board/i })).toBeInTheDocument();
 	});
 
-	it('should render Knowledge navigation tab through AppShell', () => {
+	it('should NOT render Knowledge navigation tab through AppShell (no route exists)', () => {
 		renderWithProviders(
 			<AppShell>
 				<div>Content</div>
@@ -157,7 +157,7 @@ describe('AppShell → TopBar navigation tabs wiring', () => {
 		);
 
 		const banner = screen.getByRole('banner');
-		expect(within(banner).getByRole('link', { name: /knowledge/i })).toBeInTheDocument();
+		expect(within(banner).queryByRole('link', { name: /knowledge/i })).not.toBeInTheDocument();
 	});
 
 	it('should render Workflows navigation tab through AppShell', () => {

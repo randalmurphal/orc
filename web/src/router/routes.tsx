@@ -137,6 +137,7 @@ function AppShellLayout() {
 
 	useGlobalShortcuts({
 		onCommandPalette: handleCommandPalette,
+		onSearch: handleCommandPalette,
 	});
 
 	useEffect(() => {
