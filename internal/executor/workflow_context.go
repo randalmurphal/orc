@@ -206,43 +206,8 @@ func (we *WorkflowExecutor) loadAndFormatInitiativeNotes(initiativeID string) st
 		return ""
 	}
 
-	// Group notes by type (patterns, warnings, learnings, handoffs)
-	byType := make(map[string][]db.InitiativeNote)
-	for _, n := range filtered {
-		byType[n.NoteType] = append(byType[n.NoteType], n)
-	}
-
-	// Format notes grouped by type in a consistent order
-	var sb strings.Builder
-	typeOrder := []struct {
-		noteType string
-		label    string
-		emoji    string
-	}{
-		{db.NoteTypePattern, "Patterns", "📋"},
-		{db.NoteTypeWarning, "Warnings", "⚠️"},
-		{db.NoteTypeLearning, "Learnings", "💡"},
-		{db.NoteTypeHandoff, "Handoffs", "🤝"},
-	}
-
-	for _, t := range typeOrder {
-		notes := byType[t.noteType]
-		if len(notes) == 0 {
-			continue
-		}
-
-		fmt.Fprintf(&sb, "**%s %s:**\n", t.emoji, t.label)
-		for _, n := range notes {
-			fmt.Fprintf(&sb, "- %s", n.Content)
-			if n.SourceTask != "" {
-				fmt.Fprintf(&sb, " *(from %s)*", n.SourceTask)
-			}
-			sb.WriteString("\n")
-		}
-		sb.WriteString("\n")
-	}
-
-	return strings.TrimSuffix(sb.String(), "\n")
+	// Delegate formatting to the helper function
+	return variable.FormatInitiativeNotes(filtered)
 }
 
 // loadProjectDetectionContext loads project detection data into the resolution context.

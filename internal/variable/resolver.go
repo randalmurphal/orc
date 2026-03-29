@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/randalmurphal/orc/internal/db"
 )
 
 // Resolver resolves variable definitions to their values.
@@ -484,6 +486,64 @@ func formatInitiativeContext(rctx *ResolutionContext) string {
 	sb.WriteString("\n**Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.\n")
 
 	return sb.String()
+}
+
+// FormatInitiativeNotes formats initiative notes as markdown grouped by type.
+//
+// Notes are filtered by visibility rules before being passed to this function:
+//   - Human notes: always visible
+//   - Agent notes: only visible if graduated (met strict quality bar)
+//
+// The output groups notes in a fixed order for consistent display:
+//   1. Patterns (📋) - code conventions, architectural rules
+//   2. Warnings (⚠️) - gotchas, things to avoid
+//   3. Learnings (💡) - insights gained from implementation
+//   4. Handoffs (🤝) - context for the next task
+//
+// Each note includes its source task reference for traceability.
+// Returns empty string if notes slice is empty.
+func FormatInitiativeNotes(notes []db.InitiativeNote) string {
+	if len(notes) == 0 {
+		return ""
+	}
+
+	// Group notes by type
+	byType := make(map[string][]db.InitiativeNote)
+	for _, n := range notes {
+		byType[n.NoteType] = append(byType[n.NoteType], n)
+	}
+
+	// Format notes grouped by type in a consistent order
+	var sb strings.Builder
+	typeOrder := []struct {
+		noteType string
+		label    string
+		emoji    string
+	}{
+		{db.NoteTypePattern, "Patterns", "📋"},
+		{db.NoteTypeWarning, "Warnings", "⚠️"},
+		{db.NoteTypeLearning, "Learnings", "💡"},
+		{db.NoteTypeHandoff, "Handoffs", "🤝"},
+	}
+
+	for _, t := range typeOrder {
+		notes := byType[t.noteType]
+		if len(notes) == 0 {
+			continue
+		}
+
+		fmt.Fprintf(&sb, "**%s %s:**\n", t.emoji, t.label)
+		for _, n := range notes {
+			fmt.Fprintf(&sb, "- %s", n.Content)
+			if n.SourceTask != "" {
+				fmt.Fprintf(&sb, " *(from %s)*", n.SourceTask)
+			}
+			sb.WriteString("\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	return strings.TrimSuffix(sb.String(), "\n")
 }
 
 // RenderTemplate applies variable substitution to a template string.
