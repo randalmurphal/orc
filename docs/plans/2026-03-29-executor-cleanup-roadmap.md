@@ -70,6 +70,7 @@ Execution checklist:
 - collapse the current llmkit root capability model into provider definitions
 - wire orc to consume llmkit provider definitions instead of local support assumptions
 - remove unsupported provider handling from orc while doing the import cutover
+- once llmkit-owned behavior changes are complete, retag llmkit and update orc to that published tag instead of keeping a local `replace`
 
 Likely files:
 
@@ -402,6 +403,7 @@ Execution checklist:
 - tag llmkit and pin orc to that version
 - run the targeted test suites in both repos
 - run orc verification with `GOWORK=off`
+- repeat the same tag-and-pin flow for any llmkit-owned follow-up discovered in later workstreams
 
 ## Acceptance Criteria
 

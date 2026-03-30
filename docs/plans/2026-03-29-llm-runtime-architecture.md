@@ -179,6 +179,12 @@ llmkit remains authoritative for:
 - which provider-native config fields are valid
 - which combinations are invalid
 
+Upstream-first rule:
+
+- if later work uncovers runtime or harness behavior that belongs in llmkit, implement it in llmkit first
+- after that change, cut a new llmkit tag before updating orc
+- do not leave orc depending on long-lived local `replace` wiring for llmkit-owned behavior
+
 The contract should be typed Go APIs, not a generic schema engine.
 
 Target direction:

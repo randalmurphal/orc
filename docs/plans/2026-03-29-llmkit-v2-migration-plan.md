@@ -317,6 +317,7 @@ Rules:
 - if behavior belongs to provider contracts, harness config, environment mutation, session semantics, stream normalization, or provider-specific edge cases, it is implemented in llmkit during this work
 - orc does not keep harness-specific workaround code as a stopgap for functionality that belongs in llmkit
 - if orc uncovers a missing llmkit primitive during migration, the migration includes the llmkit change rather than adding an orc-local escape hatch
+- after any llmkit-owned follow-up change, cut a new llmkit tag and move orc to that tag rather than leaving the integration on a development `replace`
 
 Implementation checklist:
 
@@ -381,6 +382,7 @@ Release gate:
 - update orc to the tagged llmkit version
 - run orc verification with `GOWORK=off`
 - a workstream is not done until both repos have the necessary tests and orc passes against the tagged llmkit version
+- later llmkit-owned fixes discovered during subsequent plans follow the same rule: update llmkit, cut a tag, then update orc
 
 ## Acceptance Criteria
 
