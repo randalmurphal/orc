@@ -1,454 +1,82 @@
-# Orc - Claude Code Task Orchestrator
+# Orc
 
-AI-powered task orchestration with phased execution, git worktree isolation, and multi-round review.
+Task orchestration for coding workflows. Orc owns workflow semantics, persistence, gates, retries, transcripts, and git/task lifecycle.
 
-## ⚠️ Code Quality: Non-Negotiable Rules
+## Read This First
 
-**These rules override any default behavior. Violations cause bugs that waste hours.**
+Start here, then read the closest package guide before changing code in that area.
 
-### 1. ONE Way to Do Things
-Before writing new code, check for existing patterns. If similar code exists, consolidate into ONE shared function/interface. Don't create parallel implementations.
+- [internal/AGENTS.md](/Users/randy/repos/orc/internal/AGENTS.md)
+- [web/AGENTS.md](/Users/randy/repos/orc/web/AGENTS.md)
+- [templates/AGENTS.md](/Users/randy/repos/orc/templates/AGENTS.md)
+- [docs/AGENTS.md](/Users/randy/repos/orc/docs/AGENTS.md)
 
-| Situation | Action |
-|-----------|--------|
-| Need schema-constrained LLM call | Use `llmutil.ExecuteWithSchema[T]()` - the ONLY way |
-| Need phase completion parsing | Use `CheckPhaseCompletionJSON()` - returns error, handle it |
-| Similar logic in 2+ places | Extract to shared function with parameters |
+## Non-Negotiable Rules
 
-### 2. NO Fallbacks, NO Silent Failures
-Every error MUST be handled explicitly. Never swallow errors or return "success" on failure.
+### One path, not parallel paths
 
-| ❌ NEVER | ✅ ALWAYS |
-|----------|-----------|
-| `if err != nil { return defaultValue }` | `if err != nil { return err }` |
-| Silent continue on parse failure | Return error, let caller decide |
-| Fallback to alternative field | Error if expected field missing |
-| Ignore function return values | Check and propagate all errors |
+- Reuse the shared helper or abstraction that already owns the behavior.
+- If two places do the same thing, extract one owner instead of adding a third copy.
+- For schema-constrained LLM calls, use `llmutil.ExecuteWithSchema[T]()`.
+- For phase completion parsing, use `CheckPhaseCompletionJSON()` and handle its error.
 
-**Example - JSON schema handling:**
-- Asked for `structured_output` → MUST get it or ERROR
-- Parse failure → ERROR (not silent continue)
-- Empty response → ERROR (not fallback to `result`)
+### No silent failure
 
-### 3. Remove Code Completely
-When removing functionality, DELETE it. Don't deprecate, don't keep as "legacy fallback", don't comment out.
+- Do not swallow parse, validation, migration, or persistence errors.
+- Do not add fallback behavior that hides broken state.
+- If a field is declared, validated, or exposed, it must affect runtime behavior.
 
-| ❌ NEVER | ✅ ALWAYS |
-|----------|-----------|
-| `// Deprecated: use NewFunc` | Delete old function |
-| `if useLegacy { oldCode() }` | Remove old code path |
-| Keep "just in case" code | Delete it, git has history |
+### Delete old code
 
-**Exception:** Only keep legacy code if explicitly specified for migration period with removal date.
+- Remove dead code, dead fields, dead migrations, and dead docs completely.
+- Do not keep legacy branches or aliases unless an explicit removal window exists.
 
-## Quick Start
+## Runtime Boundary
 
-```bash
-# Install
-go install github.com/randalmurphal/orc/cmd/orc@latest
+This boundary is now strict.
 
-# Development
-make setup && make build    # Build to bin/orc
-make test                   # Run tests
-make dev-full               # API (:8080) + frontend (:5173)
+- `llmkit` owns provider definitions, provider-native validation, runtime preparation, session semantics, stream normalization, and harness-local filesystem/config handling.
+- `orc` owns orchestration, task/run persistence, transcript persistence, gates, retries, workflow resolution, and user-facing policy.
+- Orc supports only `claude` and `codex`.
+- Do not add provider-specific harness workarounds in `orc`. If behavior belongs in `llmkit`, implement it there first.
 
-# Run
-./bin/orc init && ./bin/orc new "task description" && ./bin/orc run TASK-001
-```
+## Configuration Boundary
 
-## Project Structure
+- Per-phase execution config is `runtime_config`, not `claude_config`.
+- Shared intent lives under `runtime_config.shared`.
+- Provider-local knobs live under `runtime_config.providers.<provider>`.
+- Do not reintroduce flat Claude-shaped config or local compatibility shims.
 
-| Path | Purpose | Details |
-|------|---------|---------|
-| `cmd/orc/` | CLI entry point | - |
-| `internal/` | Core packages | See `internal/CLAUDE.md` |
-| `templates/` | Phase prompts | See `templates/CLAUDE.md` |
-| `web/` | React 19 frontend | See `web/CLAUDE.md` |
-| `docs/` | Architecture, specs, ADRs | See `docs/CLAUDE.md` |
+## Change Discipline
 
-**Key packages:** `api/` (REST + WebSocket), `bench/` (model benchmarking), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite/PostgreSQL + GlobalDB/ProjectDB), `project/` (multi-project registry), `gate/` (quality gates: auto/human/AI/skip), `events/` (real-time event publishing), `trigger/` (lifecycle event triggers), `jira/` (Jira Cloud import)
+- Keep package boundaries sharp. Do not move transport logic into executor, SQL policy into API, or provider logic into workflow code.
+- Prefer small, composable types over large god files.
+- If a change crosses `llmkit` and `orc`, make the ownership explicit before coding.
+- When a change updates behavior, update the nearest tests and any durable docs that describe that behavior.
 
-## Task Model
+## Verification
 
-### What Makes Tasks Succeed
-
-**For non-trivial tasks, orc REQUIRES a specification with:**
-
-| Section | Purpose | Validation |
-|---------|---------|------------|
-| **Intent** | Why this work matters, what problem it solves | Must have meaningful content |
-| **Success Criteria** | Testable conditions proving the work is done | Must have specific, verifiable items |
-| **Testing** | How to verify the implementation works | Must define test types and acceptance criteria |
-
-The spec phase generates these from your task description. **Vague input → vague spec → poor results.**
-
-Run `orc new --help` for detailed guidance on creating tasks that execute well.
-
-### Workflow-First Task Creation
-
-**Task creation is workflow-first** (not weight-based). Users select workflows directly, which determine phase sequences. Web UI offers 2-step modal process.
-
-**Built-in workflows:**
-
-| Workflow | Phases | Spec? | When to Use |
-|----------|--------|-------|-------------|
-| trivial | implement | NO | One-liner fixes, typos |
-| small | tiny_spec → implement → review → docs | YES | Bug fixes, isolated changes |
-| medium | spec → tdd_write → tdd_integrate → implement → review → docs | YES | Features needing thought |
-| large | spec → tdd_write → tdd_integrate → breakdown → implement → review → docs | YES | Complex multi-file features |
-
-**Key phases:**
-- **spec/tiny_spec**: Generates Success Criteria + Testing requirements (foundation for quality)
-- **tdd_write**: Writes failing unit/sociable tests BEFORE implementation (behavioral correctness)
-- **tdd_integrate**: Writes failing integration tests verifying new code is wired into production paths (dead code prevention)
-- **breakdown**: Decomposes large tasks into checkboxed implementation steps
-- **review**: Multi-agent code review with specialized reviewers + no-op detection + success criteria verification
-
-**UI workflow:** Step 1 (select workflow) → Step 2 (task details). See `web/src/components/overlays/NewTaskWorkflowModal.tsx`.
-
-### Task Completion Flow
-
-1. **Task completes** → PR created or reused on hosting provider (GitHub or GitLab) if `completion.action: pr`
-2. **Task is marked completed** → Any post-completion recommendations land in the project inbox as `PENDING` items for human review; nothing is promoted into the backlog automatically
-3. **Review PR** → Manual review opportunity
-4. **`orc finalize TASK-XXX`** → Syncs with target branch, resolves conflicts, optionally enables auto-merge
-
-**PR creation is idempotent:** If an open PR already exists on the task branch (from a previous run), it's reused and updated rather than creating a duplicate. See `executor/CLAUDE.md` for the full flow.
-
-**Note:** Auto-merge and CI polling are **disabled by default**. Set `completion.pr.auto_merge: true` and `completion.ci.wait_for_ci: true` to enable. GitHub auto-merge requires GraphQL (not supported); GitLab auto-merge is fully supported via `MergeWhenPipelineSucceeds`.
-
-⚠️ **Common mistake**: Selecting too simple a workflow. Complex tasks run with "small" workflow skip the spec phase, causing Claude to guess requirements.
-
-### Task Properties
-
-| Property | Values | Purpose |
-|----------|--------|---------|
-| Queue | `active`, `backlog` | Current work vs "someday" |
-| Priority | `critical`, `high`, `normal`, `low` | Urgency |
-| Category | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | Affects how Claude approaches work |
-| Initiative | Initiative ID | Groups tasks with shared vision/decisions |
-| Description | Free text | **Flows into every phase prompt** - be specific! |
-| Branch Name | Custom branch name | Override default `orc/TASK-XXX` naming |
-| Target Branch | Branch name | PR target (default: repo default branch) |
-| PR Options | Draft, labels, reviewers | Control PR creation behavior |
-
-### Dependencies
-
-Tasks support `blocked_by` (must complete first) and `related_to` (informational). CLI: `orc new "Part 2" --blocked-by TASK-001`. Initiatives also support `blocked_by` for ordering.
-
-### Initiatives (Shared Context)
-
-When tasks are part of a larger feature, link them to an initiative:
+Minimum bar for relevant changes:
 
 ```bash
-orc initiative new "User Auth" -V "JWT-based auth with refresh tokens"
-orc initiative decide INIT-001 "Use bcrypt for passwords" -r "Industry standard"
-orc new "Login endpoint" -i INIT-001 -w medium
+go test ./...
+pnpm -C web exec tsc --noEmit
 ```
 
-The initiative's **Vision** and **Decisions** flow into every linked task's prompts, keeping Claude aligned across multiple tasks.
+When changing `llmkit` behavior that `orc` depends on:
 
-### Completion Detection
+1. Commit and tag `llmkit`.
+2. Update `orc` to the published tag.
+3. Remove any local `replace` used only for development.
+4. Re-run validation against the tagged dependency.
 
-Phases complete when Claude outputs JSON with `{"status": "complete", ...}`. Blocked phases output `{"status": "blocked", "reason": "..."}`. Failed phases trigger retry with structured retry variables.
+## Documentation Standard
 
-### Retry Variables
+AGENTS files should describe:
 
-On retry, template variables are populated from two sources:
+- ownership
+- invariants
+- extension points
+- verification
 
-| Variable | Source | Purpose |
-|----------|--------|---------|
-| `{{RETRY_ATTEMPT}}` | Both | Current attempt number |
-| `{{RETRY_FROM_PHASE}}` | Variable resolver | Phase that triggered the retry |
-| `{{RETRY_REASON}}` | Variable resolver | Why the previous attempt failed |
-| `{{RETRY_FEEDBACK}}` | Prompt service | Specific feedback from the failed attempt |
-| `{{RETRY_FAILED_CRITERIA}}` | Prompt service | Success criteria not met |
-| `{{RETRY_MAX_ATTEMPTS}}` | Prompt service | Maximum attempts allowed |
-| `{{RETRY_CONTEXT}}` | Both | Combined retry context (backward compatible) |
-
-Templates use `{{#if RETRY_ATTEMPT}}` as the guard conditional (empty on first run). See `variable.Resolver.resolveBuiltins()` and `prompt.Service.populateRetryVariables()`.
-
-## Configuration
-
-**Hierarchy:** Defaults -> `/etc/orc/` -> `~/.orc/` -> `.orc/` -> `ORC_*` env
-
-### Automation Profiles
-
-| Profile | Behavior | PR Approval |
-|---------|----------|-------------|
-| `auto` | Fully automated (default) | AI auto-approves |
-| `fast` | Speed over safety | AI auto-approves |
-| `safe` | AI reviews, human merge | Human required |
-| `strict` | Human gates throughout | Human required |
-
-See `docs/specs/CONFIG_HIERARCHY.md` for all options.
-
-### Jira Integration
-
-Import Jira Cloud issues as orc tasks via `orc import jira`. Configure in `.orc/config.yaml` under `jira:` (URL, email, token env var, custom field mappings, default projects, mapping overrides). Epics map to initiatives by default. See `orc import jira --help` for setup.
-
-### Constitution
-
-Project-level principles injected into all phase prompts via `{{CONSTITUTION_CONTENT}}`.
-Stored at `.orc/CONSTITUTION.md` (git-tracked):
-
-```bash
-orc constitution show                        # View current
-orc constitution set --file myprinciples.md  # Set from file
-orc constitution delete                      # Remove
-```
-
-## Multi-Project Support
-
-Orc supports multiple projects from a single installation. Data is split between a global database and per-project databases. Two database dialects are supported via the driver abstraction (`internal/db/driver/`):
-
-| Mode | Dialect | DSN Source | Use Case |
-|------|---------|------------|----------|
-| Solo (default) | SQLite | File path (`~/.orc/orc.db`) | Single developer, offline |
-| Team | PostgreSQL | Env var (`database.dsn_env` config) | Shared visibility, direct connect |
-
-### Architecture
-
-| Component | Location | Contents |
-|-----------|----------|----------|
-| **GlobalDB** | `~/.orc/orc.db` (SQLite) or shared PG | Project registry, cost tracking, budgets, workflows, agents, phase templates |
-| **ProjectDB** | `~/.orc/projects/<id>/orc.db` (SQLite) or shared PG | Tasks, initiatives, transcripts, phases, events, FTS |
-| **ProjectCache** | `internal/api/project_cache.go` | LRU cache for project DB connections (thread-safe) |
-
-### How It Works
-
-- All 14 API services accept `project_id` in request messages, routed via `getBackend(projectID)` (`internal/api/*_server.go`)
-- CLI resolves project via: `--project` flag > `ORC_PROJECT` env > cwd detection (`internal/cli/project_context.go`)
-- Frontend passes `projectId` from store to all API calls; project picker at `web/src/pages/ProjectPickerPage.tsx`
-- Projects auto-register on `orc init`; registry at `~/.orc/projects.json` (`internal/project/`)
-
-## File Layout
-
-```
-~/.orc/                              # Global
-  orc.db                             # GlobalDB
-  projects.yaml                      # Project registry
-  config.yaml                        # User-wide config
-  prompts/                           # Personal global prompt overrides
-  projects/<project-id>/             # Per-project runtime state
-    orc.db (+journal/wal/shm)        # ProjectDB
-    config.yaml                      # Personal project config
-    prompts/                         # Personal project prompts
-    sequences.yaml                   # ID sequences
-    exports/                         # Export archives
-  worktrees/<project-id>/            # Worktrees (isolated from project dir)
-    orc-TASK-001/
-    orc-TASK-002/
-
-<project>/.orc/                      # Config-only (all git-tracked)
-  config.yaml                        # Project config
-  CONSTITUTION.md                    # Project principles
-  prompts/                           # Project prompt templates
-  system_prompts/                    # System prompt overrides
-
-.claude/                             # Claude Code settings, hooks, skills
-```
-
-Task data stored in per-project database (`~/.orc/projects/<id>/orc.db` for SQLite, shared PostgreSQL for team mode). Use `orc export --all-tasks --all` for full backup.
-
-## Commands
-
-**Always run `orc <command> --help` for detailed usage with quality guidance.**
-
-### Core Workflow
-
-| Command | Purpose | Key Flags |
-|---------|---------|-----------|
-| `orc new "title"` | Create task with full control | `--workflow/-w workflow`, `-d description`, `-i initiative`, `--branch`, `--target-branch`, `--pr-draft` |
-| `orc run TASK-ID` | Execute task phases | `--profile`, `--auto-skip`, `--stream`, `--skip-gates` |
-| `orc status` | Dashboard: what needs attention | `--watch`, `--all` |
-
-### Task Management
-
-| Command | Purpose |
-|---------|---------|
-| `orc show TASK-ID` | View task details, spec, state (`--gates` for gate history) |
-| `orc deps TASK-ID` | Show dependencies (`--tree`, `--graph`) |
-| `orc log TASK-ID` | View Claude transcripts (`--follow` for streaming) |
-| `orc resume TASK-ID` | Continue paused/failed/orphaned task |
-| `orc approve TASK-ID` | Approve blocked gate |
-| `orc close TASK-ID` | Close task without re-running |
-| `orc gates list` | Show gate config for all workflow phases |
-| `orc gates show <phase>` | Detailed gate config for a phase |
-| `orc scratchpad TASK-ID` | View scratchpad entries (observations, decisions, blockers) (`--phase`) |
-| `orc recommendation list` | Review project recommendations awaiting a human decision |
-| `orc costs` | View cost report across projects (`--by user/project/model`, `--user`, `--since`, `--project`) |
-
-### Initiatives
-
-| Command | Purpose |
-|---------|---------|
-| `orc initiative new "title"` | Create initiative with `--vision` |
-| `orc initiative decide ID "decision"` | Record decision with `--rationale`, `--supersedes N` |
-| `orc initiative edit ID` | Edit properties (`--title`, `--status`, `--vision`, `--priority`, `--add-blocked-by`) |
-| `orc initiative link ID TASK...` | Batch link tasks |
-| `orc initiative run ID` | Run all ready tasks in order |
-
-Run `orc initiative --help` for full subcommand list.
-
-### Project Management
-
-| Command | Purpose |
-|---------|---------|
-| `orc projects` | List registered projects |
-| `orc projects add .` | Register current directory |
-| `orc projects remove ID` | Unregister a project |
-| `orc projects default ID` | Set default project |
-
-**Global flag:** `--project/-P` or `ORC_PROJECT` env var selects the active project for any command.
-
-### Data Portability
-
-| Command | Purpose |
-|---------|---------|
-| `orc export --all-tasks` | Full backup (tar.gz) to `~/.orc/projects/<id>/exports/` |
-| `orc export --all-tasks --initiatives` | Include initiatives |
-| `orc export --all-tasks --minimal` | Smaller backup (no transcripts) |
-| `orc import` | Restore from `.orc/exports/` (auto-detect format) |
-| `orc import --dry-run` | Preview import without changes |
-
-**Import behavior:** Newer `updated_at` wins (local preserved on tie). Running tasks become "interrupted" for safe resume. Use `--force` to always overwrite.
-
-### Jira Import
-
-| Command | Purpose |
-|---------|---------|
-| `orc import jira` | Import Jira Cloud issues as orc tasks |
-| `orc import jira --dry-run` | Preview import without saving |
-| `orc import jira --project PROJ` | Import from specific project(s) |
-| `orc import jira --jql "..."` | Filter issues with JQL query |
-
-Auth: `--url`/`--email`/`--token` flags, `ORC_JIRA_*` env vars, or `jira:` config section. Run `orc import jira --help` for full setup guide.
-
-### Benchmarking
-
-| Command | Purpose |
-|---------|---------|
-| `orc bench curate import suite.yaml` | Bulk import projects, tasks, variants from YAML |
-| `orc bench curate add-project` | Add a benchmark project |
-| `orc bench curate add-task` | Add a benchmark task |
-| `orc bench curate list [projects\|tasks\|variants]` | List curated data |
-| `orc bench curate validate` | Health check all tasks |
-| `orc bench run --baseline --trials N` | Run all-Opus baseline |
-| `orc bench run --variant ID --trials N` | Run specific variant with frozen outputs |
-| `orc bench run --all-variants --trials N` | Run all variants |
-| `orc bench report` | Phase leaderboard + recommendations |
-| `orc bench judge` | Run cross-model judge panel |
-
-Config-driven: `~/.orc/bench/suite.yaml`. Data: `~/.orc/bench/bench.db`. See `internal/bench/CLAUDE.md`.
-
-### Key Insight: Help Text = Documentation
-
-Each command's `--help` contains detailed guidance on:
-- What makes the command succeed
-- Common mistakes to avoid
-- How data flows through the system
-- Quality tips for best results
-
-**When in doubt, run `--help` first.**
-
-## Key Patterns
-
-**Error handling:** Always wrap with context
-```go
-return fmt.Errorf("load task %s: %w", id, err)
-```
-
-**Git commits:** After every phase: `[orc] TASK-001: implement - completed`
-
-## Dependencies
-
-Go modules: `llmkit` (Claude wrapper), `flowgraph` (execution), `devflow` (git ops). For local dev: `make setup` creates `go.work`.
-
-### ⚠️ llmkit Sync Requirement
-
-When adding llmkit features that orc depends on:
-
-1. **Tag and push llmkit first** - `git tag vX.Y.Z && git push origin vX.Y.Z`
-2. **Update orc's go.mod** - `GOWORK=off go get github.com/randalmurphal/llmkit@vX.Y.Z`
-3. **Run GOWORK=off tests** - `make test-short` (uses published deps, not local)
-
-**Why:** `go.work` masks version drift. Code works locally but fails in CI/production. The `GOWORK=off` test catches this.
-
-## Web UI
-
-Start: `make build && orc serve` (production) or `make dev-full` (hot reload).
-
-Features: Project picker, My Work dashboard, project home, recommendation inbox, live task board, WebSocket updates, initiative filtering, keyboard shortcuts (`Shift+Alt` modifier), settings editor, visual workflow editor (React Flow). All API calls include `projectId`.
-
-See `web/CLAUDE.md` for component library and architecture.
-
-## Testing
-
-```bash
-make test       # Backend (Go)
-make web-test   # Frontend (Vitest)
-make e2e        # E2E (Playwright)
-```
-
-**E2E tests run in isolated sandbox** (`/tmp`), not production. Import from `./fixtures` for automatic sandbox selection.
-
-## Documentation Reference
-
-| Topic | Location |
-|-------|----------|
-| API Endpoints | `docs/API_REFERENCE.md` |
-| Architecture | `docs/architecture/OVERVIEW.md` |
-| Phase Model | `docs/architecture/PHASE_MODEL.md` |
-| Gates & Approvals | `docs/architecture/GATES.md` |
-| Config | `docs/specs/CONFIG_HIERARCHY.md` |
-| File Formats | `docs/specs/FILE_FORMATS.md` |
-| Benchmarking | `docs/specs/BENCHMARK_SYSTEM.md`, `internal/bench/CLAUDE.md` |
-| Constitution | `.orc/CONSTITUTION.md` |
-| Web Components | `web/CLAUDE.md` |
-
-<!-- orc:begin -->
-## Orc Orchestration
-
-This project uses [orc](https://github.com/randalmurphal/orc) for task orchestration.
-
-### When to Use Orc
-
-Use orc when:
-- **Multi-step work**: Features, refactors, or fixes requiring multiple phases
-- **Parallel tasks**: Running multiple independent tasks simultaneously
-- **Complex changes**: Work that benefits from spec → implement → test → review flow
-- **Tracked progress**: When you need visibility into what's done/remaining
-
-**Key principle**: Delegate implementation to `orc run`. Don't implement tasks directly - create them and let orc execute them.
-
-### Workflow
-
-1. `orc new "task title"` - Create a task
-2. `orc run TASK-XXX` - Execute it (runs in background)
-3. Validate results when complete
-4. `orc status` - Check what's next
-
-### Slash Commands
-
-| Command | Purpose |
-|---------|---------|
-| `/orc:continue` | Tech Lead session - run tasks, validate, keep moving |
-| `/orc:status` | Show progress and next steps |
-| `/orc:init` | Initialize project or create spec |
-| `/orc:review` | Multi-round code review |
-| `/orc:qa` | E2E tests and documentation |
-
-### CLI Commands
-
-```bash
-orc status           # View active tasks
-orc new "title"      # Create task
-orc run TASK-001     # Execute task
-orc show TASK-001    # Task details
-orc diff TASK-001    # What changed
-```
-
-See `.orc/` for configuration and task details.
-
-<!-- orc:end -->
+They should not be codebase snapshots with line numbers, exhaustive file inventories, or behavior that will drift after normal refactors.
