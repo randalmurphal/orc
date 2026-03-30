@@ -10,11 +10,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // withListTestDir creates a temp directory with task structure and sets
@@ -567,8 +569,11 @@ func TestListCommand_LimitWithFilters(t *testing.T) {
 	backend := createListTestBackend(t, tmpDir)
 
 	// Create tasks with different statuses
+	createdAt := timestamppb.New(time.Date(2026, time.March, 30, 12, 0, 0, 0, time.UTC))
 	for i := 1; i <= 5; i++ {
 		tk := task.NewProtoTask(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		tk.CreatedAt = createdAt
+		tk.UpdatedAt = createdAt
 		if i <= 3 {
 			tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 		} else {

@@ -29,6 +29,7 @@ type TranscriptStreamHandler struct {
 	model     string
 	publisher *events.PublishHelper
 	mu        sync.Mutex // protects writes
+	err       error
 
 	// storedMessageIDs tracks which messages we've already stored to avoid duplicates.
 	// Claude streams multiple events with the same message ID as content is generated.
@@ -71,6 +72,9 @@ func (h *TranscriptStreamHandler) StoreUserPrompt(prompt string) {
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.err != nil {
+		return
+	}
 
 	transcript := &storage.Transcript{
 		TaskID:        h.taskID,
@@ -85,11 +89,8 @@ func (h *TranscriptStreamHandler) StoreUserPrompt(prompt string) {
 	}
 
 	if err := h.backend.AddTranscript(transcript); err != nil {
-		h.logger.Warn("failed to store user prompt",
-			"task", h.taskID,
-			"phase", h.phaseID,
-			"error", err,
-		)
+		h.err = fmt.Errorf("store user prompt transcript: %w", err)
+		return
 	}
 	if h.publisher != nil {
 		h.publisher.Transcript(h.taskID, h.phaseID, 1, "prompt", prompt)
@@ -101,6 +102,16 @@ func (h *TranscriptStreamHandler) UpdateSessionID(sessionID string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.sessionID = sessionID
+}
+
+// Err returns the first execution-critical transcript persistence error.
+func (h *TranscriptStreamHandler) Err() error {
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.err
 }
 
 // OnEvent handles streaming events from Claude and stores transcripts in real-time.
@@ -166,6 +177,9 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.err != nil {
+		return
+	}
 
 	// Use the API message ID if available, otherwise generate one
 	messageUUID := event.Assistant.MessageID
@@ -182,11 +196,8 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent
 	// Serialize content blocks to JSON for storage
 	contentJSON, err := json.Marshal(event.Assistant.Content)
 	if err != nil {
-		h.logger.Warn("failed to marshal content blocks",
-			"task", h.taskID,
-			"error", err,
-		)
-		contentJSON = []byte(event.Assistant.Text) // Fallback to text
+		h.err = fmt.Errorf("marshal assistant transcript content: %w", err)
+		return
 	}
 
 	// Determine model - use from event if available, fall back to handler default
@@ -213,12 +224,8 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent
 	}
 
 	if err := h.backend.AddTranscript(transcript); err != nil {
-		h.logger.Warn("failed to store assistant message",
-			"task", h.taskID,
-			"phase", h.phaseID,
-			"message_id", messageUUID,
-			"error", err,
-		)
+		h.err = fmt.Errorf("store assistant transcript %s: %w", messageUUID, err)
+		return
 	}
 	if h.publisher != nil {
 		h.publisher.TranscriptWithUsage(
@@ -254,6 +261,9 @@ func (h *TranscriptStreamHandler) shouldCaptureHook(hookEvent string) bool {
 func (h *TranscriptStreamHandler) storeHookEvent(event claude.StreamEvent) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.err != nil {
+		return
+	}
 
 	// Serialize hook details
 	hookData := map[string]any{
@@ -263,7 +273,11 @@ func (h *TranscriptStreamHandler) storeHookEvent(event claude.StreamEvent) {
 		"stderr":     event.Hook.Stderr,
 		"exit_code":  event.Hook.ExitCode,
 	}
-	contentJSON, _ := json.Marshal(hookData)
+	contentJSON, err := json.Marshal(hookData)
+	if err != nil {
+		h.err = fmt.Errorf("marshal hook transcript content: %w", err)
+		return
+	}
 
 	transcript := &storage.Transcript{
 		TaskID:        h.taskID,
@@ -278,12 +292,7 @@ func (h *TranscriptStreamHandler) storeHookEvent(event claude.StreamEvent) {
 	}
 
 	if err := h.backend.AddTranscript(transcript); err != nil {
-		h.logger.Warn("failed to store hook event",
-			"task", h.taskID,
-			"phase", h.phaseID,
-			"hook", event.Hook.HookName,
-			"error", err,
-		)
+		h.err = fmt.Errorf("store hook transcript %s: %w", event.Hook.HookName, err)
 	}
 }
 
@@ -304,6 +313,9 @@ func (h *TranscriptStreamHandler) StoreAssistantTextWithUsage(
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.err != nil {
+		return
+	}
 
 	if messageID == "" {
 		messageID = uuid.NewString()
@@ -337,12 +349,8 @@ func (h *TranscriptStreamHandler) StoreAssistantTextWithUsage(
 	}
 
 	if err := h.backend.AddTranscript(transcript); err != nil {
-		h.logger.Warn("failed to store assistant text",
-			"task", h.taskID,
-			"phase", h.phaseID,
-			"message_id", messageID,
-			"error", err,
-		)
+		h.err = fmt.Errorf("store assistant transcript %s: %w", messageID, err)
+		return
 	}
 	if h.publisher != nil {
 		h.publisher.TranscriptWithUsage(
@@ -372,6 +380,9 @@ func (h *TranscriptStreamHandler) StoreChunkText(text, model string) {
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.err != nil {
+		return
+	}
 
 	if model == "" {
 		model = h.model
@@ -391,11 +402,8 @@ func (h *TranscriptStreamHandler) StoreChunkText(text, model string) {
 	}
 
 	if err := h.backend.AddTranscript(transcript); err != nil {
-		h.logger.Warn("failed to store assistant chunk",
-			"task", h.taskID,
-			"phase", h.phaseID,
-			"error", err,
-		)
+		h.err = fmt.Errorf("store assistant chunk transcript: %w", err)
+		return
 	}
 	if h.publisher != nil {
 		h.publisher.TranscriptChunk(h.taskID, h.phaseID, 1, text)
@@ -410,6 +418,9 @@ func (h *TranscriptStreamHandler) StoreToolCall(name string, arguments json.RawM
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.err != nil {
+		return
+	}
 
 	if model == "" {
 		model = h.model
@@ -430,12 +441,8 @@ func (h *TranscriptStreamHandler) StoreToolCall(name string, arguments json.RawM
 	}
 
 	if err := h.backend.AddTranscript(transcript); err != nil {
-		h.logger.Warn("failed to store tool call",
-			"task", h.taskID,
-			"phase", h.phaseID,
-			"tool", name,
-			"error", err,
-		)
+		h.err = fmt.Errorf("store tool call transcript %s: %w", name, err)
+		return
 	}
 	if h.publisher != nil {
 		h.publisher.Transcript(h.taskID, h.phaseID, 1, "tool", content)
@@ -450,6 +457,9 @@ func (h *TranscriptStreamHandler) StoreToolResult(name, output, status string, e
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.err != nil {
+		return
+	}
 
 	if model == "" {
 		model = h.model
@@ -466,13 +476,8 @@ func (h *TranscriptStreamHandler) StoreToolResult(name, output, status string, e
 	}
 	metadataJSON, err := json.Marshal(metadata)
 	if err != nil {
-		h.logger.Warn("failed to marshal tool result metadata",
-			"task", h.taskID,
-			"phase", h.phaseID,
-			"tool", name,
-			"error", err,
-		)
-		metadataJSON = nil
+		h.err = fmt.Errorf("marshal tool result transcript metadata for %s: %w", name, err)
+		return
 	}
 
 	transcript := &storage.Transcript{
@@ -490,12 +495,8 @@ func (h *TranscriptStreamHandler) StoreToolResult(name, output, status string, e
 	}
 
 	if err := h.backend.AddTranscript(transcript); err != nil {
-		h.logger.Warn("failed to store tool result",
-			"task", h.taskID,
-			"phase", h.phaseID,
-			"tool", name,
-			"error", err,
-		)
+		h.err = fmt.Errorf("store tool result transcript %s: %w", name, err)
+		return
 	}
 	if h.publisher != nil {
 		h.publisher.Transcript(h.taskID, h.phaseID, 1, "tool_result", content)

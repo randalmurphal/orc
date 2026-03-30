@@ -716,16 +716,12 @@ Please:
 Do NOT output completion until all verifications pass.`, err.Error())
 }
 
-// unmarshalWithFallback attempts json.Unmarshal, and on failure tries stripping
-// any non-JSON prefix (e.g., "(no content)" from Claude session resume). This is
-// a defensive measure — Claude sometimes prepends text before JSON output.
-func unmarshalWithFallback(s string, v any) error {
-	if err := json.Unmarshal([]byte(s), v); err != nil {
-		if idx := strings.Index(s, "{"); idx > 0 {
-			if err2 := json.Unmarshal([]byte(s[idx:]), v); err2 == nil {
-				return nil
-			}
-		}
+func decodeStructuredJSON(content string, out any) error {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return fmt.Errorf("empty JSON content")
+	}
+	if err := json.Unmarshal([]byte(trimmed), out); err != nil {
 		return err
 	}
 	return nil
@@ -738,7 +734,7 @@ func unmarshalWithFallback(s string, v any) error {
 // use CheckPhaseCompletionJSON which handles them via fallback parsing.
 func ParsePhaseResponse(content string) (*PhaseResponse, error) {
 	var resp PhaseResponse
-	if err := unmarshalWithFallback(content, &resp); err != nil {
+	if err := decodeStructuredJSON(content, &resp); err != nil {
 		return nil, fmt.Errorf("invalid phase response JSON: %w", err)
 	}
 
@@ -816,7 +812,7 @@ func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string, er
 		// raw JSON parsing: if the JSON is valid with a non-empty status, treat it
 		// as PhaseStatusComplete so loop conditions can evaluate the status.
 		var raw PhaseResponse
-		if unmarshalErr := unmarshalWithFallback(trimmed, &raw); unmarshalErr == nil && raw.Status != "" {
+		if unmarshalErr := decodeStructuredJSON(trimmed, &raw); unmarshalErr == nil && raw.Status != "" {
 			return PhaseStatusComplete, raw.Summary, nil
 		}
 		return PhaseStatusContinue, "", fmt.Errorf("invalid phase completion JSON: %w (content=%q)",

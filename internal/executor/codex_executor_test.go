@@ -2,10 +2,10 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -60,38 +60,6 @@ func TestCodexExecutor_Defaults(t *testing.T) {
 	}
 	if !exec.bypassApprovalsAndSandbox {
 		t.Error("default bypassApprovalsAndSandbox should be true")
-	}
-}
-
-func TestCodexExecutor_WriteSchemaFile(t *testing.T) {
-	exec := NewCodexExecutor()
-
-	schema := `{"type":"object","properties":{"status":{"type":"string"}}}`
-	path, err := exec.writeSchemaFile(schema)
-	if err != nil {
-		t.Fatalf("writeSchemaFile failed: %v", err)
-	}
-	defer os.Remove(path)
-
-	// Verify file exists and has correct content.
-	// writeSchemaFile applies OpenAI schema rules (additionalProperties:false,
-	// required:all, nullable for originally-optional fields).
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile failed: %v", err)
-	}
-	want := `{"additionalProperties":false,"properties":{"status":{"type":["string","null"]}},"required":["status"],"type":"object"}`
-	if string(data) != want {
-		t.Errorf("schema file content = %q, want %q", string(data), want)
-	}
-}
-
-func TestCodexExecutor_WriteSchemaFile_InvalidJSON(t *testing.T) {
-	exec := NewCodexExecutor()
-
-	_, err := exec.writeSchemaFile("not valid json")
-	if err == nil {
-		t.Error("expected error for invalid JSON schema")
 	}
 }
 
@@ -176,105 +144,6 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-func TestEnsureAdditionalPropertiesFalse(t *testing.T) {
-	t.Run("adds additionalProperties and required to root", func(t *testing.T) {
-		schema := `{"type":"object","properties":{"status":{"type":"string"},"reason":{"type":"string"}},"required":["status"]}`
-		result := ensureAdditionalPropertiesFalse(schema)
-
-		var parsed map[string]any
-		if err := json.Unmarshal([]byte(result), &parsed); err != nil {
-			t.Fatalf("invalid JSON: %v", err)
-		}
-		if ap, ok := parsed["additionalProperties"]; !ok || ap != false {
-			t.Fatalf("expected additionalProperties:false at root, got %v", parsed)
-		}
-		// OpenAI requires ALL property keys in required
-		req, ok := parsed["required"].([]any)
-		if !ok {
-			t.Fatalf("expected required to be array, got %T", parsed["required"])
-		}
-		reqSet := map[string]bool{}
-		for _, v := range req {
-			reqSet[v.(string)] = true
-		}
-		if !reqSet["status"] || !reqSet["reason"] {
-			t.Fatalf("required should include all properties, got %v", req)
-		}
-
-		reason := parsed["properties"].(map[string]any)["reason"].(map[string]any)
-		reasonTypes := reason["type"].([]any)
-		if len(reasonTypes) != 2 || reasonTypes[0] != "string" || reasonTypes[1] != "null" {
-			t.Fatalf("optional reason field should become nullable, got %v", reasonTypes)
-		}
-	})
-
-	t.Run("adds to nested objects and array items", func(t *testing.T) {
-		schema := `{"type":"object","properties":{"items":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"}}}}}}`
-		result := ensureAdditionalPropertiesFalse(schema)
-
-		var parsed map[string]any
-		if err := json.Unmarshal([]byte(result), &parsed); err != nil {
-			t.Fatalf("unmarshal schema: %v", err)
-		}
-		props := parsed["properties"].(map[string]any)
-		items := props["items"].(map[string]any)
-		itemSchema := items["items"].(map[string]any)
-		if ap, ok := itemSchema["additionalProperties"]; !ok || ap != false {
-			t.Fatalf("expected additionalProperties:false on nested items object, got %v", itemSchema)
-		}
-		req := itemSchema["required"].([]any)
-		reqSet := map[string]bool{}
-		for _, v := range req {
-			reqSet[v.(string)] = true
-		}
-		if !reqSet["id"] || !reqSet["name"] {
-			t.Fatalf("required on nested items should include all properties, got %v", req)
-		}
-	})
-
-	t.Run("handles invalid JSON gracefully", func(t *testing.T) {
-		schema := `{not valid`
-		result := ensureAdditionalPropertiesFalse(schema)
-		if result != schema {
-			t.Fatal("should return unchanged for invalid JSON")
-		}
-	})
-
-	t.Run("works on real implement schema", func(t *testing.T) {
-		schema := ImplementCompletionSchema
-		result := ensureAdditionalPropertiesFalse(schema)
-
-		var parsed map[string]any
-		if err := json.Unmarshal([]byte(result), &parsed); err != nil {
-			t.Fatalf("invalid JSON after transform: %v", err)
-		}
-		// Root should have additionalProperties: false
-		if ap := parsed["additionalProperties"]; ap != false {
-			t.Fatalf("root missing additionalProperties:false")
-		}
-		// Nested verification.build should also have additionalProperties and required
-		props := parsed["properties"].(map[string]any)
-		verif := props["verification"].(map[string]any)
-		verifProps := verif["properties"].(map[string]any)
-		build := verifProps["build"].(map[string]any)
-		if ap := build["additionalProperties"]; ap != false {
-			t.Fatalf("verification.build missing additionalProperties:false")
-		}
-		buildReq := build["required"].([]any)
-		if len(buildReq) != 1 || buildReq[0] != "status" {
-			t.Fatalf("verification.build.required should be [status], got %v", buildReq)
-		}
-
-		tests := verifProps["tests"].(map[string]any)
-		testsProps := tests["properties"].(map[string]any)
-		command := testsProps["command"].(map[string]any)
-		commandTypes := command["type"].([]any)
-		if len(commandTypes) != 2 || commandTypes[0] != "string" || commandTypes[1] != "null" {
-			t.Fatalf("optional command field should become nullable, got %v", commandTypes)
-		}
-	})
-}
-
 func TestCodexExecutor_ExecuteSingleTurn_StreamsAndCapturesSession(t *testing.T) {
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join(tmpDir, "fake-codex.sh")
@@ -288,7 +157,12 @@ echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{
 		t.Fatalf("write fake codex script: %v", err)
 	}
 
-	backend := &mockTranscriptBackend{}
+	taskRecord := task.NewProtoTask("TASK-001", "streaming transcripts")
+	task.StartPhaseProto(taskRecord.Execution, "implement")
+	backend := &codexSessionBackend{
+		mockTranscriptBackend: mockTranscriptBackend{},
+		task:                  taskRecord,
+	}
 	exec := NewCodexExecutor(
 		WithCodexPath(scriptPath),
 		WithCodexWorkdir(tmpDir),
@@ -371,7 +245,12 @@ echo '{"type":"turn.completed","output":[{"text":"done"}],"turn_usage":{"input_t
 		t.Fatalf("write fake codex script: %v", err)
 	}
 
-	backend := &mockTranscriptBackend{}
+	taskRecord := task.NewProtoTask("TASK-001", "tool streaming transcripts")
+	task.StartPhaseProto(taskRecord.Execution, "implement_codex")
+	backend := &codexSessionBackend{
+		mockTranscriptBackend: mockTranscriptBackend{},
+		task:                  taskRecord,
+	}
 	exec := NewCodexExecutor(
 		WithCodexPath(scriptPath),
 		WithCodexWorkdir(tmpDir),
@@ -483,6 +362,44 @@ echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{
 	}
 }
 
+func TestCodexExecutor_ExecuteSingleTurn_FailsWhenLiveSessionPersistenceFails(t *testing.T) {
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join(tmpDir, "fake-codex-session-save-fail.sh")
+	script := `#!/bin/sh
+echo '{"type":"thread.started","thread_id":"sess-live-123"}'
+sleep 0.1
+echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}}'
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake codex script: %v", err)
+	}
+
+	taskRecord := task.NewProtoTask("TASK-LIVE-002", "live codex session save failure")
+	task.StartPhaseProto(taskRecord.Execution, "implement")
+	backend := &codexSessionBackend{
+		mockTranscriptBackend: mockTranscriptBackend{},
+		task:                  taskRecord,
+		saveErr:               errors.New("save failed"),
+	}
+
+	exec := NewCodexExecutor(
+		WithCodexPath(scriptPath),
+		WithCodexWorkdir(tmpDir),
+		WithCodexModel("gpt-5.4"),
+		WithCodexPhaseID("implement"),
+		WithCodexBackend(backend),
+		WithCodexTaskID("TASK-LIVE-002"),
+	)
+
+	_, err := exec.executeSingleTurn(context.Background(), "do the thing", "", time.Now())
+	if err == nil {
+		t.Fatal("expected live session persistence failure")
+	}
+	if !strings.Contains(err.Error(), "persist live codex session metadata") {
+		t.Fatalf("error = %v, want live session persistence failure", err)
+	}
+}
+
 func sessionIDFromMetadata(t *testing.T, metadata string) string {
 	t.Helper()
 	session, err := llmkit.ParseSessionMetadata(metadata)
@@ -508,7 +425,12 @@ sleep 30
 		t.Fatalf("write fake codex script: %v", err)
 	}
 
-	backend := &mockTranscriptBackend{}
+	taskRecord := task.NewProtoTask("TASK-001", "stalled codex session")
+	task.StartPhaseProto(taskRecord.Execution, "implement")
+	backend := &codexSessionBackend{
+		mockTranscriptBackend: mockTranscriptBackend{},
+		task:                  taskRecord,
+	}
 	exec := NewCodexExecutor(
 		WithCodexPath(scriptPath),
 		WithCodexWorkdir(tmpDir),
@@ -544,78 +466,6 @@ sleep 30
 	}
 }
 
-func TestExtractLastJSON(t *testing.T) {
-	tests := []struct {
-		name string
-		in   string
-		want string
-	}{
-		{
-			name: "empty string",
-			in:   "",
-			want: "",
-		},
-		{
-			name: "single valid JSON object",
-			in:   `{"status":"complete","summary":"done"}`,
-			want: `{"status":"complete","summary":"done"}`,
-		},
-		{
-			name: "concatenated JSON objects returns last",
-			in:   `{"status":"continue"}{"status":"continue"}{"status":"complete","summary":"done"}`,
-			want: `{"status":"complete","summary":"done"}`,
-		},
-		{
-			name: "no valid JSON returns original",
-			in:   "this is not json at all",
-			want: "this is not json at all",
-		},
-		{
-			name: "whitespace only returns empty",
-			in:   "   \n\t  ",
-			want: "",
-		},
-		{
-			name: "nested braces in values",
-			in:   `{"a":1}{"msg":"use {x}","status":"complete"}`,
-			want: `{"msg":"use {x}","status":"complete"}`,
-		},
-		{
-			name: "single JSON with nested objects unchanged",
-			in:   `{"outer":{"inner":{"deep":"value"}},"status":"complete"}`,
-			want: `{"outer":{"inner":{"deep":"value"}},"status":"complete"}`,
-		},
-		{
-			name: "whitespace between concatenated objects",
-			in:   `{"status":"continue"}  {"status":"complete"}`,
-			want: `{"status":"complete"}`,
-		},
-		{
-			name: "three concatenated objects",
-			in:   `{"round":1}{"round":2}{"round":3}`,
-			want: `{"round":3}`,
-		},
-		{
-			name: "leading whitespace on valid JSON",
-			in:   "  \n  " + `{"status":"complete"}`,
-			want: `{"status":"complete"}`,
-		},
-		{
-			name: "trailing whitespace on valid JSON",
-			in:   `{"status":"complete"}` + "  \n  ",
-			want: `{"status":"complete"}`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractLastJSON(tt.in)
-			if got != tt.want {
-				t.Errorf("extractLastJSON(%q) = %q, want %q", tt.in, got, tt.want)
-			}
-		})
-	}
-}
-
 // errString is a simple error type for testing.
 type errString string
 
@@ -623,7 +473,8 @@ func (e errString) Error() string { return string(e) }
 
 type codexSessionBackend struct {
 	mockTranscriptBackend
-	task *orcv1.Task
+	task    *orcv1.Task
+	saveErr error
 }
 
 func (b *codexSessionBackend) LoadTask(taskID string) (*orcv1.Task, error) {
@@ -634,6 +485,9 @@ func (b *codexSessionBackend) LoadTask(taskID string) (*orcv1.Task, error) {
 }
 
 func (b *codexSessionBackend) SaveTask(t *orcv1.Task) error {
+	if b.saveErr != nil {
+		return b.saveErr
+	}
 	b.task = t
 	return nil
 }

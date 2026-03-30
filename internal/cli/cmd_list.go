@@ -3,8 +3,10 @@ package cli
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -129,6 +131,8 @@ Example:
 				return nil
 			}
 
+			sortTasksByCreation(filtered)
+
 			// Apply limit after filtering (take the last N tasks for most recent)
 			if limit > 0 && len(filtered) > limit {
 				filtered = filtered[len(filtered)-limit:]
@@ -164,6 +168,24 @@ Example:
 	_ = cmd.RegisterFlagCompletionFunc("initiative", completeInitiativeIDs)
 
 	return cmd
+}
+
+func sortTasksByCreation(tasks []*orcv1.Task) {
+	sort.SliceStable(tasks, func(i, j int) bool {
+		left := taskCreatedAt(tasks[i])
+		right := taskCreatedAt(tasks[j])
+		if !left.Equal(right) {
+			return left.Before(right)
+		}
+		return tasks[i].Id < tasks[j].Id
+	})
+}
+
+func taskCreatedAt(t *orcv1.Task) time.Time {
+	if t == nil || t.CreatedAt == nil {
+		return time.Time{}
+	}
+	return t.CreatedAt.AsTime()
 }
 
 // completeInitiativeIDs provides tab completion for initiative IDs

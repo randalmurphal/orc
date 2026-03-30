@@ -128,7 +128,7 @@ func (a *claudeAdapter) PrepareExecution(cfg *PhaseExecutionConfig, we *Workflow
 		}
 		task.SetPhaseSessionMetadataProto(we.task.Execution, cfg.PhaseID, sessionMetadata)
 		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
-			we.logger.Warn("failed to save session ID", "phase", cfg.PhaseID, "error", saveErr)
+			return nil, fmt.Errorf("persist claude session metadata for phase %s: %w", cfg.PhaseID, saveErr)
 		}
 	}
 
@@ -266,7 +266,7 @@ func (a *codexAdapter) PostTurn(turnResult *TurnResult, _ *ProviderExecContext, 
 		}
 		task.SetPhaseSessionMetadataProto(we.task.Execution, cfg.PhaseID, sessionMetadata)
 		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
-			we.logger.Warn("failed to save codex session ID", "phase", cfg.PhaseID, "error", saveErr)
+			return fmt.Errorf("persist codex session metadata for phase %s: %w", cfg.PhaseID, saveErr)
 		}
 	}
 	return nil

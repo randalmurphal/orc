@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 
@@ -246,17 +245,6 @@ func (e *CodexExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnRe
 	}
 	schema := GetSchemaForIteration(e.loopConfig, iteration, e.phaseID, e.producesArtifact)
 
-	// Write schema to temp file (codex uses --output-schema <path>, not inline JSON)
-	schemaFile, err := e.writeSchemaFile(schema)
-	if err != nil {
-		return &TurnResult{
-			Duration:  time.Since(start),
-			IsError:   true,
-			ErrorText: err.Error(),
-		}, fmt.Errorf("write schema file: %w", err)
-	}
-	defer os.Remove(schemaFile)
-
 	// Retry loop for schema validation (codex doesn't guarantee structured output)
 	var lastResult *TurnResult
 	var lastErr error
@@ -275,12 +263,12 @@ func (e *CodexExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnRe
 			)
 		}
 
-		result, err := e.executeSingleTurn(ctx, prompt, schemaFile, start)
+		result, err := e.executeSingleTurn(ctx, prompt, schema, start)
 		if err != nil {
 			var stalledErr *codexTurnStalledError
 			if errors.As(err, &stalledErr) {
 				e.logger.Warn("retrying codex turn after stalled stream", "phase", e.phaseID, "attempt", attempt+1)
-				result, err = e.executeSingleTurnFresh(ctx, buildCodexStallRetryPrompt(prompt, stalledErr), schemaFile, start)
+				result, err = e.executeSingleTurnFresh(ctx, buildCodexStallRetryPrompt(prompt, stalledErr), schema, start)
 			}
 		}
 		if err != nil {
@@ -302,14 +290,8 @@ func (e *CodexExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnRe
 			continue
 		}
 
-		// Codex with --output-schema may return one JSON per turn, producing
-		// concatenated objects like "{json1}{json2}". Extract the last one
-		// and store it back so downstream consumers see clean JSON.
-		content := extractLastJSON(result.Content)
-		result.Content = content
-
 		// Validate that we got parseable phase completion JSON
-		status, reason, parseErr := ParsePhaseSpecificResponse(e.phaseID, e.reviewRound, content)
+		status, reason, parseErr := ParsePhaseSpecificResponse(e.phaseID, e.reviewRound, result.Content)
 		result.Status = status
 		result.Reason = reason
 
@@ -377,30 +359,28 @@ func (e *CodexExecutor) UpdateSessionID(id string) {
 	}
 }
 
-func (e *CodexExecutor) persistLiveSessionID(sessionID string) {
+func (e *CodexExecutor) persistLiveSessionID(sessionID string) error {
 	if e.backend == nil || e.taskID == "" || e.phaseID == "" || sessionID == "" {
-		return
+		return nil
 	}
 
 	t, err := e.backend.LoadTask(e.taskID)
 	if err != nil {
-		e.logger.Warn("failed to load task for live codex session persistence", "task", e.taskID, "phase", e.phaseID, "error", err)
-		return
+		return fmt.Errorf("load task for live codex session persistence: %w", err)
 	}
 	if t == nil {
-		e.logger.Warn("task not found while persisting live codex session", "task", e.taskID, "phase", e.phaseID)
-		return
+		return fmt.Errorf("task %s not found while persisting live codex session", e.taskID)
 	}
 
 	sessionMetadata, marshalErr := llmkit.MarshalSessionMetadata(llmkit.SessionMetadataForID(ProviderCodex, sessionID))
 	if marshalErr != nil {
-		e.logger.Warn("failed to marshal codex session metadata", "task", e.taskID, "phase", e.phaseID, "error", marshalErr)
-		return
+		return fmt.Errorf("marshal codex session metadata: %w", marshalErr)
 	}
 	task.SetPhaseSessionMetadataProto(t.Execution, e.phaseID, sessionMetadata)
 	if saveErr := e.backend.SaveTask(t); saveErr != nil {
-		e.logger.Warn("failed to persist live codex session ID", "task", e.taskID, "phase", e.phaseID, "session_id", sessionID, "error", saveErr)
+		return fmt.Errorf("persist live codex session metadata: %w", saveErr)
 	}
+	return nil
 }
 
 // SessionID returns the current session ID.
@@ -409,7 +389,7 @@ func (e *CodexExecutor) SessionID() string {
 }
 
 // executeSingleTurn runs a single codex completion or resume call.
-func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFile string, start time.Time) (*TurnResult, error) {
+func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schema string, start time.Time) (*TurnResult, error) {
 	ctx, cancel := e.codexContextWithTimeout(ctx)
 	defer cancel()
 	watchdog := NewTurnWatchdog(e.inactivityTimeout, cancel)
@@ -418,11 +398,19 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 
 	if e.transcriptHandler != nil {
 		e.transcriptHandler.StoreUserPrompt(prompt)
+		if err := e.transcriptHandler.Err(); err != nil {
+			return &TurnResult{
+				Duration:  time.Since(start),
+				IsError:   true,
+				ErrorText: err.Error(),
+			}, err
+		}
 	}
 
-	cli := codex.NewCodexCLI(e.buildCLIOptions(schemaFile)...)
+	cli := codex.NewCodexCLI(e.buildCLIOptions()...)
 	stream, err := cli.Stream(ctx, codex.CompletionRequest{
-		Messages: []codex.Message{{Role: codex.RoleUser, Content: prompt}},
+		Messages:   []codex.Message{{Role: codex.RoleUser, Content: prompt}},
+		JSONSchema: json.RawMessage(schema),
 	})
 	if err != nil {
 		return &TurnResult{
@@ -447,17 +435,40 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 		if chunk.SessionID != "" && chunk.SessionID != sessionID {
 			sessionID = chunk.SessionID
 			e.UpdateSessionID(sessionID)
-			e.persistLiveSessionID(sessionID)
+			if err := e.persistLiveSessionID(sessionID); err != nil {
+				return &TurnResult{
+					Duration:  time.Since(start),
+					IsError:   true,
+					ErrorText: err.Error(),
+					SessionID: sessionID,
+				}, err
+			}
 		}
 		if chunk.Content != "" {
 			contentBuilder.WriteString(chunk.Content)
 			if e.transcriptHandler != nil {
 				e.transcriptHandler.StoreChunkText(chunk.Content, e.model)
+				if err := e.transcriptHandler.Err(); err != nil {
+					return &TurnResult{
+						Duration:  time.Since(start),
+						IsError:   true,
+						ErrorText: err.Error(),
+						SessionID: sessionID,
+					}, err
+				}
 			}
 		}
 		if len(chunk.ToolCalls) > 0 && e.transcriptHandler != nil {
 			for _, toolCall := range chunk.ToolCalls {
 				e.transcriptHandler.StoreToolCall(toolCall.Name, toolCall.Arguments, e.model)
+				if err := e.transcriptHandler.Err(); err != nil {
+					return &TurnResult{
+						Duration:  time.Since(start),
+						IsError:   true,
+						ErrorText: err.Error(),
+						SessionID: sessionID,
+					}, err
+				}
 			}
 		}
 		if len(chunk.ToolResults) > 0 {
@@ -465,6 +476,14 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 			if e.transcriptHandler != nil {
 				for _, toolResult := range chunk.ToolResults {
 					e.transcriptHandler.StoreToolResult(toolResult.Name, toolResult.Output, toolResult.Status, toolResult.ExitCode, e.model)
+					if err := e.transcriptHandler.Err(); err != nil {
+						return &TurnResult{
+							Duration:  time.Since(start),
+							IsError:   true,
+							ErrorText: err.Error(),
+							SessionID: sessionID,
+						}, err
+					}
 				}
 			}
 		}
@@ -541,12 +560,20 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schemaFil
 			cacheReadTokens = usage.CacheReadInputTokens
 		}
 		e.transcriptHandler.StoreAssistantTextWithUsage(content, e.model, "", inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens)
+		if err := e.transcriptHandler.Err(); err != nil {
+			return &TurnResult{
+				Duration:  time.Since(start),
+				IsError:   true,
+				ErrorText: err.Error(),
+				SessionID: sessionID,
+			}, err
+		}
 	}
 
 	return result, nil
 }
 
-func (e *CodexExecutor) executeSingleTurnFresh(ctx context.Context, prompt, schemaFile string, start time.Time) (*TurnResult, error) {
+func (e *CodexExecutor) executeSingleTurnFresh(ctx context.Context, prompt, schema string, start time.Time) (*TurnResult, error) {
 	prevSessionID := e.sessionID
 	prevResume := e.resume
 	e.sessionID = ""
@@ -563,7 +590,7 @@ func (e *CodexExecutor) executeSingleTurnFresh(ctx context.Context, prompt, sche
 			}
 		}
 	}()
-	return e.executeSingleTurn(ctx, prompt, schemaFile, start)
+	return e.executeSingleTurn(ctx, prompt, schema, start)
 }
 
 func buildCodexStallRetryPrompt(originalPrompt string, stalled *codexTurnStalledError) string {
@@ -596,7 +623,7 @@ func buildCodexStallRetryPrompt(originalPrompt string, stalled *codexTurnStalled
 	return prompt.String()
 }
 
-func (e *CodexExecutor) buildCLIOptions(schemaFile string) []codex.CodexOption {
+func (e *CodexExecutor) buildCLIOptions() []codex.CodexOption {
 	opts := []codex.CodexOption{
 		codex.WithWorkdir(e.workdir),
 		codex.WithTimeout(e.timeout),
@@ -612,9 +639,6 @@ func (e *CodexExecutor) buildCLIOptions(schemaFile string) []codex.CodexOption {
 	}
 	if e.resume && e.sessionID != "" {
 		opts = append(opts, codex.WithSessionID(e.sessionID))
-	}
-	if schemaFile != "" {
-		opts = append(opts, codex.WithOutputSchema(schemaFile))
 	}
 	if e.reasoningEffort != "" {
 		opts = append(opts, codex.WithReasoningEffort(e.reasoningEffort))
@@ -639,143 +663,6 @@ func (e *CodexExecutor) codexContextWithTimeout(ctx context.Context) (context.Co
 		return ctx, func() {}
 	}
 	return context.WithTimeout(ctx, e.timeout)
-}
-
-// writeSchemaFile writes a JSON schema string to a temp file and returns the path.
-// OpenAI structured outputs require additionalProperties:false at every object level.
-// This is applied here so the shared schemas (used by both Claude and Codex) don't need modification.
-func (e *CodexExecutor) writeSchemaFile(schema string) (string, error) {
-	// Validate that it's valid JSON
-	if !json.Valid([]byte(schema)) {
-		return "", fmt.Errorf("invalid JSON schema: %s", truncate(schema, 100))
-	}
-
-	// OpenAI requires additionalProperties:false at every object level in the schema.
-	// Transform the schema to add it where missing.
-	schema = ensureAdditionalPropertiesFalse(schema)
-
-	dir := os.TempDir()
-	f, err := os.CreateTemp(dir, "orc-codex-schema-*.json")
-	if err != nil {
-		return "", fmt.Errorf("create temp schema file: %w", err)
-	}
-
-	if _, err := f.WriteString(schema); err != nil {
-		f.Close()
-		os.Remove(f.Name())
-		return "", fmt.Errorf("write schema: %w", err)
-	}
-
-	if err := f.Close(); err != nil {
-		os.Remove(f.Name())
-		return "", fmt.Errorf("close schema file: %w", err)
-	}
-
-	return f.Name(), nil
-}
-
-// ensureAdditionalPropertiesFalse walks a JSON schema and applies the OpenAI
-// structured output rules orc relies on:
-//  1. Every object with properties gets additionalProperties:false.
-//  2. Every object requires all declared property keys.
-//  3. Properties that were optional in the original schema are made nullable so
-//     the required-all-keys rule does not change their semantics.
-func ensureAdditionalPropertiesFalse(schema string) string {
-	var root map[string]any
-	if err := json.Unmarshal([]byte(schema), &root); err != nil {
-		return schema // return unchanged if unparseable
-	}
-	enforceOpenAISchemaRules(root)
-	out, err := json.Marshal(root)
-	if err != nil {
-		return schema
-	}
-	return string(out)
-}
-
-// enforceOpenAISchemaRules recursively fixes a JSON schema node for OpenAI compatibility.
-func enforceOpenAISchemaRules(node map[string]any) {
-	props, hasProps := node["properties"].(map[string]any)
-	if hasProps {
-		originalRequired := map[string]bool{}
-		if requiredList, ok := node["required"].([]any); ok {
-			for _, value := range requiredList {
-				key, ok := value.(string)
-				if ok {
-					originalRequired[key] = true
-				}
-			}
-		}
-
-		// Add additionalProperties: false if missing
-		if _, hasAP := node["additionalProperties"]; !hasAP {
-			node["additionalProperties"] = false
-		}
-
-		// Ensure required lists ALL property keys, but preserve original optional
-		// semantics by making non-required properties nullable.
-		allKeys := make([]string, 0, len(props))
-		for k, rawProp := range props {
-			allKeys = append(allKeys, k)
-			if !originalRequired[k] {
-				if propSchema, ok := rawProp.(map[string]any); ok {
-					makeSchemaNullable(propSchema)
-				}
-			}
-		}
-		node["required"] = allKeys
-
-		// Recurse into each property
-		for _, v := range props {
-			if obj, ok := v.(map[string]any); ok {
-				enforceOpenAISchemaRules(obj)
-			}
-		}
-	}
-	// Recurse into items (arrays of objects)
-	if items, ok := node["items"].(map[string]any); ok {
-		enforceOpenAISchemaRules(items)
-	}
-}
-
-func makeSchemaNullable(node map[string]any) {
-	switch typed := node["type"].(type) {
-	case string:
-		if typed == "null" {
-			return
-		}
-		node["type"] = []any{typed, "null"}
-	case []any:
-		for _, value := range typed {
-			if typeName, ok := value.(string); ok && typeName == "null" {
-				return
-			}
-		}
-		node["type"] = append(typed, "null")
-	}
-}
-
-// extractLastJSON extracts the last valid JSON object from a potentially
-// concatenated response. Codex with --output-schema returns one JSON object
-// per turn; multi-turn execution produces "{json1}{json2}{json3}".
-// We want only the final turn's result.
-func extractLastJSON(content string) string {
-	content = strings.TrimSpace(content)
-	if len(content) == 0 || json.Valid([]byte(content)) {
-		return content
-	}
-
-	// Scan backwards for the last '{' that starts a valid JSON object.
-	for i := len(content) - 1; i >= 0; i-- {
-		if content[i] == '{' {
-			candidate := content[i:]
-			if json.Valid([]byte(candidate)) {
-				return candidate
-			}
-		}
-	}
-
-	return content // Return as-is if no valid JSON found; caller will handle error.
 }
 
 // isJSONParseError checks if an error is related to JSON parsing (worth retrying).

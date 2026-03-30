@@ -7,24 +7,36 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/randalmurphal/llmkit/v2/claude"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 )
 
-// mockSchemaClient implements claude.Client for testing.
+// mockSchemaClient implements llmkit.Client for testing.
 type mockSchemaClient struct {
 	response string
 	err      error
 }
 
-func (m *mockSchemaClient) Complete(_ context.Context, _ claude.CompletionRequest) (*claude.CompletionResponse, error) {
+func (m *mockSchemaClient) Complete(_ context.Context, _ llmkit.Request) (*llmkit.Response, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	return &claude.CompletionResponse{Content: m.response}, nil
+	return &llmkit.Response{Content: m.response}, nil
 }
 
-func (m *mockSchemaClient) StreamJSON(_ context.Context, _ claude.CompletionRequest) (<-chan claude.StreamEvent, *claude.StreamResult, error) {
-	return nil, nil, nil
+func (m *mockSchemaClient) Stream(_ context.Context, _ llmkit.Request) (<-chan llmkit.StreamChunk, error) {
+	return nil, nil
+}
+
+func (m *mockSchemaClient) Provider() string {
+	return "claude"
+}
+
+func (m *mockSchemaClient) Capabilities() llmkit.Capabilities {
+	return llmkit.ClaudeCapabilities
+}
+
+func (m *mockSchemaClient) Close() error {
+	return nil
 }
 
 // testStruct is a simple struct for testing JSON parsing.
@@ -76,11 +88,8 @@ func TestExecuteWithSchema_EmptyContent(t *testing.T) {
 	if result != nil {
 		t.Errorf("ExecuteWithSchema() result = %v, want nil", result)
 	}
-	if !strings.Contains(err.Error(), "empty response content from API") {
-		t.Errorf("error message = %q, want to contain 'empty response content from API'", err.Error())
-	}
-	if !strings.Contains(err.Error(), "model may have returned no output") {
-		t.Errorf("error message = %q, want to contain 'model may have returned no output'", err.Error())
+	if !strings.Contains(err.Error(), "empty structured response") {
+		t.Errorf("error message = %q, want to contain 'empty structured response'", err.Error())
 	}
 }
 
@@ -151,8 +160,9 @@ func TestExecuteWithSchema_InvalidJSON(t *testing.T) {
 			if result != nil {
 				t.Errorf("ExecuteWithSchema() result = %v, want nil", result)
 			}
-			if !strings.Contains(err.Error(), "schema response parse failed") {
-				t.Errorf("error message = %q, want to contain 'schema response parse failed'", err.Error())
+			if !strings.Contains(err.Error(), "response does not contain valid JSON") &&
+				!strings.Contains(err.Error(), "parse structured response") {
+				t.Errorf("error message = %q, want structured JSON parse failure", err.Error())
 			}
 		})
 	}
@@ -251,49 +261,4 @@ func TestExecuteWithSchema_ValidJSON_EdgeCases(t *testing.T) {
 			t.Errorf("Field2 = %d, want 0", result.Data.Field2)
 		}
 	})
-}
-
-func TestTruncateForError(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name    string
-		content string
-		maxLen  int
-		want    string
-	}{
-		{
-			name:    "short content",
-			content: "short",
-			maxLen:  100,
-			want:    "short",
-		},
-		{
-			name:    "exact length",
-			content: "exactly20characters!",
-			maxLen:  20,
-			want:    "exactly20characters!",
-		},
-		{
-			name:    "needs truncation",
-			content: "this is a very long string that needs to be truncated for error messages",
-			maxLen:  20,
-			want:    "this is a very long ...[truncated]",
-		},
-		{
-			name:    "empty string",
-			content: "",
-			maxLen:  100,
-			want:    "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := truncateForError(tt.content, tt.maxLen)
-			if got != tt.want {
-				t.Errorf("truncateForError() = %q, want %q", got, tt.want)
-			}
-		})
-	}
 }

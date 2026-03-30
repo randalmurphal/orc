@@ -8,36 +8,48 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/randalmurphal/llmkit/v2/claude"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	"github.com/randalmurphal/orc/internal/db"
 )
 
-// mockLLMClient implements claude.Client for testing AI gate evaluation.
+// mockLLMClient implements llmkit.Client for testing AI gate evaluation.
 type mockLLMClient struct {
 	response string
-	usage    claude.TokenUsage
+	usage    llmkit.TokenUsage
 	model    string
 	err      error
 	// capturedPrompt records the prompt sent to Complete for inspection.
 	capturedPrompt string
 }
 
-func (m *mockLLMClient) Complete(_ context.Context, req claude.CompletionRequest) (*claude.CompletionResponse, error) {
+func (m *mockLLMClient) Complete(_ context.Context, req llmkit.Request) (*llmkit.Response, error) {
 	if len(req.Messages) > 0 {
 		m.capturedPrompt = req.Messages[0].Content
 	}
 	if m.err != nil {
 		return nil, m.err
 	}
-	return &claude.CompletionResponse{
+	return &llmkit.Response{
 		Content: m.response,
 		Usage:   m.usage,
 		Model:   m.model,
 	}, nil
 }
 
-func (m *mockLLMClient) StreamJSON(_ context.Context, _ claude.CompletionRequest) (<-chan claude.StreamEvent, *claude.StreamResult, error) {
-	return nil, nil, errors.New("not implemented")
+func (m *mockLLMClient) Stream(_ context.Context, _ llmkit.Request) (<-chan llmkit.StreamChunk, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockLLMClient) Provider() string {
+	return "claude"
+}
+
+func (m *mockLLMClient) Capabilities() llmkit.Capabilities {
+	return llmkit.ClaudeCapabilities
+}
+
+func (m *mockLLMClient) Close() error {
+	return nil
 }
 
 // mockClientCreator implements LLMClientCreator for testing.
@@ -46,7 +58,7 @@ type mockClientCreator struct {
 	createdModel string
 }
 
-func (m *mockClientCreator) NewSchemaClient(model string) claude.Client {
+func (m *mockClientCreator) NewSchemaClient(model string) llmkit.Client {
 	m.createdModel = model
 	return m.client
 }
@@ -128,7 +140,7 @@ func TestEvaluateAI_Approved(t *testing.T) {
 
 	client := &mockLLMClient{
 		response: approvedResponse(),
-		usage:    claude.TokenUsage{InputTokens: 100, OutputTokens: 50},
+		usage:    llmkit.TokenUsage{InputTokens: 100, OutputTokens: 50},
 	}
 	creator := &mockClientCreator{client: client}
 	lookup := &mockAgentLookup{
@@ -145,8 +157,8 @@ func TestEvaluateAI_Approved(t *testing.T) {
 
 	gate := &Gate{Type: GateAI}
 	opts := &EvaluateOptions{
-		TaskID: "TASK-001",
-		Phase:  "implement",
+		TaskID:  "TASK-001",
+		Phase:   "implement",
 		AgentID: "dep-checker",
 	}
 
@@ -781,7 +793,7 @@ func TestAIGateCostTracking(t *testing.T) {
 
 	client := &mockLLMClient{
 		response: approvedResponse(),
-		usage: claude.TokenUsage{
+		usage: llmkit.TokenUsage{
 			InputTokens:  500,
 			OutputTokens: 100,
 			TotalTokens:  600,

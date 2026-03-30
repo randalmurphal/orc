@@ -30,12 +30,12 @@ type ReviewFinding struct {
 // ReviewFindings represents the output of a review round.
 type ReviewFindings struct {
 	NeedsChanges bool            `json:"needs_changes"` // true = send back to implement, false = approved
-	Round     int             `json:"round"`
-	Summary   string          `json:"summary"`
-	Issues    []ReviewFinding `json:"issues"`
-	Questions []string        `json:"questions,omitempty"`
-	Positives []string        `json:"positives,omitempty"`
-	AgentID   string          `json:"agent_id,omitempty"` // Which agent produced these findings
+	Round        int             `json:"round"`
+	Summary      string          `json:"summary"`
+	Issues       []ReviewFinding `json:"issues"`
+	Questions    []string        `json:"questions,omitempty"`
+	Positives    []string        `json:"positives,omitempty"`
+	AgentID      string          `json:"agent_id,omitempty"` // Which agent produced these findings
 }
 
 // ReviewDecision represents the final decision from a review.
@@ -193,7 +193,7 @@ const (
 // ParseReviewFindings parses JSON review findings from Claude's response.
 func ParseReviewFindings(response string) (*ReviewFindings, error) {
 	var findings ReviewFindings
-	if err := unmarshalWithFallback(response, &findings); err != nil {
+	if err := decodeStructuredJSON(response, &findings); err != nil {
 		return nil, fmt.Errorf("parse review findings JSON: %w", err)
 	}
 
@@ -214,7 +214,7 @@ func ParseReviewFindings(response string) (*ReviewFindings, error) {
 // ParseReviewDecision parses JSON review decision from Claude's response.
 func ParseReviewDecision(response string) (*ReviewDecision, error) {
 	var decision ReviewDecision
-	if err := unmarshalWithFallback(response, &decision); err != nil {
+	if err := decodeStructuredJSON(response, &decision); err != nil {
 		return nil, fmt.Errorf("parse review decision JSON: %w", err)
 	}
 

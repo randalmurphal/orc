@@ -241,6 +241,13 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 	// Store prompt before execution (if transcript handler is configured)
 	if e.transcriptHandler != nil {
 		e.transcriptHandler.StoreUserPrompt(prompt)
+		if err := e.transcriptHandler.Err(); err != nil {
+			return &TurnResult{
+				Duration:  time.Since(start),
+				IsError:   true,
+				ErrorText: err.Error(),
+			}, err
+		}
 	}
 
 	// Build CLI options using consolidated helper, then add JSON schema
@@ -274,10 +281,13 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 	defer watchCancel()
 	watchdog := NewTurnWatchdog(e.inactivityTimeout, watchCancel)
 	watchdog.Start(watchCtx)
-	req.OnEvent = e.wrapClaudeOnEvent(watchdog)
+	req.OnEvent = e.wrapClaudeOnEvent(watchdog, watchCancel)
 
 	resp, err := cli.Complete(watchCtx, req)
 	if err != nil {
+		if transcriptErr := e.transcriptHandler.Err(); transcriptErr != nil {
+			err = transcriptErr
+		}
 		if stallErr := watchdog.Error("claude"); stallErr != nil {
 			err = stallErr
 		}
@@ -286,6 +296,13 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 			IsError:   true,
 			ErrorText: err.Error(),
 		}, fmt.Errorf("claude complete: %w", err)
+	}
+	if transcriptErr := e.transcriptHandler.Err(); transcriptErr != nil {
+		return &TurnResult{
+			Duration:  time.Since(start),
+			IsError:   true,
+			ErrorText: transcriptErr.Error(),
+		}, transcriptErr
 	}
 
 	// Build turn result
@@ -336,6 +353,13 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 	// Store prompt before execution (if transcript handler is configured)
 	if e.transcriptHandler != nil {
 		e.transcriptHandler.StoreUserPrompt(prompt)
+		if err := e.transcriptHandler.Err(); err != nil {
+			return &TurnResult{
+				Duration:  time.Since(start),
+				IsError:   true,
+				ErrorText: err.Error(),
+			}, err
+		}
 	}
 
 	// Build CLI options using consolidated helper (no JSON schema)
@@ -358,10 +382,13 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 	defer watchCancel()
 	watchdog := NewTurnWatchdog(e.inactivityTimeout, watchCancel)
 	watchdog.Start(watchCtx)
-	req.OnEvent = e.wrapClaudeOnEvent(watchdog)
+	req.OnEvent = e.wrapClaudeOnEvent(watchdog, watchCancel)
 
 	resp, err := cli.Complete(watchCtx, req)
 	if err != nil {
+		if transcriptErr := e.transcriptHandler.Err(); transcriptErr != nil {
+			err = transcriptErr
+		}
 		if stallErr := watchdog.Error("claude"); stallErr != nil {
 			err = stallErr
 		}
@@ -370,6 +397,13 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 			IsError:   true,
 			ErrorText: err.Error(),
 		}, fmt.Errorf("claude complete: %w", err)
+	}
+	if transcriptErr := e.transcriptHandler.Err(); transcriptErr != nil {
+		return &TurnResult{
+			Duration:  time.Since(start),
+			IsError:   true,
+			ErrorText: transcriptErr.Error(),
+		}, transcriptErr
 	}
 
 	// Build turn result (no completion parsing - caller handles it)
@@ -458,13 +492,16 @@ func (e *ClaudeExecutor) buildBaseCLIOptions() ([]claude.ClaudeOption, error) {
 	return opts, nil
 }
 
-func (e *ClaudeExecutor) wrapClaudeOnEvent(watchdog *TurnWatchdog) func(claude.StreamEvent) {
+func (e *ClaudeExecutor) wrapClaudeOnEvent(watchdog *TurnWatchdog, cancel context.CancelFunc) func(claude.StreamEvent) {
 	return func(event claude.StreamEvent) {
 		if watchdog != nil {
 			watchdog.RecordActivity()
 		}
 		if e.transcriptHandler != nil {
 			e.transcriptHandler.OnEvent(event)
+			if err := e.transcriptHandler.Err(); err != nil && cancel != nil {
+				cancel()
+			}
 		}
 	}
 }

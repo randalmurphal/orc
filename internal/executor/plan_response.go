@@ -209,7 +209,7 @@ type PlanResponse struct {
 
 func ParsePlanResponse(content string) (*PlanResponse, error) {
 	var resp PlanResponse
-	if err := unmarshalWithFallback(strings.TrimSpace(content), &resp); err != nil {
+	if err := decodeStructuredJSON(content, &resp); err != nil {
 		return nil, fmt.Errorf("invalid plan response JSON: %w", err)
 	}
 

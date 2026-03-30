@@ -2,6 +2,7 @@ package executor
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"sync"
 	"testing"
@@ -16,11 +17,15 @@ type mockTranscriptBackend struct {
 	storage.Backend // embed to satisfy interface
 	mu              sync.Mutex
 	transcripts     []*storage.Transcript
+	addErr          error
 }
 
 func (m *mockTranscriptBackend) AddTranscript(t *storage.Transcript) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.addErr != nil {
+		return m.addErr
+	}
 	m.transcripts = append(m.transcripts, t)
 	return nil
 }
@@ -54,6 +59,20 @@ func (m *mockTranscriptBackend) LoadTask(string) (*orcv1.Task, error) {
 
 func (m *mockTranscriptBackend) SaveTask(*orcv1.Task) error {
 	return nil
+}
+
+func TestTranscriptStreamHandler_RecordsPersistenceError(t *testing.T) {
+	backend := &mockTranscriptBackend{addErr: errors.New("db offline")}
+	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "implement", "sess-1", "run-1", "gpt-5", nil, nil)
+
+	h.StoreUserPrompt("prompt")
+
+	if err := h.Err(); err == nil {
+		t.Fatal("expected transcript handler error after failed persistence")
+	}
+	if got := backend.Count(); got != 0 {
+		t.Fatalf("expected no stored transcripts after failure, got %d", got)
+	}
 }
 
 func TestStoreAssistantText_Basic(t *testing.T) {

@@ -1,8 +1,10 @@
 package executor
 
 import (
+	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 
 	llmkit "github.com/randalmurphal/llmkit/v2"
@@ -189,6 +191,53 @@ func TestCheckResumeSession_ErrorsOnInvalidStoredMetadata(t *testing.T) {
 	}
 }
 
+func TestClaudeAdapter_PrepareExecution_FailsWhenSessionMetadataPersistenceFails(t *testing.T) {
+	t.Parallel()
+
+	tsk := task.NewProtoTask("TASK-CLAUDE-SESSION", "claude session save failure")
+	adapter := &claudeAdapter{}
+	we := &WorkflowExecutor{
+		task:    tsk,
+		backend: &failingSessionMetadataBackend{saveErr: errors.New("save failed")},
+		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	_, err := adapter.PrepareExecution(&PhaseExecutionConfig{
+		Prompt:   "do work",
+		PhaseID:  "implement",
+		Provider: ProviderClaude,
+	}, we)
+	if err == nil {
+		t.Fatal("expected claude session metadata persistence failure")
+	}
+	if got := err.Error(); got == "" || !strings.Contains(got, "persist claude session metadata") {
+		t.Fatalf("error = %v, want claude session persistence failure", err)
+	}
+}
+
+func TestCodexAdapter_PostTurn_FailsWhenSessionMetadataPersistenceFails(t *testing.T) {
+	t.Parallel()
+
+	tsk := task.NewProtoTask("TASK-CODEX-SESSION", "codex session save failure")
+	adapter := &codexAdapter{}
+	we := &WorkflowExecutor{
+		task:    tsk,
+		backend: &failingSessionMetadataBackend{saveErr: errors.New("save failed")},
+		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	err := adapter.PostTurn(&TurnResult{SessionID: "codex-session-123"}, nil, &PhaseExecutionConfig{
+		PhaseID:  "implement",
+		Provider: ProviderCodex,
+	}, we)
+	if err == nil {
+		t.Fatal("expected codex session metadata persistence failure")
+	}
+	if got := err.Error(); got == "" || !strings.Contains(got, "persist codex session metadata") {
+		t.Fatalf("error = %v, want codex session persistence failure", err)
+	}
+}
+
 func mustSessionMetadata(t *testing.T, provider, sessionID string) string {
 	t.Helper()
 	metadata, err := llmkit.MarshalSessionMetadata(llmkit.SessionMetadataForID(provider, sessionID))
@@ -196,4 +245,13 @@ func mustSessionMetadata(t *testing.T, provider, sessionID string) string {
 		t.Fatalf("marshal session metadata: %v", err)
 	}
 	return metadata
+}
+
+type failingSessionMetadataBackend struct {
+	storage.Backend
+	saveErr error
+}
+
+func (b *failingSessionMetadataBackend) SaveTask(*orcv1.Task) error {
+	return b.saveErr
 }

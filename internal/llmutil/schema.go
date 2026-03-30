@@ -4,16 +4,15 @@ package llmutil
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
-	"github.com/randalmurphal/llmkit/v2/claude"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 )
 
 // SchemaResult holds the parsed JSON response with metadata.
 type SchemaResult[T any] struct {
 	Data     T
-	Response *claude.CompletionResponse
+	Response *llmkit.Response
 }
 
 // ExecuteWithSchema is the ONLY way to make schema-constrained LLM calls.
@@ -31,7 +30,7 @@ type SchemaResult[T any] struct {
 //   - JSON parsing fails
 func ExecuteWithSchema[T any](
 	ctx context.Context,
-	client claude.Client,
+	client llmkit.Client,
 	prompt string,
 	schema string,
 ) (*SchemaResult[T], error) {
@@ -39,33 +38,12 @@ func ExecuteWithSchema[T any](
 		return nil, fmt.Errorf("schema is required for ExecuteWithSchema")
 	}
 
-	resp, err := client.Complete(ctx, claude.CompletionRequest{
-		Messages:   []claude.Message{{Role: claude.RoleUser, Content: prompt}},
-		JSONSchema: schema,
+	typed, err := llmkit.CompleteTyped[T](ctx, client, llmkit.Request{
+		Messages:   []llmkit.Message{{Role: llmkit.RoleUser, Content: prompt}},
+		JSONSchema: []byte(schema),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("schema execution failed: %w", err)
 	}
-
-	// Check for empty content before JSON parsing
-	if resp.Content == "" {
-		return nil, fmt.Errorf("empty response content from API (model may have returned no output)")
-	}
-
-	// Strict parsing - no fallbacks
-	var result T
-	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-		return nil, fmt.Errorf("schema response parse failed (content=%q): %w",
-			truncateForError(resp.Content, 200), err)
-	}
-
-	return &SchemaResult[T]{Data: result, Response: resp}, nil
-}
-
-// truncateForError truncates content for error messages.
-func truncateForError(content string, maxLen int) string {
-	if len(content) <= maxLen {
-		return content
-	}
-	return content[:maxLen] + "...[truncated]"
+	return &SchemaResult[T]{Data: typed.Value, Response: typed.Response}, nil
 }

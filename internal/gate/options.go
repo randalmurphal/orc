@@ -3,14 +3,14 @@ package gate
 import (
 	"log/slog"
 
-	"github.com/randalmurphal/llmkit/v2/claude"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	"github.com/randalmurphal/orc/internal/db"
 )
 
-// LLMClientCreator creates claude.Client instances for AI gate evaluation.
+// LLMClientCreator creates llmkit clients for AI gate evaluation.
 // This interface breaks the import cycle between gate and executor packages.
 type LLMClientCreator interface {
-	NewSchemaClient(model string) claude.Client
+	NewSchemaClient(model string) llmkit.Client
 }
 
 // AgentLookup retrieves agents by ID. Implemented by db.ProjectDB.
