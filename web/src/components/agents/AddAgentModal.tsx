@@ -7,7 +7,7 @@
  * - Model selector (optional)
  * - System prompt for executor role (optional)
  * - Sub-agent prompt for delegation role (optional)
- * - Claude config JSON (optional)
+ * - Runtime config JSON (optional)
  * - Tools multi-select (optional)
  * - Creates agent via configClient.createAgent()
  *
@@ -54,7 +54,7 @@ export function AddAgentModal({ open, onClose, onCreate }: AddAgentModalProps) {
 	const [model, setModel] = useState('');
 	const [systemPrompt, setSystemPrompt] = useState(''); // For executor role
 	const [prompt, setPrompt] = useState(''); // For sub-agent role
-	const [claudeConfig, setClaudeConfig] = useState(''); // JSON config
+	const [runtimeConfig, setRuntimeConfig] = useState(''); // JSON config
 	const [selectedTools, setSelectedTools] = useState<string[]>(['Read', 'Grep', 'Glob']);
 	const [saving, setSaving] = useState(false);
 
@@ -66,7 +66,7 @@ export function AddAgentModal({ open, onClose, onCreate }: AddAgentModalProps) {
 			setModel('');
 			setSystemPrompt('');
 			setPrompt('');
-			setClaudeConfig('');
+			setRuntimeConfig('');
 			setSelectedTools(['Read', 'Grep', 'Glob']);
 		}
 	}, [open]);
@@ -87,12 +87,12 @@ export function AddAgentModal({ open, onClose, onCreate }: AddAgentModalProps) {
 			return;
 		}
 
-		// Validate claude config JSON if provided
-		if (claudeConfig.trim()) {
+		// Validate runtime config JSON if provided
+		if (runtimeConfig.trim()) {
 			try {
-				JSON.parse(claudeConfig.trim());
+				JSON.parse(runtimeConfig.trim());
 			} catch {
-				toast.error('Claude config must be valid JSON');
+				toast.error('Runtime config must be valid JSON');
 				return;
 			}
 		}
@@ -108,7 +108,7 @@ export function AddAgentModal({ open, onClose, onCreate }: AddAgentModalProps) {
 				model: model || undefined,
 				systemPrompt: systemPrompt.trim() || undefined,
 				prompt: prompt.trim() || undefined,
-				claudeConfig: claudeConfig.trim() || undefined,
+				runtimeConfig: runtimeConfig.trim() || undefined,
 				tools: selectedTools.length > 0 ? { allow: selectedTools } : undefined,
 			});
 
@@ -122,7 +122,7 @@ export function AddAgentModal({ open, onClose, onCreate }: AddAgentModalProps) {
 		} finally {
 			setSaving(false);
 		}
-	}, [name, description, model, systemPrompt, prompt, claudeConfig, selectedTools, onCreate, onClose]);
+	}, [name, description, model, systemPrompt, prompt, runtimeConfig, selectedTools, onCreate, onClose]);
 
 	// Handle Enter key on simple inputs (not textarea)
 	const handleKeyDown = useCallback(
@@ -234,18 +234,18 @@ export function AddAgentModal({ open, onClose, onCreate }: AddAgentModalProps) {
 					</span>
 				</div>
 
-				{/* Claude Config - advanced JSON */}
+				{/* Runtime Config - advanced JSON */}
 				<div className="form-group">
-					<label htmlFor="new-agent-config">Claude Config (optional JSON)</label>
+					<label htmlFor="new-agent-config">Runtime Config (optional JSON)</label>
 					<textarea
 						id="new-agent-config"
-						value={claudeConfig}
-						onChange={(e) => setClaudeConfig(e.target.value)}
+						value={runtimeConfig}
+						onChange={(e) => setRuntimeConfig(e.target.value)}
 						placeholder='{"append_system_prompt": "..."}'
 						rows={2}
 					/>
 					<span className="form-hint">
-						Advanced: JSON configuration for Claude API settings
+						Advanced: JSON runtime configuration for the executor
 					</span>
 				</div>
 

@@ -32,13 +32,13 @@ The current orc code areas most directly affected by this redesign are:
 - `internal/executor/phase_response.go`
 - `internal/task/execution_helpers.go`
 - `internal/task/proto_helpers.go`
-- DB/schema/model code referencing `claude_config`
+- DB/schema/model code referencing `runtime_config`
 
 Expected deletions during the cutover:
 
 - unsupported-provider handling for `ollama` and `lmstudio`
-- `PhaseClaudeConfig`
-- `claude_config` / `claude_config_override` naming
+- `PhaseRuntimeConfig`
+- `runtime_config` / `runtime_config_override` naming
 - orc-local harness file mutation once llmkit owns preparation
 - provider-specific malformed-output fallback in orc
 - duplicated generic structured-output helpers in orc once llmkit v2 covers them
@@ -81,7 +81,7 @@ If llmkit later grows additional runtime providers, they are not automatically s
 
 ### 1. The config model is Claude-shaped but cross-provider in behavior
 
-`PhaseClaudeConfig` currently contains Codex settings. That causes naming drift and hides which fields are shared vs provider-specific.
+`PhaseRuntimeConfig` currently contains Codex settings. That causes naming drift and hides which fields are shared vs provider-specific.
 
 ### 2. Runtime selection and provider support are partly hardcoded
 
@@ -241,9 +241,9 @@ Replace Claude-centric naming with provider-neutral naming.
 
 Current direction:
 
-- `claude_config`
-- `claude_config_override`
-- `PhaseClaudeConfig`
+- `runtime_config`
+- `runtime_config_override`
+- `PhaseRuntimeConfig`
 
 Target direction:
 

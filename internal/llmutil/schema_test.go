@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/llmkit/v2/claude"
 )
 
 // mockSchemaClient implements claude.Client for testing.

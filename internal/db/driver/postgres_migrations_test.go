@@ -1207,7 +1207,7 @@ func TestPostgresMigrations_ProjectColumnsMatch_041_056(t *testing.T) {
 		// CREATE TABLE in 056
 		"initiative_notes",
 		// ALTER TABLE ADD COLUMN only (CREATE TABLE in earlier migrations)
-		"agents",             // 045: system_prompt, claude_config
+		"agents",             // 045: system_prompt, runtime_config
 		"phase_templates",    // 045: agent_id, sub_agents; 048: gate_input_config, gate_output_config, gate_mode, gate_agent_id
 		"workflow_variables", // 046: extract
 		"tasks",              // 047: branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set

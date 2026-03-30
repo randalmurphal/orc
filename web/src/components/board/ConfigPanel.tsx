@@ -1,5 +1,5 @@
 /**
- * ConfigPanel component for right panel showing Claude Code configuration quick links.
+ * ConfigPanel component for right panel showing workspace configuration quick links.
  *
  * Displays a cyan-themed collapsible section with links to:
  * - Slash Commands (with count badge)
@@ -95,7 +95,7 @@ const CONFIG_LINKS: ConfigLink[] = [
 ];
 
 /**
- * ConfigPanel displays Claude Code configuration quick links in the right panel.
+ * ConfigPanel displays workspace configuration quick links in the right panel.
  */
 export function ConfigPanel({ config }: ConfigPanelProps) {
 	const navigate = useNavigate();
@@ -126,7 +126,7 @@ export function ConfigPanel({ config }: ConfigPanelProps) {
 					<div className="panel-title-icon cyan">
 						<Icon name="code" size={12} />
 					</div>
-					<span>Claude Config</span>
+					<span>Workspace Config</span>
 				</div>
 				<Icon
 					name={collapsed ? 'chevron-right' : 'chevron-down'}

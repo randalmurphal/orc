@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
@@ -218,7 +219,11 @@ func TestApplyResumeStateUpdatesProto_OrphanedTaskSetsRetryState(t *testing.T) {
 	task.SetCurrentPhaseProto(tk, "implement_codex")
 	task.EnsurePhaseProto(tk.Execution, "implement_codex")
 	sessionID := "codex-session-123"
-	tk.Execution.Phases["implement_codex"].SessionId = &sessionID
+	sessionMetadata, err := llmkit.MarshalSessionMetadata(llmkit.SessionMetadataForID("codex", sessionID))
+	if err != nil {
+		t.Fatalf("marshal session metadata: %v", err)
+	}
+	tk.Execution.Phases["implement_codex"].SessionMetadata = &sessionMetadata
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}

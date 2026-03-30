@@ -49,8 +49,8 @@ message Transcript {
   string phase = 2;
   // Iteration number
   int32 iteration = 3;
-  // Session ID
-  optional string session_id = 4;
+  // JSON-encoded llmkit session metadata
+  optional string session_metadata = 4;
   // Model used
   optional string model = 5;
   // Transcript entries

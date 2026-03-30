@@ -1,10 +1,10 @@
 -- Unified Agent-Phase System Migration
 -- Agents can now be used as main executors, not just sub-agents.
--- Phase template config (system_prompt, model_override, claude_config) moves to agents.
+-- Phase template config (system_prompt, model_override, runtime_config) moves to agents.
 
 -- Step 1: Add new columns to agents table
 ALTER TABLE agents ADD COLUMN system_prompt TEXT;    -- For executor role
-ALTER TABLE agents ADD COLUMN claude_config TEXT;    -- JSON: additional claude settings
+ALTER TABLE agents ADD COLUMN runtime_config TEXT;   -- JSON: additional runtime settings
 
 -- Step 2: Add new columns to phase_templates
 ALTER TABLE phase_templates ADD COLUMN agent_id TEXT REFERENCES agents(id);
@@ -16,7 +16,7 @@ ALTER TABLE workflow_phases ADD COLUMN sub_agents_override TEXT;  -- JSON array 
 
 -- Step 4: Create executor agents from existing phase template config
 -- Each phase template that has executor config becomes its own executor agent
-INSERT INTO agents (id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at)
+INSERT INTO agents (id, name, description, prompt, tools, model, system_prompt, runtime_config, is_builtin, created_at, updated_at)
 SELECT
     'executor-' || id,
     name || '-executor',
@@ -25,7 +25,7 @@ SELECT
     '[]', -- tools will be inherited from phase requirements
     model_override,
     system_prompt,
-    claude_config,
+    runtime_config,
     TRUE,  -- is_builtin = true for migrated agents
     NOW(),
     NOW()

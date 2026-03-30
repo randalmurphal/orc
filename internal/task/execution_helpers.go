@@ -157,7 +157,7 @@ func ResetPhaseProto(e *orcv1.ExecutionState, phaseID string) {
 	e.Phases[phaseID].Error = nil
 	e.Phases[phaseID].CompletedAt = nil
 	e.Phases[phaseID].InterruptedAt = nil
-	e.Phases[phaseID].SessionId = nil // Clear session so retry starts fresh with full prompt
+	e.Phases[phaseID].SessionMetadata = nil // Clear session so retry starts fresh with full prompt
 	e.Phases[phaseID].Tokens = &orcv1.TokenUsage{}
 	recomputeExecutionTokensProto(e)
 }
@@ -200,13 +200,13 @@ func AddCostProto(e *orcv1.ExecutionState, currentPhase string, costUSD float64)
 	}
 }
 
-// SetPhaseSessionIDProto stores the session ID for a specific phase.
-func SetPhaseSessionIDProto(e *orcv1.ExecutionState, phaseID, sessionID string) {
+// SetPhaseSessionMetadataProto stores opaque llmkit session metadata for a specific phase.
+func SetPhaseSessionMetadataProto(e *orcv1.ExecutionState, phaseID, sessionMetadata string) {
 	if e == nil {
 		return
 	}
 	EnsurePhaseProto(e, phaseID)
-	e.Phases[phaseID].SessionId = &sessionID
+	e.Phases[phaseID].SessionMetadata = &sessionMetadata
 }
 
 // SetPhaseTokensProto stores token usage for a specific phase and recomputes task totals.

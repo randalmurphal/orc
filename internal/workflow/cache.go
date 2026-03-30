@@ -447,7 +447,7 @@ func workflowPhaseToDBPhase(pt *PhaseTemplate, source Source) *db.PhaseTemplate 
 		Checkpoint:       pt.Checkpoint,
 		RetryFromPhase:   pt.RetryFromPhase,
 		RetryPromptPath:  pt.RetryPromptPath,
-		ClaudeConfig:     pt.ClaudeConfig,
+		RuntimeConfig:     pt.RuntimeConfig,
 		Provider:         pt.Provider,
 		IsBuiltin:        source == SourceEmbedded,
 		CreatedAt:        pt.CreatedAt,
@@ -481,8 +481,8 @@ func workflowPhaseToDBWorkflowPhase(wp *WorkflowPhase) *db.WorkflowPhase {
 	if wp.GateTypeOverride != "" {
 		dbPhase.GateTypeOverride = string(wp.GateTypeOverride)
 	}
-	if wp.ClaudeConfigOverride != "" {
-		dbPhase.ClaudeConfigOverride = wp.ClaudeConfigOverride
+	if wp.RuntimeConfigOverride != "" {
+		dbPhase.RuntimeConfigOverride = wp.RuntimeConfigOverride
 	}
 	dbPhase.PositionX = wp.PositionX
 	dbPhase.PositionY = wp.PositionY

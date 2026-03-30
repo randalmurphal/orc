@@ -266,7 +266,7 @@ func marshalWorkflowYAML(workflow *Workflow) ([]byte, error) {
 			DependsOn:            p.DependsOn,
 			ModelOverride:        p.ModelOverride,
 			ProviderOverride:     p.ProviderOverride,
-			ClaudeConfigOverride: p.ClaudeConfigOverride,
+			RuntimeConfigOverride: p.RuntimeConfigOverride,
 			Condition:            p.Condition,
 		}
 		if p.ThinkingOverride != nil {

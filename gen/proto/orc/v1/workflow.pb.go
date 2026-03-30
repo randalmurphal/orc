@@ -387,7 +387,7 @@ type PhaseTemplate struct {
 	Checkpoint      bool                   `protobuf:"varint,15,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
 	RetryFromPhase  *string                `protobuf:"bytes,16,opt,name=retry_from_phase,json=retryFromPhase,proto3,oneof" json:"retry_from_phase,omitempty"`
 	RetryPromptPath *string                `protobuf:"bytes,17,opt,name=retry_prompt_path,json=retryPromptPath,proto3,oneof" json:"retry_prompt_path,omitempty"`
-	ClaudeConfig    *string                `protobuf:"bytes,18,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // Per-phase settings (hooks, MCP, skills, env) - JSON PhaseClaudeConfig
+	RuntimeConfig   *string                `protobuf:"bytes,18,opt,name=runtime_config,json=runtimeConfig,proto3,oneof" json:"runtime_config,omitempty"` // Per-phase settings (hooks, MCP, skills, env) - JSON PhaseRuntimeConfig
 	IsBuiltin       bool                   `protobuf:"varint,19,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
 	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
@@ -395,7 +395,7 @@ type PhaseTemplate struct {
 	AgentId       *string  `protobuf:"bytes,22,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`                     // Executor agent reference
 	SubAgentIds   []string `protobuf:"bytes,23,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"`             // Sub-agent references
 	OutputVarName *string  `protobuf:"bytes,24,opt,name=output_var_name,json=outputVarName,proto3,oneof" json:"output_var_name,omitempty"` // Variable name for phase output (e.g., 'SPEC_CONTENT')
-	Provider      *string  `protobuf:"bytes,25,opt,name=provider,proto3,oneof" json:"provider,omitempty"`                                  // LLM provider override: "claude", "codex", "ollama"
+	Provider      *string  `protobuf:"bytes,25,opt,name=provider,proto3,oneof" json:"provider,omitempty"`                                  // LLM provider override: "claude", "codex"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -535,9 +535,9 @@ func (x *PhaseTemplate) GetRetryPromptPath() string {
 	return ""
 }
 
-func (x *PhaseTemplate) GetClaudeConfig() string {
-	if x != nil && x.ClaudeConfig != nil {
-		return *x.ClaudeConfig
+func (x *PhaseTemplate) GetRuntimeConfig() string {
+	if x != nil && x.RuntimeConfig != nil {
+		return *x.RuntimeConfig
 	}
 	return ""
 }
@@ -604,7 +604,7 @@ type Workflow struct {
 	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	CompletionAction *string                `protobuf:"bytes,11,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit from config)
 	TargetBranch     *string                `protobuf:"bytes,12,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`             // Default PR target branch for this workflow, or "" (inherit from config)
-	DefaultProvider  *string                `protobuf:"bytes,14,opt,name=default_provider,json=defaultProvider,proto3,oneof" json:"default_provider,omitempty"`    // Default LLM provider: "claude", "codex", "ollama"
+	DefaultProvider  *string                `protobuf:"bytes,14,opt,name=default_provider,json=defaultProvider,proto3,oneof" json:"default_provider,omitempty"`    // Default LLM provider: "claude", "codex"
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -724,24 +724,24 @@ func (x *Workflow) GetDefaultProvider() string {
 }
 
 type WorkflowPhase struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Id                   int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	WorkflowId           string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	PhaseTemplateId      string                 `protobuf:"bytes,3,opt,name=phase_template_id,json=phaseTemplateId,proto3" json:"phase_template_id,omitempty"`
-	Sequence             int32                  `protobuf:"varint,4,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	DependsOn            []string               `protobuf:"bytes,5,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	ModelOverride        *string                `protobuf:"bytes,7,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`           // Can still override model at workflow level
-	ThinkingOverride     *bool                  `protobuf:"varint,8,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"` // Phase-level thinking override
-	GateTypeOverride     *GateType              `protobuf:"varint,9,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
-	Condition            *string                `protobuf:"bytes,10,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
-	ClaudeConfigOverride *string                `protobuf:"bytes,11,opt,name=claude_config_override,json=claudeConfigOverride,proto3,oneof" json:"claude_config_override,omitempty"` // Can still override claude config
-	PositionX            *float64               `protobuf:"fixed64,12,opt,name=position_x,json=positionX,proto3,oneof" json:"position_x,omitempty"`
-	PositionY            *float64               `protobuf:"fixed64,13,opt,name=position_y,json=positionY,proto3,oneof" json:"position_y,omitempty"`
-	LoopConfig           *string                `protobuf:"bytes,14,opt,name=loop_config,json=loopConfig,proto3,oneof" json:"loop_config,omitempty"`
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Id                    int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	WorkflowId            string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	PhaseTemplateId       string                 `protobuf:"bytes,3,opt,name=phase_template_id,json=phaseTemplateId,proto3" json:"phase_template_id,omitempty"`
+	Sequence              int32                  `protobuf:"varint,4,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	DependsOn             []string               `protobuf:"bytes,5,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	ModelOverride         *string                `protobuf:"bytes,7,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`           // Can still override model at workflow level
+	ThinkingOverride      *bool                  `protobuf:"varint,8,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"` // Phase-level thinking override
+	GateTypeOverride      *GateType              `protobuf:"varint,9,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
+	Condition             *string                `protobuf:"bytes,10,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
+	RuntimeConfigOverride *string                `protobuf:"bytes,11,opt,name=runtime_config_override,json=runtimeConfigOverride,proto3,oneof" json:"runtime_config_override,omitempty"` // Per-workflow runtime config override
+	PositionX             *float64               `protobuf:"fixed64,12,opt,name=position_x,json=positionX,proto3,oneof" json:"position_x,omitempty"`
+	PositionY             *float64               `protobuf:"fixed64,13,opt,name=position_y,json=positionY,proto3,oneof" json:"position_y,omitempty"`
+	LoopConfig            *string                `protobuf:"bytes,14,opt,name=loop_config,json=loopConfig,proto3,oneof" json:"loop_config,omitempty"`
 	// NEW: Agent overrides
 	AgentOverride     *string        `protobuf:"bytes,15,opt,name=agent_override,json=agentOverride,proto3,oneof" json:"agent_override,omitempty"`          // Override executor agent
 	SubAgentsOverride []string       `protobuf:"bytes,16,rep,name=sub_agents_override,json=subAgentsOverride,proto3" json:"sub_agents_override,omitempty"`  // Override sub-agents
-	ProviderOverride  *string        `protobuf:"bytes,17,opt,name=provider_override,json=providerOverride,proto3,oneof" json:"provider_override,omitempty"` // Override LLM provider: "claude", "codex", "ollama"
+	ProviderOverride  *string        `protobuf:"bytes,17,opt,name=provider_override,json=providerOverride,proto3,oneof" json:"provider_override,omitempty"` // Override LLM provider: "claude", "codex"
 	Template          *PhaseTemplate `protobuf:"bytes,100,opt,name=template,proto3" json:"template,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -840,9 +840,9 @@ func (x *WorkflowPhase) GetCondition() string {
 	return ""
 }
 
-func (x *WorkflowPhase) GetClaudeConfigOverride() string {
-	if x != nil && x.ClaudeConfigOverride != nil {
-		return *x.ClaudeConfigOverride
+func (x *WorkflowPhase) GetRuntimeConfigOverride() string {
+	if x != nil && x.RuntimeConfigOverride != nil {
+		return *x.RuntimeConfigOverride
 	}
 	return ""
 }
@@ -1367,7 +1367,7 @@ type WorkflowRunPhase struct {
 	CostUsd         float64                `protobuf:"fixed64,11,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
 	Content         *string                `protobuf:"bytes,12,opt,name=content,proto3,oneof" json:"content,omitempty"`
 	Error           *string                `protobuf:"bytes,13,opt,name=error,proto3,oneof" json:"error,omitempty"`
-	SessionId       *string                `protobuf:"bytes,14,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
+	SessionMetadata *string                `protobuf:"bytes,14,opt,name=session_metadata,json=sessionMetadata,proto3,oneof" json:"session_metadata,omitempty"`
 	Template        *PhaseTemplate         `protobuf:"bytes,100,opt,name=template,proto3" json:"template,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -1494,9 +1494,9 @@ func (x *WorkflowRunPhase) GetError() string {
 	return ""
 }
 
-func (x *WorkflowRunPhase) GetSessionId() string {
-	if x != nil && x.SessionId != nil {
-		return *x.SessionId
+func (x *WorkflowRunPhase) GetSessionMetadata() string {
+	if x != nil && x.SessionMetadata != nil {
+		return *x.SessionMetadata
 	}
 	return ""
 }
@@ -1795,7 +1795,7 @@ type CreateWorkflowRequest struct {
 	BasedOn          *string                `protobuf:"bytes,7,opt,name=based_on,json=basedOn,proto3,oneof" json:"based_on,omitempty"`
 	CompletionAction *string                `protobuf:"bytes,8,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit from config)
 	TargetBranch     *string                `protobuf:"bytes,9,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`             // Default PR target branch for this workflow
-	DefaultProvider  *string                `protobuf:"bytes,10,opt,name=default_provider,json=defaultProvider,proto3,oneof" json:"default_provider,omitempty"`   // Default LLM provider: "claude", "codex", "ollama"
+	DefaultProvider  *string                `protobuf:"bytes,10,opt,name=default_provider,json=defaultProvider,proto3,oneof" json:"default_provider,omitempty"`   // Default LLM provider: "claude", "codex"
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1946,7 +1946,7 @@ type UpdateWorkflowRequest struct {
 	DefaultThinking  *bool                  `protobuf:"varint,5,opt,name=default_thinking,json=defaultThinking,proto3,oneof" json:"default_thinking,omitempty"`
 	CompletionAction *string                `protobuf:"bytes,6,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit from config)
 	TargetBranch     *string                `protobuf:"bytes,7,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`             // Default PR target branch for this workflow
-	DefaultProvider  *string                `protobuf:"bytes,9,opt,name=default_provider,json=defaultProvider,proto3,oneof" json:"default_provider,omitempty"`    // Default LLM provider: "claude", "codex", "ollama"
+	DefaultProvider  *string                `protobuf:"bytes,9,opt,name=default_provider,json=defaultProvider,proto3,oneof" json:"default_provider,omitempty"`    // Default LLM provider: "claude", "codex"
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -2287,9 +2287,9 @@ type AddPhaseRequest struct {
 	AgentOverride     *string  `protobuf:"bytes,10,opt,name=agent_override,json=agentOverride,proto3,oneof" json:"agent_override,omitempty"`         // Override executor agent
 	SubAgentsOverride []string `protobuf:"bytes,11,rep,name=sub_agents_override,json=subAgentsOverride,proto3" json:"sub_agents_override,omitempty"` // Override sub-agents
 	// Claude configuration override (JSON)
-	ClaudeConfigOverride *string `protobuf:"bytes,12,opt,name=claude_config_override,json=claudeConfigOverride,proto3,oneof" json:"claude_config_override,omitempty"`
+	RuntimeConfigOverride *string `protobuf:"bytes,12,opt,name=runtime_config_override,json=runtimeConfigOverride,proto3,oneof" json:"runtime_config_override,omitempty"`
 	// Provider override
-	ProviderOverride *string `protobuf:"bytes,13,opt,name=provider_override,json=providerOverride,proto3,oneof" json:"provider_override,omitempty"` // Override LLM provider: "claude", "codex", "ollama"
+	ProviderOverride *string `protobuf:"bytes,13,opt,name=provider_override,json=providerOverride,proto3,oneof" json:"provider_override,omitempty"` // Override LLM provider: "claude", "codex"
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -2394,9 +2394,9 @@ func (x *AddPhaseRequest) GetSubAgentsOverride() []string {
 	return nil
 }
 
-func (x *AddPhaseRequest) GetClaudeConfigOverride() string {
-	if x != nil && x.ClaudeConfigOverride != nil {
-		return *x.ClaudeConfigOverride
+func (x *AddPhaseRequest) GetRuntimeConfigOverride() string {
+	if x != nil && x.RuntimeConfigOverride != nil {
+		return *x.RuntimeConfigOverride
 	}
 	return ""
 }
@@ -2467,11 +2467,11 @@ type UpdatePhaseRequest struct {
 	SubAgentsOverride    []string `protobuf:"bytes,11,rep,name=sub_agents_override,json=subAgentsOverride,proto3" json:"sub_agents_override,omitempty"`                   // Override sub-agents
 	SubAgentsOverrideSet *bool    `protobuf:"varint,13,opt,name=sub_agents_override_set,json=subAgentsOverrideSet,proto3,oneof" json:"sub_agents_override_set,omitempty"` // True = update sub_agents (even if empty)
 	// Claude configuration override (JSON)
-	ClaudeConfigOverride *string `protobuf:"bytes,12,opt,name=claude_config_override,json=claudeConfigOverride,proto3,oneof" json:"claude_config_override,omitempty"`
+	RuntimeConfigOverride *string `protobuf:"bytes,12,opt,name=runtime_config_override,json=runtimeConfigOverride,proto3,oneof" json:"runtime_config_override,omitempty"`
 	// Loop configuration (JSON)
 	LoopConfig *string `protobuf:"bytes,14,opt,name=loop_config,json=loopConfig,proto3,oneof" json:"loop_config,omitempty"`
 	// Provider override
-	ProviderOverride *string `protobuf:"bytes,15,opt,name=provider_override,json=providerOverride,proto3,oneof" json:"provider_override,omitempty"` // Override LLM provider: "claude", "codex", "ollama"
+	ProviderOverride *string `protobuf:"bytes,15,opt,name=provider_override,json=providerOverride,proto3,oneof" json:"provider_override,omitempty"` // Override LLM provider: "claude", "codex"
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -2583,9 +2583,9 @@ func (x *UpdatePhaseRequest) GetSubAgentsOverrideSet() bool {
 	return false
 }
 
-func (x *UpdatePhaseRequest) GetClaudeConfigOverride() string {
-	if x != nil && x.ClaudeConfigOverride != nil {
-		return *x.ClaudeConfigOverride
+func (x *UpdatePhaseRequest) GetRuntimeConfigOverride() string {
+	if x != nil && x.RuntimeConfigOverride != nil {
+		return *x.RuntimeConfigOverride
 	}
 	return ""
 }
@@ -3362,10 +3362,10 @@ type CreatePhaseTemplateRequest struct {
 	Checkpoint      bool     `protobuf:"varint,14,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
 	AgentId         *string  `protobuf:"bytes,15,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`                     // Executor agent reference
 	SubAgentIds     []string `protobuf:"bytes,16,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"`             // Sub-agent references
-	ClaudeConfig    *string  `protobuf:"bytes,17,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"`      // Per-phase settings JSON
+	RuntimeConfig   *string  `protobuf:"bytes,17,opt,name=runtime_config,json=runtimeConfig,proto3,oneof" json:"runtime_config,omitempty"`   // Per-phase settings JSON
 	OutputVarName   *string  `protobuf:"bytes,18,opt,name=output_var_name,json=outputVarName,proto3,oneof" json:"output_var_name,omitempty"` // Variable name for phase output
 	InputVariables  []string `protobuf:"bytes,19,rep,name=input_variables,json=inputVariables,proto3" json:"input_variables,omitempty"`      // Input variable names used by this template
-	Provider        *string  `protobuf:"bytes,20,opt,name=provider,proto3,oneof" json:"provider,omitempty"`                                  // LLM provider: "claude", "codex", "ollama"
+	Provider        *string  `protobuf:"bytes,20,opt,name=provider,proto3,oneof" json:"provider,omitempty"`                                  // LLM provider: "claude", "codex"
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3498,9 +3498,9 @@ func (x *CreatePhaseTemplateRequest) GetSubAgentIds() []string {
 	return nil
 }
 
-func (x *CreatePhaseTemplateRequest) GetClaudeConfig() string {
-	if x != nil && x.ClaudeConfig != nil {
-		return *x.ClaudeConfig
+func (x *CreatePhaseTemplateRequest) GetRuntimeConfig() string {
+	if x != nil && x.RuntimeConfig != nil {
+		return *x.RuntimeConfig
 	}
 	return ""
 }
@@ -3587,10 +3587,10 @@ type UpdatePhaseTemplateRequest struct {
 	Checkpoint      *bool     `protobuf:"varint,14,opt,name=checkpoint,proto3,oneof" json:"checkpoint,omitempty"`
 	AgentId         *string   `protobuf:"bytes,15,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`                     // Executor agent reference
 	SubAgentIds     []string  `protobuf:"bytes,16,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"`             // Sub-agent references
-	ClaudeConfig    *string   `protobuf:"bytes,17,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"`      // Per-phase settings JSON
+	RuntimeConfig   *string   `protobuf:"bytes,17,opt,name=runtime_config,json=runtimeConfig,proto3,oneof" json:"runtime_config,omitempty"`   // Per-phase settings JSON
 	OutputVarName   *string   `protobuf:"bytes,18,opt,name=output_var_name,json=outputVarName,proto3,oneof" json:"output_var_name,omitempty"` // Variable name for phase output
 	InputVariables  []string  `protobuf:"bytes,19,rep,name=input_variables,json=inputVariables,proto3" json:"input_variables,omitempty"`      // Input variable names
-	Provider        *string   `protobuf:"bytes,20,opt,name=provider,proto3,oneof" json:"provider,omitempty"`                                  // LLM provider: "claude", "codex", "ollama"
+	Provider        *string   `protobuf:"bytes,20,opt,name=provider,proto3,oneof" json:"provider,omitempty"`                                  // LLM provider: "claude", "codex"
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3723,9 +3723,9 @@ func (x *UpdatePhaseTemplateRequest) GetSubAgentIds() []string {
 	return nil
 }
 
-func (x *UpdatePhaseTemplateRequest) GetClaudeConfig() string {
-	if x != nil && x.ClaudeConfig != nil {
-		return *x.ClaudeConfig
+func (x *UpdatePhaseTemplateRequest) GetRuntimeConfig() string {
+	if x != nil && x.RuntimeConfig != nil {
+		return *x.RuntimeConfig
 	}
 	return ""
 }
@@ -5617,7 +5617,7 @@ var File_orc_v1_workflow_proto protoreflect.FileDescriptor
 
 const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\n" +
-	"\x15orc/v1/workflow.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\x1a\x11orc/v1/task.proto\"\x9e\t\n" +
+	"\x15orc/v1/workflow.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\x1a\x11orc/v1/task.proto\"\xa1\t\n" +
 	"\rPhaseTemplate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -5637,8 +5637,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"checkpoint\x18\x0f \x01(\bR\n" +
 	"checkpoint\x12-\n" +
 	"\x10retry_from_phase\x18\x10 \x01(\tH\x06R\x0eretryFromPhase\x88\x01\x01\x12/\n" +
-	"\x11retry_prompt_path\x18\x11 \x01(\tH\aR\x0fretryPromptPath\x88\x01\x01\x12(\n" +
-	"\rclaude_config\x18\x12 \x01(\tH\bR\fclaudeConfig\x88\x01\x01\x12\x1d\n" +
+	"\x11retry_prompt_path\x18\x11 \x01(\tH\aR\x0fretryPromptPath\x88\x01\x01\x12*\n" +
+	"\x0eruntime_config\x18\x12 \x01(\tH\bR\rruntimeConfig\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"is_builtin\x18\x13 \x01(\bR\tisBuiltin\x129\n" +
 	"\n" +
@@ -5657,8 +5657,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0e_artifact_typeB\x13\n" +
 	"\x11_thinking_enabledB\x13\n" +
 	"\x11_retry_from_phaseB\x14\n" +
-	"\x12_retry_prompt_pathB\x10\n" +
-	"\x0e_claude_configB\v\n" +
+	"\x12_retry_prompt_pathB\x11\n" +
+	"\x0f_runtime_configB\v\n" +
 	"\t_agent_idB\x12\n" +
 	"\x10_output_var_nameB\v\n" +
 	"\t_providerJ\x04\b\v\x10\f\"\xe3\x04\n" +
@@ -5684,7 +5684,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\t_based_onB\x14\n" +
 	"\x12_completion_actionB\x10\n" +
 	"\x0e_target_branchB\x13\n" +
-	"\x11_default_providerJ\x04\b\x04\x10\x05J\x04\b\r\x10\x0e\"\x9d\a\n" +
+	"\x11_default_providerJ\x04\b\x04\x10\x05J\x04\b\r\x10\x0e\"\xa0\a\n" +
 	"\rWorkflowPhase\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -5697,8 +5697,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x11thinking_override\x18\b \x01(\bH\x01R\x10thinkingOverride\x88\x01\x01\x12C\n" +
 	"\x12gate_type_override\x18\t \x01(\x0e2\x10.orc.v1.GateTypeH\x02R\x10gateTypeOverride\x88\x01\x01\x12!\n" +
 	"\tcondition\x18\n" +
-	" \x01(\tH\x03R\tcondition\x88\x01\x01\x129\n" +
-	"\x16claude_config_override\x18\v \x01(\tH\x04R\x14claudeConfigOverride\x88\x01\x01\x12\"\n" +
+	" \x01(\tH\x03R\tcondition\x88\x01\x01\x12;\n" +
+	"\x17runtime_config_override\x18\v \x01(\tH\x04R\x15runtimeConfigOverride\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"position_x\x18\f \x01(\x01H\x05R\tpositionX\x88\x01\x01\x12\"\n" +
 	"\n" +
@@ -5713,8 +5713,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x12_thinking_overrideB\x15\n" +
 	"\x13_gate_type_overrideB\f\n" +
 	"\n" +
-	"_conditionB\x19\n" +
-	"\x17_claude_config_overrideB\r\n" +
+	"_conditionB\x1a\n" +
+	"\x18_runtime_config_overrideB\r\n" +
 	"\v_position_xB\r\n" +
 	"\v_position_yB\x0e\n" +
 	"\f_loop_configB\x11\n" +
@@ -5795,7 +5795,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0e_current_phaseB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_atB\b\n" +
-	"\x06_error\"\xb3\x05\n" +
+	"\x06_error\"\xc5\x05\n" +
 	"\x10WorkflowRunPhase\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12&\n" +
 	"\x0fworkflow_run_id\x18\x02 \x01(\tR\rworkflowRunId\x12*\n" +
@@ -5814,17 +5814,16 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	" \x01(\x05R\foutputTokens\x12\x19\n" +
 	"\bcost_usd\x18\v \x01(\x01R\acostUsd\x12\x1d\n" +
 	"\acontent\x18\f \x01(\tH\x03R\acontent\x88\x01\x01\x12\x19\n" +
-	"\x05error\x18\r \x01(\tH\x04R\x05error\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"session_id\x18\x0e \x01(\tH\x05R\tsessionId\x88\x01\x01\x121\n" +
+	"\x05error\x18\r \x01(\tH\x04R\x05error\x88\x01\x01\x12.\n" +
+	"\x10session_metadata\x18\x0e \x01(\tH\x05R\x0fsessionMetadata\x88\x01\x01\x121\n" +
 	"\btemplate\x18d \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplateB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_atB\r\n" +
 	"\v_commit_shaB\n" +
 	"\n" +
 	"\b_contentB\b\n" +
-	"\x06_errorB\r\n" +
-	"\v_session_id\"\x9f\x01\n" +
+	"\x06_errorB\x13\n" +
+	"\x11_session_metadata\"\x9f\x01\n" +
 	"\x16WorkflowRunWithDetails\x12%\n" +
 	"\x03run\x18\x01 \x01(\v2\x13.orc.v1.WorkflowRunR\x03run\x12,\n" +
 	"\bworkflow\x18\x02 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\x120\n" +
@@ -5896,7 +5895,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\bnew_name\x18\x03 \x01(\tH\x00R\anewName\x88\x01\x01B\v\n" +
 	"\t_new_name\"E\n" +
 	"\x15CloneWorkflowResponse\x12,\n" +
-	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\xc0\x05\n" +
+	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\xc3\x05\n" +
 	"\x0fAddPhaseRequest\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12*\n" +
@@ -5910,19 +5909,19 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\tcondition\x18\t \x01(\tH\x03R\tcondition\x88\x01\x01\x12*\n" +
 	"\x0eagent_override\x18\n" +
 	" \x01(\tH\x04R\ragentOverride\x88\x01\x01\x12.\n" +
-	"\x13sub_agents_override\x18\v \x03(\tR\x11subAgentsOverride\x129\n" +
-	"\x16claude_config_override\x18\f \x01(\tH\x05R\x14claudeConfigOverride\x88\x01\x01\x120\n" +
+	"\x13sub_agents_override\x18\v \x03(\tR\x11subAgentsOverride\x12;\n" +
+	"\x17runtime_config_override\x18\f \x01(\tH\x05R\x15runtimeConfigOverride\x88\x01\x01\x120\n" +
 	"\x11provider_override\x18\r \x01(\tH\x06R\x10providerOverride\x88\x01\x01B\x11\n" +
 	"\x0f_model_overrideB\x14\n" +
 	"\x12_thinking_overrideB\x15\n" +
 	"\x13_gate_type_overrideB\f\n" +
 	"\n" +
 	"_conditionB\x11\n" +
-	"\x0f_agent_overrideB\x19\n" +
-	"\x17_claude_config_overrideB\x14\n" +
+	"\x0f_agent_overrideB\x1a\n" +
+	"\x18_runtime_config_overrideB\x14\n" +
 	"\x12_provider_overrideJ\x04\b\x05\x10\x06\"?\n" +
 	"\x10AddPhaseResponse\x12+\n" +
-	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"\xd2\x06\n" +
+	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"\xd5\x06\n" +
 	"\x12UpdatePhaseRequest\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12\x19\n" +
@@ -5937,8 +5936,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0eagent_override\x18\n" +
 	" \x01(\tH\x05R\ragentOverride\x88\x01\x01\x12.\n" +
 	"\x13sub_agents_override\x18\v \x03(\tR\x11subAgentsOverride\x12:\n" +
-	"\x17sub_agents_override_set\x18\r \x01(\bH\x06R\x14subAgentsOverrideSet\x88\x01\x01\x129\n" +
-	"\x16claude_config_override\x18\f \x01(\tH\aR\x14claudeConfigOverride\x88\x01\x01\x12$\n" +
+	"\x17sub_agents_override_set\x18\r \x01(\bH\x06R\x14subAgentsOverrideSet\x88\x01\x01\x12;\n" +
+	"\x17runtime_config_override\x18\f \x01(\tH\aR\x15runtimeConfigOverride\x88\x01\x01\x12$\n" +
 	"\vloop_config\x18\x0e \x01(\tH\bR\n" +
 	"loopConfig\x88\x01\x01\x120\n" +
 	"\x11provider_override\x18\x0f \x01(\tH\tR\x10providerOverride\x88\x01\x01B\v\n" +
@@ -5949,8 +5948,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\n" +
 	"_conditionB\x11\n" +
 	"\x0f_agent_overrideB\x1a\n" +
-	"\x18_sub_agents_override_setB\x19\n" +
-	"\x17_claude_config_overrideB\x0e\n" +
+	"\x18_sub_agents_override_setB\x1a\n" +
+	"\x18_runtime_config_overrideB\x0e\n" +
 	"\f_loop_configB\x14\n" +
 	"\x12_provider_overrideJ\x04\b\x05\x10\x06\"B\n" +
 	"\x13UpdatePhaseResponse\x12+\n" +
@@ -6016,7 +6015,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x17GetPhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"M\n" +
 	"\x18GetPhaseTemplateResponse\x121\n" +
-	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\x8b\a\n" +
+	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\x8e\a\n" +
 	"\x1aCreatePhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -6034,8 +6033,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"checkpoint\x18\x0e \x01(\bR\n" +
 	"checkpoint\x12\x1e\n" +
 	"\bagent_id\x18\x0f \x01(\tH\x06R\aagentId\x88\x01\x01\x12\"\n" +
-	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIds\x12(\n" +
-	"\rclaude_config\x18\x11 \x01(\tH\aR\fclaudeConfig\x88\x01\x01\x12+\n" +
+	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIds\x12*\n" +
+	"\x0eruntime_config\x18\x11 \x01(\tH\aR\rruntimeConfig\x88\x01\x01\x12+\n" +
 	"\x0foutput_var_name\x18\x12 \x01(\tH\bR\routputVarName\x88\x01\x01\x12'\n" +
 	"\x0finput_variables\x18\x13 \x03(\tR\x0einputVariables\x12\x1f\n" +
 	"\bprovider\x18\x14 \x01(\tH\tR\bprovider\x88\x01\x01B\x0e\n" +
@@ -6045,13 +6044,13 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0e_output_schemaB\x10\n" +
 	"\x0e_artifact_typeB\x13\n" +
 	"\x11_thinking_enabledB\v\n" +
-	"\t_agent_idB\x10\n" +
-	"\x0e_claude_configB\x12\n" +
+	"\t_agent_idB\x11\n" +
+	"\x0f_runtime_configB\x12\n" +
 	"\x10_output_var_nameB\v\n" +
 	"\t_providerJ\x04\b\n" +
 	"\x10\v\"P\n" +
 	"\x1bCreatePhaseTemplateResponse\x121\n" +
-	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xf2\a\n" +
+	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xf5\a\n" +
 	"\x1aUpdatePhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -6070,8 +6069,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"R\n" +
 	"checkpoint\x88\x01\x01\x12\x1e\n" +
 	"\bagent_id\x18\x0f \x01(\tH\vR\aagentId\x88\x01\x01\x12\"\n" +
-	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIds\x12(\n" +
-	"\rclaude_config\x18\x11 \x01(\tH\fR\fclaudeConfig\x88\x01\x01\x12+\n" +
+	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIds\x12*\n" +
+	"\x0eruntime_config\x18\x11 \x01(\tH\fR\rruntimeConfig\x88\x01\x01\x12+\n" +
 	"\x0foutput_var_name\x18\x12 \x01(\tH\rR\routputVarName\x88\x01\x01\x12'\n" +
 	"\x0finput_variables\x18\x13 \x03(\tR\x0einputVariables\x12\x1f\n" +
 	"\bprovider\x18\x14 \x01(\tH\x0eR\bprovider\x88\x01\x01B\a\n" +
@@ -6087,8 +6086,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\n" +
 	"_gate_typeB\r\n" +
 	"\v_checkpointB\v\n" +
-	"\t_agent_idB\x10\n" +
-	"\x0e_claude_configB\x12\n" +
+	"\t_agent_idB\x11\n" +
+	"\x0f_runtime_configB\x12\n" +
 	"\x10_output_var_nameB\v\n" +
 	"\t_providerJ\x04\b\n" +
 	"\x10\v\"P\n" +

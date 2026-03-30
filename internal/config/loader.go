@@ -668,16 +668,6 @@ func mergeProvidersConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]i
 			tc.SetSourceWithPath("providers.codex.reasoning_effort", source, path)
 		}
 	}
-	if rawOllama, ok := raw["ollama"].(map[string]interface{}); ok {
-		if _, ok := rawOllama["base_url"]; ok {
-			cfg.Providers.Ollama.BaseURL = fileCfg.Providers.Ollama.BaseURL
-			tc.SetSourceWithPath("providers.ollama.base_url", source, path)
-		}
-		if _, ok := rawOllama["default_model"]; ok {
-			cfg.Providers.Ollama.DefaultModel = fileCfg.Providers.Ollama.DefaultModel
-			tc.SetSourceWithPath("providers.ollama.default_model", source, path)
-		}
-	}
 	if _, ok := raw["rates"]; ok {
 		cfg.Providers.Rates = fileCfg.Providers.Rates
 		tc.SetSourceWithPath("providers.rates", source, path)
@@ -714,7 +704,6 @@ func markDefaults(tc *TrackedConfig) {
 		"database.postgres.pool_max",
 		"brief.max_tokens", "brief.stale_threshold",
 		"providers.codex.path", "providers.codex.reasoning_effort",
-		"providers.ollama.base_url", "providers.ollama.default_model",
 		"providers.rates",
 	}
 

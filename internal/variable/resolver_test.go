@@ -243,7 +243,7 @@ func TestControlPlaneVariables(t *testing.T) {
 	t.Parallel()
 
 	resolver := NewResolver(t.TempDir())
-	providers := []string{"claude", "codex", "ollama"}
+	providers := []string{"claude", "codex"}
 
 	for _, provider := range providers {
 		provider := provider

@@ -3,6 +3,7 @@ package executor
 import (
 	"encoding/json"
 	"log/slog"
+	"sync"
 	"testing"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -13,12 +14,38 @@ import (
 // Only AddTranscript is used; other methods panic via the embedded interface.
 type mockTranscriptBackend struct {
 	storage.Backend // embed to satisfy interface
+	mu              sync.Mutex
 	transcripts     []*storage.Transcript
 }
 
 func (m *mockTranscriptBackend) AddTranscript(t *storage.Transcript) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.transcripts = append(m.transcripts, t)
 	return nil
+}
+
+func (m *mockTranscriptBackend) Count() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.transcripts)
+}
+
+func (m *mockTranscriptBackend) Transcript(i int) *storage.Transcript {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if i < 0 || i >= len(m.transcripts) {
+		return nil
+	}
+	return m.transcripts[i]
+}
+
+func (m *mockTranscriptBackend) Snapshot() []*storage.Transcript {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]*storage.Transcript, len(m.transcripts))
+	copy(out, m.transcripts)
+	return out
 }
 
 func (m *mockTranscriptBackend) LoadTask(string) (*orcv1.Task, error) {

@@ -1057,9 +1057,8 @@ type HostingConfig struct {
 
 // ProvidersConfig defines provider-specific defaults.
 type ProvidersConfig struct {
-	Codex  CodexProviderConfig                      `yaml:"codex,omitempty"`
-	Ollama OllamaProviderConfig                     `yaml:"ollama,omitempty"`
-	Rates  map[string]map[string]ProviderRateConfig `yaml:"rates,omitempty"`
+	Codex CodexProviderConfig                      `yaml:"codex,omitempty"`
+	Rates map[string]map[string]ProviderRateConfig `yaml:"rates,omitempty"`
 }
 
 // CodexProviderConfig defines default Codex CLI settings.
@@ -1068,12 +1067,6 @@ type ProvidersConfig struct {
 type CodexProviderConfig struct {
 	Path            string `yaml:"path,omitempty"`
 	ReasoningEffort string `yaml:"reasoning_effort,omitempty"`
-}
-
-// OllamaProviderConfig defines local Ollama defaults.
-type OllamaProviderConfig struct {
-	BaseURL      string `yaml:"base_url,omitempty"`
-	DefaultModel string `yaml:"default_model,omitempty"`
 }
 
 // ProviderRateConfig defines per-1M-token pricing in USD for a provider/model.
@@ -1403,9 +1396,6 @@ var (
 
 	// DefaultProtectedBranches are branches that cannot be directly merged to
 	DefaultProtectedBranches = []string{"main", "master", "develop", "release"}
-
-	// ValidLLMProviders are the allowed values for provider (LLM execution provider)
-	ValidLLMProviders = []string{"claude", "codex", "ollama", "lmstudio", ""}
 
 	// ValidHostingProviders are the allowed values for hosting.provider
 	ValidHostingProviders = []string{"auto", "github", "gitlab", ""}

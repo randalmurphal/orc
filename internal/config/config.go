@@ -181,7 +181,7 @@ type Config struct {
 	Automation AutomationConfig `yaml:"automation"`
 
 	// Provider is the default LLM provider for all phases (default: "claude")
-	// Supported: "claude", "codex", "ollama"
+	// Supported: "claude", "codex"
 	Provider string `yaml:"provider,omitempty"`
 
 	// Providers contains provider-specific defaults.
@@ -932,8 +932,8 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate LLM provider
-	if c.Provider != "" && !contains(ValidLLMProviders, c.Provider) {
-		return fmt.Errorf("invalid provider: %s (must be one of: claude, codex, ollama, lmstudio)",
+	if !IsValidLLMProvider(c.Provider) {
+		return fmt.Errorf("invalid provider: %s (must be one of: claude, codex)",
 			c.Provider)
 	}
 

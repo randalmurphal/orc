@@ -249,7 +249,7 @@ func TestExecuteJudge_ThinkingConfig(t *testing.T) {
 	opus := judges[0]
 	codex := judges[1]
 
-	// Opus: Thinking=true should result in ClaudeConfig.Env["MAX_THINKING_TOKENS"]
+	// Opus: Thinking=true should result in RuntimeConfig.Env["MAX_THINKING_TOKENS"]
 	if !opus.Thinking {
 		t.Fatal("opus judge must have Thinking=true")
 	}

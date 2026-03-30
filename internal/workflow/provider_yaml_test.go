@@ -36,7 +36,7 @@ name: Phase Provider Test
 phases:
   - template: implement
     sequence: 1
-    provider_override: ollama
+    provider_override: codex
   - template: review
     sequence: 2
 `)
@@ -45,7 +45,7 @@ phases:
 	require.NoError(t, err)
 
 	require.Len(t, wf.Phases, 2)
-	assert.Equal(t, "ollama", wf.Phases[0].ProviderOverride)
+	assert.Equal(t, "codex", wf.Phases[0].ProviderOverride)
 	assert.Equal(t, "", wf.Phases[1].ProviderOverride)
 }
 
@@ -61,7 +61,7 @@ phases:
     sequence: 1
   - template: implement
     sequence: 2
-    provider_override: ollama
+    provider_override: codex
   - template: review
     sequence: 3
     provider_override: claude
@@ -73,7 +73,7 @@ phases:
 	assert.Equal(t, "codex", wf.DefaultProvider)
 	require.Len(t, wf.Phases, 3)
 	assert.Equal(t, "", wf.Phases[0].ProviderOverride)
-	assert.Equal(t, "ollama", wf.Phases[1].ProviderOverride)
+	assert.Equal(t, "codex", wf.Phases[1].ProviderOverride)
 	assert.Equal(t, "claude", wf.Phases[2].ProviderOverride)
 }
 
@@ -123,7 +123,7 @@ func TestProviderYAML_RoundTrip_Workflow(t *testing.T) {
 			{
 				PhaseTemplateID:  "spec",
 				Sequence:         1,
-				ProviderOverride: "ollama",
+				ProviderOverride: "codex",
 			},
 			{
 				PhaseTemplateID: "implement",
@@ -147,7 +147,7 @@ func TestProviderYAML_RoundTrip_Workflow(t *testing.T) {
 
 	assert.Equal(t, original.DefaultProvider, parsed.DefaultProvider)
 	require.Len(t, parsed.Phases, 3)
-	assert.Equal(t, "ollama", parsed.Phases[0].ProviderOverride)
+	assert.Equal(t, "codex", parsed.Phases[0].ProviderOverride)
 	assert.Equal(t, "", parsed.Phases[1].ProviderOverride)
 	assert.Equal(t, "claude", parsed.Phases[2].ProviderOverride)
 }
@@ -160,7 +160,7 @@ func TestProviderYAML_RoundTrip_Phase(t *testing.T) {
 		Name:         "Test Phase",
 		PromptSource: PromptSourceEmbedded,
 		GateType:     GateAuto,
-		Provider:     "ollama",
+		Provider:     "codex",
 	}
 
 	// Write to YAML
@@ -171,7 +171,7 @@ func TestProviderYAML_RoundTrip_Phase(t *testing.T) {
 	parsed, err := parsePhaseYAML(data)
 	require.NoError(t, err)
 
-	assert.Equal(t, "ollama", parsed.Provider)
+	assert.Equal(t, "codex", parsed.Provider)
 }
 
 func TestProviderYAML_PhaseTemplate_EmptyProviderOmitted(t *testing.T) {
@@ -298,22 +298,22 @@ phases:
 	assert.Equal(t, "", wf.Phases[0].ProviderOverride)
 }
 
-func TestProviderYAML_ClaudeConfigOverride(t *testing.T) {
+func TestProviderYAML_RuntimeConfigOverride(t *testing.T) {
 	t.Parallel()
 
 	yamlData := []byte(`
 id: test-claude-config-override
-name: Claude Config Override Test
+name: Runtime Config Override Test
 phases:
   - template: review_cross
     sequence: 1
     provider_override: codex
     model_override: gpt-5.4
-    claude_config_override: '{"codex":{"reasoning_effort":"xhigh"}}'
+    runtime_config_override: '{"codex":{"reasoning_effort":"xhigh"}}'
 `)
 
 	wf, err := parseWorkflowYAML(yamlData)
 	require.NoError(t, err)
 	require.Len(t, wf.Phases, 1)
-	assert.Equal(t, `{"codex":{"reasoning_effort":"xhigh"}}`, wf.Phases[0].ClaudeConfigOverride)
+	assert.Equal(t, `{"codex":{"reasoning_effort":"xhigh"}}`, wf.Phases[0].RuntimeConfigOverride)
 }

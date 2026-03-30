@@ -11,7 +11,7 @@
  * - SC-6: Inline prompt editor renders `{{VARIABLE}}` patterns with visual highlighting
  * - SC-7: Input Variables tag input accepts variable names and shows suggestions
  * - SC-8: Output Variable Name field accepts input and is sent to API
- * - SC-9: Claude Config section renders same 7 collapsible sections as EditPhaseTemplateModal
+ * - SC-9: Runtime Config section renders same 7 collapsible sections as EditPhaseTemplateModal
  * - SC-10: Created template contains all configured values when retrieved via API
  *
  * Failure Modes:
@@ -37,7 +37,7 @@ import userEvent from '@testing-library/user-event';
 import { CreatePhaseTemplateModal } from './CreatePhaseTemplateModal';
 import { create } from '@bufbuild/protobuf';
 import { ListHooksResponseSchema, ListSkillsResponseSchema, ListAgentsResponseSchema } from '@/gen/orc/v1/config_pb';
-import { ListMCPServersResponseSchema } from '@/gen/orc/v1/mcp_pb';
+import { GetMCPServerResponseSchema, ListMCPServersResponseSchema, MCPServerSchema } from '@/gen/orc/v1/mcp_pb';
 import { CreatePhaseTemplateResponseSchema, PromptSource } from '@/gen/orc/v1/workflow_pb';
 import {
 	createMockPhaseTemplate,
@@ -58,6 +58,7 @@ vi.mock('@/lib/client', () => ({
 	},
 	mcpClient: {
 		listMCPServers: vi.fn(),
+		getMCPServer: vi.fn(),
 	},
 }));
 
@@ -91,6 +92,19 @@ function setupMocks() {
 	vi.mocked(configClient.listHooks).mockResolvedValue(create(ListHooksResponseSchema, { hooks: mockHooks }));
 	vi.mocked(configClient.listSkills).mockResolvedValue(create(ListSkillsResponseSchema, { skills: mockSkills }));
 	vi.mocked(mcpClient.listMCPServers).mockResolvedValue(create(ListMCPServersResponseSchema, { servers: mockMCPServers }));
+	vi.mocked(mcpClient.getMCPServer).mockImplementation(async (request) =>
+		create(GetMCPServerResponseSchema, {
+			server: create(MCPServerSchema, {
+				name: request.name,
+				type: 'stdio',
+				command: 'npx fs-server',
+				args: [],
+				env: {},
+				headers: [],
+				disabled: false,
+			}),
+		}),
+	);
 }
 
 /**
@@ -876,8 +890,8 @@ describe('CreatePhaseTemplateModal', () => {
 		});
 	});
 
-	describe('SC-9: Claude Config section renders same 7 collapsible sections as EditPhaseTemplateModal', () => {
-		it('renders all 7 Claude Config section headers', async () => {
+	describe('SC-9: Runtime Config section renders same 7 collapsible sections as EditPhaseTemplateModal', () => {
+		it('renders all 7 Runtime Config section headers', async () => {
 			render(
 				<CreatePhaseTemplateModal
 					open={true}
@@ -936,7 +950,7 @@ describe('CreatePhaseTemplateModal', () => {
 	});
 
 	describe('SC-10: Created template contains all configured values', () => {
-		it('sends all configured values to API including claude_config', async () => {
+		it('sends all configured values to API including runtime_config', async () => {
 			const user = userEvent.setup();
 
 			vi.mocked(workflowClient.createPhaseTemplate).mockResolvedValue(

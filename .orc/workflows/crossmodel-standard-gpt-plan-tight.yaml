@@ -36,7 +36,7 @@ phases:
     depends_on: ["review"]
     provider_override: codex
     model_override: gpt-5.4
-    claude_config_override: '{"codex":{"reasoning_effort":"xhigh"}}'
+    runtime_config_override: '{"providers":{"codex":{"reasoning_effort":"xhigh"}}}'
     loop_config:
       loop_to_phase: implement_codex
       condition:

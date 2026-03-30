@@ -35,8 +35,8 @@ CREATE INDEX IF NOT EXISTS idx_phase_templates_builtin ON phase_templates(is_bui
 -- INSERT trigger function (handles upsert)
 CREATE OR REPLACE FUNCTION agents_insert_fn() RETURNS trigger AS $$
 BEGIN
-    INSERT INTO _agents_storage (id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at)
-    VALUES (NEW.id, NEW.name, NEW.description, NEW.prompt, NEW.tools, NEW.model, NEW.system_prompt, NEW.claude_config, NEW.is_builtin,
+    INSERT INTO _agents_storage (id, name, description, prompt, tools, model, system_prompt, runtime_config, is_builtin, created_at, updated_at)
+    VALUES (NEW.id, NEW.name, NEW.description, NEW.prompt, NEW.tools, NEW.model, NEW.system_prompt, NEW.runtime_config, NEW.is_builtin,
             COALESCE(NEW.created_at, NOW()), COALESCE(NEW.updated_at, NOW()))
     ON CONFLICT(id) DO UPDATE SET
         name = EXCLUDED.name,
@@ -45,7 +45,7 @@ BEGIN
         tools = EXCLUDED.tools,
         model = EXCLUDED.model,
         system_prompt = EXCLUDED.system_prompt,
-        claude_config = EXCLUDED.claude_config,
+        runtime_config = EXCLUDED.runtime_config,
         is_builtin = EXCLUDED.is_builtin,
         updated_at = EXCLUDED.updated_at;
     RETURN NEW;
@@ -66,7 +66,7 @@ BEGIN
         tools = NEW.tools,
         model = NEW.model,
         system_prompt = NEW.system_prompt,
-        claude_config = NEW.claude_config,
+        runtime_config = NEW.runtime_config,
         is_builtin = NEW.is_builtin,
         updated_at = COALESCE(NEW.updated_at, NOW())
     WHERE id = OLD.id;

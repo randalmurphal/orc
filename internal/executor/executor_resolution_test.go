@@ -230,26 +230,27 @@ func TestResolvePhaseModel(t *testing.T) {
 	})
 }
 
-func TestGetEffectivePhaseClaudeConfig(t *testing.T) {
+func TestGetEffectivePhaseRuntimeConfig(t *testing.T) {
 	t.Run("returns nil when no agent or override configured", func(t *testing.T) {
 		env := setupTestExecutor(t, nil)
 
 		tmpl := &db.PhaseTemplate{ID: "implement"}
 		phase := &db.WorkflowPhase{}
 
-		cfg := env.executor.getEffectivePhaseClaudeConfig(tmpl, phase)
+		cfg, err := env.executor.getEffectivePhaseRuntimeConfig(tmpl, phase)
+		require.NoError(t, err)
 
 		// Function returns nil when config is empty (no special configuration)
 		assert.Nil(t, cfg)
 	})
 
-	t.Run("loads agent claude config", func(t *testing.T) {
+	t.Run("loads agent runtime config", func(t *testing.T) {
 		env := setupTestExecutor(t, nil)
 
 		testAgent := &db.Agent{
-			ID:           "review-executor",
-			Name:         "Review Executor",
-			ClaudeConfig: `{"disallowed_tools": ["Write", "Edit"]}`,
+			ID:            "review-executor",
+			Name:          "Review Executor",
+			RuntimeConfig: `{"shared":{"disallowed_tools":["Write","Edit"]}}`,
 		}
 		require.NoError(t, env.projectDB.SaveAgent(testAgent))
 
@@ -259,19 +260,20 @@ func TestGetEffectivePhaseClaudeConfig(t *testing.T) {
 		}
 		phase := &db.WorkflowPhase{}
 
-		cfg := env.executor.getEffectivePhaseClaudeConfig(tmpl, phase)
+		cfg, err := env.executor.getEffectivePhaseRuntimeConfig(tmpl, phase)
+		require.NoError(t, err)
 
 		require.NotNil(t, cfg)
-		assert.ElementsMatch(t, []string{"Write", "Edit"}, cfg.DisallowedTools)
+		assert.ElementsMatch(t, []string{"Write", "Edit"}, cfg.Shared.DisallowedTools)
 	})
 
 	t.Run("merges workflow phase override with agent config", func(t *testing.T) {
 		env := setupTestExecutor(t, nil)
 
 		testAgent := &db.Agent{
-			ID:           "impl-executor",
-			Name:         "Implementation Executor",
-			ClaudeConfig: `{"max_turns": 50}`,
+			ID:            "impl-executor",
+			Name:          "Implementation Executor",
+			RuntimeConfig: `{"shared":{"max_turns":50}}`,
 		}
 		require.NoError(t, env.projectDB.SaveAgent(testAgent))
 
@@ -280,23 +282,24 @@ func TestGetEffectivePhaseClaudeConfig(t *testing.T) {
 			AgentID: "impl-executor",
 		}
 		phase := &db.WorkflowPhase{
-			ClaudeConfigOverride: `{"disallowed_tools": ["NotebookEdit"]}`,
+			RuntimeConfigOverride: `{"shared":{"disallowed_tools":["NotebookEdit"]}}`,
 		}
 
-		cfg := env.executor.getEffectivePhaseClaudeConfig(tmpl, phase)
+		cfg, err := env.executor.getEffectivePhaseRuntimeConfig(tmpl, phase)
+		require.NoError(t, err)
 
 		require.NotNil(t, cfg)
-		assert.Equal(t, 50, cfg.MaxTurns)                               // From agent
-		assert.ElementsMatch(t, []string{"NotebookEdit"}, cfg.DisallowedTools) // From override
+		assert.Equal(t, 50, cfg.Shared.MaxTurns)                                      // From agent
+		assert.ElementsMatch(t, []string{"NotebookEdit"}, cfg.Shared.DisallowedTools) // From override
 	})
 
 	t.Run("workflow override takes precedence on conflict", func(t *testing.T) {
 		env := setupTestExecutor(t, nil)
 
 		testAgent := &db.Agent{
-			ID:           "impl-executor",
-			Name:         "Implementation Executor",
-			ClaudeConfig: `{"max_turns": 50, "disallowed_tools": ["Bash"]}`,
+			ID:            "impl-executor",
+			Name:          "Implementation Executor",
+			RuntimeConfig: `{"shared":{"max_turns":50,"disallowed_tools":["Bash"]}}`,
 		}
 		require.NoError(t, env.projectDB.SaveAgent(testAgent))
 
@@ -305,24 +308,25 @@ func TestGetEffectivePhaseClaudeConfig(t *testing.T) {
 			AgentID: "impl-executor",
 		}
 		phase := &db.WorkflowPhase{
-			ClaudeConfigOverride: `{"disallowed_tools": ["Write", "Edit"]}`,
+			RuntimeConfigOverride: `{"shared":{"disallowed_tools":["Write","Edit"]}}`,
 		}
 
-		cfg := env.executor.getEffectivePhaseClaudeConfig(tmpl, phase)
+		cfg, err := env.executor.getEffectivePhaseRuntimeConfig(tmpl, phase)
+		require.NoError(t, err)
 
 		require.NotNil(t, cfg)
-		assert.Equal(t, 50, cfg.MaxTurns) // Preserved from agent
+		assert.Equal(t, 50, cfg.Shared.MaxTurns) // Preserved from agent
 		// Override replaces disallowed_tools completely
-		assert.ElementsMatch(t, []string{"Write", "Edit"}, cfg.DisallowedTools)
+		assert.ElementsMatch(t, []string{"Write", "Edit"}, cfg.Shared.DisallowedTools)
 	})
 
 	t.Run("works with empty phase (no overrides)", func(t *testing.T) {
 		env := setupTestExecutor(t, nil)
 
 		testAgent := &db.Agent{
-			ID:           "impl-executor",
-			Name:         "Implementation Executor",
-			ClaudeConfig: `{"max_turns": 50}`,
+			ID:            "impl-executor",
+			Name:          "Implementation Executor",
+			RuntimeConfig: `{"shared":{"max_turns":50}}`,
 		}
 		require.NoError(t, env.projectDB.SaveAgent(testAgent))
 
@@ -333,10 +337,11 @@ func TestGetEffectivePhaseClaudeConfig(t *testing.T) {
 		// Phase with no overrides still uses agent config
 		phase := &db.WorkflowPhase{}
 
-		cfg := env.executor.getEffectivePhaseClaudeConfig(tmpl, phase)
+		cfg, err := env.executor.getEffectivePhaseRuntimeConfig(tmpl, phase)
+		require.NoError(t, err)
 
 		require.NotNil(t, cfg)
-		assert.Equal(t, 50, cfg.MaxTurns)
+		assert.Equal(t, 50, cfg.Shared.MaxTurns)
 	})
 }
 
@@ -706,7 +711,7 @@ func TestResolvePhaseProvider(t *testing.T) {
 
 	t.Run("run-level provider is highest priority", func(t *testing.T) {
 		cfg := config.Default()
-		cfg.Provider = "ollama"
+		cfg.Provider = "codex"
 		env := setupTestExecutor(t, cfg)
 		env.executor.runProvider = "codex"
 
@@ -745,7 +750,7 @@ func TestResolvePhaseProvider(t *testing.T) {
 
 	t.Run("full priority chain: run-level > phase override > workflow > template > agent > config > model tuple", func(t *testing.T) {
 		cfg := config.Default()
-		cfg.Provider = "ollama"
+		cfg.Provider = "codex"
 		env := setupTestExecutor(t, cfg)
 
 		testAgent := &db.Agent{
@@ -759,7 +764,7 @@ func TestResolvePhaseProvider(t *testing.T) {
 			ID:              "test-workflow",
 			DefaultProvider: "codex",
 		}
-		env.executor.runProvider = "lmstudio"
+		env.executor.runProvider = "codex"
 
 		tmpl := &db.PhaseTemplate{ID: "implement", AgentID: "impl-executor", Provider: "codex"}
 		phase := &db.WorkflowPhase{
@@ -769,7 +774,7 @@ func TestResolvePhaseProvider(t *testing.T) {
 
 		// Run-level override wins over everything
 		provider := env.executor.resolvePhaseProvider(tmpl, phase)
-		assert.Equal(t, "lmstudio", provider)
+		assert.Equal(t, "codex", provider)
 
 		// Remove run-level — phase override wins
 		env.executor.runProvider = ""
@@ -795,7 +800,7 @@ func TestResolvePhaseProvider(t *testing.T) {
 		testAgent.Provider = ""
 		require.NoError(t, env.projectDB.SaveAgent(testAgent))
 		provider = env.executor.resolvePhaseProvider(tmpl, phase)
-		assert.Equal(t, "ollama", provider)
+		assert.Equal(t, "codex", provider)
 
 		// Remove config provider — model tuple fallback wins
 		env.executor.orcConfig.Provider = ""

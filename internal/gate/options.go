@@ -3,7 +3,7 @@ package gate
 import (
 	"log/slog"
 
-	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/llmkit/v2/claude"
 	"github.com/randalmurphal/orc/internal/db"
 )
 

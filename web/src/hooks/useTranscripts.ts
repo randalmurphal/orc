@@ -101,13 +101,28 @@ function flattenEntry(
 	transcript: ProtoTranscript,
 	index: number
 ): FlatTranscriptEntry {
+	let sessionID = '';
+	if (transcript.sessionMetadata) {
+		try {
+			const parsed = JSON.parse(transcript.sessionMetadata) as { data?: unknown };
+			if (parsed.data) {
+				const payload = typeof parsed.data === 'string'
+					? JSON.parse(parsed.data) as { session_id?: string; id?: string }
+					: parsed.data as { session_id?: string; id?: string };
+				sessionID = payload.session_id ?? payload.id ?? '';
+			}
+		} catch {
+			sessionID = '';
+		}
+	}
+
 	return {
 		// Generate unique ID from phase/iteration/index
 		id: generateEntryId(transcript.phase, transcript.iteration, index),
 		task_id: transcript.taskId,
 		phase: transcript.phase,
 		iteration: transcript.iteration,
-		session_id: transcript.sessionId ?? '',
+		session_id: sessionID,
 		type: entry.type,
 		content: entry.content,
 		model: transcript.model,

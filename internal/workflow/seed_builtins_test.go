@@ -10,8 +10,8 @@ import (
 )
 
 // Tests for SC-3: SeedBuiltins calls SeedHookScripts so hook scripts are available in GlobalDB.
-// Tests for SC-5: tdd_write phase template YAML includes claude_config with PreToolUse TDD hook.
-// Tests for SC-7: implement phase template YAML includes claude_config with Stop hook.
+// Tests for SC-5: tdd_write phase template YAML includes runtime_config with PreToolUse TDD hook.
+// Tests for SC-7: implement phase template YAML includes runtime_config with Stop hook.
 
 func TestSeedBuiltins_SeedsHookScripts(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -64,17 +64,17 @@ func TestSeedBuiltins_TDDPhaseHasHook(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, tmpl, "tdd_write phase template should exist after SeedBuiltins")
 
-	// The template should have a ClaudeConfig field with a PreToolUse hook
+	// The template should have a RuntimeConfig field with a PreToolUse hook
 	// referencing orc-tdd-discipline
-	require.NotEmpty(t, tmpl.ClaudeConfig, "tdd_write template should have claude_config")
+	require.NotEmpty(t, tmpl.RuntimeConfig, "tdd_write template should have runtime_config")
 
-	// Parse the claude_config JSON
-	assert.Contains(t, tmpl.ClaudeConfig, "PreToolUse",
-		"tdd_write claude_config should contain PreToolUse hook")
-	assert.Contains(t, tmpl.ClaudeConfig, "orc-tdd-discipline",
-		"tdd_write claude_config should reference orc-tdd-discipline hook")
-	assert.Contains(t, tmpl.ClaudeConfig, "Edit|Write|MultiEdit",
-		"tdd_write claude_config should have matcher for file-writing tools")
+	// Parse the runtime_config JSON
+	assert.Contains(t, tmpl.RuntimeConfig, "PreToolUse",
+		"tdd_write runtime_config should contain PreToolUse hook")
+	assert.Contains(t, tmpl.RuntimeConfig, "orc-tdd-discipline",
+		"tdd_write runtime_config should reference orc-tdd-discipline hook")
+	assert.Contains(t, tmpl.RuntimeConfig, "Edit|Write|MultiEdit",
+		"tdd_write runtime_config should have matcher for file-writing tools")
 }
 
 func TestSeedBuiltins_ImplementPhaseHasStopHook(t *testing.T) {
@@ -92,13 +92,13 @@ func TestSeedBuiltins_ImplementPhaseHasStopHook(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, tmpl, "implement phase template should exist after SeedBuiltins")
 
-	// The template should have a ClaudeConfig field with a Stop hook
+	// The template should have a RuntimeConfig field with a Stop hook
 	// referencing orc-verify-completion
-	require.NotEmpty(t, tmpl.ClaudeConfig, "implement template should have claude_config")
+	require.NotEmpty(t, tmpl.RuntimeConfig, "implement template should have runtime_config")
 
-	// Parse the claude_config JSON
-	assert.Contains(t, tmpl.ClaudeConfig, "Stop",
-		"implement claude_config should contain Stop hook")
-	assert.Contains(t, tmpl.ClaudeConfig, "orc-verify-completion",
-		"implement claude_config should reference orc-verify-completion hook")
+	// Parse the runtime_config JSON
+	assert.Contains(t, tmpl.RuntimeConfig, "Stop",
+		"implement runtime_config should contain Stop hook")
+	assert.Contains(t, tmpl.RuntimeConfig, "orc-verify-completion",
+		"implement runtime_config should reference orc-verify-completion hook")
 }

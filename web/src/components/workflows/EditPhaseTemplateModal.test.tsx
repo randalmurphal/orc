@@ -1,23 +1,23 @@
 /**
- * TDD Tests for EditPhaseTemplateModal - Claude Config Settings Sections
+ * TDD Tests for EditPhaseTemplateModal - Runtime Config Settings Sections
  *
- * Tests for TASK-669: Phase template claude_config editor with collapsible sections
+ * Tests for TASK-669: Phase template runtime_config editor with collapsible sections
  *
  * Success Criteria Coverage:
  * - SC-2: EditPhaseTemplateModal renders 7 collapsible settings sections
- * - SC-3: Saving serializes structured field state to claude_config JSON
- * - SC-9: JSON Override shows current claude_config as formatted JSON
+ * - SC-3: Saving serializes structured field state to runtime_config JSON
+ * - SC-9: JSON Override shows current runtime_config as formatted JSON
  * - SC-10: JSON Override edits update structured fields; invalid JSON shows error
- * - SC-11: On modal open with existing claude_config, all sections populate
+ * - SC-11: On modal open with existing runtime_config, all sections populate
  * - SC-12: All new components are wired into EditPhaseTemplateModal
  *
  * Failure Modes:
- * - Malformed claude_config → sections render empty with console.warn
+ * - Malformed runtime_config → sections render empty with console.warn
  * - Save failure → error toast, modal stays open
  * - Invalid JSON in override → red border, structured fields unchanged
  *
  * Edge Cases:
- * - Empty claude_config → all sections show 0 items
+ * - Empty runtime_config → all sections show 0 items
  * - Unknown fields preserved through parse→edit→serialize cycle
  * - Built-in template → settings sections disabled/read-only
  * - JSON override edited, then structured field edited → structured takes precedence
@@ -29,7 +29,7 @@ import userEvent from '@testing-library/user-event';
 import { EditPhaseTemplateModal } from './EditPhaseTemplateModal';
 import { create } from '@bufbuild/protobuf';
 import { ListHooksResponseSchema, ListSkillsResponseSchema, ListAgentsResponseSchema } from '@/gen/orc/v1/config_pb';
-import { ListMCPServersResponseSchema } from '@/gen/orc/v1/mcp_pb';
+import { GetMCPServerResponseSchema, ListMCPServersResponseSchema, MCPServerSchema } from '@/gen/orc/v1/mcp_pb';
 import {
 	createMockPhaseTemplate,
 	createMockUpdatePhaseTemplateResponse,
@@ -50,6 +50,7 @@ vi.mock('@/lib/client', () => ({
 	},
 	mcpClient: {
 		listMCPServers: vi.fn(),
+		getMCPServer: vi.fn(),
 	},
 }));
 
@@ -78,17 +79,74 @@ const mockMCPServers = [
 	createMockMCPServerInfo({ name: 'filesystem', command: 'npx fs-server' }),
 ];
 
+function makeRuntimeConfig({
+	hooks,
+	skillRefs,
+	mcpServers,
+	allowedTools,
+	disallowedTools,
+	env,
+}: {
+	hooks?: string[];
+	skillRefs?: string[];
+	mcpServers?: Record<string, unknown>;
+	allowedTools?: string[];
+	disallowedTools?: string[];
+	env?: Record<string, string>;
+}): string {
+	const config: Record<string, unknown> = {};
+	const shared: Record<string, unknown> = {};
+	const claude: Record<string, unknown> = {};
+
+	if (hooks && hooks.length > 0) {
+		const hookConfig: Record<string, unknown[]> = {};
+		const hookEvents = new Map(mockHooks.map((hook) => [hook.name, hook.eventType || 'PreToolUse']));
+		for (const hook of hooks) {
+			const eventType = hookEvents.get(hook) || 'PreToolUse';
+			if (!hookConfig[eventType]) {
+				hookConfig[eventType] = [];
+			}
+			hookConfig[eventType].push({
+				matcher: '*',
+				hooks: [{ type: 'command', command: `bash {{hook:${hook}}}` }],
+			});
+		}
+		claude.hooks = hookConfig;
+	}
+	if (skillRefs && skillRefs.length > 0) claude.skill_refs = skillRefs;
+	if (mcpServers && Object.keys(mcpServers).length > 0) shared.mcp_servers = mcpServers;
+	if (allowedTools && allowedTools.length > 0) shared.allowed_tools = allowedTools;
+	if (disallowedTools && disallowedTools.length > 0) shared.disallowed_tools = disallowedTools;
+	if (env && Object.keys(env).length > 0) shared.env = env;
+	if (Object.keys(shared).length > 0) config.shared = shared;
+	if (Object.keys(claude).length > 0) config.providers = { claude };
+	return JSON.stringify(config);
+}
+
 function setupMocks() {
 	vi.mocked(configClient.listAgents).mockResolvedValue(create(ListAgentsResponseSchema, { agents: [] }));
 	vi.mocked(configClient.listHooks).mockResolvedValue(create(ListHooksResponseSchema, { hooks: mockHooks }));
 	vi.mocked(configClient.listSkills).mockResolvedValue(create(ListSkillsResponseSchema, { skills: mockSkills }));
 	vi.mocked(mcpClient.listMCPServers).mockResolvedValue(create(ListMCPServersResponseSchema, { servers: mockMCPServers }));
+	vi.mocked(mcpClient.getMCPServer).mockImplementation(async (request) =>
+		create(GetMCPServerResponseSchema, {
+			server: create(MCPServerSchema, {
+				name: request.name,
+				type: 'stdio',
+				command: 'npx fs-server',
+				args: [],
+				env: {},
+				headers: [],
+				disabled: false,
+			}),
+		}),
+	);
 }
 
 const mockOnClose = vi.fn();
 const mockOnUpdated = vi.fn();
 
-describe('EditPhaseTemplateModal - Claude Config Settings', () => {
+describe('EditPhaseTemplateModal - Runtime Config Settings', () => {
 	// NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, scrollIntoView) provided by global test-setup.ts
 
 	beforeEach(() => {
@@ -126,11 +184,11 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			expect(screen.getByText(/^JSON Override$/i)).toBeInTheDocument();
 		});
 
-		it('shows badge count 0 when claude_config is empty', async () => {
+		it('shows badge count 0 when runtime_config is empty', async () => {
 			render(
 				<EditPhaseTemplateModal
 					open={true}
-					template={createMockPhaseTemplate({ isBuiltin: false, claudeConfig: undefined })}
+					template={createMockPhaseTemplate({ isBuiltin: false, runtimeConfig: undefined })}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -146,20 +204,20 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
 		});
 
-		it('shows correct badge counts with populated claude_config', async () => {
-			const claudeConfig = JSON.stringify({
+		it('shows correct badge counts with populated runtime_config', async () => {
+			const runtimeConfig = makeRuntimeConfig({
 				hooks: ['pre-guard'],
-				skill_refs: ['python-style', 'tdd'],
-				mcp_servers: { filesystem: {} },
-				allowed_tools: ['Bash', 'Read'],
-				disallowed_tools: ['Write'],
+				skillRefs: ['python-style', 'tdd'],
+				mcpServers: { filesystem: {} },
+				allowedTools: ['Bash', 'Read'],
+				disallowedTools: ['Write'],
 				env: { FOO: 'bar', BAZ: 'qux' },
 			});
 
 			render(
 				<EditPhaseTemplateModal
 					open={true}
-					template={createMockPhaseTemplate({ isBuiltin: false, claudeConfig })}
+					template={createMockPhaseTemplate({ isBuiltin: false, runtimeConfig })}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -177,8 +235,8 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 		});
 	});
 
-	describe('SC-3: Saving serializes structured fields to claude_config JSON', () => {
-		it('calls updatePhaseTemplate with claudeConfig containing serialized JSON', async () => {
+	describe('SC-3: Saving serializes structured fields to runtime_config JSON', () => {
+		it('calls updatePhaseTemplate with runtimeConfig containing serialized JSON', async () => {
 			const user = userEvent.setup();
 
 			vi.mocked(workflowClient.updatePhaseTemplate).mockResolvedValue(
@@ -187,15 +245,15 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 				)
 			);
 
-			const claudeConfig = JSON.stringify({
-				allowed_tools: ['Bash', 'Read'],
+			const runtimeConfig = makeRuntimeConfig({
+				allowedTools: ['Bash', 'Read'],
 				env: { API_KEY: 'secret' },
 			});
 
 			render(
 				<EditPhaseTemplateModal
 					open={true}
-					template={createMockPhaseTemplate({ isBuiltin: false, claudeConfig })}
+					template={createMockPhaseTemplate({ isBuiltin: false, runtimeConfig })}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -212,16 +270,16 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			await waitFor(() => {
 				expect(workflowClient.updatePhaseTemplate).toHaveBeenCalledWith(
 					expect.objectContaining({
-						claudeConfig: expect.any(String),
+						runtimeConfig: expect.any(String),
 					})
 				);
 			});
 
-			// Verify the claudeConfig is valid JSON
+			// Verify the runtimeConfig is valid JSON
 			const call = vi.mocked(workflowClient.updatePhaseTemplate).mock.calls[0][0];
-			const parsedConfig = JSON.parse(call.claudeConfig as string);
-			expect(parsedConfig.allowed_tools).toEqual(['Bash', 'Read']);
-			expect(parsedConfig.env).toEqual({ API_KEY: 'secret' });
+			const parsedConfig = JSON.parse(call.runtimeConfig as string);
+			expect(parsedConfig.shared.allowed_tools).toEqual(['Bash', 'Read']);
+			expect(parsedConfig.shared.env).toEqual({ API_KEY: 'secret' });
 		});
 
 		it('shows success toast on successful save', async () => {
@@ -288,7 +346,7 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			expect(mockOnClose).not.toHaveBeenCalled();
 		});
 
-		it('preserves existing form fields when saving with claude_config', async () => {
+		it('preserves existing form fields when saving with runtime_config', async () => {
 			const user = userEvent.setup();
 
 			vi.mocked(workflowClient.updatePhaseTemplate).mockResolvedValue(
@@ -328,19 +386,19 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 		});
 	});
 
-	describe('SC-9: JSON Override shows current claude_config as formatted JSON', () => {
+	describe('SC-9: JSON Override shows current runtime_config as formatted JSON', () => {
 		it('shows JSON textarea reflecting structured field state', async () => {
 			const user = userEvent.setup();
 
-			const claudeConfig = JSON.stringify({
-				allowed_tools: ['Bash'],
+			const runtimeConfig = makeRuntimeConfig({
+				allowedTools: ['Bash'],
 				env: { FOO: 'bar' },
 			});
 
 			render(
 				<EditPhaseTemplateModal
 					open={true}
-					template={createMockPhaseTemplate({ isBuiltin: false, claudeConfig })}
+					template={createMockPhaseTemplate({ isBuiltin: false, runtimeConfig })}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -356,13 +414,13 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 
 			// Find the JSON textarea
 			const jsonTextarea = screen.getByRole('textbox', { name: /json/i }) ||
-				screen.getByDisplayValue(/"allowed_tools"/);
+				screen.getByDisplayValue(/"shared"/);
 
 			// Should contain formatted JSON with the configured values
 			const textareaValue = (jsonTextarea as HTMLTextAreaElement).value;
 			const parsed = JSON.parse(textareaValue);
-			expect(parsed.allowed_tools).toContain('Bash');
-			expect(parsed.env).toHaveProperty('FOO', 'bar');
+			expect(parsed.shared.allowed_tools).toContain('Bash');
+			expect(parsed.shared.env).toHaveProperty('FOO', 'bar');
 		});
 	});
 
@@ -373,7 +431,7 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			render(
 				<EditPhaseTemplateModal
 					open={true}
-					template={createMockPhaseTemplate({ isBuiltin: false, claudeConfig: '{}' })}
+					template={createMockPhaseTemplate({ isBuiltin: false, runtimeConfig: '{}' })}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -389,7 +447,7 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 
 			// AMEND-005: Use fireEvent.change for JSON content (userEvent.type parses [ ] { as keyboard descriptors)
 			const jsonTextarea = screen.getByRole('textbox', { name: /json/i });
-			fireEvent.change(jsonTextarea, { target: { value: '{"skill_refs": ["python-style"]}' } });
+			fireEvent.change(jsonTextarea, { target: { value: '{"providers":{"claude":{"skill_refs":["python-style"]}}}' } });
 
 			// Trigger blur/apply
 			await user.tab();
@@ -408,12 +466,12 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 		it('shows validation error for invalid JSON without changing structured fields', async () => {
 			const user = userEvent.setup();
 
-			const claudeConfig = JSON.stringify({ allowed_tools: ['Bash'] });
+			const runtimeConfig = makeRuntimeConfig({ allowedTools: ['Bash'] });
 
 			render(
 				<EditPhaseTemplateModal
 					open={true}
-					template={createMockPhaseTemplate({ isBuiltin: false, claudeConfig })}
+					template={createMockPhaseTemplate({ isBuiltin: false, runtimeConfig })}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -449,7 +507,7 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			render(
 				<EditPhaseTemplateModal
 					open={true}
-					template={createMockPhaseTemplate({ isBuiltin: false, claudeConfig: '{}' })}
+					template={createMockPhaseTemplate({ isBuiltin: false, runtimeConfig: '{}' })}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -474,21 +532,21 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 		});
 	});
 
-	describe('SC-11: On modal open, sections populate from parsed claude_config', () => {
-		it('populates all sections from existing claude_config JSON', async () => {
-			const claudeConfig = JSON.stringify({
+	describe('SC-11: On modal open, sections populate from parsed runtime_config', () => {
+		it('populates all sections from existing runtime_config JSON', async () => {
+			const runtimeConfig = makeRuntimeConfig({
 				hooks: ['pre-guard'],
-				skill_refs: ['python-style'],
-				mcp_servers: { filesystem: { command: 'npx fs-server' } },
-				allowed_tools: ['Bash', 'Read'],
-				disallowed_tools: ['Write'],
+				skillRefs: ['python-style'],
+				mcpServers: { filesystem: { command: 'npx fs-server' } },
+				allowedTools: ['Bash', 'Read'],
+				disallowedTools: ['Write'],
 				env: { FOO: 'bar' },
 			});
 
 			render(
 				<EditPhaseTemplateModal
 					open={true}
-					template={createMockPhaseTemplate({ isBuiltin: false, claudeConfig })}
+					template={createMockPhaseTemplate({ isBuiltin: false, runtimeConfig })}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -505,13 +563,13 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			expect(screen.getByRole('dialog')).toBeInTheDocument();
 		});
 
-		it('treats malformed claude_config as empty config gracefully', async () => {
+		it('treats malformed runtime_config as empty config gracefully', async () => {
 			render(
 				<EditPhaseTemplateModal
 					open={true}
 					template={createMockPhaseTemplate({
 						isBuiltin: false,
-						claudeConfig: 'not valid json {{{',
+						runtimeConfig: 'not valid json {{{',
 					})}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
@@ -527,13 +585,13 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			expect(screen.getByText(/skills/i)).toBeInTheDocument();
 		});
 
-		it('renders sections empty when claude_config is undefined', async () => {
+		it('renders sections empty when runtime_config is undefined', async () => {
 			render(
 				<EditPhaseTemplateModal
 					open={true}
 					template={createMockPhaseTemplate({
 						isBuiltin: false,
-						claudeConfig: undefined,
+						runtimeConfig: undefined,
 					})}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
@@ -606,15 +664,17 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 				)
 			);
 
-			const claudeConfig = JSON.stringify({
-				allowed_tools: ['Bash'],
+			const runtimeConfig = JSON.stringify({
+				shared: {
+					allowed_tools: ['Bash'],
+				},
 				unknown_future_field: { some: 'data' },
 			});
 
 			render(
 				<EditPhaseTemplateModal
 					open={true}
-					template={createMockPhaseTemplate({ isBuiltin: false, claudeConfig })}
+					template={createMockPhaseTemplate({ isBuiltin: false, runtimeConfig })}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -633,12 +693,12 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			});
 
 			const call = vi.mocked(workflowClient.updatePhaseTemplate).mock.calls[0][0];
-			const parsedConfig = JSON.parse(call.claudeConfig as string);
+			const parsedConfig = JSON.parse(call.runtimeConfig as string);
 
 			// Unknown field should be preserved
 			expect(parsedConfig.unknown_future_field).toEqual({ some: 'data' });
 			// Known field should also be preserved
-			expect(parsedConfig.allowed_tools).toEqual(['Bash']);
+			expect(parsedConfig.shared.allowed_tools).toEqual(['Bash']);
 		});
 
 		it('renders settings sections as read-only for built-in templates', async () => {
@@ -685,7 +745,7 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			expect(screen.getByText(/^Allowed Tools$/i)).toBeInTheDocument();
 		});
 
-		it('empty claude_config produces minimal JSON on save', async () => {
+		it('empty runtime_config produces minimal JSON on save', async () => {
 			const user = userEvent.setup();
 
 			vi.mocked(workflowClient.updatePhaseTemplate).mockResolvedValue(
@@ -697,7 +757,7 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			render(
 				<EditPhaseTemplateModal
 					open={true}
-					template={createMockPhaseTemplate({ isBuiltin: false, claudeConfig: undefined })}
+					template={createMockPhaseTemplate({ isBuiltin: false, runtimeConfig: undefined })}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -714,10 +774,10 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 				expect(workflowClient.updatePhaseTemplate).toHaveBeenCalled();
 			});
 
-			// claudeConfig should be either undefined, empty string, or minimal JSON
+			// runtimeConfig should be either undefined, empty string, or minimal JSON
 			const call = vi.mocked(workflowClient.updatePhaseTemplate).mock.calls[0][0];
-			if (call.claudeConfig) {
-				const parsed = JSON.parse(call.claudeConfig);
+			if (call.runtimeConfig) {
+				const parsed = JSON.parse(call.runtimeConfig);
 				// Should be an empty or minimal object
 				expect(typeof parsed).toBe('object');
 			}

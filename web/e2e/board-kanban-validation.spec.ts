@@ -160,7 +160,7 @@ test.describe('Board Kanban Validation', () => {
 			await expect(commandPanel).toBeVisible({ timeout: 5000 });
 
 			// All 5 expected panel section titles (capitalized in HTML source)
-			const expectedTitles = ['Blocked', 'Decisions', 'Claude Config', 'Files Changed', 'Completed'];
+			const expectedTitles = ['Blocked', 'Decisions', 'Workspace Config', 'Files Changed', 'Completed'];
 
 			for (const title of expectedTitles) {
 				const section = commandPanel.locator(`.panel-section:has-text("${title}")`);
@@ -191,22 +191,22 @@ test.describe('Board Kanban Validation', () => {
 			}
 		});
 
-		test('should show Claude Config section with expected config items', async ({ page }) => {
+		test('should show Workspace Config section with expected config items', async ({ page }) => {
 			await page.goto('/board');
 			await waitForBoardLoad(page);
 
 			const commandPanel = page.locator('.board-view__panel.command-panel');
 			await expect(commandPanel).toBeVisible({ timeout: 5000 });
 
-			// Find the Claude Config section
-			const claudeConfigSection = commandPanel.locator('.panel-section:has-text("Claude Config")');
-			await expect(claudeConfigSection).toBeVisible({ timeout: 3000 });
+			// Find the Workspace Config section
+			const workspaceConfigSection = commandPanel.locator('.panel-section:has-text("Workspace Config")');
+			await expect(workspaceConfigSection).toBeVisible({ timeout: 3000 });
 
-			// Expected config items in the Claude Config section
+			// Expected config items in the Workspace Config section
 			const expectedItems = ['Slash Commands', 'CLAUDE.md', 'MCP Servers', 'Permissions'];
 
 			for (const item of expectedItems) {
-				const configItem = claudeConfigSection.locator(`:has-text("${item}")`).first();
+				const configItem = workspaceConfigSection.locator(`:has-text("${item}")`).first();
 				await expect(configItem).toBeVisible({ timeout: 3000 });
 			}
 		});

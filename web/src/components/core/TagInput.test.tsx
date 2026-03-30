@@ -1,7 +1,7 @@
 /**
  * TDD Tests for TagInput
  *
- * Tests for TASK-669: Phase template claude_config editor with collapsible sections
+ * Tests for TASK-669: Phase template runtime_config editor with collapsible sections
  *
  * Success Criteria Coverage:
  * - SC-7: TagInput component allows adding tags via Enter/comma, displays as removable chips,

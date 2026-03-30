@@ -7,7 +7,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/randalmurphal/llmkit/claude"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	"github.com/randalmurphal/orc/internal/config"
 )
 
@@ -18,20 +18,22 @@ import (
 // The phase template defines WHICH MCP servers are available.
 // The orc config defines HOW those servers should behave at runtime.
 func MergeMCPConfigSettings(
-	mcpServers map[string]claude.MCPServerConfig,
+	mcpServers map[string]llmkit.MCPServerConfig,
 	taskID string,
 	cfg *config.Config,
-) map[string]claude.MCPServerConfig {
+) map[string]llmkit.MCPServerConfig {
 	if len(mcpServers) == 0 {
 		return mcpServers
 	}
 
 	// Deep copy to avoid mutating original
-	result := make(map[string]claude.MCPServerConfig, len(mcpServers))
+	result := make(map[string]llmkit.MCPServerConfig, len(mcpServers))
 	for name, server := range mcpServers {
 		// Copy the server config
-		copied := claude.MCPServerConfig{
+		copied := llmkit.MCPServerConfig{
 			Command: server.Command,
+			Type:    server.Type,
+			URL:     server.URL,
 		}
 		if server.Args != nil {
 			copied.Args = make([]string, len(server.Args))
@@ -40,6 +42,10 @@ func MergeMCPConfigSettings(
 		if server.Env != nil {
 			copied.Env = make(map[string]string, len(server.Env))
 			maps.Copy(copied.Env, server.Env)
+		}
+		if server.Headers != nil {
+			copied.Headers = make(map[string]string, len(server.Headers))
+			maps.Copy(copied.Headers, server.Headers)
 		}
 		result[name] = copied
 	}
@@ -57,10 +63,10 @@ func MergeMCPConfigSettings(
 // - Adds --user-data-dir for task isolation
 // - Adds --browser if non-default browser specified
 func applyPlaywrightRuntimeSettings(
-	server claude.MCPServerConfig,
+	server llmkit.MCPServerConfig,
 	taskID string,
 	cfg *config.Config,
-) claude.MCPServerConfig {
+) llmkit.MCPServerConfig {
 	args := server.Args
 	if args == nil {
 		args = []string{}

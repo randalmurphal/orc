@@ -116,7 +116,7 @@ type WorkflowRunOptions struct {
 	IgnoreBudget bool
 
 	// Provider overrides the default LLM provider for this run.
-	// Values: "claude" (default), "codex", "ollama".
+	// Values: "claude" (default), "codex".
 	// When set, overrides config.Provider for all phases in this run
 	// (individual phase/workflow overrides still take precedence).
 	Provider string

@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/llmkit/v2/claude"
 )
 
 // SchemaResult holds the parsed JSON response with metadata.

@@ -25,15 +25,15 @@ Currently, environment pages are a mix of CRUD and read-only views that talk dir
 ├─────────────────────────────────────────────────┤
 │  Layer 2: Phase Template Defaults               │
 │  Assign library items to phase templates        │
-│  (claude_config in phase_templates table)        │
+│  (runtime_config in phase_templates table)        │
 ├─────────────────────────────────────────────────┤
 │  Layer 3: Workflow Phase Overrides              │
 │  Override template defaults per-workflow         │
-│  (claude_config_override in workflow phases)     │
+│  (runtime_config_override in workflow phases)     │
 └─────────────────────────────────────────────────┘
 ```
 
-Maps to existing backend merge: `getEffectivePhaseClaudeConfig()` merges template `claude_config` with workflow `claude_config_override`.
+Maps to existing backend merge: `getEffectivePhaseRuntimeConfig()` merges template `runtime_config` with workflow `runtime_config_override`.
 
 ## Layer 1: Environment Pages → Library Management
 
@@ -116,7 +116,7 @@ All sections collapsed by default. Badge shows count of active items.
 | **Allowed Tools** | Tag input / chip list | Free-text entry for tool names. |
 | **Disallowed Tools** | Tag input / chip list | Free-text entry for tool names. |
 | **Env Vars** | Key-value editor | Add/remove key-value pairs. |
-| **JSON Override** | Expandable code editor | Full `claude_config` JSON. Stays in sync with structured fields above. |
+| **JSON Override** | Expandable code editor | Full `runtime_config` JSON. Stays in sync with structured fields above. |
 
 ### JSON Override Behavior
 
@@ -190,15 +190,15 @@ Expanding a section shows:
 
 | Endpoint | Change |
 |----------|--------|
-| `PhaseTemplateService.Update` | Accept `claude_config.hooks`, `claude_config.skill_refs` |
-| `WorkflowService.Update` | Accept `claude_config_override.hooks` per phase |
+| `PhaseTemplateService.Update` | Accept `runtime_config.hooks`, `runtime_config.skill_refs` |
+| `WorkflowService.Update` | Accept `runtime_config_override.hooks` per phase |
 
 ## Migration Notes
 
 - Environment pages currently read `.claude/` files via `configClient` / `mcpClient` — these become library CRUD against GlobalDB
 - Export/Import replaces the old direct-file behavior as an explicit user action
 - Phase template and workflow editors gain new sections but existing fields unchanged
-- No breaking changes to existing workflow JSON — `claude_config` and `claude_config_override` fields already exist, just get new sub-fields
+- No breaking changes to existing workflow JSON — `runtime_config` and `runtime_config_override` fields already exist, just get new sub-fields
 
 ## Testing
 

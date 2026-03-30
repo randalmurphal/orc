@@ -112,6 +112,10 @@ func TestProjectCache_GetProjectPath(t *testing.T) {
 	if err := os.MkdirAll(projectPath, 0755); err != nil {
 		t.Fatal(err)
 	}
+	expectedPath := projectPath
+	if resolved, err := filepath.EvalSymlinks(projectPath); err == nil {
+		expectedPath = resolved
+	}
 	if err := config.InitAt(projectPath, false); err != nil {
 		t.Fatal(err)
 	}
@@ -129,8 +133,8 @@ func TestProjectCache_GetProjectPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetProjectPath failed: %v", err)
 	}
-	if path != projectPath {
-		t.Errorf("expected path %s, got %s", projectPath, path)
+	if path != expectedPath {
+		t.Errorf("expected path %s, got %s", expectedPath, path)
 	}
 
 	// Open database, then get path (from cache)
@@ -139,8 +143,8 @@ func TestProjectCache_GetProjectPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetProjectPath (cached) failed: %v", err)
 	}
-	if path2 != projectPath {
-		t.Errorf("expected cached path %s, got %s", projectPath, path2)
+	if path2 != expectedPath {
+		t.Errorf("expected cached path %s, got %s", expectedPath, path2)
 	}
 }
 

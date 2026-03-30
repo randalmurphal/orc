@@ -1,7 +1,7 @@
 /**
  * CollapsibleSettingsSection - Collapsible section with header badge and chevron.
  *
- * Used in EditPhaseTemplateModal for claude_config settings sections.
+ * Used in EditPhaseTemplateModal for runtime_config settings sections.
  * Renders collapsed by default, expands on click, shows badge count of active items.
  */
 

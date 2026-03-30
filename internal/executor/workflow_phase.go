@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
@@ -30,7 +31,7 @@ const MaxOrcRetries = 5
 type PhaseExecutionConfig struct {
 	Prompt      string
 	Model       string
-	Provider    string // "claude", "codex", "ollama", or empty (default: claude)
+	Provider    string // "claude", "codex", or empty (default: claude)
 	WorkingDir  string
 	TaskID      string
 	PhaseID     string
@@ -43,7 +44,7 @@ type PhaseExecutionConfig struct {
 	WorkflowPhase *db.WorkflowPhase
 
 	// Claude CLI configuration (resolved from template + override + agent + skills)
-	ClaudeConfig *PhaseClaudeConfig
+	RuntimeConfig *PhaseRuntimeConfig
 }
 
 // PhaseExecutionResult holds the result of a phase execution.
@@ -166,15 +167,18 @@ func (we *WorkflowExecutor) phaseControlPlaneVariableUsage(
 		usage = detectControlPlaneVariableUsage(tmpl.PromptContent)
 	}
 
-	cfg := we.getEffectivePhaseClaudeConfig(tmpl, phase)
+	cfg, err := we.getEffectivePhaseRuntimeConfig(tmpl, phase)
+	if err != nil {
+		return controlPlaneVariableUsage{}, err
+	}
 	if cfg == nil {
 		return usage, nil
 	}
 
 	return mergeControlPlaneVariableUsage(
 		usage,
-		detectControlPlaneVariableUsage(cfg.SystemPrompt),
-		detectControlPlaneVariableUsage(cfg.AppendSystemPrompt),
+		detectControlPlaneVariableUsage(cfg.Shared.SystemPrompt),
+		detectControlPlaneVariableUsage(cfg.Shared.AppendSystemPrompt),
 	), nil
 }
 
@@ -201,15 +205,18 @@ func (we *WorkflowExecutor) phaseThreadVariableUsage(
 		usage = detectThreadVariableUsage(tmpl.PromptContent)
 	}
 
-	cfg := we.getEffectivePhaseClaudeConfig(tmpl, phase)
+	cfg, err := we.getEffectivePhaseRuntimeConfig(tmpl, phase)
+	if err != nil {
+		return threadVariableUsage{}, err
+	}
 	if cfg == nil {
 		return usage, nil
 	}
 
 	return mergeThreadVariableUsage(
 		usage,
-		detectThreadVariableUsage(cfg.SystemPrompt),
-		detectThreadVariableUsage(cfg.AppendSystemPrompt),
+		detectThreadVariableUsage(cfg.Shared.SystemPrompt),
+		detectThreadVariableUsage(cfg.Shared.AppendSystemPrompt),
 	), nil
 }
 
@@ -404,7 +411,12 @@ func (we *WorkflowExecutor) executePhase(
 	model := we.resolvePhaseModel(tmpl, phase)
 
 	// Resolve effective Claude configuration for this phase
-	claudeConfig := we.getEffectivePhaseClaudeConfig(tmpl, phase)
+	claudeConfig, err := we.getEffectivePhaseRuntimeConfig(tmpl, phase)
+	if err != nil {
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
+		result.Error = err.Error()
+		return result, err
+	}
 
 	// Load phase agents from global database and add to Claude config
 	if rctx.TaskWeight != "" && we.globalDB != nil {
@@ -413,34 +425,35 @@ func (we *WorkflowExecutor) executePhase(
 			we.logger.Warn("failed to load phase agents", "phase", tmpl.ID, "weight", rctx.TaskWeight, "error", err)
 		} else if len(phaseAgents) > 0 {
 			if claudeConfig == nil {
-				claudeConfig = &PhaseClaudeConfig{}
+				claudeConfig = &PhaseRuntimeConfig{}
 			}
-			if claudeConfig.InlineAgents == nil {
-				claudeConfig.InlineAgents = make(map[string]InlineAgentDef)
+			if claudeConfig.Providers.Claude == nil {
+				claudeConfig.Providers.Claude = &llmkit.ClaudeRuntimeConfig{}
 			}
-			maps.Copy(claudeConfig.InlineAgents, phaseAgents)
+			if claudeConfig.Providers.Claude.InlineAgents == nil {
+				claudeConfig.Providers.Claude.InlineAgents = make(map[string]InlineAgentDef)
+			}
+			maps.Copy(claudeConfig.Providers.Claude.InlineAgents, phaseAgents)
 			we.logger.Info("loaded phase agents", "phase", tmpl.ID, "weight", rctx.TaskWeight, "count", len(phaseAgents))
 		}
 	}
 
 	// Merge runtime MCP settings (headless mode, task-specific user-data-dir) into phase MCP config
 	// This applies orc config settings to MCP servers defined in phase templates
-	if claudeConfig != nil && len(claudeConfig.MCPServers) > 0 {
-		claudeConfig.MCPServers = MergeMCPConfigSettings(claudeConfig.MCPServers, rctx.TaskID, we.orcConfig)
+	if claudeConfig != nil && len(claudeConfig.Shared.MCPServers) > 0 {
+		claudeConfig.Shared.MCPServers = MergeMCPConfigSettings(claudeConfig.Shared.MCPServers, rctx.TaskID, we.orcConfig)
 	}
 
-	// Phase settings lifecycle: reset → apply → execute → reset
-	// Only when running in a worktree (standalone mode has no worktree)
-	if we.worktreePath != "" && we.globalDB != nil {
-		// Pre-reset: restore .claude/ to clean project state from target branch
-		if err := resetClaudeDir(we.worktreePath, rctx.TargetBranch); err != nil {
-			we.logger.Warn("pre-reset .claude/ failed, continuing (ApplyPhaseSettings will overwrite)",
-				"phase", tmpl.ID,
-				"error", err,
-			)
-		}
+	// Determine provider (workflow phase override > template > workflow default > config > "claude")
+	provider := we.resolvePhaseProvider(tmpl, phase)
 
-		// Apply phase-specific settings (hooks, skills, MCP servers, env vars)
+	// Validate provider is known (reject typos and unsupported providers)
+	if err := validateProvider(provider); err != nil {
+		return result, fmt.Errorf("execute phase %s: %w", tmpl.ID, err)
+	}
+
+	var preparedRuntime *llmkit.PreparedRuntime
+	if we.worktreePath != "" && we.globalDB != nil {
 		baseCfg := &WorktreeBaseConfig{
 			WorktreePath: we.worktreePath,
 			MainRepoPath: we.workingDir,
@@ -449,10 +462,18 @@ func (we *WorkflowExecutor) executePhase(
 				"ORC_TASK_ID": rctx.TaskID,
 			},
 		}
-		if err := ApplyPhaseSettings(we.worktreePath, claudeConfig, baseCfg, we.globalDB, we.globalDB); err != nil {
+		preparedRuntime, err = PreparePhaseRuntime(ctx, provider, we.worktreePath, claudeConfig, baseCfg, we.globalDB, we.globalDB)
+		if err != nil {
 			result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 			result.Error = err.Error()
-			return result, fmt.Errorf("apply phase settings for %s: %w", tmpl.ID, err)
+			return result, fmt.Errorf("prepare runtime for %s: %w", tmpl.ID, err)
+		}
+		if preparedRuntime != nil {
+			defer func() {
+				if closeErr := preparedRuntime.Close(); closeErr != nil {
+					we.logger.Warn("runtime cleanup failed", "phase", tmpl.ID, "error", closeErr)
+				}
+			}()
 		}
 	}
 
@@ -498,16 +519,12 @@ func (we *WorkflowExecutor) executePhase(
 		return result, nil
 	}
 
-	// Determine provider (workflow phase override > template > workflow default > config > "claude")
-	provider := we.resolvePhaseProvider(tmpl, phase)
-
-	// Validate provider is known (reject typos and unsupported providers)
-	if err := validateProvider(provider); err != nil {
-		return result, fmt.Errorf("execute phase %s: %w", tmpl.ID, err)
+	// Validate the resolved runtime config against llmkit's provider definition.
+	runtimeCfg := llmkit.RuntimeConfig{}
+	if claudeConfig != nil {
+		runtimeCfg = claudeConfig.ToLLMKit()
 	}
-
-	// Validate provider capabilities before execution
-	if err := we.validateProviderCapabilities(provider, tmpl.ID, claudeConfig); err != nil {
+	if err := llmkit.ValidateRuntimeConfig(provider, runtimeCfg); err != nil {
 		return result, fmt.Errorf("provider validation: %w", err)
 	}
 
@@ -525,7 +542,7 @@ func (we *WorkflowExecutor) executePhase(
 		ReviewRound:   rctx.ReviewRound, // For review phase: controls schema selection
 		PhaseTemplate: tmpl,
 		WorkflowPhase: phase,
-		ClaudeConfig:  claudeConfig,
+		RuntimeConfig:  claudeConfig,
 	}
 
 	// Record session metadata on task for monitoring (provider:model per phase)
@@ -538,15 +555,6 @@ func (we *WorkflowExecutor) executePhase(
 	var execResult *PhaseExecutionResult
 	execResult, err = we.executeWithProvider(ctx, execConfig, adapter)
 
-	// Post-reset: restore .claude/ for next phase (non-fatal)
-	if we.worktreePath != "" && we.globalDB != nil {
-		if resetErr := resetClaudeDir(we.worktreePath, rctx.TargetBranch); resetErr != nil {
-			we.logger.Warn("post-reset .claude/ failed",
-				"phase", tmpl.ID,
-				"error", resetErr,
-			)
-		}
-	}
 	if err != nil {
 		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		result.Error = err.Error()
@@ -751,7 +759,7 @@ func (we *WorkflowExecutor) executePhase(
 func (we *WorkflowExecutor) executeWithProvider(ctx context.Context, cfg PhaseExecutionConfig, adapter ProviderAdapter) (*PhaseExecutionResult, error) {
 	result := &PhaseExecutionResult{}
 
-	// 1. Provider-specific preparation (session, model, phase settings)
+	// 1. Provider-specific preparation (session, model, runtime config)
 	pctx, err := adapter.PrepareExecution(&cfg, we)
 	if err != nil {
 		return result, fmt.Errorf("%s prepare: %w", adapter.Name(), err)
@@ -1089,11 +1097,6 @@ func (we *WorkflowExecutor) resolvePhaseModel(tmpl *db.PhaseTemplate, phase *db.
 	// config model (which is typically a Claude model like "opus").
 	provider := we.resolvePhaseProvider(tmpl, phase)
 	if isCodexFamilyProvider(provider) {
-		if we.orcConfig != nil && (provider == ProviderOllama || provider == ProviderLMStudio) {
-			if m := we.orcConfig.Providers.Ollama.DefaultModel; m != "" {
-				return m
-			}
-		}
 		if m := providerDefaultModel(provider); m != "" {
 			return m
 		}
@@ -1380,40 +1383,33 @@ func (we *WorkflowExecutor) runQualityChecks(ctx context.Context, cfg PhaseExecu
 	return runner.Run(ctx)
 }
 
-// getEffectivePhaseClaudeConfig resolves the effective Claude configuration for a phase.
+// getEffectivePhaseRuntimeConfig resolves the effective runtime configuration for a phase.
 // Priority order:
-//  1. workflow_phases.claude_config_override (per-workflow override)
-//  2. executor agent claude_config (from resolved agent)
+//  1. executor agent runtime_config (base)
+//  2. phase_templates.runtime_config (template default)
+//  3. workflow_phases.runtime_config_override (per-workflow override)
 //
-// After merging, it also:
-//  3. Resolves agent_ref to merge agent configuration
-//  4. Loads skill_refs to inject skill content into AppendSystemPrompt
-//  5. Sets system prompt from executor agent (DB-first approach)
-func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) *PhaseClaudeConfig {
-	var cfg *PhaseClaudeConfig
+// System prompt precedence is:
+//  1. executor_agent.system_prompt
+//  2. runtime_config.shared.system_prompt
+func (we *WorkflowExecutor) getEffectivePhaseRuntimeConfig(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) (*PhaseRuntimeConfig, error) {
+	var cfg *PhaseRuntimeConfig
 
-	// 1. Load executor agent's ClaudeConfig as base
-	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.ClaudeConfig != "" {
-		base, err := ParsePhaseClaudeConfig(agent.ClaudeConfig)
+	// 1. Load executor agent's RuntimeConfig as base
+	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.RuntimeConfig != "" {
+		base, err := ParsePhaseRuntimeConfig(agent.RuntimeConfig)
 		if err != nil {
-			we.logger.Warn("failed to parse agent claude_config",
-				"agent_id", agent.ID,
-				"phase", tmpl.ID,
-				"error", err,
-			)
+			return nil, fmt.Errorf("parse agent runtime_config for %s: %w", agent.ID, err)
 		} else if base != nil {
 			cfg = base
 		}
 	}
 
-	// 2. Merge template's claude_config (between agent and workflow override)
-	if tmpl != nil && tmpl.ClaudeConfig != "" {
-		tmplCfg, err := ParsePhaseClaudeConfig(tmpl.ClaudeConfig)
+	// 2. Merge template's runtime_config (between agent and workflow override)
+	if tmpl != nil && tmpl.RuntimeConfig != "" {
+		tmplCfg, err := ParsePhaseRuntimeConfig(tmpl.RuntimeConfig)
 		if err != nil {
-			we.logger.Warn("failed to parse template claude_config",
-				"phase", tmpl.ID,
-				"error", err,
-			)
+			return nil, fmt.Errorf("parse template runtime_config for %s: %w", tmpl.ID, err)
 		} else if tmplCfg != nil {
 			if cfg == nil {
 				cfg = tmplCfg
@@ -1424,13 +1420,10 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 	}
 
 	// 3. Merge workflow phase override (can override agent + template config)
-	if phase != nil && phase.ClaudeConfigOverride != "" {
-		override, err := ParsePhaseClaudeConfig(phase.ClaudeConfigOverride)
+	if phase != nil && phase.RuntimeConfigOverride != "" {
+		override, err := ParsePhaseRuntimeConfig(phase.RuntimeConfigOverride)
 		if err != nil {
-			we.logger.Warn("failed to parse workflow phase claude_config_override",
-				"phase", phase.PhaseTemplateID,
-				"error", err,
-			)
+			return nil, fmt.Errorf("parse workflow phase runtime_config_override for %s: %w", phase.PhaseTemplateID, err)
 		} else if override != nil {
 			if cfg == nil {
 				cfg = override
@@ -1442,80 +1435,21 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 
 	// Ensure we have a config to set system prompt
 	if cfg == nil {
-		cfg = &PhaseClaudeConfig{}
+		cfg = &PhaseRuntimeConfig{}
 	}
 
-	// 4. Resolve agent reference (from claude_config JSON)
-	if cfg.AgentRef != "" {
-		claudeDir := filepath.Join(we.workingDir, ".claude")
-		resolver := NewAgentResolver(we.workingDir, claudeDir)
-		if err := resolver.ResolveAgentConfig(cfg); err != nil {
-			we.logger.Warn("failed to resolve agent reference",
-				"agent_ref", cfg.AgentRef,
-				"error", err,
-			)
-			// Continue without agent config - it's not fatal
-		}
-	}
-
-	// 5. Resolve system prompt (DB-first approach)
-	// Priority: executor_agent.system_prompt (DB) > claude_config.system_prompt_file > claude_config.system_prompt
+	// 4. Resolve system prompt (DB-first approach).
+	// Priority: executor_agent.system_prompt (DB) > runtime_config.shared.system_prompt.
 	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.SystemPrompt != "" {
-		// DB-stored system prompt takes precedence (editable via UI)
-		cfg.SystemPrompt = agent.SystemPrompt
-	} else if cfg.SystemPromptFile != "" {
-		// Fallback: file reference (for backward compatibility)
-		content, err := we.loadSystemPromptFile(cfg.SystemPromptFile)
-		if err != nil {
-			we.logger.Warn("failed to load system prompt file",
-				"file", cfg.SystemPromptFile,
-				"error", err,
-			)
-			// Continue without system prompt - it's not fatal
-		} else if content != "" {
-			cfg.SystemPrompt = content
-		}
-	}
-	// cfg.SystemPrompt (inline in JSON) is already set if present
-
-	// 6. Resolve AppendSystemPromptFile to content
-	if cfg.AppendSystemPromptFile != "" {
-		content, err := we.loadSystemPromptFile(cfg.AppendSystemPromptFile)
-		if err != nil {
-			we.logger.Warn("failed to load append system prompt file",
-				"file", cfg.AppendSystemPromptFile,
-				"error", err,
-			)
-			// Continue without append system prompt - it's not fatal
-		} else if content != "" {
-			// Append to existing AppendSystemPrompt if any
-			if cfg.AppendSystemPrompt != "" {
-				cfg.AppendSystemPrompt = content + "\n\n" + cfg.AppendSystemPrompt
-			} else {
-				cfg.AppendSystemPrompt = content
-			}
-		}
+		cfg.Shared.SystemPrompt = agent.SystemPrompt
 	}
 
 	// Return nil if config is empty (no special configuration)
 	if cfg.IsEmpty() {
-		return nil
+		return nil, nil
 	}
 
-	return cfg
-}
-
-// normalizeCodexExecutionModel strips the provider prefix from model names
-// when routing through Codex CLI (e.g., "ollama/qwen2.5" -> "qwen2.5").
-func normalizeCodexExecutionModel(provider, model string) string {
-	// Strip "provider/" prefix if the model string includes it
-	if idx := strings.Index(model, "/"); idx >= 0 {
-		prefix := model[:idx]
-		if normalizeProvider(prefix) == normalizeProvider(provider) {
-			return model[idx+1:]
-		}
-	}
-	return model
+	return cfg, nil
 }
 
 // setTaskSessionMetadata records session metadata on the task for monitoring.

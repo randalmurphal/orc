@@ -28,7 +28,7 @@ func init() {
 	agentNewCmd.Flags().String("description", "", "Agent description (required)")
 	agentNewCmd.Flags().String("prompt", "", "Sub-agent role prompt (used when agent is a sub-agent)")
 	agentNewCmd.Flags().String("system-prompt", "", "System prompt for executor role (used when agent runs a phase)")
-	agentNewCmd.Flags().String("config", "", "Claude config JSON (for executor role)")
+	agentNewCmd.Flags().String("config", "", "Runtime config JSON (for executor role)")
 	agentNewCmd.Flags().String("model", "", "Model to use (opus, sonnet, haiku)")
 	agentNewCmd.Flags().StringSlice("tools", nil, "Allowed tools (Read, Grep, Glob, Edit, Bash, etc.)")
 	_ = agentNewCmd.MarkFlagRequired("description")
@@ -37,7 +37,7 @@ func init() {
 	agentEditCmd.Flags().String("description", "", "New description")
 	agentEditCmd.Flags().String("prompt", "", "New sub-agent role prompt")
 	agentEditCmd.Flags().String("system-prompt", "", "New system prompt for executor role")
-	agentEditCmd.Flags().String("config", "", "New claude config JSON")
+	agentEditCmd.Flags().String("config", "", "New runtime config JSON")
 	agentEditCmd.Flags().String("model", "", "New model")
 	agentEditCmd.Flags().StringSlice("tools", nil, "New tool list (replaces existing)")
 }
@@ -217,10 +217,10 @@ Examples:
 			fmt.Println("---")
 		}
 
-		// Show claude config if present
-		if agent.ClaudeConfig != "" {
-			fmt.Println("\nClaude Config:")
-			fmt.Println(agent.ClaudeConfig)
+		// Show runtime config if present
+		if agent.RuntimeConfig != "" {
+			fmt.Println("\nRuntime Config:")
+			fmt.Println(agent.RuntimeConfig)
 		}
 
 		return nil
@@ -236,7 +236,7 @@ An agent requires at minimum a name and description. Agents can serve two roles:
 
 EXECUTOR ROLE (main phase runner):
   --system-prompt  System prompt used when agent executes a phase
-  --config         Claude config JSON (additional settings)
+  --config         Runtime config JSON (additional settings)
   --model          Model to use (opus, sonnet, haiku)
 
 SUB-AGENT ROLE (delegated work):
@@ -292,7 +292,7 @@ Examples:
 			Description:  desc,
 			Prompt:       prompt,
 			SystemPrompt: systemPrompt,
-			ClaudeConfig: claudeConfig,
+			RuntimeConfig: claudeConfig,
 			Model:        model,
 			Tools:        tools,
 			IsBuiltin:    false,
@@ -374,7 +374,7 @@ Examples:
 			updated = true
 		}
 		if cmd.Flags().Changed("config") {
-			agent.ClaudeConfig, _ = cmd.Flags().GetString("config")
+			agent.RuntimeConfig, _ = cmd.Flags().GetString("config")
 			updated = true
 		}
 		if cmd.Flags().Changed("model") {

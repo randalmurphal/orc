@@ -4,51 +4,29 @@ import (
 	"fmt"
 	"strings"
 
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	"github.com/randalmurphal/orc/internal/db"
 )
 
 // Known LLM providers supported by orc.
 const (
-	ProviderClaude  = "claude"
-	ProviderCodex   = "codex"
-	ProviderOllama  = "ollama"
-	ProviderLMStudio = "lmstudio"
+	ProviderClaude = "claude"
+	ProviderCodex  = "codex"
 )
 
-// normalizeProvider lowercases, trims, and maps aliases to canonical provider names.
+// normalizeProvider lowercases and trims provider names.
 func normalizeProvider(provider string) string {
-	p := strings.ToLower(strings.TrimSpace(provider))
-	switch p {
-	case "", "anthropic":
-		return "claude"
-	case "openai":
-		return "codex"
-	default:
-		return p
-	}
+	return strings.ToLower(strings.TrimSpace(provider))
 }
 
 // isCodexFamilyProvider returns true for providers that use the Codex CLI executor
-// (codex itself, or local inference servers routed through codex).
+// (codex itself).
 func isCodexFamilyProvider(provider string) bool {
 	switch normalizeProvider(provider) {
-	case "codex", "ollama", "lmstudio":
+	case ProviderCodex:
 		return true
 	default:
 		return false
-	}
-}
-
-// localCodexProvider returns the local inference provider name ("ollama" or "lmstudio")
-// if the provider is a local server, or empty string for cloud providers.
-func localCodexProvider(provider string) string {
-	switch normalizeProvider(provider) {
-	case "ollama":
-		return "ollama"
-	case "lmstudio":
-		return "lmstudio"
-	default:
-		return ""
 	}
 }
 
@@ -69,19 +47,16 @@ func explicitProviderFromModelTuple(model string) (string, bool) {
 
 // ParseProviderModel splits a "provider:model" string into its components.
 // Only the ":" separator is recognized as a provider prefix delimiter.
-// The "/" separator (e.g., "ollama/model") is NOT parsed -- it's treated as a bare model name.
+// The "/" separator (e.g., "vendor/model") is NOT parsed -- it's treated as a bare model name.
 //
-// Bare model names default to provider "claude" for backward compatibility.
+// Bare model names default to provider "claude".
 //
 // Examples:
 //
 //	"codex:gpt-5"           -> ("codex", "gpt-5")
-//	"ollama/qwen2.5-14b"    -> ("claude", "ollama/qwen2.5-14b")  // slash is not a provider delimiter
-//	"codex:ollama/qwen2.5"  -> ("codex", "ollama/qwen2.5")
 //	"opus"                  -> ("claude", "opus")                  // bare model, defaults to claude
 //	"claude:sonnet"         -> ("claude", "sonnet")
-//	"anthropic:opus"        -> ("claude", "opus")                  // alias normalized
-//	"openai:gpt-5"          -> ("codex", "gpt-5")                 // alias normalized
+//	"codex:gpt-5"           -> ("codex", "gpt-5")
 func ParseProviderModel(s string) (provider, model string) {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -182,22 +157,16 @@ func (we *WorkflowExecutor) resolvePhaseProvider(tmpl *db.PhaseTemplate, phase *
 	return "claude"
 }
 
-// validProviders is the set of known LLM providers. Used by validateProvider to reject unknowns.
-// NOTE: Keep in sync with config.ValidLLMProviders (the canonical list for config validation).
-var validProviders = map[string]bool{
-	ProviderClaude:   true,
-	ProviderCodex:    true,
-	ProviderOllama:   true,
-	ProviderLMStudio: true,
-}
-
 // validateProvider returns an error if the provider is not a known LLM provider.
-// Must be called after normalizeProvider (which maps aliases like "anthropic" → "claude").
 func validateProvider(provider string) error {
-	if validProviders[provider] {
-		return nil
+	def, ok := llmkit.GetProviderDefinition(provider)
+	if !ok {
+		return fmt.Errorf("unknown provider %q (supported: claude, codex)", provider)
 	}
-	return fmt.Errorf("unknown provider %q (supported: claude, codex, ollama, lmstudio)", provider)
+	if !def.Supported {
+		return fmt.Errorf("provider %q is not supported", provider)
+	}
+	return nil
 }
 
 // providerDefaultModel returns the sensible default model for a provider.
@@ -208,24 +177,7 @@ func providerDefaultModel(provider string) string {
 		return "opus"
 	case ProviderCodex:
 		return "gpt-5.3-codex"
-	case ProviderOllama, ProviderLMStudio:
-		// No universal default — caller should check config.Providers.Ollama.DefaultModel
-		return ""
 	default:
 		return ""
 	}
-}
-
-// validateProviderCapabilities checks that the resolved provider supports the
-// features required by the phase configuration. Returns an error if the provider
-// cannot handle the phase's requirements (e.g., codex-family providers don't
-// support inline agents unless agent folding is enabled).
-func (we *WorkflowExecutor) validateProviderCapabilities(provider string, phaseID string, cfg *PhaseClaudeConfig) error {
-	if !isCodexFamilyProvider(provider) {
-		return nil
-	}
-	if cfg != nil && len(cfg.InlineAgents) > 0 && !cfg.AllowAgentFolding {
-		return fmt.Errorf("phase %q requires inline agents which codex does not support; set allow_agent_folding: true or use claude provider", phaseID)
-	}
-	return nil
 }

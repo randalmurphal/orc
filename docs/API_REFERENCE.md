@@ -2549,7 +2549,7 @@ Update a phase within a workflow. Used by the visual editor for connection manag
   "condition": "{{HAS_TESTS}}",
   "agent_override": "custom-agent",
   "sub_agents_override": ["reviewer", "tester"],
-  "claude_config_override": "{\"hooks\":[\"pre-commit\"],\"allowed_tools\":[\"Bash\"]}"
+  "runtime_config_override": "{\"hooks\":[\"pre-commit\"],\"allowed_tools\":[\"Bash\"]}"
 }
 ```
 
@@ -2566,7 +2566,7 @@ All fields are optional. Only provided fields are updated.
 | `condition` | Conditional execution expression |
 | `agent_override` | Override executor agent for this phase |
 | `sub_agents_override` | Override available sub-agents (array of agent IDs) |
-| `claude_config_override` | JSON string overriding claude_config (hooks, skills, MCP servers, tools, env vars). Merged with template config at execution time |
+| `runtime_config_override` | JSON string overriding runtime_config (hooks, skills, MCP servers, tools, env vars). Merged with template config at execution time |
 
 **Response:** Returns the updated `WorkflowPhase` object.
 
@@ -2693,7 +2693,7 @@ Reusable phase definitions with prompts and configuration.
   "max_iterations": 20,
   "thinking_enabled": true,
   "output_var_name": "ANALYSIS_RESULT",
-  "claude_config": "{\"hooks\":[\"pre-commit-check\"],\"skills\":[\"code-review\"]}"
+  "runtime_config": "{\"hooks\":[\"pre-commit-check\"],\"skills\":[\"code-review\"]}"
 }
 ```
 
@@ -2714,7 +2714,7 @@ Reusable phase definitions with prompts and configuration.
 | `output_var_name` | string | No | - | Variable name for phase output (e.g., `SPEC_CONTENT`) |
 | `agent_id` | string | No | - | Executor agent reference |
 | `sub_agent_ids` | string[] | No | `[]` | Sub-agent references |
-| `claude_config` | string | No | - | JSON string with hooks, skills, MCP servers, env vars, allowed/disallowed tools |
+| `runtime_config` | string | No | - | JSON string with hooks, skills, MCP servers, env vars, allowed/disallowed tools |
 
 **Error responses:**
 

@@ -1,7 +1,7 @@
 /**
  * TDD Tests for KeyValueEditor
  *
- * Tests for TASK-669: Phase template claude_config editor with collapsible sections
+ * Tests for TASK-669: Phase template runtime_config editor with collapsible sections
  *
  * Success Criteria Coverage:
  * - SC-8: KeyValueEditor component allows adding/removing key-value rows for env vars

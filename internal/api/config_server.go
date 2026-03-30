@@ -14,7 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/randalmurphal/llmkit/claudeconfig"
+	"github.com/randalmurphal/llmkit/v2/claudeconfig"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/prompt"
@@ -1105,8 +1105,8 @@ func (s *configServer) CreateAgent(
 	if req.Msg.SystemPrompt != nil {
 		agent.SystemPrompt = *req.Msg.SystemPrompt
 	}
-	if req.Msg.ClaudeConfig != nil {
-		agent.ClaudeConfig = *req.Msg.ClaudeConfig
+	if req.Msg.RuntimeConfig != nil {
+		agent.RuntimeConfig = *req.Msg.RuntimeConfig
 	}
 	if req.Msg.Model != nil {
 		agent.Model = *req.Msg.Model
@@ -1170,8 +1170,8 @@ func (s *configServer) UpdateAgent(
 	if req.Msg.SystemPrompt != nil {
 		agent.SystemPrompt = *req.Msg.SystemPrompt
 	}
-	if req.Msg.ClaudeConfig != nil {
-		agent.ClaudeConfig = *req.Msg.ClaudeConfig
+	if req.Msg.RuntimeConfig != nil {
+		agent.RuntimeConfig = *req.Msg.RuntimeConfig
 	}
 	if req.Msg.Model != nil {
 		agent.Model = *req.Msg.Model
@@ -1361,7 +1361,7 @@ func orcConfigToProto(cfg *config.Config) *orcv1.Config {
 				VerifyShaOnMerge:     cfg.Completion.CI.VerifySHAOnMerge,
 			},
 		},
-		Claude: &orcv1.ClaudeConfig{
+		Claude: &orcv1.RuntimeConfig{
 			Model: cfg.Model,
 		},
 		Execution: &orcv1.ExecutionConfig{

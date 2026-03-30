@@ -480,16 +480,16 @@ func SetCurrentPhaseProto(t *orcv1.Task, phase string) {
 	}
 }
 
-// GetPhaseSessionIDProto returns the stored session ID for a phase, or empty string if none.
-func GetPhaseSessionIDProto(t *orcv1.Task, phaseID string) string {
+// GetPhaseSessionMetadataProto returns the stored llmkit session metadata for a phase, or empty string if none.
+func GetPhaseSessionMetadataProto(t *orcv1.Task, phaseID string) string {
 	if t == nil || t.Execution == nil || t.Execution.Phases == nil {
 		return ""
 	}
 	phase := t.Execution.Phases[phaseID]
-	if phase == nil || phase.SessionId == nil {
+	if phase == nil || phase.SessionMetadata == nil {
 		return ""
 	}
-	return *phase.SessionId
+	return *phase.SessionMetadata
 }
 
 // GetPhaseProviderProto returns the configured provider metadata for a phase.
@@ -705,7 +705,7 @@ func IsFreshRunProto(t *orcv1.Task) bool {
 			phase.Error != nil ||
 			hasTokenUsageProto(phase.Tokens) ||
 			len(phase.ValidationHistory) > 0 ||
-			phase.SessionId != nil {
+			phase.SessionMetadata != nil {
 			return false
 		}
 	}

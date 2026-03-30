@@ -22,12 +22,55 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PhaseListEditor } from './PhaseListEditor';
+import { create } from '@bufbuild/protobuf';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
+import {
+	ListHooksResponseSchema,
+	ListSkillsResponseSchema,
+} from '@/gen/orc/v1/config_pb';
+import {
+	GetMCPServerResponseSchema,
+	ListMCPServersResponseSchema,
+	MCPServerSchema,
+} from '@/gen/orc/v1/mcp_pb';
 import {
 	createMockWorkflowPhase,
 	createMockPhaseTemplate,
+	createMockHook,
+	createMockSkill,
+	createMockMCPServerInfo,
 } from '@/test/factories';
 import type { WorkflowPhase, PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
+
+vi.mock('@/lib/client', () => ({
+	configClient: {
+		listHooks: vi.fn(),
+		listSkills: vi.fn(),
+	},
+	mcpClient: {
+		listMCPServers: vi.fn(),
+		getMCPServer: vi.fn(),
+	},
+}));
+
+import { configClient, mcpClient } from '@/lib/client';
+
+const mockHooks = [
+	createMockHook({ name: 'lint-hook', eventType: 'PreToolUse' }),
+	createMockHook({ name: 'my-hook', eventType: 'PreToolUse' }),
+	createMockHook({ name: 'existing-hook', eventType: 'PreToolUse' }),
+	createMockHook({ name: 'shared-hook', eventType: 'PreToolUse' }),
+	createMockHook({ name: 'hook-a', eventType: 'PreToolUse' }),
+	createMockHook({ name: 'hook-b', eventType: 'PreToolUse' }),
+];
+const mockSkills = [
+	createMockSkill({ name: 'python-style' }),
+	createMockSkill({ name: 'tdd' }),
+];
+const mockMcpServers = [
+	createMockMCPServerInfo({ name: 'filesystem', command: 'npx fs-server' }),
+	createMockMCPServerInfo({ name: 'github', command: 'npx gh-server' }),
+];
 
 // Create mock phase templates
 const mockPhaseTemplates: PhaseTemplate[] = [
@@ -45,6 +88,50 @@ function createMockPhases(): WorkflowPhase[] {
 		createMockWorkflowPhase({ id: 2, workflowId: 'test-workflow', phaseTemplateId: 'implement', sequence: 2 }),
 		createMockWorkflowPhase({ id: 3, workflowId: 'test-workflow', phaseTemplateId: 'review', sequence: 3 }),
 	];
+}
+
+function makeRuntimeConfig({
+	hooks,
+	skillRefs,
+	mcpServers,
+	allowedTools,
+	disallowedTools,
+	env,
+}: {
+	hooks?: string[];
+	skillRefs?: string[];
+	mcpServers?: Record<string, unknown>;
+	allowedTools?: string[];
+	disallowedTools?: string[];
+	env?: Record<string, string>;
+}): string {
+	const knownHookEvents = new Map(mockHooks.map((hook) => [hook.name, hook.eventType || 'PreToolUse']));
+	const config: Record<string, unknown> = {};
+	const shared: Record<string, unknown> = {};
+	const claude: Record<string, unknown> = {};
+
+	if (hooks && hooks.length > 0) {
+		const hookConfig: Record<string, unknown[]> = {};
+		for (const hook of hooks) {
+			const eventType = knownHookEvents.get(hook) || 'PreToolUse';
+			if (!hookConfig[eventType]) {
+				hookConfig[eventType] = [];
+			}
+			hookConfig[eventType].push({
+				matcher: '*',
+				hooks: [{ type: 'command', command: `bash {{hook:${hook}}}` }],
+			});
+		}
+		claude.hooks = hookConfig;
+	}
+	if (skillRefs && skillRefs.length > 0) claude.skill_refs = skillRefs;
+	if (mcpServers && Object.keys(mcpServers).length > 0) shared.mcp_servers = mcpServers;
+	if (allowedTools && allowedTools.length > 0) shared.allowed_tools = allowedTools;
+	if (disallowedTools && disallowedTools.length > 0) shared.disallowed_tools = disallowedTools;
+	if (env && Object.keys(env).length > 0) shared.env = env;
+	if (Object.keys(shared).length > 0) config.shared = shared;
+	if (Object.keys(claude).length > 0) config.providers = { claude };
+	return JSON.stringify(config);
 }
 
 describe('PhaseListEditor', () => {
@@ -68,6 +155,28 @@ describe('PhaseListEditor', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		vi.mocked(configClient.listHooks).mockResolvedValue(
+			create(ListHooksResponseSchema, { hooks: mockHooks }),
+		);
+		vi.mocked(configClient.listSkills).mockResolvedValue(
+			create(ListSkillsResponseSchema, { skills: mockSkills }),
+		);
+		vi.mocked(mcpClient.listMCPServers).mockResolvedValue(
+			create(ListMCPServersResponseSchema, { servers: mockMcpServers }),
+		);
+		vi.mocked(mcpClient.getMCPServer).mockImplementation(async (request) =>
+			create(GetMCPServerResponseSchema, {
+				server: create(MCPServerSchema, {
+					name: request.name,
+					type: 'stdio',
+					command: request.name === 'github' ? 'npx gh-server' : 'npx fs-server',
+					args: [],
+					env: {},
+					headers: [],
+					disabled: false,
+				}),
+			}),
+		);
 	});
 
 	afterEach(() => {
@@ -682,10 +791,10 @@ describe('PhaseListEditor', () => {
 		});
 	});
 
-	// ─── TASK-670: Claude Config Override Sections ─────────────────────────────
+	// ─── TASK-670: Runtime Config Override Sections ────────────────────────────
 
-	describe('SC-1: Claude config collapsible sections in edit dialog', () => {
-		it('should render 7 collapsible claude_config sections in edit dialog', async () => {
+	describe('SC-1: Runtime config collapsible sections in edit dialog', () => {
+		it('should render 7 collapsible runtime_config sections in edit dialog', async () => {
 			const user = userEvent.setup();
 			render(<PhaseListEditor {...defaultProps} />);
 
@@ -718,7 +827,7 @@ describe('PhaseListEditor', () => {
 		});
 	});
 
-	describe('SC-2: Editor types for claude_config sections', () => {
+	describe('SC-2: Editor types for runtime_config sections', () => {
 		it('should render LibraryPicker for hooks section', async () => {
 			const user = userEvent.setup();
 			render(<PhaseListEditor {...defaultProps} />);
@@ -784,8 +893,8 @@ describe('PhaseListEditor', () => {
 		});
 	});
 
-	describe('SC-3: Save serializes claudeConfigOverride', () => {
-		it('should include claudeConfigOverride in onUpdatePhase call when overrides added (BDD-2)', async () => {
+	describe('SC-3: Save serializes runtimeConfigOverride', () => {
+		it('should include runtimeConfigOverride in onUpdatePhase call when overrides added (BDD-2)', async () => {
 			const user = userEvent.setup();
 			render(<PhaseListEditor {...defaultProps} />);
 
@@ -812,12 +921,12 @@ describe('PhaseListEditor', () => {
 			expect(mockOnUpdatePhase).toHaveBeenCalledWith(
 				1,
 				expect.objectContaining({
-					claudeConfigOverride: expect.stringContaining('hooks'),
+					runtimeConfigOverride: expect.stringContaining('hooks'),
 				}),
 			);
 		});
 
-		it('should omit claudeConfigOverride when no claude_config sections changed', async () => {
+		it('should omit runtimeConfigOverride when no runtime_config sections changed', async () => {
 			const user = userEvent.setup();
 			render(<PhaseListEditor {...defaultProps} />);
 
@@ -825,29 +934,29 @@ describe('PhaseListEditor', () => {
 			const editButton = within(phaseItems[0]).getByRole('button', { name: /edit/i });
 			await user.click(editButton);
 
-			// Save without changing any claude_config sections
+			// Save without changing any runtime_config sections
 			const saveButton = screen.getByRole('button', { name: /save phase/i });
 			await user.click(saveButton);
 
-			// claudeConfigOverride should be undefined or empty string when no overrides
+			// runtimeConfigOverride should be undefined or empty string when no overrides
 			const call = mockOnUpdatePhase.mock.calls[0];
 			const overrides = call[1];
 			expect(
-				overrides.claudeConfigOverride === undefined ||
-				overrides.claudeConfigOverride === '' ||
-				overrides.claudeConfigOverride === '{}'
+				overrides.runtimeConfigOverride === undefined ||
+				overrides.runtimeConfigOverride === '' ||
+				overrides.runtimeConfigOverride === '{}'
 			).toBe(true);
 		});
 
-		it('should produce valid JSON in claudeConfigOverride', async () => {
+		it('should produce valid JSON in runtimeConfigOverride', async () => {
 			const user = userEvent.setup();
-			// Create a phase that already has claude_config_override
+			// Create a phase that already has runtime_config_override
 			const phases = [
 				createMockWorkflowPhase({
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks":["existing-hook"],"allowed_tools":["Bash"]}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['existing-hook'], allowedTools: ['Bash'] }),
 				}),
 			];
 
@@ -863,9 +972,9 @@ describe('PhaseListEditor', () => {
 
 			const call = mockOnUpdatePhase.mock.calls[0];
 			const overrides = call[1];
-			if (overrides.claudeConfigOverride) {
+			if (overrides.runtimeConfigOverride) {
 				// Should be valid JSON
-				expect(() => JSON.parse(overrides.claudeConfigOverride)).not.toThrow();
+				expect(() => JSON.parse(overrides.runtimeConfigOverride)).not.toThrow();
 			}
 		});
 	});
@@ -873,7 +982,7 @@ describe('PhaseListEditor', () => {
 	describe('SC-5: Inherited vs override visual distinction (BDD-1)', () => {
 		it('should show inherited items dimmed with "inherited" badge', async () => {
 			const user = userEvent.setup();
-			// Phase with template that has claude_config
+			// Phase with template that has runtime_config
 			const phases = [
 				createMockWorkflowPhase({
 					id: 1,
@@ -882,7 +991,7 @@ describe('PhaseListEditor', () => {
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						claudeConfig: '{"hooks": ["lint-hook"], "env": {"NODE_ENV": "test"}}',
+						runtimeConfig: makeRuntimeConfig({ hooks: ['lint-hook'], env: { NODE_ENV: 'test' } }),
 					}),
 				}),
 			];
@@ -912,11 +1021,11 @@ describe('PhaseListEditor', () => {
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['my-hook'] }),
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						claudeConfig: '{"hooks": ["lint-hook"]}',
+						runtimeConfig: makeRuntimeConfig({ hooks: ['lint-hook'] }),
 					}),
 				}),
 			];
@@ -936,18 +1045,18 @@ describe('PhaseListEditor', () => {
 			expect(overrideItem.closest('[class*="override"]')).toBeTruthy();
 		});
 
-		it('should show all items as override when template has no claude_config', async () => {
+		it('should show all items as override when template has no runtime_config', async () => {
 			const user = userEvent.setup();
 			const phases = [
 				createMockWorkflowPhase({
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['my-hook'] }),
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						// No claudeConfig on template
+						// No runtimeConfig on template
 					}),
 				}),
 			];
@@ -975,11 +1084,11 @@ describe('PhaseListEditor', () => {
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['my-hook'] }),
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						claudeConfig: '{"hooks": ["lint-hook"]}',
+						runtimeConfig: makeRuntimeConfig({ hooks: ['lint-hook'] }),
 					}),
 				}),
 			];
@@ -1004,7 +1113,7 @@ describe('PhaseListEditor', () => {
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						// No claude_config
+						// No runtime_config
 					}),
 				}),
 			];
@@ -1033,7 +1142,7 @@ describe('PhaseListEditor', () => {
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						claudeConfig: '{"hooks": ["hook-a", "hook-b"]}',
+						runtimeConfig: makeRuntimeConfig({ hooks: ['hook-a', 'hook-b'] }),
 					}),
 				}),
 			];
@@ -1055,11 +1164,11 @@ describe('PhaseListEditor', () => {
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks": ["hook-a", "hook-b"]}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['hook-a', 'hook-b'] }),
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						// No claudeConfig on template
+						// No runtimeConfig on template
 					}),
 				}),
 			];
@@ -1083,11 +1192,11 @@ describe('PhaseListEditor', () => {
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['my-hook'] }),
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						claudeConfig: '{"hooks": ["lint-hook"]}',
+						runtimeConfig: makeRuntimeConfig({ hooks: ['lint-hook'] }),
 					}),
 				}),
 			];
@@ -1113,11 +1222,11 @@ describe('PhaseListEditor', () => {
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['my-hook'] }),
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						claudeConfig: '{"hooks": ["lint-hook"]}',
+						runtimeConfig: makeRuntimeConfig({ hooks: ['lint-hook'] }),
 					}),
 				}),
 			];
@@ -1151,7 +1260,7 @@ describe('PhaseListEditor', () => {
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks": ["my-hook"], "allowed_tools": ["Bash"]}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['my-hook'], allowedTools: ['Bash'] }),
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
@@ -1180,10 +1289,10 @@ describe('PhaseListEditor', () => {
 			const overrides = call[1];
 
 			// The saved JSON should not contain hooks key, but should still have allowed_tools
-			if (overrides.claudeConfigOverride) {
-				const parsed = JSON.parse(overrides.claudeConfigOverride);
-				expect(parsed.hooks).toBeUndefined();
-				expect(parsed.allowed_tools).toEqual(['Bash']);
+			if (overrides.runtimeConfigOverride) {
+				const parsed = JSON.parse(overrides.runtimeConfigOverride);
+				expect(parsed.providers?.claude?.hooks).toBeUndefined();
+				expect(parsed.shared.allowed_tools).toEqual(['Bash']);
 			}
 		});
 
@@ -1194,11 +1303,11 @@ describe('PhaseListEditor', () => {
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					// No claude_config_override
+					// No runtime_config_override
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						claudeConfig: '{"hooks": ["lint-hook"]}',
+						runtimeConfig: makeRuntimeConfig({ hooks: ['lint-hook'] }),
 					}),
 				}),
 			];
@@ -1224,14 +1333,14 @@ describe('PhaseListEditor', () => {
 	});
 
 	describe('SC-8: PhaseOverrides interface extension', () => {
-		it('should propagate claudeConfigOverride through onUpdatePhase', async () => {
+		it('should propagate runtimeConfigOverride through onUpdatePhase', async () => {
 			const user = userEvent.setup();
 			const phases = [
 				createMockWorkflowPhase({
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"env": {"KEY": "value"}}',
+					runtimeConfigOverride: makeRuntimeConfig({ env: { KEY: 'value' } }),
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
@@ -1249,16 +1358,16 @@ describe('PhaseListEditor', () => {
 			const saveButton = screen.getByRole('button', { name: /save phase/i });
 			await user.click(saveButton);
 
-			// The second argument should have claudeConfigOverride as a string field
+			// The second argument should have runtimeConfigOverride as a string field
 			const call = mockOnUpdatePhase.mock.calls[0];
 			const overrides = call[1];
-			expect('claudeConfigOverride' in overrides).toBe(true);
-			expect(typeof overrides.claudeConfigOverride === 'string' || overrides.claudeConfigOverride === undefined).toBe(true);
+			expect('runtimeConfigOverride' in overrides).toBe(true);
+			expect(typeof overrides.runtimeConfigOverride === 'string' || overrides.runtimeConfigOverride === undefined).toBe(true);
 		});
 	});
 
 	describe('Failure modes: Claude config sections', () => {
-		it('should handle template with no claude_config gracefully', async () => {
+		it('should handle template with no runtime_config gracefully', async () => {
 			const user = userEvent.setup();
 			const phases = [
 				createMockWorkflowPhase({
@@ -1268,7 +1377,7 @@ describe('PhaseListEditor', () => {
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						// No claudeConfig
+						// No runtimeConfig
 					}),
 				}),
 			];
@@ -1291,7 +1400,7 @@ describe('PhaseListEditor', () => {
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['my-hook'] }),
 					// No template field
 				}),
 			];
@@ -1306,14 +1415,14 @@ describe('PhaseListEditor', () => {
 			expect(await screen.findByText(/hooks/i)).toBeInTheDocument();
 		});
 
-		it('should clear claudeConfigOverride when all sections cleared (save with empty overrides)', async () => {
+		it('should clear runtimeConfigOverride when all sections cleared (save with empty overrides)', async () => {
 			const user = userEvent.setup();
 			const phases = [
 				createMockWorkflowPhase({
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['my-hook'] }),
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
@@ -1339,11 +1448,11 @@ describe('PhaseListEditor', () => {
 
 			const call = mockOnUpdatePhase.mock.calls[0];
 			const overrides = call[1];
-			// claudeConfigOverride should be empty/undefined when all cleared
+			// runtimeConfigOverride should be empty/undefined when all cleared
 			expect(
-				overrides.claudeConfigOverride === undefined ||
-				overrides.claudeConfigOverride === '' ||
-				overrides.claudeConfigOverride === '{}'
+				overrides.runtimeConfigOverride === undefined ||
+				overrides.runtimeConfigOverride === '' ||
+				overrides.runtimeConfigOverride === '{}'
 			).toBe(true);
 		});
 	});
@@ -1356,11 +1465,11 @@ describe('PhaseListEditor', () => {
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks": ["shared-hook"]}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['shared-hook'] }),
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',
-						claudeConfig: '{"hooks": ["shared-hook"]}',
+						runtimeConfig: makeRuntimeConfig({ hooks: ['shared-hook'] }),
 					}),
 				}),
 			];
@@ -1380,14 +1489,14 @@ describe('PhaseListEditor', () => {
 			expect(hookItems).toHaveLength(1); // Should not duplicate
 		});
 
-		it('should pre-fill edit dialog with existing claude_config_override', async () => {
+		it('should pre-fill edit dialog with existing runtime_config_override', async () => {
 			const user = userEvent.setup();
 			const phases = [
 				createMockWorkflowPhase({
 					id: 1,
 					phaseTemplateId: 'implement',
 					sequence: 1,
-					claudeConfigOverride: '{"hooks": ["existing-hook"], "env": {"MY_VAR": "my-value"}}',
+					runtimeConfigOverride: makeRuntimeConfig({ hooks: ['existing-hook'], env: { MY_VAR: 'my-value' } }),
 					template: createMockPhaseTemplate({
 						id: 'implement',
 						name: 'Implement',

@@ -289,10 +289,6 @@ func Default() *Config {
 				Path:            "codex",
 				ReasoningEffort: "high",
 			},
-			Ollama: OllamaProviderConfig{
-				BaseURL:      "http://localhost:11434",
-				DefaultModel: "qwen2.5-14b",
-			},
 		},
 		Model:                      "opus",
 		MaxTurns:                   150,              // Claude CLI turn limit - reasonable default for complex phases

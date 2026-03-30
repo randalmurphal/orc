@@ -3,6 +3,7 @@ package cli
 import (
 	"testing"
 
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -31,10 +32,10 @@ func TestResetCommand_ClearsFreshRunState(t *testing.T) {
 		"_retry_state":       `{"from_phase":"review"}`,
 	}
 	tk.Execution.Phases["review"] = &orcv1.PhaseState{
-		Status:    orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
-		StartedAt: timestamppb.Now(),
-		SessionId: testStringPtr("session-1"),
-		Tokens:    &orcv1.TokenUsage{TotalTokens: 99},
+		Status:          orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+		StartedAt:       timestamppb.Now(),
+		SessionMetadata: testStringPtr(mustSessionMetadata(t, "claude", "session-1")),
+		Tokens:          &orcv1.TokenUsage{TotalTokens: 99},
 	}
 	tk.Execution.Gates = []*orcv1.GateDecision{{Phase: "review"}}
 	tk.Execution.Tokens = &orcv1.TokenUsage{TotalTokens: 99}
@@ -99,4 +100,13 @@ func TestResetCommand_ClearsFreshRunState(t *testing.T) {
 	if !task.IsFreshRunProto(reloaded) {
 		t.Fatal("task should be recognized as a fresh run after reset")
 	}
+}
+
+func mustSessionMetadata(t *testing.T, provider, sessionID string) string {
+	t.Helper()
+	metadata, err := llmkit.MarshalSessionMetadata(llmkit.SessionMetadataForID(provider, sessionID))
+	if err != nil {
+		t.Fatalf("marshal session metadata: %v", err)
+	}
+	return metadata
 }

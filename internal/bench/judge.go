@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 
 	"github.com/randalmurphal/orc/internal/executor"
 )
@@ -302,9 +303,11 @@ func (jp *JudgePanel) executeJudge(ctx context.Context, judge JudgeConfig, req J
 
 	// Enable extended thinking for Claude judges via MAX_THINKING_TOKENS env var
 	if judge.Thinking {
-		cfg.ClaudeConfig = &executor.PhaseClaudeConfig{
-			Env: map[string]string{
-				"MAX_THINKING_TOKENS": "31999",
+		cfg.RuntimeConfig = &executor.PhaseRuntimeConfig{
+			Shared: llmkit.SharedRuntimeConfig{
+				Env: map[string]string{
+					"MAX_THINKING_TOKENS": "31999",
+				},
 			},
 		}
 	}

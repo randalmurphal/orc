@@ -6,129 +6,52 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/randalmurphal/llmkit/claude"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 )
 
-// PhaseClaudeConfig contains all Claude CLI configuration options that can be
-// set per-phase. This enables fine-grained control over Claude's behavior
-// for different workflow phases.
+// PhaseRuntimeConfig contains provider-neutral runtime configuration for a phase.
 //
 // Configuration is resolved in priority order:
-//  1. workflow_phases.claude_config_override (per-workflow override)
-//  2. phase_templates.claude_config (template default)
-//  3. Global config fallback
-type PhaseClaudeConfig struct {
-	// System prompts (inline)
-	SystemPrompt       string `json:"system_prompt,omitempty"`        // Replace entire system prompt
-	AppendSystemPrompt string `json:"append_system_prompt,omitempty"` // Append to default prompt
-
-	// System prompts (file-based, print mode only - which orc uses)
-	SystemPromptFile       string `json:"system_prompt_file,omitempty"`        // Replace from file path
-	AppendSystemPromptFile string `json:"append_system_prompt_file,omitempty"` // Append from file path
-
-	// Tool control
-	AllowedTools    []string `json:"allowed_tools,omitempty"`    // Tools that execute without prompting
-	DisallowedTools []string `json:"disallowed_tools,omitempty"` // Tools removed from context entirely
-	Tools           []string `json:"tools,omitempty"`            // Restrict available tools (empty = none, "default" = all)
-
-	// MCP servers
-	MCPServers      map[string]claude.MCPServerConfig `json:"mcp_servers,omitempty"`
-	StrictMCPConfig bool                              `json:"strict_mcp_config,omitempty"` // Only use these MCPs
-
-	// Budget & limits (print mode only - which orc uses)
-	MaxBudgetUSD float64 `json:"max_budget_usd,omitempty"` // Maximum spend in USD
-	MaxTurns     int     `json:"max_turns,omitempty"`      // Maximum conversation turns (0 = no limit)
-
-	// Environment
-	Env     map[string]string `json:"env,omitempty"`      // Environment variables
-	AddDirs []string          `json:"add_dirs,omitempty"` // Additional directories Claude can access
-
-	// Skills
-	SkillRefs []string `json:"skill_refs,omitempty"` // Skill names to load and inject
-
-	// Agent assignment
-	AgentRef          string                    `json:"agent_ref,omitempty"`           // --agent: Use existing agent by name
-	InlineAgents      map[string]InlineAgentDef `json:"inline_agents,omitempty"`       // --agents: Define subagents inline
-	AllowAgentFolding bool                      `json:"allow_agent_folding,omitempty"` // Allow codex to fold inline agents into main prompt
-
-	// Hook handling — maps event type (e.g. "PreToolUse") to matchers.
-	// Matches Claude Code's settings.json hooks format.
-	Hooks map[string][]HookMatcher `json:"hooks,omitempty"`
-
-	// Codex-specific settings (used when provider=codex).
-	Codex *PhaseCodexConfig `json:"codex,omitempty"`
+//  1. workflow_phases.runtime_config_override (per-workflow override)
+//  2. phase_templates.runtime_config (template default)
+//  3. executor agent runtime_config (base)
+type PhaseRuntimeConfig struct {
+	Shared    llmkit.SharedRuntimeConfig `json:"shared,omitempty"`
+	Providers PhaseRuntimeProviderConfig `json:"providers,omitempty"`
 }
 
-// PhaseCodexConfig holds Codex-specific settings for a phase.
-// Note: sandbox/approval modes are not configurable — orc always uses
-// --dangerously-bypass-approvals-and-sandbox for all codex execution.
-type PhaseCodexConfig struct {
-	ReasoningEffort string            `json:"reasoning_effort,omitempty"`
-	WebSearchMode   string            `json:"web_search_mode,omitempty"`
-	LocalProvider   string            `json:"local_provider,omitempty"`
-	Instructions    string            `json:"instructions,omitempty"`
-	Env             map[string]string `json:"env,omitempty"`
-	AddDirs         []string          `json:"add_dirs,omitempty"`
+type PhaseRuntimeProviderConfig struct {
+	Claude *llmkit.ClaudeRuntimeConfig `json:"claude,omitempty"`
+	Codex  *llmkit.CodexRuntimeConfig  `json:"codex,omitempty"`
 }
 
-// HookMatcher defines a single hook matcher entry in Claude Code's settings.json.
-// Each matcher specifies a tool pattern and one or more hook commands to run.
-type HookMatcher struct {
-	Matcher string      `json:"matcher,omitempty"`
-	Hooks   []HookEntry `json:"hooks"`
-}
-
-// HookEntry defines a single hook command within a HookMatcher.
-type HookEntry struct {
-	Type    string `json:"type"`              // "command" or "prompt"
-	Command string `json:"command,omitempty"` // For type: "command"
-	Prompt  string `json:"prompt,omitempty"`  // For type: "prompt"
-	Timeout int    `json:"timeout,omitempty"` // Optional timeout in seconds
-	Once    bool   `json:"once,omitempty"`    // Fire once then remove
-}
+type HookMatcher = llmkit.HookMatcher
+type HookEntry = llmkit.HookEntry
+type InlineAgentDef = llmkit.InlineAgentDef
 
 // WorktreeBaseConfig contains base configuration for worktree setup.
-// Replaces the old ClaudeCodeHookConfig. Used by ApplyPhaseSettings to
-// configure the worktree's .claude/ directory with safety-critical settings.
 type WorktreeBaseConfig struct {
-	// WorktreePath is the absolute path to the worktree.
-	WorktreePath string
-
-	// MainRepoPath is the absolute path to the main repository.
-	MainRepoPath string
-
-	// TaskID is the task identifier.
-	TaskID string
-
-	// AdditionalEnv are extra environment variables to inject.
+	WorktreePath  string
+	MainRepoPath  string
+	TaskID        string
 	AdditionalEnv map[string]string
 }
 
-// InlineAgentDef matches Claude CLI's --agents JSON format for defining
-// subagents inline rather than referencing existing ones.
-type InlineAgentDef struct {
-	Description string   `json:"description"`       // Required: when to use this agent
-	Prompt      string   `json:"prompt"`            // Required: system prompt for the agent
-	Tools       []string `json:"tools,omitempty"`   // Optional: tool restrictions (inherits if omitted)
-	Model       string   `json:"model,omitempty"`   // Optional: sonnet, opus, haiku, or inherit
-}
-
-// ParsePhaseClaudeConfig parses a JSON string into PhaseClaudeConfig.
+// ParsePhaseRuntimeConfig parses a JSON string into PhaseRuntimeConfig.
 // Returns nil for empty input.
-func ParsePhaseClaudeConfig(raw string) (*PhaseClaudeConfig, error) {
+func ParsePhaseRuntimeConfig(raw string) (*PhaseRuntimeConfig, error) {
 	if raw == "" {
 		return nil, nil
 	}
-	var cfg PhaseClaudeConfig
+	var cfg PhaseRuntimeConfig
 	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
-		return nil, fmt.Errorf("parse phase claude config: %w", err)
+		return nil, fmt.Errorf("parse phase runtime config: %w", err)
 	}
 	return &cfg, nil
 }
 
 // Merge combines two configs, with override taking precedence for non-empty values.
-// Returns a new config without modifying the original.
-func (p *PhaseClaudeConfig) Merge(override *PhaseClaudeConfig) *PhaseClaudeConfig {
+func (p *PhaseRuntimeConfig) Merge(override *PhaseRuntimeConfig) *PhaseRuntimeConfig {
 	if override == nil {
 		return p
 	}
@@ -136,53 +59,45 @@ func (p *PhaseClaudeConfig) Merge(override *PhaseClaudeConfig) *PhaseClaudeConfi
 		return override
 	}
 
-	result := *p // Copy base
+	result := *p
+	result.Shared = mergeSharedRuntimeConfig(p.Shared, override.Shared)
+	result.Providers = mergeProviderRuntimeConfig(p.Providers, override.Providers)
+	return &result
+}
 
-	// System prompts - override takes precedence
+func mergeSharedRuntimeConfig(base, override llmkit.SharedRuntimeConfig) llmkit.SharedRuntimeConfig {
+	result := base
+
 	if override.SystemPrompt != "" {
 		result.SystemPrompt = override.SystemPrompt
 	}
 	if override.AppendSystemPrompt != "" {
 		result.AppendSystemPrompt = override.AppendSystemPrompt
 	}
-	if override.SystemPromptFile != "" {
-		result.SystemPromptFile = override.SystemPromptFile
-	}
-	if override.AppendSystemPromptFile != "" {
-		result.AppendSystemPromptFile = override.AppendSystemPromptFile
-	}
-
-	// Tool control - override replaces (not merges)
 	if len(override.AllowedTools) > 0 {
-		result.AllowedTools = override.AllowedTools
+		result.AllowedTools = append([]string(nil), override.AllowedTools...)
 	}
 	if len(override.DisallowedTools) > 0 {
-		result.DisallowedTools = override.DisallowedTools
+		result.DisallowedTools = append([]string(nil), override.DisallowedTools...)
 	}
 	if len(override.Tools) > 0 {
-		result.Tools = override.Tools
+		result.Tools = append([]string(nil), override.Tools...)
 	}
-
-	// MCP servers - merge maps
 	if len(override.MCPServers) > 0 {
 		if result.MCPServers == nil {
-			result.MCPServers = make(map[string]claude.MCPServerConfig)
+			result.MCPServers = make(map[string]llmkit.MCPServerConfig)
 		}
 		maps.Copy(result.MCPServers, override.MCPServers)
 	}
 	if override.StrictMCPConfig {
 		result.StrictMCPConfig = true
 	}
-
-	// Budget & limits
 	if override.MaxBudgetUSD > 0 {
 		result.MaxBudgetUSD = override.MaxBudgetUSD
 	}
 	if override.MaxTurns > 0 {
 		result.MaxTurns = override.MaxTurns
 	}
-
-	// Environment - merge maps
 	if len(override.Env) > 0 {
 		if result.Env == nil {
 			result.Env = make(map[string]string)
@@ -190,34 +105,51 @@ func (p *PhaseClaudeConfig) Merge(override *PhaseClaudeConfig) *PhaseClaudeConfi
 		maps.Copy(result.Env, override.Env)
 	}
 	if len(override.AddDirs) > 0 {
-		result.AddDirs = override.AddDirs
+		result.AddDirs = append([]string(nil), override.AddDirs...)
 	}
 
-	// Skills - append
+	return result
+}
+
+func mergeProviderRuntimeConfig(base, override PhaseRuntimeProviderConfig) PhaseRuntimeProviderConfig {
+	result := base
+	result.Claude = mergeClaudeRuntimeConfig(base.Claude, override.Claude)
+	result.Codex = mergeCodexRuntimeConfig(base.Codex, override.Codex)
+	return result
+}
+
+func mergeClaudeRuntimeConfig(base, override *llmkit.ClaudeRuntimeConfig) *llmkit.ClaudeRuntimeConfig {
+	if override == nil {
+		return base
+	}
+	if base == nil {
+		cp := *override
+		return &cp
+	}
+
+	result := *base
+	if override.SystemPromptFile != "" {
+		result.SystemPromptFile = override.SystemPromptFile
+	}
+	if override.AppendSystemPromptFile != "" {
+		result.AppendSystemPromptFile = override.AppendSystemPromptFile
+	}
 	if len(override.SkillRefs) > 0 {
 		result.SkillRefs = append(result.SkillRefs, override.SkillRefs...)
 	}
-
-	// Agent - override takes precedence
 	if override.AgentRef != "" {
 		result.AgentRef = override.AgentRef
 	}
 	if len(override.InlineAgents) > 0 {
 		if result.InlineAgents == nil {
-			result.InlineAgents = make(map[string]InlineAgentDef)
+			result.InlineAgents = make(map[string]llmkit.InlineAgentDef)
 		}
 		maps.Copy(result.InlineAgents, override.InlineAgents)
 	}
-	if override.AllowAgentFolding {
-		result.AllowAgentFolding = true
-	}
-
-	// Hooks - per event key, append matchers (not replace).
-	// Deep-copy base hooks first to avoid mutating originals.
-	if len(p.Hooks) > 0 || len(override.Hooks) > 0 {
-		merged := make(map[string][]HookMatcher)
-		for event, matchers := range p.Hooks {
-			cp := make([]HookMatcher, len(matchers))
+	if len(base.Hooks) > 0 || len(override.Hooks) > 0 {
+		merged := make(map[string][]llmkit.HookMatcher)
+		for event, matchers := range base.Hooks {
+			cp := make([]llmkit.HookMatcher, len(matchers))
 			copy(cp, matchers)
 			merged[event] = cp
 		}
@@ -227,42 +159,83 @@ func (p *PhaseClaudeConfig) Merge(override *PhaseClaudeConfig) *PhaseClaudeConfi
 		result.Hooks = merged
 	}
 
-	// Codex config - override wins if non-nil
-	if override.Codex != nil {
-		result.Codex = override.Codex
-	}
-
 	return &result
 }
 
+func mergeCodexRuntimeConfig(base, override *llmkit.CodexRuntimeConfig) *llmkit.CodexRuntimeConfig {
+	if override == nil {
+		return base
+	}
+	if base == nil {
+		cp := *override
+		return &cp
+	}
+	result := *base
+	if override.ReasoningEffort != "" {
+		result.ReasoningEffort = override.ReasoningEffort
+	}
+	if override.WebSearchMode != "" {
+		result.WebSearchMode = override.WebSearchMode
+	}
+	return &result
+}
+
+// ToLLMKit returns the llmkit runtime contract for execution and preparation.
+func (p *PhaseRuntimeConfig) ToLLMKit() llmkit.RuntimeConfig {
+	if p == nil {
+		return llmkit.RuntimeConfig{}
+	}
+	return llmkit.RuntimeConfig{
+		Shared: p.Shared,
+		Providers: llmkit.RuntimeProviderConfig{
+			Claude: p.Providers.Claude,
+			Codex:  p.Providers.Codex,
+		},
+	}
+}
+
 // IsEmpty returns true if the config has no meaningful values set.
-func (p *PhaseClaudeConfig) IsEmpty() bool {
+func (p *PhaseRuntimeConfig) IsEmpty() bool {
 	if p == nil {
 		return true
 	}
-	return p.SystemPrompt == "" &&
-		p.AppendSystemPrompt == "" &&
-		p.SystemPromptFile == "" &&
-		p.AppendSystemPromptFile == "" &&
-		len(p.AllowedTools) == 0 &&
-		len(p.DisallowedTools) == 0 &&
-		len(p.Tools) == 0 &&
-		len(p.MCPServers) == 0 &&
-		!p.StrictMCPConfig &&
-		p.MaxBudgetUSD == 0 &&
-		p.MaxTurns == 0 &&
-		len(p.Env) == 0 &&
-		len(p.AddDirs) == 0 &&
-		len(p.SkillRefs) == 0 &&
-		p.AgentRef == "" &&
-		len(p.InlineAgents) == 0 &&
-		!p.AllowAgentFolding &&
-		len(p.Hooks) == 0 &&
-		p.Codex == nil
+	return p.Shared.SystemPrompt == "" &&
+		p.Shared.AppendSystemPrompt == "" &&
+		len(p.Shared.AllowedTools) == 0 &&
+		len(p.Shared.DisallowedTools) == 0 &&
+		len(p.Shared.Tools) == 0 &&
+		len(p.Shared.MCPServers) == 0 &&
+		!p.Shared.StrictMCPConfig &&
+		p.Shared.MaxBudgetUSD == 0 &&
+		p.Shared.MaxTurns == 0 &&
+		len(p.Shared.Env) == 0 &&
+		len(p.Shared.AddDirs) == 0 &&
+		claudeRuntimeConfigEmpty(p.Providers.Claude) &&
+		codexRuntimeConfigEmpty(p.Providers.Codex)
+}
+
+func claudeRuntimeConfigEmpty(cfg *llmkit.ClaudeRuntimeConfig) bool {
+	if cfg == nil {
+		return true
+	}
+	return cfg.SystemPromptFile == "" &&
+		cfg.AppendSystemPromptFile == "" &&
+		len(cfg.SkillRefs) == 0 &&
+		cfg.AgentRef == "" &&
+		len(cfg.InlineAgents) == 0 &&
+		len(cfg.Hooks) == 0
+}
+
+func codexRuntimeConfigEmpty(cfg *llmkit.CodexRuntimeConfig) bool {
+	if cfg == nil {
+		return true
+	}
+	return cfg.ReasoningEffort == "" &&
+		cfg.WebSearchMode == ""
 }
 
 // JSON returns the config as a JSON string for database storage.
-func (p *PhaseClaudeConfig) JSON() string {
+func (p *PhaseRuntimeConfig) JSON() string {
 	if p == nil || p.IsEmpty() {
 		return ""
 	}
@@ -270,11 +243,11 @@ func (p *PhaseClaudeConfig) JSON() string {
 	return string(b)
 }
 
-// InlineAgentsJSON returns the inline agents as a JSON string for --agents flag.
-func (p *PhaseClaudeConfig) InlineAgentsJSON() string {
-	if p == nil || len(p.InlineAgents) == 0 {
+// InlineAgentsJSON returns the Claude inline agents as a JSON string for llmkit consumers.
+func (p *PhaseRuntimeConfig) InlineAgentsJSON() string {
+	if p == nil || p.Providers.Claude == nil || len(p.Providers.Claude.InlineAgents) == 0 {
 		return ""
 	}
-	b, _ := json.Marshal(p.InlineAgents)
+	b, _ := json.Marshal(p.Providers.Claude.InlineAgents)
 	return string(b)
 }

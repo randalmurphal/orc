@@ -7,22 +7,29 @@
  * - Inline prompt editor with {{VARIABLE}} highlighting
  * - Data flow: Input Variables (with suggestions), Output Variable Name
  * - Execution settings: Agent, Gate Type, Max Iterations, Thinking, Checkpoint
- * - 7 collapsible Claude Config sections (same as EditPhaseTemplateModal)
+ * - 7 collapsible runtime config sections (same as EditPhaseTemplateModal)
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { create } from '@bufbuild/protobuf';
 import { Modal } from '@/components/overlays/Modal';
 import { Button, Icon } from '@/components/ui';
 import { workflowClient, configClient, mcpClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 import type { PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
 import type { Agent, Hook, Skill } from '@/gen/orc/v1/config_pb';
-import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
+import { GetMCPServerRequestSchema, type MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
 import { GateType, PromptSource } from '@/gen/orc/v1/workflow_pb';
 import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
 import { LibraryPicker } from '@/components/core/LibraryPicker';
 import { TagInput } from '@/components/core/TagInput';
 import { KeyValueEditor } from '@/components/core/KeyValueEditor';
+import {
+	parseRuntimeConfig,
+	serializeRuntimeConfig,
+	hydrateSelectedMCPServers,
+	type HookDefinition,
+} from '@/lib/runtimeConfigUtils';
 import './CreatePhaseTemplateModal.css';
 
 export interface CreatePhaseTemplateModalProps {
@@ -60,35 +67,6 @@ function slugify(name: string): string {
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '')
 		.replace(/-+/g, '-');
-}
-
-/** Serialize structured state back to claude_config JSON */
-function serializeClaudeConfig(state: {
-	hooks: string[];
-	skillRefs: string[];
-	mcpServers: string[];
-	allowedTools: string[];
-	disallowedTools: string[];
-	env: Record<string, string>;
-	extra: Record<string, unknown>;
-	mcpServerData: Record<string, unknown>;
-}): string {
-	const config: Record<string, unknown> = { ...state.extra };
-
-	if (state.hooks.length > 0) config.hooks = state.hooks;
-	if (state.skillRefs.length > 0) config.skill_refs = state.skillRefs;
-	if (Object.keys(state.mcpServers).length > 0) {
-		const servers: Record<string, unknown> = {};
-		for (const name of state.mcpServers) {
-			servers[name] = state.mcpServerData[name] || {};
-		}
-		config.mcp_servers = servers;
-	}
-	if (state.allowedTools.length > 0) config.allowed_tools = state.allowedTools;
-	if (state.disallowedTools.length > 0) config.disallowed_tools = state.disallowedTools;
-	if (Object.keys(state.env).length > 0) config.env = state.env;
-
-	return JSON.stringify(config, null, 2);
 }
 
 /**
@@ -330,8 +308,10 @@ export function CreatePhaseTemplateModal({
 	const [allowedTools, setAllowedTools] = useState<string[]>([]);
 	const [disallowedTools, setDisallowedTools] = useState<string[]>([]);
 	const [envVars, setEnvVars] = useState<Record<string, string>>({});
-	const [extraFields] = useState<Record<string, unknown>>({});
+	const [extraFields, setExtraFields] = useState<Record<string, unknown>>({});
 	const [mcpServerData, setMcpServerData] = useState<Record<string, unknown>>({});
+	const [hookConfig, setHookConfig] = useState<Record<string, unknown>>({});
+	const [hookEventTypes, setHookEventTypes] = useState<Record<string, string>>({});
 
 	// JSON override state
 	const [jsonOverride, setJsonOverride] = useState('{}');
@@ -454,7 +434,7 @@ export function CreatePhaseTemplateModal({
 	// Update JSON override when structured fields change
 	useEffect(() => {
 		if (!jsonOverrideActiveRef.current) {
-			const json = serializeClaudeConfig({
+			const json = serializeRuntimeConfig({
 				hooks: selectedHooks,
 				skillRefs: selectedSkills,
 				mcpServers: selectedMCPServers,
@@ -463,10 +443,50 @@ export function CreatePhaseTemplateModal({
 				env: envVars,
 				extra: extraFields,
 				mcpServerData,
+				hookConfig,
+				hookEventTypes,
+			}, {
+				hookDefinitions: hooks.map((hook): HookDefinition => ({
+					name: hook.name,
+					eventType: hook.eventType,
+				})),
 			});
 			setJsonOverride(json);
 		}
-	}, [selectedHooks, selectedSkills, selectedMCPServers, allowedTools, disallowedTools, envVars, extraFields, mcpServerData]);
+	}, [selectedHooks, selectedSkills, selectedMCPServers, allowedTools, disallowedTools, envVars, extraFields, mcpServerData, hookConfig, hookEventTypes, hooks]);
+
+	useEffect(() => {
+		let mounted = true;
+		hydrateSelectedMCPServers(
+			selectedMCPServers,
+			mcpServerData,
+			async (name) => {
+				const response = await mcpClient.getMCPServer(
+					create(GetMCPServerRequestSchema, { name }),
+				);
+				if (!response.server) {
+					return undefined;
+				}
+				return {
+					type: response.server.type,
+					command: response.server.command,
+					args: response.server.args,
+					env: response.server.env,
+					url: response.server.url,
+					headers: response.server.headers,
+					disabled: response.server.disabled,
+				};
+			},
+		).then((hydrated) => {
+			if (mounted) {
+				setMcpServerData(hydrated);
+			}
+		}).catch(() => {});
+
+		return () => {
+			mounted = false;
+		};
+	}, [selectedMCPServers]);
 
 	// Handle JSON override blur
 	const handleJsonBlur = useCallback(() => {
@@ -478,20 +498,17 @@ export function CreatePhaseTemplateModal({
 			}
 
 			// Re-parse into structured fields
-			setSelectedHooks(Array.isArray(parsed.hooks) ? parsed.hooks : []);
-			setSelectedSkills(Array.isArray(parsed.skill_refs) ? parsed.skill_refs : []);
-			setAllowedTools(Array.isArray(parsed.allowed_tools) ? parsed.allowed_tools : []);
-			setDisallowedTools(Array.isArray(parsed.disallowed_tools) ? parsed.disallowed_tools : []);
-			setEnvVars(typeof parsed.env === 'object' && parsed.env !== null ? parsed.env : {});
-
-			// MCP servers
-			if (parsed.mcp_servers && typeof parsed.mcp_servers === 'object') {
-				setSelectedMCPServers(Object.keys(parsed.mcp_servers));
-				setMcpServerData(parsed.mcp_servers);
-			} else {
-				setSelectedMCPServers([]);
-				setMcpServerData({});
-			}
+			const config = parseRuntimeConfig(jsonOverride);
+			setSelectedHooks(config.hooks);
+			setSelectedSkills(config.skillRefs);
+			setSelectedMCPServers(config.mcpServers);
+			setAllowedTools(config.allowedTools);
+			setDisallowedTools(config.disallowedTools);
+			setEnvVars(config.env);
+			setExtraFields(config.extra);
+			setMcpServerData(config.mcpServerData ?? {});
+			setHookConfig(config.hookConfig ?? {});
+			setHookEventTypes(config.hookEventTypes ?? {});
 
 			setJsonError('');
 			jsonOverrideActiveRef.current = false;
@@ -509,15 +526,43 @@ export function CreatePhaseTemplateModal({
 
 		setSaving(true);
 		try {
-			const claudeConfig = serializeClaudeConfig({
+			const hydratedMcpServerData = await hydrateSelectedMCPServers(
+				selectedMCPServers,
+				mcpServerData,
+				async (name) => {
+					const response = await mcpClient.getMCPServer(
+						create(GetMCPServerRequestSchema, { name }),
+					);
+					if (!response.server) {
+						return undefined;
+					}
+					return {
+						type: response.server.type,
+						command: response.server.command,
+						args: response.server.args,
+						env: response.server.env,
+						url: response.server.url,
+						headers: response.server.headers,
+						disabled: response.server.disabled,
+					};
+				},
+			);
+			const runtimeConfig = serializeRuntimeConfig({
 				hooks: selectedHooks,
 				skillRefs: selectedSkills,
 				mcpServers: selectedMCPServers,
 				allowedTools,
 				disallowedTools,
 				env: envVars,
+				mcpServerData: hydratedMcpServerData,
+				hookConfig,
+				hookEventTypes,
 				extra: extraFields,
-				mcpServerData,
+			}, {
+				hookDefinitions: hooks.map((hook): HookDefinition => ({
+					name: hook.name,
+					eventType: hook.eventType,
+				})),
 			});
 
 			const response = await workflowClient.createPhaseTemplate({
@@ -531,7 +576,7 @@ export function CreatePhaseTemplateModal({
 				thinkingEnabled: thinkingEnabled || undefined,
 				checkpoint: checkpoint,
 				agentId: agentId || undefined,
-				claudeConfig: claudeConfig !== '{}' ? claudeConfig : undefined,
+				runtimeConfig: runtimeConfig !== '{}' ? runtimeConfig : undefined,
 				outputVarName: outputVarName.trim() || undefined,
 				producesArtifact: false,
 				inputVariables: inputVariables.length > 0 ? inputVariables : undefined,
@@ -805,9 +850,9 @@ export function CreatePhaseTemplateModal({
 					</div>
 				</div>
 
-				{/* Claude Config Settings Sections */}
+				{/* Runtime Config Settings Sections */}
 				<div className="create-template-section">
-					<h3 className="create-template-section-title">Claude Config</h3>
+					<h3 className="create-template-section-title">Runtime Config</h3>
 
 					<CollapsibleSettingsSection title="Hooks" badgeCount={selectedHooks.length} badgeText={String(selectedHooks.length)}>
 						<LibraryPicker

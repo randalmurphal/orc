@@ -1,3 +1,4 @@
+import { create } from '@bufbuild/protobuf';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
@@ -14,10 +15,16 @@ import type {
 	PhaseTemplate,
 } from '@/gen/orc/v1/workflow_pb';
 import type { Agent, Hook, Skill } from '@/gen/orc/v1/config_pb';
-import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
-import { mergeClaudeConfigs, parseClaudeConfig, serializeClaudeConfig } from '@/lib/claudeConfigUtils';
+import { GetMCPServerRequestSchema, type MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
+import {
+	mergeRuntimeConfigs,
+	parseRuntimeConfig,
+	serializeRuntimeConfig,
+	hydrateSelectedMCPServers,
+	type RuntimeConfigState,
+	type HookDefinition,
+} from '@/lib/runtimeConfigUtils';
 import { PROVIDERS, PROVIDER_MODELS } from '@/lib/providerUtils';
-import type { ClaudeConfigState } from '@/lib/claudeConfigUtils';
 import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
 import { LibraryPicker } from '@/components/core/LibraryPicker';
 import { TagInput } from '@/components/core/TagInput';
@@ -42,6 +49,24 @@ interface SectionState {
 	dataFlow: boolean;
 	environment: boolean;
 	advanced: boolean;
+}
+
+async function fetchMCPServerConfig(name: string): Promise<Record<string, unknown> | undefined> {
+	const response = await mcpClient.getMCPServer(
+		create(GetMCPServerRequestSchema, { name }),
+	);
+	if (!response.server) {
+		return undefined;
+	}
+	return {
+		type: response.server.type,
+		command: response.server.command,
+		args: response.server.args,
+		env: response.server.env,
+		url: response.server.url,
+		headers: response.server.headers,
+		disabled: response.server.disabled,
+	};
 }
 
 // Field validation state
@@ -1193,10 +1218,10 @@ function EnvironmentSection({
 	const [workingDirectory, setWorkingDirectory] = useState('inherit');
 	const [envVars, setEnvVars] = useState<Record<string, string>>({});
 
-	// Parse current claudeConfigOverride to get selections
+	// Parse current runtimeConfigOverride to get selections
 	const currentConfig = useMemo(
-		() => parseClaudeConfig(phase.claudeConfigOverride),
-		[phase.claudeConfigOverride]
+		() => parseRuntimeConfig(phase.runtimeConfigOverride),
+		[phase.runtimeConfigOverride]
 	);
 
 	const [selectedMCPServers, setSelectedMCPServers] = useState<string[]>(currentConfig.mcpServers);
@@ -1205,11 +1230,11 @@ function EnvironmentSection({
 
 	// Update selections when phase changes
 	useEffect(() => {
-		const config = parseClaudeConfig(phase.claudeConfigOverride);
+		const config = parseRuntimeConfig(phase.runtimeConfigOverride);
 		setSelectedMCPServers(config.mcpServers);
 		setSelectedSkills(config.skillRefs);
 		setSelectedHooks(config.hooks);
-	}, [phase.id, phase.claudeConfigOverride]);
+	}, [phase.id, phase.runtimeConfigOverride]);
 
 	const handleWorkingDirectoryChange = (directory: string) => {
 		setWorkingDirectory(directory);
@@ -1223,34 +1248,48 @@ function EnvironmentSection({
 
 	// Helper to save updated config
 	const saveConfigUpdate = useCallback(
-		(update: Partial<{ mcpServers: string[]; skillRefs: string[]; hooks: string[] }>) => {
-			const newConfig = serializeClaudeConfig({
+		async (update: Partial<{ mcpServers: string[]; skillRefs: string[]; hooks: string[] }>) => {
+			const nextMcpServers = update.mcpServers ?? selectedMCPServers;
+			const mcpServerData = await hydrateSelectedMCPServers(
+				nextMcpServers,
+				currentConfig.mcpServerData ?? {},
+				fetchMCPServerConfig,
+			);
+			const newConfig = serializeRuntimeConfig({
 				hooks: update.hooks ?? selectedHooks,
 				skillRefs: update.skillRefs ?? selectedSkills,
-				mcpServers: update.mcpServers ?? selectedMCPServers,
+				mcpServers: nextMcpServers,
 				allowedTools: currentConfig.allowedTools,
 				disallowedTools: currentConfig.disallowedTools,
 				env: currentConfig.env,
+				mcpServerData,
+				hookConfig: currentConfig.hookConfig,
+				hookEventTypes: currentConfig.hookEventTypes,
 				extra: currentConfig.extra,
+			}, {
+				hookDefinitions: hooks.map((hook): HookDefinition => ({
+					name: hook.name,
+					eventType: hook.eventType,
+				})),
 			});
-			autoSave('claudeConfigOverride', newConfig);
+			autoSave('runtimeConfigOverride', newConfig);
 		},
-		[selectedHooks, selectedSkills, selectedMCPServers, currentConfig, autoSave]
+		[selectedHooks, selectedSkills, selectedMCPServers, currentConfig, autoSave, hooks]
 	);
 
 	const handleMCPServersChange = (names: string[]) => {
 		setSelectedMCPServers(names);
-		saveConfigUpdate({ mcpServers: names });
+		void saveConfigUpdate({ mcpServers: names });
 	};
 
 	const handleSkillsChange = (names: string[]) => {
 		setSelectedSkills(names);
-		saveConfigUpdate({ skillRefs: names });
+		void saveConfigUpdate({ skillRefs: names });
 	};
 
 	const handleHooksChange = (names: string[]) => {
 		setSelectedHooks(names);
-		saveConfigUpdate({ hooks: names });
+		void saveConfigUpdate({ hooks: names });
 	};
 
 	const isLoading = hooksLoading || skillsLoading || mcpLoading;
@@ -1570,8 +1609,8 @@ export function SettingsTab({
 		phase.subAgentsOverride ?? [],
 	);
 
-	// Claude config draft — updated by ClaudeConfigEditor, saved with the rest
-	const [claudeConfigDraft, setClaudeConfigDraft] = useState<string | null>(null);
+	// Runtime config draft — updated by RuntimeConfigEditor, saved with the rest
+	const [runtimeConfigDraft, setRuntimeConfigDraft] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 
 	// Condition state — tracks pending condition changes
@@ -1603,7 +1642,7 @@ export function SettingsTab({
 		setGateTypeOverride(phase.gateTypeOverride ?? GateType.UNSPECIFIED);
 		setAgentOverride(phase.agentOverride ?? '');
 		setSubAgentsOverride(phase.subAgentsOverride ?? []);
-		setClaudeConfigDraft(null);
+		setRuntimeConfigDraft(null);
 		setConditionDraft(phase.condition);
 		setConditionDirty(false);
 		setLoopConfigDraft(phase.loopConfig);
@@ -1620,11 +1659,11 @@ export function SettingsTab({
 		const origSorted = [...(phase.subAgentsOverride ?? [])].sort();
 		const currSorted = [...subAgentsOverride].sort();
 		if (JSON.stringify(currSorted) !== JSON.stringify(origSorted)) return true;
-		if (claudeConfigDraft !== null) return true;
+		if (runtimeConfigDraft !== null) return true;
 		if (conditionDirty) return true;
 		if (loopConfigDirty) return true;
 		return false;
-	}, [modelOverride, thinkingOverride, gateTypeOverride, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, loopConfigDirty, phase]);
+	}, [modelOverride, thinkingOverride, gateTypeOverride, agentOverride, subAgentsOverride, runtimeConfigDraft, conditionDirty, loopConfigDirty, phase]);
 
 	// Save all pending changes in one API call
 	const handleSave = useCallback(async () => {
@@ -1642,11 +1681,11 @@ export function SettingsTab({
 				agentOverride: agentOverride || undefined,
 				subAgentsOverride,
 				subAgentsOverrideSet: true,
-				...(claudeConfigDraft !== null ? { claudeConfigOverride: claudeConfigDraft || undefined } : {}),
+				...(runtimeConfigDraft !== null ? { runtimeConfigOverride: runtimeConfigDraft || undefined } : {}),
 				...(conditionDirty ? { condition: conditionDraft || '' } : {}),
 				...(loopConfigDirty ? { loopConfig: loopConfigDraft || '' } : {}),
 			});
-			setClaudeConfigDraft(null);
+			setRuntimeConfigDraft(null);
 			setConditionDirty(false);
 			setLoopConfigDirty(false);
 			onWorkflowRefresh?.();
@@ -1656,7 +1695,7 @@ export function SettingsTab({
 		} finally {
 			setSaving(false);
 		}
-	}, [workflowDetails, phase.id, modelOverride, thinkingOverride, gateTypeOverride, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, conditionDraft, loopConfigDirty, loopConfigDraft, onError, onWorkflowRefresh]);
+	}, [workflowDetails, phase.id, modelOverride, thinkingOverride, gateTypeOverride, agentOverride, subAgentsOverride, runtimeConfigDraft, conditionDirty, conditionDraft, loopConfigDirty, loopConfigDraft, onError, onWorkflowRefresh]);
 
 	// Discard all pending changes
 	const handleDiscard = useCallback(() => {
@@ -1665,7 +1704,7 @@ export function SettingsTab({
 		setGateTypeOverride(phase.gateTypeOverride ?? GateType.UNSPECIFIED);
 		setAgentOverride(phase.agentOverride ?? '');
 		setSubAgentsOverride(phase.subAgentsOverride ?? []);
-		setClaudeConfigDraft(null);
+		setRuntimeConfigDraft(null);
 		setConditionDraft(phase.condition);
 		setConditionDirty(false);
 		setLoopConfigDraft(phase.loopConfig);
@@ -1895,11 +1934,11 @@ export function SettingsTab({
 				/>
 			</CollapsibleSettingsSection>
 
-			{/* Claude Config Override (editable) — changes accumulate in claudeConfigDraft */}
-			<ClaudeConfigEditor
+			{/* Runtime Config Override (editable) — changes accumulate in runtimeConfigDraft */}
+			<RuntimeConfigEditor
 				phase={phase}
 				disabled={readOnly}
-				onSave={setClaudeConfigDraft}
+				onSave={setRuntimeConfigDraft}
 			/>
 
 			{/* Danger Zone - Remove Phase */}
@@ -1918,15 +1957,15 @@ export function SettingsTab({
 	);
 }
 
-// ─── Claude Config Editor (editable in Settings tab) ────────────────────────
+// ─── Runtime Config Editor (editable in Settings tab) ───────────────────────
 
-interface ClaudeConfigEditorProps {
+interface RuntimeConfigEditorProps {
 	phase: WorkflowPhase;
 	disabled: boolean;
 	onSave: (json: string) => void;
 }
 
-function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps) {
+function RuntimeConfigEditor({ phase, disabled, onSave }: RuntimeConfigEditorProps) {
 	// Structured override fields
 	const [selectedHooks, setSelectedHooks] = useState<string[]>([]);
 	const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
@@ -1934,6 +1973,9 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 	const [allowedTools, setAllowedTools] = useState<string[]>([]);
 	const [disallowedTools, setDisallowedTools] = useState<string[]>([]);
 	const [envVars, setEnvVars] = useState<Record<string, string>>({});
+	const [mcpServerData, setMcpServerData] = useState<Record<string, unknown>>({});
+	const [hookConfig, setHookConfig] = useState<Record<string, unknown>>({});
+	const [hookEventTypes, setHookEventTypes] = useState<Record<string, string>>({});
 	const [extraFields, setExtraFields] = useState<Record<string, unknown>>({});
 
 	// JSON override textarea
@@ -1975,47 +2017,88 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 
 	// Parse override when phase changes
 	useEffect(() => {
-		const config = parseClaudeConfig(phase.claudeConfigOverride);
+		const config = parseRuntimeConfig(phase.runtimeConfigOverride);
 		setSelectedHooks(config.hooks);
 		setSelectedSkills(config.skillRefs);
 		setSelectedMCPServers(config.mcpServers);
 		setAllowedTools(config.allowedTools);
 		setDisallowedTools(config.disallowedTools);
 		setEnvVars(config.env);
+		setMcpServerData(config.mcpServerData ?? {});
+		setHookConfig(config.hookConfig ?? {});
+		setHookEventTypes(config.hookEventTypes ?? {});
 		setExtraFields(config.extra);
 		jsonActiveRef.current = false;
-	}, [phase.id, phase.claudeConfigOverride]);
+	}, [phase.id, phase.runtimeConfigOverride]);
+
+	useEffect(() => {
+		let mounted = true;
+		hydrateSelectedMCPServers(
+			selectedMCPServers,
+			mcpServerData,
+			fetchMCPServerConfig,
+		).then((hydrated) => {
+			if (mounted) {
+				setMcpServerData(hydrated);
+			}
+		}).catch(() => {});
+
+		return () => {
+			mounted = false;
+		};
+	}, [selectedMCPServers]);
 
 	// Sync structured fields -> JSON text (when not editing JSON directly)
 	useEffect(() => {
 		if (!jsonActiveRef.current) {
-			setJsonText(serializeClaudeConfig({
+			setJsonText(serializeRuntimeConfig({
 				hooks: selectedHooks,
 				skillRefs: selectedSkills,
 				mcpServers: selectedMCPServers,
 				allowedTools,
 				disallowedTools,
 				env: envVars,
+				mcpServerData,
+				hookConfig,
+				hookEventTypes,
 				extra: extraFields,
+			}, {
+				hookDefinitions: hooks.map((hook): HookDefinition => ({
+					name: hook.name,
+					eventType: hook.eventType,
+				})),
 			}));
 		}
-	}, [selectedHooks, selectedSkills, selectedMCPServers, allowedTools, disallowedTools, envVars, extraFields]);
+	}, [selectedHooks, selectedSkills, selectedMCPServers, allowedTools, disallowedTools, envVars, mcpServerData, hookConfig, hookEventTypes, extraFields, hooks]);
 
 	// Save helper - serializes all current fields with an override for the changed field
 	const saveConfig = useCallback(
-		(overrides: Partial<ClaudeConfigState>) => {
-			const json = serializeClaudeConfig({
+		async (overrides: Partial<RuntimeConfigState>) => {
+			const nextMcpServers = overrides.mcpServers ?? selectedMCPServers;
+			const json = serializeRuntimeConfig({
 				hooks: overrides.hooks ?? selectedHooks,
 				skillRefs: overrides.skillRefs ?? selectedSkills,
-				mcpServers: overrides.mcpServers ?? selectedMCPServers,
+				mcpServers: nextMcpServers,
 				allowedTools: overrides.allowedTools ?? allowedTools,
 				disallowedTools: overrides.disallowedTools ?? disallowedTools,
 				env: overrides.env ?? envVars,
+				mcpServerData: await hydrateSelectedMCPServers(
+					nextMcpServers,
+					overrides.mcpServerData ?? mcpServerData,
+					fetchMCPServerConfig,
+				),
+				hookConfig: overrides.hookConfig ?? hookConfig,
+				hookEventTypes: overrides.hookEventTypes ?? hookEventTypes,
 				extra: overrides.extra ?? extraFields,
+			}, {
+				hookDefinitions: hooks.map((hook): HookDefinition => ({
+					name: hook.name,
+					eventType: hook.eventType,
+				})),
 			});
 			onSave(json);
 		},
-		[selectedHooks, selectedSkills, selectedMCPServers, allowedTools, disallowedTools, envVars, extraFields, onSave],
+		[selectedHooks, selectedSkills, selectedMCPServers, allowedTools, disallowedTools, envVars, mcpServerData, hookConfig, hookEventTypes, extraFields, onSave, hooks],
 	);
 
 	// Handle JSON override blur
@@ -2026,13 +2109,16 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 				setJsonError('Invalid JSON');
 				return;
 			}
-			const config = parseClaudeConfig(jsonText);
+			const config = parseRuntimeConfig(jsonText);
 			setSelectedHooks(config.hooks);
 			setSelectedSkills(config.skillRefs);
 			setSelectedMCPServers(config.mcpServers);
 			setAllowedTools(config.allowedTools);
 			setDisallowedTools(config.disallowedTools);
 			setEnvVars(config.env);
+			setMcpServerData(config.mcpServerData ?? {});
+			setHookConfig(config.hookConfig ?? {});
+			setHookEventTypes(config.hookEventTypes ?? {});
 			setExtraFields(config.extra);
 			setJsonError('');
 			jsonActiveRef.current = false;
@@ -2044,18 +2130,18 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 
 	// Merged config for reference display
 	const template = phase.template;
-	const templateConfigStr = (template as Record<string, unknown> | undefined)?.claudeConfig as string | undefined;
+	const templateConfigStr = (template as Record<string, unknown> | undefined)?.runtimeConfig as string | undefined;
 	const merged = useMemo(
-		() => mergeClaudeConfigs(templateConfigStr, phase.claudeConfigOverride),
-		[templateConfigStr, phase.claudeConfigOverride],
+		() => mergeRuntimeConfigs(templateConfigStr, phase.runtimeConfigOverride),
+		[templateConfigStr, phase.runtimeConfigOverride],
 	);
 
 	const inheritedCount =
-		(templateConfigStr ? parseClaudeConfig(templateConfigStr) : null);
+		(templateConfigStr ? parseRuntimeConfig(templateConfigStr) : null);
 
 	return (
 		<div className="claude-config-summary">
-			<h4 className="claude-config-summary__title">Claude Config</h4>
+			<h4 className="claude-config-summary__title">Runtime Config</h4>
 
 			{inheritedCount && (
 				(inheritedCount.hooks.length > 0 ||
@@ -2086,7 +2172,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 					onSelectionChange={(names) => {
 						setSelectedHooks(names);
 						jsonActiveRef.current = false;
-						saveConfig({ hooks: names });
+						void saveConfig({ hooks: names });
 					}}
 					error={hooksError}
 					loading={hooksLoading}
@@ -2103,7 +2189,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 					onSelectionChange={(names) => {
 						setSelectedMCPServers(names);
 						jsonActiveRef.current = false;
-						saveConfig({ mcpServers: names });
+						void saveConfig({ mcpServers: names });
 					}}
 					error={mcpError}
 					loading={mcpLoading}
@@ -2120,7 +2206,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 					onSelectionChange={(names) => {
 						setSelectedSkills(names);
 						jsonActiveRef.current = false;
-						saveConfig({ skillRefs: names });
+						void saveConfig({ skillRefs: names });
 					}}
 					error={skillsError}
 					loading={skillsLoading}
@@ -2135,7 +2221,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 					onChange={(tags) => {
 						setAllowedTools(tags);
 						jsonActiveRef.current = false;
-						saveConfig({ allowedTools: tags });
+						void saveConfig({ allowedTools: tags });
 					}}
 					placeholder="Add tool name..."
 					disabled={disabled}
@@ -2149,7 +2235,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 					onChange={(tags) => {
 						setDisallowedTools(tags);
 						jsonActiveRef.current = false;
-						saveConfig({ disallowedTools: tags });
+						void saveConfig({ disallowedTools: tags });
 					}}
 					placeholder="Add tool name..."
 					disabled={disabled}
@@ -2163,7 +2249,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 					onChange={(entries) => {
 						setEnvVars(entries);
 						jsonActiveRef.current = false;
-						saveConfig({ env: entries });
+						void saveConfig({ env: entries });
 					}}
 					disabled={disabled}
 				/>
@@ -2193,7 +2279,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 	);
 }
 
-/** Read-only chips showing items inherited from the phase template's claude_config. */
+/** Read-only chips showing items inherited from the phase template's runtime_config. */
 function InheritedChips({ items }: { items?: string[]; label?: string }) {
 	if (!items || items.length === 0) return null;
 	return (

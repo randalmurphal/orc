@@ -361,7 +361,7 @@
 	color: var(--text-muted);
 }
 
-/* ─── Claude Config Override Sections ─────────────────────────────────────── */
+/* ─── Runtime Config Override Sections ────────────────────────────────────── */
 
 .claude-config-sections {
 	display: flex;
@@ -498,7 +498,7 @@
 	color: var(--text-muted);
 }
 
-/* JSON Override in Claude Config Editor */
+/* JSON Override in Runtime Config Editor */
 .claude-config-json-override {
 	display: flex;
 	flex-direction: column;

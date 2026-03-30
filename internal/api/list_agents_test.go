@@ -217,7 +217,7 @@ func TestListAgents_AgentWithEmptyTools(t *testing.T) {
 
 // TestListAgents_NoScope_ReturnsBothScopes verifies SC-3:
 // When no scope filter is set, returns agents from both project (SQLite)
-// and global (.claude config) sources.
+// and global Claude settings sources.
 func TestListAgents_NoScope_ReturnsBothScopes(t *testing.T) {
 	t.Parallel()
 

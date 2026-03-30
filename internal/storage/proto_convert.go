@@ -301,7 +301,7 @@ func protoPhaseToDBPhase(taskID, phaseID string, ps *orcv1.PhaseState) *db.Phase
 		CostUSD:             0, // Not stored at phase level
 		ErrorMessage:        ptrToString(ps.Error),
 		CommitSHA:           ptrToString(ps.CommitSha),
-		SessionID:           ptrToString(ps.SessionId),
+		SessionID:           ptrToString(ps.SessionMetadata),
 	}
 }
 
@@ -326,7 +326,7 @@ func dbPhaseToProtoPhase(dbPhase *db.Phase) *orcv1.PhaseState {
 		CompletedAt: completedAt,
 		Error:       stringToPtr(dbPhase.ErrorMessage),
 		CommitSha:   stringToPtr(dbPhase.CommitSHA),
-		SessionId:   stringToPtr(dbPhase.SessionID),
+		SessionMetadata: stringToPtr(dbPhase.SessionID),
 		Tokens: &orcv1.TokenUsage{
 			InputTokens:              int32(dbPhase.InputTokens),
 			OutputTokens:             int32(dbPhase.OutputTokens),

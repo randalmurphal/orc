@@ -45,12 +45,6 @@ var providerRates = map[string]map[string]TokenRate{
 		// GPT-4.1: $2/$8 per MTok
 		"gpt-4.1": {Input: 2.0, Output: 8.0, CacheRead: 0.0, CacheWrite: 0.0},
 	},
-	"ollama": {
-		"*": {Input: 0.0, Output: 0.0, CacheRead: 0.0, CacheWrite: 0.0},
-	},
-	"lmstudio": {
-		"*": {Input: 0.0, Output: 0.0, CacheRead: 0.0, CacheWrite: 0.0},
-	},
 }
 
 func cloneProviderRates(src map[string]map[string]TokenRate) map[string]map[string]TokenRate {
@@ -227,4 +221,3 @@ func (we *WorkflowExecutor) checkBudget(ignoreBudget bool) error {
 
 	return nil
 }
-

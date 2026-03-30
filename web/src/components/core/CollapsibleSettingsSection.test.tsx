@@ -1,7 +1,7 @@
 /**
  * TDD Tests for CollapsibleSettingsSection
  *
- * Tests for TASK-669: Phase template claude_config editor with collapsible sections
+ * Tests for TASK-669: Phase template runtime_config editor with collapsible sections
  *
  * Success Criteria Coverage:
  * - SC-1: CollapsibleSettingsSection renders collapsed by default and expands on click,

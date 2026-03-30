@@ -86,7 +86,7 @@ See also:
 	cmd.Flags().StringP("instructions", "i", "", "Additional instructions for this run")
 	cmd.Flags().StringP("category", "c", "feature", "Task category (feature, bug, refactor, chore, docs, test)")
 	cmd.Flags().StringP("profile", "p", "", "Automation profile (auto, fast, safe, strict)")
-	cmd.Flags().String("provider", "", "LLM provider override for this run (claude, codex, ollama)")
+	cmd.Flags().String("provider", "", "LLM provider override for this run (claude, codex)")
 	cmd.Flags().Bool("stream", false, "Stream Claude output in real-time")
 	cmd.Flags().Bool("force", false, "Run despite incomplete dependencies")
 	cmd.Flags().Bool("skip-gates", false, "Skip all gate evaluations during execution")

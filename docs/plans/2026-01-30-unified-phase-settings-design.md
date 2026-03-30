@@ -27,16 +27,16 @@ For each phase:
   4. git checkout <source-branch> -- .claude/    # Reset for next phase
 ```
 
-No state persists between phases. Each phase declares what it needs via `PhaseClaudeConfig`. The same logic runs for every phase.
+No state persists between phases. Each phase declares what it needs via `PhaseRuntimeConfig`. The same logic runs for every phase.
 
 ## Data Model
 
-### PhaseClaudeConfig Changes
+### PhaseRuntimeConfig Changes
 
 Add `Hooks` field. Fix `SkillRefs` to write real skill files instead of prompt injection:
 
 ```go
-type PhaseClaudeConfig struct {
+type PhaseRuntimeConfig struct {
     // --- CLI flag fields (unchanged, handled by applyPhaseConfig → ClaudeExecutor) ---
     SystemPrompt       string
     AppendSystemPrompt string
@@ -65,7 +65,7 @@ type PhaseClaudeConfig struct {
 
 ```go
 // HookMatcher mirrors Claude Code's hook configuration format exactly.
-// Keys in PhaseClaudeConfig.Hooks are event names: "Stop", "PreToolUse", "PostToolUse", etc.
+// Keys in PhaseRuntimeConfig.Hooks are event names: "Stop", "PreToolUse", "PostToolUse", etc.
 type HookMatcher struct {
     Matcher string      `json:"matcher,omitempty"` // Tool pattern (only for PreToolUse/PostToolUse)
     Hooks   []HookEntry `json:"hooks"`
@@ -102,7 +102,7 @@ type WorktreeBaseConfig struct {
 Project's .claude/settings.json (from source branch)
   ├── hooks: project hooks preserved
   │   += isolation PreToolUse hook (always, from base config)
-  │   += phase hooks from PhaseClaudeConfig.Hooks
+  │   += phase hooks from PhaseRuntimeConfig.Hooks
   ├── mcpServers: project servers preserved
   │   += phase MCP servers (phase wins on key collision)
   ├── env: project env preserved
@@ -139,7 +139,7 @@ CREATE TABLE hook_scripts (
 );
 ```
 
-Phase templates reference hook scripts by ID in their `claude_config` JSON. The `command` field uses `$CLAUDE_PROJECT_DIR/.claude/hooks/<filename>` — `ApplyPhaseSettings` writes the script to that path.
+Phase templates reference hook scripts by ID in their `runtime_config` JSON. The `command` field uses `$CLAUDE_PROJECT_DIR/.claude/hooks/<filename>` — `ApplyPhaseSettings` writes the script to that path.
 
 ### Built-in Hook Scripts
 
@@ -228,11 +228,11 @@ CREATE TABLE skills (
 );
 ```
 
-Phase templates reference skills by ID in their `claude_config.skill_refs`. `ApplyPhaseSettings` writes each skill's `SKILL.md` and supporting files to `.claude/skills/<id>/`.
+Phase templates reference skills by ID in their `runtime_config.skill_refs`. `ApplyPhaseSettings` writes each skill's `SKILL.md` and supporting files to `.claude/skills/<id>/`.
 
 ## Phase Template Configuration Examples
 
-### implement phase template `claude_config`:
+### implement phase template `runtime_config`:
 
 ```json
 {
@@ -251,7 +251,7 @@ Phase templates reference skills by ID in their `claude_config.skill_refs`. `App
 }
 ```
 
-### tdd_write phase template `claude_config`:
+### tdd_write phase template `runtime_config`:
 
 ```json
 {
@@ -325,7 +325,7 @@ for each phase:
 ├── ApplyPhaseSettings(worktreePath, phaseCfg, baseCfg)
 │   ├── Read project's .claude/settings.json
 │   ├── Merge isolation hooks (from base config)
-│   ├── Merge phase hooks (from PhaseClaudeConfig.Hooks)
+│   ├── Merge phase hooks (from PhaseRuntimeConfig.Hooks)
 │   ├── Merge phase MCP servers
 │   ├── Merge env vars
 │   ├── Write merged settings.json
@@ -370,16 +370,16 @@ Edge case: if `.claude/` doesn't exist on the source branch, `git checkout` will
 Follows existing pattern for other phase config:
 
 ```
-phase_template.claude_config        # Template default (e.g., implement has Stop hook)
-  → workflow_phase.claude_config_override  # Workflow-level override
+phase_template.runtime_config        # Template default (e.g., implement has Stop hook)
+  → workflow_phase.runtime_config_override  # Workflow-level override
   → Merged result                   # What ApplyPhaseSettings receives
 ```
 
-This is already how `getEffectivePhaseClaudeConfig()` works. The `Hooks` field just merges alongside everything else.
+This is already how `getEffectivePhaseRuntimeConfig()` works. The `Hooks` field just merges alongside everything else.
 
 ## Migration
 
-1. Add `Hooks` field to `PhaseClaudeConfig` + new types
+1. Add `Hooks` field to `PhaseRuntimeConfig` + new types
 2. Add `hook_scripts` and `skills` tables to GlobalDB
 3. Implement `SeedHookScripts()` and `SeedSkills()`
 4. Implement `ApplyPhaseSettings()` and `resetClaudeDir()`

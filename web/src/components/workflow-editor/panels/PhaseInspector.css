@@ -730,7 +730,7 @@
 	background: var(--red, #ef4444);
 }
 
-/* ─── Claude Config Editor (used by ClaudeConfigEditor in Settings tab) ────── */
+/* ─── Runtime Config Editor (used by PhaseInspector settings tab) ─────────── */
 
 .claude-config-summary {
 	display: flex;

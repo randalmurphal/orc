@@ -676,7 +676,7 @@ func TestPhaseControlPlaneVariableUsage(t *testing.T) {
 		ID:            "review",
 		PromptSource:  "db",
 		PromptContent: "Review:\n{{ATTENTION_SUMMARY}}\n{{HANDOFF_CONTEXT}}",
-		ClaudeConfig:  `{"system_prompt":"Use {{PENDING_RECOMMENDATIONS}} and {{INDEXED_ARTIFACTS}} if available."}`,
+		RuntimeConfig: `{"shared":{"system_prompt":"Use {{PENDING_RECOMMENDATIONS}} and {{INDEXED_ARTIFACTS}} if available."}}`,
 	}
 
 	usage, err := we.phaseControlPlaneVariableUsage(tmpl, &db.WorkflowPhase{PhaseTemplateID: "review"})

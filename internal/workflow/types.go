@@ -178,8 +178,8 @@ type PhaseTemplate struct {
 	RetryFromPhase  string `json:"retry_from_phase,omitempty" db:"retry_from_phase"`
 	RetryPromptPath string `json:"retry_prompt_path,omitempty" db:"retry_prompt_path"`
 
-	// Claude CLI configuration (JSON PhaseClaudeConfig)
-	ClaudeConfig string `json:"claude_config,omitempty" yaml:"claude_config" db:"claude_config"`
+	// Claude CLI configuration (JSON PhaseRuntimeConfig)
+	RuntimeConfig string `json:"runtime_config,omitempty" yaml:"runtime_config" db:"runtime_config"`
 
 	// LLM provider override (empty = inherit from workflow/config)
 	Provider string `json:"provider,omitempty" db:"provider"`
@@ -231,8 +231,8 @@ type WorkflowPhase struct {
 	Condition             string   `json:"condition,omitempty" db:"condition"` // JSON skip conditions
 
 	// Claude CLI configuration override (JSON)
-	// Merged with PhaseTemplate.ClaudeConfig, with this taking precedence
-	ClaudeConfigOverride string `json:"claude_config_override,omitempty" db:"claude_config_override"`
+	// Merged with PhaseTemplate.RuntimeConfig, with this taking precedence
+	RuntimeConfigOverride string `json:"runtime_config_override,omitempty" db:"runtime_config_override"`
 
 	// Before-phase triggers
 	BeforeTriggers []BeforePhaseTrigger `json:"before_triggers,omitempty"`

@@ -1,6 +1,6 @@
 // Package executor provides the execution engine for orc.
 // This file provides a CodexCLI-based executor that implements TurnExecutor
-// for the OpenAI Codex CLI provider (GPT-5, local OSS models via ollama).
+// for the OpenAI Codex CLI provider.
 package executor
 
 import (
@@ -13,7 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/randalmurphal/llmkit/codex"
+	llmkit "github.com/randalmurphal/llmkit/v2"
+	"github.com/randalmurphal/llmkit/v2/codex"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
@@ -61,9 +62,6 @@ type CodexExecutor struct {
 
 	// Codex-specific settings
 	bypassApprovalsAndSandbox bool
-
-	// Local model routing (ollama, lmstudio)
-	localProvider string
 
 	// Additional Codex CLI settings
 	reasoningEffort string            // model_reasoning_effort
@@ -163,11 +161,6 @@ func WithCodexPublisher(p *events.PublishHelper) CodexExecutorOption {
 // This is the default and only supported mode for orc execution.
 func WithCodexBypassApprovalsAndSandbox(bypass bool) CodexExecutorOption {
 	return func(e *CodexExecutor) { e.bypassApprovalsAndSandbox = bypass }
-}
-
-// WithCodexLocalProvider sets the local model provider (ollama, lmstudio).
-func WithCodexLocalProvider(provider string) CodexExecutorOption {
-	return func(e *CodexExecutor) { e.localProvider = provider }
 }
 
 // WithCodexReasoningEffort sets the model reasoning effort level.
@@ -399,7 +392,12 @@ func (e *CodexExecutor) persistLiveSessionID(sessionID string) {
 		return
 	}
 
-	task.SetPhaseSessionIDProto(t.Execution, e.phaseID, sessionID)
+	sessionMetadata, marshalErr := llmkit.MarshalSessionMetadata(llmkit.SessionMetadataForID(ProviderCodex, sessionID))
+	if marshalErr != nil {
+		e.logger.Warn("failed to marshal codex session metadata", "task", e.taskID, "phase", e.phaseID, "error", marshalErr)
+		return
+	}
+	task.SetPhaseSessionMetadataProto(t.Execution, e.phaseID, sessionMetadata)
 	if saveErr := e.backend.SaveTask(t); saveErr != nil {
 		e.logger.Warn("failed to persist live codex session ID", "task", e.taskID, "phase", e.phaseID, "session_id", sessionID, "error", saveErr)
 	}
@@ -617,9 +615,6 @@ func (e *CodexExecutor) buildCLIOptions(schemaFile string) []codex.CodexOption {
 	}
 	if schemaFile != "" {
 		opts = append(opts, codex.WithOutputSchema(schemaFile))
-	}
-	if e.localProvider != "" {
-		opts = append(opts, codex.WithLocalProvider(e.localProvider))
 	}
 	if e.reasoningEffort != "" {
 		opts = append(opts, codex.WithReasoningEffort(e.reasoningEffort))

@@ -160,7 +160,14 @@ func (d *DB) Dialect() driver.Dialect {
 // Schema files are expected to be named: {type}_NNN.sql (e.g., global_001.sql)
 func (d *DB) Migrate(schemaType string) error {
 	adapter := &embedFSAdapter{fs: schemaFS}
-	return d.driver.Migrate(context.Background(), adapter, schemaType)
+	ctx := context.Background()
+	if err := d.driver.Migrate(ctx, adapter, schemaType); err != nil {
+		return err
+	}
+	if err := d.migrateLegacyRuntimeConfigColumns(ctx, schemaType); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Exec executes a query without returning rows.

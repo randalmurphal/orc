@@ -293,7 +293,7 @@ type ResolutionContext struct {
 	ThreadDecisionDrafts       string
 
 	// Provider context (which LLM provider is executing this phase)
-	Provider string // "claude", "codex", "ollama", etc.
+	Provider string // "claude", "codex", etc.
 
 	// QA E2E testing context
 	QAIteration      int    // Current QA iteration (1, 2, 3, ...)

@@ -15,6 +15,10 @@ func TestRegistry(t *testing.T) {
 	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		t.Fatalf("create project dir: %v", err)
 	}
+	expectedPath, err := normalizeProjectPath(projectDir)
+	if err != nil {
+		t.Fatalf("normalize project dir: %v", err)
+	}
 
 	// Create a registry
 	reg := &Registry{Projects: []Project{}}
@@ -29,8 +33,8 @@ func TestRegistry(t *testing.T) {
 		t.Errorf("Name = %s, want test-project", proj.Name)
 	}
 
-	if proj.Path != projectDir {
-		t.Errorf("Path = %s, want %s", proj.Path, projectDir)
+	if proj.Path != expectedPath {
+		t.Errorf("Path = %s, want %s", proj.Path, expectedPath)
 	}
 
 	if proj.ID == "" {
@@ -48,7 +52,7 @@ func TestRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get() by ID failed: %v", err)
 	}
-	if found.Path != projectDir {
+	if found.Path != expectedPath {
 		t.Errorf("Get() returned wrong project")
 	}
 

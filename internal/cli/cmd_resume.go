@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	"github.com/spf13/cobra"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -271,10 +272,14 @@ func currentPhaseSessionID(t *orcv1.Task, phaseID string) string {
 		return ""
 	}
 	phaseState := t.Execution.Phases[phaseID]
-	if phaseState == nil || phaseState.SessionId == nil {
+	if phaseState == nil || phaseState.SessionMetadata == nil {
 		return ""
 	}
-	return *phaseState.SessionId
+	session, err := llmkit.ParseSessionMetadata(*phaseState.SessionMetadata)
+	if err != nil {
+		return ""
+	}
+	return llmkit.SessionID(session)
 }
 
 func formatInterruptedTranscriptEntry(transcript storage.Transcript) string {
@@ -535,6 +540,6 @@ Use --force to resume a task even if it appears to still be running.`,
 	cmd.Flags().Bool("stream", false, "stream Claude transcript to stdout")
 	cmd.Flags().BoolVarP(&forceResume, "force", "f", false, "force resume even if task appears to be running")
 	cmd.Flags().Bool("ignore-budget", false, "Proceed even if monthly budget is exceeded")
-	cmd.Flags().String("provider", "", "LLM provider override for this run (claude, codex, ollama)")
+	cmd.Flags().String("provider", "", "LLM provider override for this run (claude, codex)")
 	return cmd
 }

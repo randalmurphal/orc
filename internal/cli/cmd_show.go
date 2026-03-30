@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mattn/go-isatty"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	"github.com/spf13/cobra"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -314,7 +315,10 @@ func printSessionInfoProto(backend storage.Backend, t *orcv1.Task, id string) {
 		return
 	}
 
-	sessionID := task.GetPhaseSessionIDProto(t, currentPhase)
+	sessionID := ""
+	if session, err := llmkit.ParseSessionMetadata(task.GetPhaseSessionMetadataProto(t, currentPhase)); err == nil {
+		sessionID = llmkit.SessionID(session)
+	}
 	model := task.GetPhaseModelProto(t, currentPhase)
 	provider := task.GetPhaseProviderProto(t, currentPhase)
 

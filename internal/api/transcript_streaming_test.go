@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -135,13 +136,13 @@ func TestTranscriptServer_GetSession_UsesPhaseScopedSession(t *testing.T) {
 	sessionStart := time.Now().Add(-2 * time.Minute)
 	mockBackend := &MockStreamingBackend{
 		task: func() *orcv1.Task {
-			t := task.NewProtoTask("TASK-001", "Test")
-			task.SetCurrentPhaseProto(t, "implement")
-			task.SetPhaseSessionIDProto(t.Execution, "implement", "codex-thread-123")
-			t.Metadata["phase:implement:provider"] = "codex"
-			t.Metadata["phase:implement:model"] = "gpt-5.4"
-			t.Execution.Phases["implement"].StartedAt = timestamppb.New(sessionStart)
-			return t
+			taskRecord := task.NewProtoTask("TASK-001", "Test")
+			task.SetCurrentPhaseProto(taskRecord, "implement")
+			task.SetPhaseSessionMetadataProto(taskRecord.Execution, "implement", mustSessionMetadata(t, "codex", "codex-thread-123"))
+			taskRecord.Metadata["phase:implement:provider"] = "codex"
+			taskRecord.Metadata["phase:implement:model"] = "gpt-5.4"
+			taskRecord.Execution.Phases["implement"].StartedAt = timestamppb.New(sessionStart)
+			return taskRecord
 		}(),
 		transcripts: []storage.Transcript{
 			{ID: 1, TaskID: "TASK-001", Phase: "implement", Type: "assistant", Content: "one", Timestamp: sessionStart.UnixMilli()},
@@ -165,12 +166,12 @@ func TestTranscriptServer_GetSession_CountsPromptAsActiveTurn(t *testing.T) {
 	sessionStart := time.Now().Add(-30 * time.Second)
 	mockBackend := &MockStreamingBackend{
 		task: func() *orcv1.Task {
-			t := task.NewProtoTask("TASK-002", "Prompt-only session")
-			task.SetCurrentPhaseProto(t, "implement_codex")
-			task.SetPhaseSessionIDProto(t.Execution, "implement_codex", "codex-thread-live")
-			t.Metadata["phase:implement_codex:model"] = "gpt-5.4"
-			t.Execution.Phases["implement_codex"].StartedAt = timestamppb.New(sessionStart)
-			return t
+			taskRecord := task.NewProtoTask("TASK-002", "Prompt-only session")
+			task.SetCurrentPhaseProto(taskRecord, "implement_codex")
+			task.SetPhaseSessionMetadataProto(taskRecord.Execution, "implement_codex", mustSessionMetadata(t, "codex", "codex-thread-live"))
+			taskRecord.Metadata["phase:implement_codex:model"] = "gpt-5.4"
+			taskRecord.Execution.Phases["implement_codex"].StartedAt = timestamppb.New(sessionStart)
+			return taskRecord
 		}(),
 		transcripts: []storage.Transcript{
 			{ID: 1, TaskID: "TASK-002", Phase: "implement_codex", Type: "user", Content: "do work", Timestamp: sessionStart.UnixMilli()},
@@ -187,6 +188,35 @@ func TestTranscriptServer_GetSession_CountsPromptAsActiveTurn(t *testing.T) {
 	assert.Equal(t, "gpt-5.4", resp.Msg.Session.Model)
 	assert.Equal(t, int32(1), resp.Msg.Session.TurnCount)
 	require.NotNil(t, resp.Msg.Session.CreatedAt)
+}
+
+func TestTranscriptServer_GetTranscript_UsesStructuredSessionMetadata(t *testing.T) {
+	mockBackend := &MockStreamingBackend{
+		task: func() *orcv1.Task {
+			taskRecord := task.NewProtoTask("TASK-003", "Transcript session metadata")
+			task.SetCurrentPhaseProto(taskRecord, "implement")
+			task.SetPhaseSessionMetadataProto(taskRecord.Execution, "implement", mustSessionMetadata(t, "codex", "codex-thread-789"))
+			taskRecord.Metadata["phase:implement:provider"] = "codex"
+			taskRecord.Metadata["phase:implement:model"] = "gpt-5.4"
+			return taskRecord
+		}(),
+		transcripts: []storage.Transcript{
+			{ID: 1, TaskID: "TASK-003", Phase: "implement", SessionID: "codex-thread-789", Type: "assistant", Content: "done", Model: "gpt-5.4", Timestamp: time.Now().UnixMilli()},
+		},
+	}
+
+	server := &transcriptServer{backend: mockBackend}
+	resp, err := server.GetTranscript(context.Background(), &connect.Request[orcv1.GetTranscriptRequest]{
+		Msg: &orcv1.GetTranscriptRequest{TaskId: "TASK-003", Phase: "implement", Iteration: 1},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp.Msg.Transcript)
+	require.NotNil(t, resp.Msg.Transcript.SessionMetadata)
+
+	session, parseErr := llmkit.ParseSessionMetadata(*resp.Msg.Transcript.SessionMetadata)
+	require.NoError(t, parseErr)
+	assert.Equal(t, "codex", session.Provider)
+	assert.Equal(t, "codex-thread-789", llmkit.SessionID(session))
 }
 
 func TestTranscriptServer_EventIntegration(t *testing.T) {
@@ -264,6 +294,15 @@ func TestTranscriptServer_EventIntegration(t *testing.T) {
 		// Assert: No events should be published for read operations
 		assert.Equal(t, 0, len(mockPublisher.events))
 	})
+}
+
+func mustSessionMetadata(t *testing.T, provider, sessionID string) string {
+	t.Helper()
+	metadata, err := llmkit.MarshalSessionMetadata(llmkit.SessionMetadataForID(provider, sessionID))
+	if err != nil {
+		t.Fatalf("marshal session metadata: %v", err)
+	}
+	return metadata
 }
 
 // Mock implementations for testing

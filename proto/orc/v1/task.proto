@@ -156,7 +156,7 @@ message PhaseState {
   optional string error = 8;
   TokenUsage tokens = 9;
   repeated ValidationEntry validation_history = 10;
-  optional string session_id = 11;
+  optional string session_metadata = 11;
 }
 
 // Execution state for a task

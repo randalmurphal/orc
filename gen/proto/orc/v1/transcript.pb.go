@@ -204,8 +204,8 @@ type Transcript struct {
 	Phase string `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
 	// Iteration number
 	Iteration int32 `protobuf:"varint,3,opt,name=iteration,proto3" json:"iteration,omitempty"`
-	// Session ID
-	SessionId *string `protobuf:"bytes,4,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
+	// JSON-encoded llmkit session metadata
+	SessionMetadata *string `protobuf:"bytes,4,opt,name=session_metadata,json=sessionMetadata,proto3,oneof" json:"session_metadata,omitempty"`
 	// Model used
 	Model *string `protobuf:"bytes,5,opt,name=model,proto3,oneof" json:"model,omitempty"`
 	// Transcript entries
@@ -271,9 +271,9 @@ func (x *Transcript) GetIteration() int32 {
 	return 0
 }
 
-func (x *Transcript) GetSessionId() string {
-	if x != nil && x.SessionId != nil {
-		return *x.SessionId
+func (x *Transcript) GetSessionMetadata() string {
+	if x != nil && x.SessionMetadata != nil {
+		return *x.SessionMetadata
 	}
 	return ""
 }
@@ -1509,21 +1509,20 @@ const file_orc_v1_transcript_proto_rawDesc = "" +
 	"\n" +
 	"_tool_nameB\r\n" +
 	"\v_tool_inputB\t\n" +
-	"\a_tokens\"\x9f\x03\n" +
+	"\a_tokens\"\xb1\x03\n" +
 	"\n" +
 	"Transcript\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x14\n" +
 	"\x05phase\x18\x02 \x01(\tR\x05phase\x12\x1c\n" +
-	"\titeration\x18\x03 \x01(\x05R\titeration\x12\"\n" +
-	"\n" +
-	"session_id\x18\x04 \x01(\tH\x00R\tsessionId\x88\x01\x01\x12\x19\n" +
+	"\titeration\x18\x03 \x01(\x05R\titeration\x12.\n" +
+	"\x10session_metadata\x18\x04 \x01(\tH\x00R\x0fsessionMetadata\x88\x01\x01\x12\x19\n" +
 	"\x05model\x18\x05 \x01(\tH\x01R\x05model\x88\x01\x01\x121\n" +
 	"\aentries\x18\x06 \x03(\v2\x17.orc.v1.TranscriptEntryR\aentries\x125\n" +
 	"\ftotal_tokens\x18\a \x01(\v2\x12.orc.v1.TokenUsageR\vtotalTokens\x129\n" +
 	"\n" +
 	"started_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12:\n" +
-	"\bended_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampH\x02R\aendedAt\x88\x01\x01B\r\n" +
-	"\v_session_idB\b\n" +
+	"\bended_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampH\x02R\aendedAt\x88\x01\x01B\x13\n" +
+	"\x11_session_metadataB\b\n" +
 	"\x06_modelB\v\n" +
 	"\t_ended_at\"\xe4\x01\n" +
 	"\x0fTranscriptChunk\x12\x17\n" +

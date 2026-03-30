@@ -1023,7 +1023,7 @@ tasks:
       | subflow | Teal | Workflow | Subflow name |
 
       **Type-specific inspector panels (right panel when node selected):**
-      - LLM: Existing PhaseInspector (prompt, vars, claude_config)
+      - LLM: Existing PhaseInspector (prompt, vars, runtime_config)
       - Knowledge: Query input, preset selector, output variable name,
         fallback behavior
       - Script: Command input, workdir, timeout, success pattern

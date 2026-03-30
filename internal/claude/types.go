@@ -4,7 +4,7 @@
 package claude
 
 import (
-	"github.com/randalmurphal/llmkit/claudeconfig"
+	"github.com/randalmurphal/llmkit/v2/claudeconfig"
 )
 
 // Re-export types from llmkit/claudeconfig
@@ -57,7 +57,6 @@ const (
 	HookPreToolUse  = claudeconfig.HookPreToolUse
 	HookPostToolUse = claudeconfig.HookPostToolUse
 	HookPreCompact  = claudeconfig.HookPreCompact
-	HookPrePrompt   = claudeconfig.HookPrePrompt
 	HookStop        = claudeconfig.HookStop
 )
 

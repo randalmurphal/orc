@@ -11,4 +11,4 @@ output_var_name: PLAN_CONTENT
 thinking: true
 gate_type: auto
 checkpoint: true
-claude_config: '{"codex":{"reasoning_effort":"high"}}'
+runtime_config: '{"providers":{"codex":{"reasoning_effort":"high"}}}'

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -105,7 +106,6 @@ func TestCodexExecutor_AllOptions(t *testing.T) {
 		WithCodexProducesArtifact(true),
 		WithCodexReviewRound(2),
 		WithCodexSchemaRetries(5),
-		WithCodexLocalProvider("ollama"),
 		WithCodexTaskID("TASK-001"),
 		WithCodexRunID("RUN-001"),
 	)
@@ -136,9 +136,6 @@ func TestCodexExecutor_AllOptions(t *testing.T) {
 	}
 	if exec.schemaRetries != 5 {
 		t.Errorf("schemaRetries = %d", exec.schemaRetries)
-	}
-	if exec.localProvider != "ollama" {
-		t.Errorf("localProvider = %q", exec.localProvider)
 	}
 	if exec.taskID != "TASK-001" {
 		t.Errorf("taskID = %q", exec.taskID)
@@ -314,15 +311,22 @@ echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{
 		}{result: result, err: err}
 	}()
 
-	time.Sleep(75 * time.Millisecond)
-	if len(backend.transcripts) < 2 {
-		t.Fatalf("expected prompt and chunk transcripts before completion, got %d", len(backend.transcripts))
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if backend.Count() >= 2 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	if backend.transcripts[0].Type != "user" {
-		t.Fatalf("first transcript type = %q, want user", backend.transcripts[0].Type)
+	transcripts := backend.Snapshot()
+	if len(transcripts) < 2 {
+		t.Fatalf("expected prompt and chunk transcripts before completion, got %d", len(transcripts))
 	}
-	if backend.transcripts[1].Type != "chunk" {
-		t.Fatalf("second transcript type = %q, want chunk", backend.transcripts[1].Type)
+	if transcripts[0].Type != "user" {
+		t.Fatalf("first transcript type = %q, want user", transcripts[0].Type)
+	}
+	if transcripts[1].Type != "chunk" {
+		t.Fatalf("second transcript type = %q, want chunk", transcripts[1].Type)
 	}
 
 	outcome := <-done
@@ -339,17 +343,18 @@ echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{
 		t.Fatalf("usage = %+v, want total 15", outcome.result.Usage)
 	}
 
-	if len(backend.transcripts) != 3 {
-		t.Fatalf("expected 3 transcripts after completion, got %d", len(backend.transcripts))
+	transcripts = backend.Snapshot()
+	if len(transcripts) != 3 {
+		t.Fatalf("expected 3 transcripts after completion, got %d", len(transcripts))
 	}
-	if backend.transcripts[2].Type != "assistant" {
-		t.Fatalf("final transcript type = %q, want assistant", backend.transcripts[2].Type)
+	if transcripts[2].Type != "assistant" {
+		t.Fatalf("final transcript type = %q, want assistant", transcripts[2].Type)
 	}
-	if backend.transcripts[2].SessionID != "sess-123" {
-		t.Fatalf("final transcript session_id = %q, want sess-123", backend.transcripts[2].SessionID)
+	if transcripts[2].SessionID != "sess-123" {
+		t.Fatalf("final transcript session_id = %q, want sess-123", transcripts[2].SessionID)
 	}
-	if backend.transcripts[2].Content != "final answer" {
-		t.Fatalf("final transcript content = %q, want final answer", backend.transcripts[2].Content)
+	if transcripts[2].Content != "final answer" {
+		t.Fatalf("final transcript content = %q, want final answer", transcripts[2].Content)
 	}
 }
 
@@ -389,18 +394,25 @@ echo '{"type":"turn.completed","output":[{"text":"done"}],"turn_usage":{"input_t
 		}{result: result, err: err}
 	}()
 
-	time.Sleep(75 * time.Millisecond)
-	if len(backend.transcripts) < 2 {
-		t.Fatalf("expected prompt and tool transcripts before completion, got %d", len(backend.transcripts))
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if backend.Count() >= 2 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	if backend.transcripts[0].Type != "user" {
-		t.Fatalf("first transcript type = %q, want user", backend.transcripts[0].Type)
+	transcripts := backend.Snapshot()
+	if len(transcripts) < 2 {
+		t.Fatalf("expected prompt and tool transcripts before completion, got %d", len(transcripts))
 	}
-	if backend.transcripts[1].Type != "tool" {
-		t.Fatalf("second transcript type = %q, want tool", backend.transcripts[1].Type)
+	if transcripts[0].Type != "user" {
+		t.Fatalf("first transcript type = %q, want user", transcripts[0].Type)
 	}
-	if backend.transcripts[1].SessionID != "sess-tool-123" {
-		t.Fatalf("tool transcript session_id = %q, want sess-tool-123", backend.transcripts[1].SessionID)
+	if transcripts[1].Type != "tool" {
+		t.Fatalf("second transcript type = %q, want tool", transcripts[1].Type)
+	}
+	if transcripts[1].SessionID != "sess-tool-123" {
+		t.Fatalf("tool transcript session_id = %q, want sess-tool-123", transcripts[1].SessionID)
 	}
 
 	outcome := <-done
@@ -410,10 +422,11 @@ echo '{"type":"turn.completed","output":[{"text":"done"}],"turn_usage":{"input_t
 	if outcome.result.Content != "done" {
 		t.Fatalf("content = %q, want done", outcome.result.Content)
 	}
-	if len(backend.transcripts) < 3 {
-		t.Fatalf("expected tool streaming plus final assistant transcript, got %d rows", len(backend.transcripts))
+	transcripts = backend.Snapshot()
+	if len(transcripts) < 3 {
+		t.Fatalf("expected tool streaming plus final assistant transcript, got %d rows", len(transcripts))
 	}
-	last := backend.transcripts[len(backend.transcripts)-1]
+	last := transcripts[len(transcripts)-1]
 	if last.Type != "assistant" {
 		t.Fatalf("final transcript type = %q, want assistant", last.Type)
 	}
@@ -455,13 +468,13 @@ echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if got := task.GetPhaseSessionIDProto(backend.task, "implement"); got == "sess-live-123" {
+		if got := sessionIDFromMetadata(t, task.GetPhaseSessionMetadataProto(backend.task, "implement")); got == "sess-live-123" {
 			break
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
 
-	if got := task.GetPhaseSessionIDProto(backend.task, "implement"); got != "sess-live-123" {
+	if got := sessionIDFromMetadata(t, task.GetPhaseSessionMetadataProto(backend.task, "implement")); got != "sess-live-123" {
 		t.Fatalf("live phase session id = %q, want %q", got, "sess-live-123")
 	}
 
@@ -470,13 +483,24 @@ echo '{"type":"turn.completed","output":[{"text":"final answer"}],"turn_usage":{
 	}
 }
 
+func sessionIDFromMetadata(t *testing.T, metadata string) string {
+	t.Helper()
+	session, err := llmkit.ParseSessionMetadata(metadata)
+	if err != nil {
+		t.Fatalf("parse session metadata: %v", err)
+	}
+	return llmkit.SessionID(session)
+}
+
 func TestCodexExecutor_ExecuteSingleTurn_StallReturnsToolFailureContext(t *testing.T) {
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join(tmpDir, "fake-codex-stall.sh")
 	script := `#!/bin/sh
-echo '{"type":"thread.started","thread_id":"sess-stall-123"}'
-echo '{"type":"item.started","item":{"id":"item_0","type":"command_execution","command":"golangci-lint run","aggregated_output":"","exit_code":null,"status":"in_progress"}}'
-echo '{"type":"item.completed","item":{"id":"item_0","type":"command_execution","command":"golangci-lint run","aggregated_output":"typecheck failed\n","exit_code":1,"status":"completed"}}'
+cat <<'JSON'
+{"type":"thread.started","thread_id":"sess-stall-123"}
+{"type":"item.started","item":{"id":"item_0","type":"command_execution","command":"golangci-lint run","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_0","type":"command_execution","command":"golangci-lint run","aggregated_output":"typecheck failed\n","exit_code":1,"status":"completed"}}
+JSON
 # Stay alive long enough for the inactivity watchdog to cancel the stream.
 sleep 30
 `
@@ -493,7 +517,7 @@ sleep 30
 		WithCodexBackend(backend),
 		WithCodexTaskID("TASK-001"),
 		WithCodexRunID("RUN-001"),
-		WithCodexInactivityTimeout(50*time.Millisecond),
+		WithCodexInactivityTimeout(250*time.Millisecond),
 	)
 
 	_, err := exec.executeSingleTurn(context.Background(), "do the thing", "", time.Now())

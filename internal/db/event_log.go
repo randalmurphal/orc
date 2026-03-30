@@ -57,8 +57,8 @@ func (p *ProjectDB) SaveEvent(event *EventLog) error {
 	// preserving different events created in quick succession
 	createdAt := event.CreatedAt.UTC().Format("2006-01-02 15:04:05.000000000")
 
-	// INSERT OR IGNORE silently skips duplicates based on the unique index
-	// (task_id, event_type, COALESCE(phase, ''), created_at) - see project_039.sql
+	// INSERT OR IGNORE silently skips true duplicates based on the unique index
+	// covering task/type/phase/iteration/source/created_at/data.
 	result, err := p.Exec(`
 		INSERT OR IGNORE INTO event_log (task_id, phase, iteration, event_type, data, source, created_at, duration_ms)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -102,8 +102,8 @@ func (p *ProjectDB) SaveEvents(events []*EventLog) error {
 
 			createdAt := event.CreatedAt.UTC().Format("2006-01-02 15:04:05.000000000")
 
-			// INSERT OR IGNORE silently skips duplicates based on the unique index
-			// (task_id, event_type, COALESCE(phase, ''), created_at) - see project_039.sql
+			// INSERT OR IGNORE silently skips true duplicates based on the unique index
+			// covering task/type/phase/iteration/source/created_at/data.
 			result, err := tx.Exec(`
 				INSERT OR IGNORE INTO event_log (task_id, phase, iteration, event_type, data, source, created_at, duration_ms)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)

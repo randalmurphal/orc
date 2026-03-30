@@ -169,4 +169,46 @@ describe('useTranscripts', () => {
 
 		await waitFor(() => expect(result.current.currentPhase).toBe('implement'));
 	});
+
+	it('extracts session_id from JSON session metadata objects', async () => {
+		listTranscriptsMock.mockResolvedValue(
+			create(ListTranscriptsResponseSchema, {
+				transcripts: [
+					create(TranscriptFileSchema, {
+						phase: 'implement',
+						iteration: 1,
+						size: BigInt(1),
+						createdAt: nowTimestamp(),
+					}),
+				],
+			}),
+		);
+		getTranscriptMock.mockResolvedValue(
+			create(GetTranscriptResponseSchema, {
+				transcript: create(TranscriptSchema, {
+					taskId: 'TASK-001',
+					phase: 'implement',
+					iteration: 1,
+					sessionMetadata: JSON.stringify({
+						provider: 'claude',
+						data: { session_id: 'sess-123' },
+					}),
+					entries: [
+						create(TranscriptEntrySchema, {
+							type: 'assistant',
+							content: 'done',
+							timestamp: nowTimestamp(),
+						}),
+					],
+				}),
+			}),
+		);
+
+		const { result } = renderHook(() =>
+			useTranscripts({ taskId: 'TASK-001' })
+		);
+
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		expect(result.current.transcripts[0]?.session_id).toBe('sess-123');
+	});
 });

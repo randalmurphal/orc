@@ -9,7 +9,7 @@ import (
 
 // TurnExecutorConfig holds parameters for constructing a TurnExecutor.
 type TurnExecutorConfig struct {
-	Provider    string // "claude", "codex", "ollama", "lmstudio"
+	Provider    string // "claude" or "codex"
 	Model       string
 	WorkingDir  string
 	SessionID   string
@@ -26,11 +26,10 @@ type TurnExecutorConfig struct {
 
 	// Claude-specific
 	ProducesArtifact bool
-	ClaudeConfig     *PhaseClaudeConfig
+	RuntimeConfig    *PhaseRuntimeConfig
 
 	// Codex-specific
 	BypassApprovalsAndSandbox bool              // Always true for orc execution
-	LocalProvider             string            // "ollama" or "lmstudio" for local routing
 	ReasoningEffort           string            // Codex model_reasoning_effort
 	WebSearchMode             string            // Codex web_search mode
 	Env                       map[string]string // Additional env vars for codex process
@@ -69,8 +68,8 @@ func newClaudeTurnExecutor(cfg TurnExecutorConfig) TurnExecutor {
 	if cfg.ReviewRound > 0 {
 		opts = append(opts, WithClaudeReviewRound(cfg.ReviewRound))
 	}
-	if cfg.ClaudeConfig != nil {
-		opts = append(opts, WithPhaseClaudeConfig(cfg.ClaudeConfig))
+	if cfg.RuntimeConfig != nil {
+		opts = append(opts, WithPhaseRuntimeConfig(cfg.RuntimeConfig))
 	}
 	if cfg.Resume {
 		opts = append(opts, WithClaudeResume(true))
@@ -98,9 +97,6 @@ func newCodexTurnExecutor(cfg TurnExecutorConfig) TurnExecutor {
 	}
 	if cfg.ReviewRound > 0 {
 		opts = append(opts, WithCodexReviewRound(cfg.ReviewRound))
-	}
-	if cfg.LocalProvider != "" {
-		opts = append(opts, WithCodexLocalProvider(cfg.LocalProvider))
 	}
 	if cfg.BypassApprovalsAndSandbox {
 		opts = append(opts, WithCodexBypassApprovalsAndSandbox(true))

@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS workflow_phases_new (
     -- Loop configuration (JSON) - defines iterative loop behavior
     loop_config TEXT,
 
-    -- Claude configuration override (JSON) - merged with template config
-    claude_config_override TEXT,
+    -- Runtime configuration override (JSON) - merged with template config
+    runtime_config_override TEXT,
 
     -- Visual editor position (NULL = auto-layout via dagre)
     position_x REAL,
@@ -39,10 +39,10 @@ CREATE TABLE IF NOT EXISTS workflow_phases_new (
 -- Copy existing data (position_x/position_y default to NULL = auto-layout)
 INSERT INTO workflow_phases_new (id, workflow_id, phase_template_id, sequence, depends_on,
     max_iterations_override, model_override, thinking_override, gate_type_override, condition,
-    quality_checks_override, loop_config, claude_config_override)
+    quality_checks_override, loop_config, runtime_config_override)
 SELECT id, workflow_id, phase_template_id, sequence, depends_on,
     max_iterations_override, model_override, thinking_override, gate_type_override, condition,
-    quality_checks_override, loop_config, claude_config_override
+    quality_checks_override, loop_config, runtime_config_override
 FROM workflow_phases;
 
 -- Drop old table and rename new one

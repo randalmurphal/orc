@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/randalmurphal/llmkit/claudeconfig"
+	"github.com/randalmurphal/llmkit/v2/claudeconfig"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 )
 

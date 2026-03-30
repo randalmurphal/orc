@@ -18,7 +18,7 @@ func SeedBuiltins(gdb *db.GlobalDB) (int, error) {
 		return 0, err
 	}
 
-	// Seed hook scripts to GlobalDB so they're available for phase settings
+	// Seed hook scripts to GlobalDB so they're available for runtime preparation
 	if _, err := SeedHookScripts(gdb); err != nil {
 		return 0, fmt.Errorf("seed hook scripts: %w", err)
 	}
@@ -136,4 +136,3 @@ func ResolveWorkflowIDFromString(workflowID string, weightStr string, cfg config
 	}
 	return cfg.GetWorkflowID(weightStr)
 }
-

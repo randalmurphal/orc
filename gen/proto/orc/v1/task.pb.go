@@ -936,7 +936,7 @@ type PhaseState struct {
 	Error             *string                `protobuf:"bytes,8,opt,name=error,proto3,oneof" json:"error,omitempty"`
 	Tokens            *TokenUsage            `protobuf:"bytes,9,opt,name=tokens,proto3" json:"tokens,omitempty"`
 	ValidationHistory []*ValidationEntry     `protobuf:"bytes,10,rep,name=validation_history,json=validationHistory,proto3" json:"validation_history,omitempty"`
-	SessionId         *string                `protobuf:"bytes,11,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
+	SessionMetadata   *string                `protobuf:"bytes,11,opt,name=session_metadata,json=sessionMetadata,proto3,oneof" json:"session_metadata,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -1041,9 +1041,9 @@ func (x *PhaseState) GetValidationHistory() []*ValidationEntry {
 	return nil
 }
 
-func (x *PhaseState) GetSessionId() string {
-	if x != nil && x.SessionId != nil {
-		return *x.SessionId
+func (x *PhaseState) GetSessionMetadata() string {
+	if x != nil && x.SessionMetadata != nil {
+		return *x.SessionMetadata
 	}
 	return ""
 }
@@ -7906,7 +7906,7 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\n" +
 	"_merged_atB\x13\n" +
 	"\x11_merge_commit_shaB\x10\n" +
-	"\x0e_target_branch\"\xe1\x04\n" +
+	"\x0e_target_branch\"\xf3\x04\n" +
 	"\n" +
 	"PhaseState\x12+\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x13.orc.v1.PhaseStatusR\x06status\x129\n" +
@@ -7923,14 +7923,13 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\x05error\x18\b \x01(\tH\x03R\x05error\x88\x01\x01\x12*\n" +
 	"\x06tokens\x18\t \x01(\v2\x12.orc.v1.TokenUsageR\x06tokens\x12F\n" +
 	"\x12validation_history\x18\n" +
-	" \x03(\v2\x17.orc.v1.ValidationEntryR\x11validationHistory\x12\"\n" +
-	"\n" +
-	"session_id\x18\v \x01(\tH\x04R\tsessionId\x88\x01\x01B\x0f\n" +
+	" \x03(\v2\x17.orc.v1.ValidationEntryR\x11validationHistory\x12.\n" +
+	"\x10session_metadata\x18\v \x01(\tH\x04R\x0fsessionMetadata\x88\x01\x01B\x0f\n" +
 	"\r_completed_atB\x11\n" +
 	"\x0f_interrupted_atB\r\n" +
 	"\v_commit_shaB\b\n" +
-	"\x06_errorB\r\n" +
-	"\v_session_id\"\xe2\x03\n" +
+	"\x06_errorB\x13\n" +
+	"\x11_session_metadata\"\xe2\x03\n" +
 	"\x0eExecutionState\x12+\n" +
 	"\x11current_iteration\x18\x01 \x01(\x05R\x10currentIteration\x12:\n" +
 	"\x06phases\x18\x02 \x03(\v2\".orc.v1.ExecutionState.PhasesEntryR\x06phases\x12*\n" +

@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/randalmurphal/llmkit/claude"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,12 +19,12 @@ func TestMergeMCPConfigSettings(t *testing.T) {
 	})
 
 	t.Run("empty servers returns empty", func(t *testing.T) {
-		result := MergeMCPConfigSettings(map[string]claude.MCPServerConfig{}, "TASK-001", nil)
+		result := MergeMCPConfigSettings(map[string]llmkit.MCPServerConfig{}, "TASK-001", nil)
 		assert.Empty(t, result)
 	})
 
 	t.Run("adds headless and user-data-dir to playwright", func(t *testing.T) {
-		servers := map[string]claude.MCPServerConfig{
+		servers := map[string]llmkit.MCPServerConfig{
 			"playwright": {
 				Command: "npx",
 				Args:    []string{"@playwright/mcp@latest", "--isolated"},
@@ -45,7 +45,7 @@ func TestMergeMCPConfigSettings(t *testing.T) {
 	})
 
 	t.Run("does not duplicate existing flags", func(t *testing.T) {
-		servers := map[string]claude.MCPServerConfig{
+		servers := map[string]llmkit.MCPServerConfig{
 			"playwright": {
 				Command: "npx",
 				Args:    []string{"@playwright/mcp@latest", "--isolated", "--headless"},
@@ -69,7 +69,7 @@ func TestMergeMCPConfigSettings(t *testing.T) {
 	})
 
 	t.Run("defaults to headless when no config", func(t *testing.T) {
-		servers := map[string]claude.MCPServerConfig{
+		servers := map[string]llmkit.MCPServerConfig{
 			"playwright": {
 				Command: "npx",
 				Args:    []string{"@playwright/mcp@latest"},
@@ -83,7 +83,7 @@ func TestMergeMCPConfigSettings(t *testing.T) {
 	})
 
 	t.Run("respects headless=false in config", func(t *testing.T) {
-		servers := map[string]claude.MCPServerConfig{
+		servers := map[string]llmkit.MCPServerConfig{
 			"playwright": {
 				Command: "npx",
 				Args:    []string{"@playwright/mcp@latest"},
@@ -100,7 +100,7 @@ func TestMergeMCPConfigSettings(t *testing.T) {
 	})
 
 	t.Run("adds non-default browser", func(t *testing.T) {
-		servers := map[string]claude.MCPServerConfig{
+		servers := map[string]llmkit.MCPServerConfig{
 			"playwright": {
 				Command: "npx",
 				Args:    []string{"@playwright/mcp@latest"},
@@ -118,7 +118,7 @@ func TestMergeMCPConfigSettings(t *testing.T) {
 	})
 
 	t.Run("does not add browser flag for chromium default", func(t *testing.T) {
-		servers := map[string]claude.MCPServerConfig{
+		servers := map[string]llmkit.MCPServerConfig{
 			"playwright": {
 				Command: "npx",
 				Args:    []string{"@playwright/mcp@latest"},
@@ -135,7 +135,7 @@ func TestMergeMCPConfigSettings(t *testing.T) {
 	})
 
 	t.Run("preserves non-playwright servers unchanged", func(t *testing.T) {
-		servers := map[string]claude.MCPServerConfig{
+		servers := map[string]llmkit.MCPServerConfig{
 			"github": {
 				Command: "gh",
 				Args:    []string{"mcp"},
@@ -166,7 +166,7 @@ func TestMergeMCPConfigSettings(t *testing.T) {
 	})
 
 	t.Run("does not mutate original map", func(t *testing.T) {
-		original := map[string]claude.MCPServerConfig{
+		original := map[string]llmkit.MCPServerConfig{
 			"playwright": {
 				Command: "npx",
 				Args:    []string{"@playwright/mcp@latest"},

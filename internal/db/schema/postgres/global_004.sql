@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS agents (
 
     -- Executor role fields (used when agent is main phase executor)
     system_prompt TEXT,                         -- Role framing for executor
-    claude_config TEXT,                         -- JSON: additional claude settings
+    runtime_config TEXT,                        -- JSON: additional runtime settings
 
     is_builtin BOOLEAN DEFAULT FALSE,           -- True for built-in agents
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -68,9 +68,9 @@ CREATE TABLE IF NOT EXISTS phase_templates (
     retry_from_phase TEXT,                  -- Which phase to retry from on failure
     retry_prompt_path TEXT,                 -- Optional retry-specific prompt
 
-    -- Claude configuration
+    -- Runtime configuration
     system_prompt TEXT,                     -- Passed via --system-prompt to main phase executor
-    claude_config TEXT,                     -- JSON: additional claude settings
+    runtime_config TEXT,                    -- JSON: additional runtime settings
 
     -- Metadata
     is_builtin BOOLEAN DEFAULT FALSE,       -- TRUE for built-in phases (immutable)
@@ -127,8 +127,8 @@ CREATE TABLE IF NOT EXISTS workflow_phases (
     -- Loop configuration (JSON) - defines iterative loop behavior
     loop_config TEXT,
 
-    -- Claude configuration override (JSON) - merged with template config
-    claude_config_override TEXT,
+    -- Runtime configuration override (JSON) - merged with template config
+    runtime_config_override TEXT,
 
     -- Visual editor position (NULL = auto-layout via dagre)
     position_x REAL,

@@ -382,7 +382,7 @@ func TestUpdateConfig_Model_PersistsToFile(t *testing.T) {
 	server := NewConfigServer(initialCfg, backend, projectDir, nil)
 
 	req := connect.NewRequest(&orcv1.UpdateConfigRequest{
-		Claude: &orcv1.ClaudeConfig{
+		Claude: &orcv1.RuntimeConfig{
 			Model: "opus",
 		},
 	})
@@ -427,7 +427,7 @@ func TestUpdateConfig_Model_InvalidModel(t *testing.T) {
 	server := NewConfigServer(initialCfg, backend, projectDir, nil)
 
 	req := connect.NewRequest(&orcv1.UpdateConfigRequest{
-		Claude: &orcv1.ClaudeConfig{
+		Claude: &orcv1.RuntimeConfig{
 			Model: "gpt-4o-invalid",
 		},
 	})
@@ -644,7 +644,7 @@ func TestConfigRoundTrip_UpdateThenGet(t *testing.T) {
 			ParallelTasks: 4,
 			CostLimit:     80,
 		},
-		Claude: &orcv1.ClaudeConfig{
+		Claude: &orcv1.RuntimeConfig{
 			Model: "opus",
 		},
 	})

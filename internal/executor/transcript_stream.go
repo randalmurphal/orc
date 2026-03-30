@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/llmkit/v2/claude"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
 )

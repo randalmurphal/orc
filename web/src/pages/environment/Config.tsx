@@ -19,7 +19,7 @@ import {
 	AutomationConfigSchema,
 	CompletionConfigSchema,
 	ExportConfigSchema,
-	ClaudeConfigSchema,
+	RuntimeConfigSchema,
 } from '@/gen/orc/v1/config_pb';
 import './environment.css';
 
@@ -162,7 +162,7 @@ export function Config() {
 				format: formData.export.format,
 			});
 
-			const claude = create(ClaudeConfigSchema, {
+			const claude = create(RuntimeConfigSchema, {
 				model: formData.claude.model,
 				thinking: formData.claude.thinking,
 				maxTurns: formData.claude.maxTurns,

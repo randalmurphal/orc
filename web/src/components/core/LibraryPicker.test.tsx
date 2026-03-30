@@ -1,7 +1,7 @@
 /**
  * TDD Tests for LibraryPicker
  *
- * Tests for TASK-669: Phase template claude_config editor with collapsible sections
+ * Tests for TASK-669: Phase template runtime_config editor with collapsible sections
  *
  * Success Criteria Coverage:
  * - SC-4: LibraryPicker for Hooks fetches from configClient.listHooks, groups by event type,

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -16,8 +17,7 @@ func TestCheckResumeSession_SkipsRetryTargetPhase(t *testing.T) {
 	tsk := task.NewProtoTask("TASK-RETRY-SESSION", "retry target should start fresh")
 	task.EnsurePhaseProto(tsk.Execution, "implement_codex")
 	tsk.Execution.Phases["implement_codex"].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
-	sessionID := "codex-session-123"
-	tsk.Execution.Phases["implement_codex"].SessionId = &sessionID
+	task.SetPhaseSessionMetadataProto(tsk.Execution, "implement_codex", mustSessionMetadata(t, "codex", "codex-session-123"))
 	task.SetRetryState(tsk, "review_cross", "implement_codex", "blocking review findings", "{}", 1)
 
 	we := &WorkflowExecutor{
@@ -25,7 +25,10 @@ func TestCheckResumeSession_SkipsRetryTargetPhase(t *testing.T) {
 		isResuming: true,
 	}
 
-	gotSessionID, shouldResume := checkResumeSession(we, "implement_codex")
+	gotSessionID, shouldResume, err := checkResumeSession(we, "implement_codex")
+	if err != nil {
+		t.Fatalf("checkResumeSession() error = %v", err)
+	}
 	if shouldResume {
 		t.Fatal("retry target phase should start fresh, not resume stale session")
 	}
@@ -41,14 +44,17 @@ func TestCheckResumeSession_ResumesNormalPendingPhase(t *testing.T) {
 	task.EnsurePhaseProto(tsk.Execution, "implement_codex")
 	tsk.Execution.Phases["implement_codex"].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
 	sessionID := "codex-session-123"
-	tsk.Execution.Phases["implement_codex"].SessionId = &sessionID
+	task.SetPhaseSessionMetadataProto(tsk.Execution, "implement_codex", mustSessionMetadata(t, "codex", sessionID))
 
 	we := &WorkflowExecutor{
 		task:       tsk,
 		isResuming: true,
 	}
 
-	gotSessionID, shouldResume := checkResumeSession(we, "implement_codex")
+	gotSessionID, shouldResume, err := checkResumeSession(we, "implement_codex")
+	if err != nil {
+		t.Fatalf("checkResumeSession() error = %v", err)
+	}
 	if !shouldResume {
 		t.Fatal("expected normal pending phase to resume existing session")
 	}
@@ -64,15 +70,17 @@ func TestCheckResumeSession_SkipsReviewPhaseWhenBlocked(t *testing.T) {
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 	task.EnsurePhaseProto(tsk.Execution, "review_cross")
 	tsk.Execution.Phases["review_cross"].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
-	sessionID := "codex-review-session-123"
-	tsk.Execution.Phases["review_cross"].SessionId = &sessionID
+	task.SetPhaseSessionMetadataProto(tsk.Execution, "review_cross", mustSessionMetadata(t, "codex", "codex-review-session-123"))
 
 	we := &WorkflowExecutor{
 		task:       tsk,
 		isResuming: true,
 	}
 
-	gotSessionID, shouldResume := checkResumeSession(we, "review_cross")
+	gotSessionID, shouldResume, err := checkResumeSession(we, "review_cross")
+	if err != nil {
+		t.Fatalf("checkResumeSession() error = %v", err)
+	}
 	if shouldResume {
 		t.Fatal("review phase should restart fresh, not resume stale session")
 	}
@@ -88,15 +96,17 @@ func TestCheckResumeSession_SkipsReviewPhaseWhenInterrupted(t *testing.T) {
 	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	task.EnsurePhaseProto(tsk.Execution, "review_cross")
 	tsk.Execution.Phases["review_cross"].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
-	sessionID := "codex-review-session-456"
-	tsk.Execution.Phases["review_cross"].SessionId = &sessionID
+	task.SetPhaseSessionMetadataProto(tsk.Execution, "review_cross", mustSessionMetadata(t, "codex", "codex-review-session-456"))
 
 	we := &WorkflowExecutor{
 		task:       tsk,
 		isResuming: true,
 	}
 
-	gotSessionID, shouldResume := checkResumeSession(we, "review_cross")
+	gotSessionID, shouldResume, err := checkResumeSession(we, "review_cross")
+	if err != nil {
+		t.Fatalf("checkResumeSession() error = %v", err)
+	}
 	if shouldResume {
 		t.Fatal("interrupted review phase should restart fresh, not resume stale session")
 	}
@@ -157,4 +167,33 @@ func TestClearRetryStateForFreshPhaseStart_PreservesMetadataOnResume(t *testing.
 	if rs := task.GetRetryState(tsk); rs == nil {
 		t.Fatal("retry state should remain while phase is resuming")
 	}
+}
+
+func TestCheckResumeSession_ErrorsOnInvalidStoredMetadata(t *testing.T) {
+	t.Parallel()
+
+	tsk := task.NewProtoTask("TASK-BAD-SESSION", "invalid session metadata should fail fast")
+	task.EnsurePhaseProto(tsk.Execution, "implement")
+	tsk.Execution.Phases["implement"].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
+	raw := "not-json"
+	tsk.Execution.Phases["implement"].SessionMetadata = &raw
+
+	we := &WorkflowExecutor{
+		task:       tsk,
+		isResuming: true,
+	}
+
+	_, _, err := checkResumeSession(we, "implement")
+	if err == nil {
+		t.Fatal("checkResumeSession() error = nil, want parse failure")
+	}
+}
+
+func mustSessionMetadata(t *testing.T, provider, sessionID string) string {
+	t.Helper()
+	metadata, err := llmkit.MarshalSessionMetadata(llmkit.SessionMetadataForID(provider, sessionID))
+	if err != nil {
+		t.Fatalf("marshal session metadata: %v", err)
+	}
+	return metadata
 }

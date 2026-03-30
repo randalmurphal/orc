@@ -150,5 +150,5 @@ func TestRemoval_SkillLoaderNotInWorkflowPhase(t *testing.T) {
 
 	assert.NotContains(t, string(content), "LoadSkillsForConfig",
 		"workflow_phase.go should not reference LoadSkillsForConfig — "+
-			"skills are now written as real .claude/skills/ files by ApplyPhaseSettings")
+			"skills are now written as real runtime assets by llmkit preparation")
 }

@@ -57,7 +57,7 @@ describe('AgentsView', () => {
 			thinking: false,
 			maxTurns: 100,
 			temperature: 0,
-			$typeName: 'orc.v1.ClaudeConfig',
+			$typeName: 'orc.v1.RuntimeConfig',
 		},
 		completion: {
 			action: 'finalize',
@@ -327,7 +327,7 @@ describe('AgentsPage', () => {
 					thinking: false,
 					maxTurns: 100,
 					temperature: 0,
-					$typeName: 'orc.v1.ClaudeConfig',
+					$typeName: 'orc.v1.RuntimeConfig',
 				},
 				completion: {
 					action: 'finalize',

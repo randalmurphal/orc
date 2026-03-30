@@ -73,32 +73,12 @@ func TestEstimateTokenCostUSD_PrefixMatchLongestWins(t *testing.T) {
 	}
 }
 
-func TestEstimateTokenCostUSD_LocalProvidersAlwaysFree(t *testing.T) {
-	ollama := EstimateTokenCostUSD("ollama", "qwen2.5-14b", 5_000_000, 5_000_000, 0, 0)
-	if ollama != 0 {
-		t.Fatalf("EstimateTokenCostUSD(ollama) = %f, want 0", ollama)
-	}
-
-	lmstudio := EstimateTokenCostUSD("lmstudio", "qwen2.5-14b", 5_000_000, 5_000_000, 0, 0)
-	if lmstudio != 0 {
-		t.Fatalf("EstimateTokenCostUSD(lmstudio) = %f, want 0", lmstudio)
-	}
-}
-
 func TestEstimateTokenCostUSD_CacheTokens(t *testing.T) {
 	// Claude opus: cache_read=0.5, cache_write=6.25 per 1M
 	got := EstimateTokenCostUSD("claude", "opus", 0, 0, 1_000_000, 1_000_000)
 	want := 0.5 + 6.25
 	if math.Abs(got-want) > 1e-9 {
 		t.Fatalf("cache token cost = %f, want %f", got, want)
-	}
-}
-
-func TestEstimateTokenCostUSD_WildcardModelMatch(t *testing.T) {
-	// ollama has "*" entry, so any model should match and return 0
-	got := EstimateTokenCostUSD("ollama", "any-random-model", 1_000_000, 1_000_000, 0, 0)
-	if got != 0 {
-		t.Fatalf("wildcard match for ollama = %f, want 0", got)
 	}
 }
 

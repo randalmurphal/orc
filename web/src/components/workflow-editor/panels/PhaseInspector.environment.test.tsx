@@ -45,6 +45,7 @@ const mockListAgents = vi.fn().mockResolvedValue({ agents: [] });
 const mockListHooks = vi.fn().mockResolvedValue({ hooks: [] });
 const mockListSkills = vi.fn().mockResolvedValue({ skills: [] });
 const mockListMCPServers = vi.fn().mockResolvedValue({ servers: [] });
+const mockGetMCPServer = vi.fn();
 
 vi.mock('@/lib/client', () => ({
 	workflowClient: {
@@ -57,6 +58,7 @@ vi.mock('@/lib/client', () => ({
 	},
 	mcpClient: {
 		listMCPServers: (...args: unknown[]) => mockListMCPServers(...args),
+		getMCPServer: (...args: unknown[]) => mockGetMCPServer(...args),
 	},
 }));
 
@@ -83,6 +85,13 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 		mockListHooks.mockResolvedValue({ hooks: [] });
 		mockListSkills.mockResolvedValue({ skills: [] });
 		mockListMCPServers.mockResolvedValue({ servers: [] });
+		mockGetMCPServer.mockImplementation(async (request: { name?: string }) => ({
+			server: request.name === 'filesystem'
+				? { name: 'filesystem', type: 'stdio', command: 'npx @mcp/server-fs', args: [], env: {}, headers: {}, disabled: false }
+				: request.name === 'database'
+					? { name: 'database', type: 'stdio', command: 'npx @mcp/server-pg', args: [], env: {}, headers: {}, disabled: false }
+					: undefined,
+		}));
 	});
 
 	afterEach(() => {
@@ -217,7 +226,7 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 			).not.toBeInTheDocument();
 		});
 
-		it('selecting MCP server calls autoSave with updated claudeConfigOverride', async () => {
+		it('selecting MCP server calls autoSave with updated runtimeConfigOverride', async () => {
 			const phase = createMockWorkflowPhase({
 				template: createMockPhaseTemplate({ name: 'implement' }),
 			});
@@ -245,11 +254,11 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 			// Click to select filesystem server
 			await userEvent.click(screen.getByText('filesystem'));
 
-			// Verify updatePhase was called with claudeConfigOverride containing mcpServers
+			// Verify updatePhase was called with runtimeConfigOverride containing mcpServers
 			await waitFor(() => {
 				expect(mockUpdatePhase).toHaveBeenCalledWith(
 					expect.objectContaining({
-						claudeConfigOverride: expect.stringContaining('filesystem'),
+						runtimeConfigOverride: expect.stringContaining('filesystem'),
 					})
 				);
 			});
@@ -291,7 +300,7 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 			expect(screen.getByText('tdd')).toBeInTheDocument();
 		});
 
-		it('selecting skill calls autoSave with updated claudeConfigOverride', async () => {
+		it('selecting skill calls autoSave with updated runtimeConfigOverride', async () => {
 			const phase = createMockWorkflowPhase({
 				template: createMockPhaseTemplate({ name: 'implement' }),
 			});
@@ -319,11 +328,11 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 			// Click to select python-style skill
 			await userEvent.click(screen.getByText('python-style'));
 
-			// Verify updatePhase was called with claudeConfigOverride containing skillRefs
+			// Verify updatePhase was called with runtimeConfigOverride containing skillRefs
 			await waitFor(() => {
 				expect(mockUpdatePhase).toHaveBeenCalledWith(
 					expect.objectContaining({
-						claudeConfigOverride: expect.stringContaining('python-style'),
+						runtimeConfigOverride: expect.stringContaining('python-style'),
 					})
 				);
 			});

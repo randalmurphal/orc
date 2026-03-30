@@ -77,8 +77,8 @@ func setupProviderDispatchTest(t *testing.T, cfg *config.Config, phaseProvider s
 		WithSkipGates(true),
 	)
 	// Set worktreePath so codex adapter path is exercised.
-	// Nil out globalDB to skip ApplyPhaseSettings (which needs hook_scripts table from
-	// real global schema). We're testing provider dispatch, not phase settings.
+	// Nil out globalDB to skip llmkit runtime preparation (which needs hook_scripts
+	// data from the real global schema). We're testing provider dispatch, not runtime prep.
 	we.worktreePath = worktreeDir
 	we.globalDB = nil
 
@@ -124,7 +124,7 @@ func hasPreAssignedSessionID(tsk *orcv1.Task, phaseID string) bool {
 	if !ok {
 		return false
 	}
-	return ps.SessionId != nil && *ps.SessionId != ""
+	return ps.SessionMetadata != nil && *ps.SessionMetadata != ""
 }
 
 // =============================================================================
@@ -338,38 +338,5 @@ func TestProviderDispatch_PhaseOverrideBeatsWorkflowDefault(t *testing.T) {
 	// Phase says "claude", so session ID SHOULD be pre-assigned
 	if !hasPreAssignedSessionID(tsk, "implement") {
 		t.Fatal("no session ID pre-assigned — phase override='claude' should have beaten workflow default='codex'")
-	}
-}
-
-// =============================================================================
-// Ollama (codex-family) also routes through codexAdapter
-// =============================================================================
-
-func TestProviderDispatch_Ollama_RoutesToCodex(t *testing.T) {
-	t.Parallel()
-
-	we, tmpl, wfPhase, run, runPhase, tsk := setupProviderDispatchTest(
-		t, &config.Config{}, "ollama",
-	)
-
-	vars := variable.VariableSet{}
-	rctx := &variable.ResolutionContext{
-		PhaseOutputVars: make(map[string]string),
-		PriorOutputs:    make(map[string]string),
-	}
-
-	result, err := we.executePhase(
-		context.Background(), tmpl, wfPhase, vars, rctx, run, runPhase, tsk,
-	)
-	if err != nil {
-		t.Fatalf("executePhase error: %v", err)
-	}
-
-	if result.Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED.String() {
-		t.Errorf("status = %q, want COMPLETED", result.Status)
-	}
-
-	if hasPreAssignedSessionID(tsk, "implement") {
-		t.Fatal("session ID pre-assigned — provider='ollama' should route through codexAdapter")
 	}
 }

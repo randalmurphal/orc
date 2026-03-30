@@ -109,7 +109,7 @@ func (r *Registry) Save() error {
 
 // Register adds or updates a project in the registry.
 func (r *Registry) Register(path string) (*Project, error) {
-	absPath, err := filepath.Abs(path)
+	absPath, err := normalizeProjectPath(path)
 	if err != nil {
 		return nil, fmt.Errorf("resolve path: %w", err)
 	}
@@ -150,7 +150,7 @@ func (r *Registry) Register(path string) (*Project, error) {
 // Unregister removes a project from the registry.
 func (r *Registry) Unregister(idOrPath string) error {
 	for i, p := range r.Projects {
-		if p.ID == idOrPath || p.Path == idOrPath {
+		if p.ID == idOrPath || pathsEqual(p.Path, idOrPath) {
 			r.Projects = append(r.Projects[:i], r.Projects[i+1:]...)
 			return nil
 		}
@@ -161,7 +161,7 @@ func (r *Registry) Unregister(idOrPath string) error {
 // Get returns a project by ID or path.
 func (r *Registry) Get(idOrPath string) (*Project, error) {
 	for _, p := range r.Projects {
-		if p.ID == idOrPath || p.Path == idOrPath {
+		if p.ID == idOrPath || pathsEqual(p.Path, idOrPath) {
 			return &p, nil
 		}
 	}
@@ -188,6 +188,29 @@ func (r *Registry) ValidProjects() []Project {
 func generateID(path string) string {
 	hash := sha256.Sum256([]byte(path))
 	return hex.EncodeToString(hash[:])[:8]
+}
+
+func normalizeProjectPath(path string) (string, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	if evalPath, err := filepath.EvalSymlinks(absPath); err == nil {
+		return evalPath, nil
+	}
+	return filepath.Clean(absPath), nil
+}
+
+func pathsEqual(a, b string) bool {
+	if a == "" || b == "" {
+		return a == b
+	}
+	na, errA := normalizeProjectPath(a)
+	nb, errB := normalizeProjectPath(b)
+	if errA == nil && errB == nil {
+		return na == nb
+	}
+	return filepath.Clean(a) == filepath.Clean(b)
 }
 
 // RegisterProject is a convenience function to register a project path.

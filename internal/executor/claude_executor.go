@@ -9,7 +9,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/randalmurphal/llmkit/claude"
+	llmkit "github.com/randalmurphal/llmkit/v2"
+	"github.com/randalmurphal/llmkit/v2/claude"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -72,7 +73,7 @@ type ClaudeExecutor struct {
 
 	// phaseConfig contains per-phase Claude CLI configuration
 	// (system prompts, tool restrictions, MCP servers, budgets, etc.)
-	phaseConfig *PhaseClaudeConfig
+	phaseConfig *PhaseRuntimeConfig
 
 	// Inactivity timeout for silent stalled turns.
 	inactivityTimeout time.Duration
@@ -169,7 +170,7 @@ func WithClaudeRunID(id string) ClaudeExecutorOption {
 	return func(e *ClaudeExecutor) { e.runID = id }
 }
 
-// WithPhaseClaudeConfig sets the per-phase Claude configuration.
+// WithPhaseRuntimeConfig sets the per-phase Claude configuration.
 // This enables fine-grained control over Claude's behavior per-phase including:
 // - System prompts (inline or file-based)
 // - Tool restrictions (allowed, disallowed, tools list)
@@ -178,7 +179,7 @@ func WithClaudeRunID(id string) ClaudeExecutorOption {
 // - Environment variables and additional directories
 // - Agent assignment (agent_ref, inline_agents - requires llmkit support)
 // - Skill injection (skill_refs - resolved before passing to config)
-func WithPhaseClaudeConfig(cfg *PhaseClaudeConfig) ClaudeExecutorOption {
+func WithPhaseRuntimeConfig(cfg *PhaseRuntimeConfig) ClaudeExecutorOption {
 	return func(e *ClaudeExecutor) { e.phaseConfig = cfg }
 }
 
@@ -197,8 +198,8 @@ func NewClaudeExecutor(opts ...ClaudeExecutorOption) *ClaudeExecutor {
 	// Create transcript handler if we have backend and taskID
 	if e.backend != nil && e.taskID != "" {
 		var captureHookEvents []string
-		if e.phaseConfig != nil && len(e.phaseConfig.Hooks) > 0 {
-			for event := range e.phaseConfig.Hooks {
+		if e.phaseConfig != nil && e.phaseConfig.Providers.Claude != nil && len(e.phaseConfig.Providers.Claude.Hooks) > 0 {
+			for event := range e.phaseConfig.Providers.Claude.Hooks {
 				captureHookEvents = append(captureHookEvents, event)
 			}
 		}
@@ -243,7 +244,14 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 	}
 
 	// Build CLI options using consolidated helper, then add JSON schema
-	cliOpts := e.buildBaseCLIOptions()
+	cliOpts, err := e.buildBaseCLIOptions()
+	if err != nil {
+		return &TurnResult{
+			Duration:  time.Since(start),
+			IsError:   true,
+			ErrorText: err.Error(),
+		}, err
+	}
 	// Select schema using loop-aware selection (falls back to round-based for backward compat)
 	// Priority: loopIteration > reviewRound > 1
 	iteration := e.loopIteration
@@ -331,7 +339,14 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 	}
 
 	// Build CLI options using consolidated helper (no JSON schema)
-	cliOpts := e.buildBaseCLIOptions()
+	cliOpts, err := e.buildBaseCLIOptions()
+	if err != nil {
+		return &TurnResult{
+			Duration:  time.Since(start),
+			IsError:   true,
+			ErrorText: err.Error(),
+		}, err
+	}
 
 	cli := claude.NewClaudeCLI(cliOpts...)
 
@@ -397,7 +412,7 @@ func (e *ClaudeExecutor) SessionID() string {
 
 // buildBaseCLIOptions builds the common set of CLI options shared by all execution methods.
 // This consolidates the option building that was previously duplicated.
-func (e *ClaudeExecutor) buildBaseCLIOptions() []claude.ClaudeOption {
+func (e *ClaudeExecutor) buildBaseCLIOptions() ([]claude.ClaudeOption, error) {
 	opts := []claude.ClaudeOption{
 		claude.WithWorkdir(e.workdir),
 		claude.WithOutputFormat(claude.OutputFormatJSON),
@@ -433,10 +448,14 @@ func (e *ClaudeExecutor) buildBaseCLIOptions() []claude.ClaudeOption {
 	// Apply phase-specific Claude configuration
 	// Priority: phaseConfig overrides executor-level settings
 	if e.phaseConfig != nil {
-		opts = e.applyPhaseConfig(opts)
+		var err error
+		opts, err = e.applyPhaseConfig(opts)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return opts
+	return opts, nil
 }
 
 func (e *ClaudeExecutor) wrapClaudeOnEvent(watchdog *TurnWatchdog) func(claude.StreamEvent) {
@@ -450,73 +469,106 @@ func (e *ClaudeExecutor) wrapClaudeOnEvent(watchdog *TurnWatchdog) func(claude.S
 	}
 }
 
-// applyPhaseConfig applies PhaseClaudeConfig options to the CLI options.
+// applyPhaseConfig applies PhaseRuntimeConfig options to the CLI options.
 // Returns the updated options slice.
-func (e *ClaudeExecutor) applyPhaseConfig(opts []claude.ClaudeOption) []claude.ClaudeOption {
+func (e *ClaudeExecutor) applyPhaseConfig(opts []claude.ClaudeOption) ([]claude.ClaudeOption, error) {
 	cfg := e.phaseConfig
 	if cfg == nil {
-		return opts
+		return opts, nil
+	}
+
+	llmkitCfg, err := llmkit.BuildConfig(ProviderClaude, e.model, e.workdir, cfg.ToLLMKit(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("build claude runtime config: %w", err)
 	}
 
 	// System prompts
-	if cfg.SystemPrompt != "" {
-		opts = append(opts, claude.WithSystemPrompt(cfg.SystemPrompt))
+	if llmkitCfg.SystemPrompt != "" {
+		opts = append(opts, claude.WithSystemPrompt(llmkitCfg.SystemPrompt))
 	}
-	if cfg.AppendSystemPrompt != "" {
-		opts = append(opts, claude.WithAppendSystemPrompt(cfg.AppendSystemPrompt))
-	}
-	// Note: SystemPromptFile and AppendSystemPromptFile are resolved to content
-	// before being passed here (by skill_loader or workflow_phase.go)
 
 	// Tool control
-	if len(cfg.AllowedTools) > 0 {
-		opts = append(opts, claude.WithAllowedTools(cfg.AllowedTools))
+	if len(llmkitCfg.AllowedTools) > 0 {
+		opts = append(opts, claude.WithAllowedTools(llmkitCfg.AllowedTools))
 	}
-	if len(cfg.DisallowedTools) > 0 {
-		opts = append(opts, claude.WithDisallowedTools(cfg.DisallowedTools))
+	if len(llmkitCfg.DisallowedTools) > 0 {
+		opts = append(opts, claude.WithDisallowedTools(llmkitCfg.DisallowedTools))
 	}
-	if len(cfg.Tools) > 0 {
-		opts = append(opts, claude.WithTools(cfg.Tools))
+	if len(llmkitCfg.Tools) > 0 {
+		opts = append(opts, claude.WithTools(llmkitCfg.Tools))
 	}
 
 	// MCP servers
-	if len(cfg.MCPServers) > 0 {
-		opts = append(opts, claude.WithMCPServers(cfg.MCPServers))
+	if len(llmkitCfg.MCPServers) > 0 {
+		servers := make(map[string]claude.MCPServerConfig, len(llmkitCfg.MCPServers))
+		for name, server := range llmkitCfg.MCPServers {
+			servers[name] = claude.MCPServerConfig{
+				Type:    server.Type,
+				Command: server.Command,
+				Args:    append([]string(nil), server.Args...),
+				Env:     cloneStringMap(server.Env),
+				URL:     server.URL,
+				Headers: mapHeadersToSlice(server.Headers),
+			}
+		}
+		opts = append(opts, claude.WithMCPServers(servers))
 	}
-	if cfg.StrictMCPConfig {
+	if llmkitCfg.StrictMCPConfig {
 		opts = append(opts, claude.WithStrictMCPConfig())
 	}
 
 	// Budget and limits - only apply if explicitly set in phase config
 	// (0 means "not set", not "unlimited")
-	if cfg.MaxBudgetUSD > 0 {
-		opts = append(opts, claude.WithMaxBudgetUSD(cfg.MaxBudgetUSD))
+	if llmkitCfg.MaxBudgetUSD > 0 {
+		opts = append(opts, claude.WithMaxBudgetUSD(llmkitCfg.MaxBudgetUSD))
 	}
-	if cfg.MaxTurns > 0 {
+	if llmkitCfg.MaxTurns > 0 {
 		// Phase config max_turns overrides executor-level maxTurns
-		opts = append(opts, claude.WithMaxTurns(cfg.MaxTurns))
+		opts = append(opts, claude.WithMaxTurns(llmkitCfg.MaxTurns))
 	}
 
 	// Environment
-	if len(cfg.Env) > 0 {
-		opts = append(opts, claude.WithEnv(cfg.Env))
+	if len(llmkitCfg.Env) > 0 {
+		opts = append(opts, claude.WithEnv(llmkitCfg.Env))
 	}
-	if len(cfg.AddDirs) > 0 {
-		opts = append(opts, claude.WithAddDirs(cfg.AddDirs))
+	if len(llmkitCfg.AddDirs) > 0 {
+		opts = append(opts, claude.WithAddDirs(llmkitCfg.AddDirs))
 	}
 
 	// Agent assignment (--agent and --agents)
-	if cfg.AgentRef != "" {
-		opts = append(opts, claude.WithAgent(cfg.AgentRef))
+	if cfg.Providers.Claude != nil && cfg.Providers.Claude.AgentRef != "" {
+		opts = append(opts, claude.WithAgent(cfg.Providers.Claude.AgentRef))
 	}
-	if len(cfg.InlineAgents) > 0 {
+	if cfg.Providers.Claude != nil && len(cfg.Providers.Claude.InlineAgents) > 0 {
 		opts = append(opts, claude.WithAgentsJSON(cfg.InlineAgentsJSON()))
 	}
 
 	// Skills are resolved before this point - content injected into AppendSystemPrompt
 	// Hook events are handled by the transcript handler
 
-	return opts
+	return opts, nil
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+func mapHeadersToSlice(in map[string]string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	for name, value := range in {
+		out = append(out, fmt.Sprintf("%s: %s", name, value))
+	}
+	return out
 }
 
 // MockTurnExecutor is a test double for TurnExecutor that returns configurable responses.

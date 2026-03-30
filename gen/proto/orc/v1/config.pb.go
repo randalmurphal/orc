@@ -138,7 +138,7 @@ type Config struct {
 	// Export settings
 	Export *ExportConfig `protobuf:"bytes,3,opt,name=export,proto3" json:"export,omitempty"`
 	// Claude settings
-	Claude *ClaudeConfig `protobuf:"bytes,4,opt,name=claude,proto3" json:"claude,omitempty"`
+	Claude *RuntimeConfig `protobuf:"bytes,4,opt,name=claude,proto3" json:"claude,omitempty"`
 	// Execution settings (parallel tasks, cost limits)
 	Execution *ExecutionConfig `protobuf:"bytes,5,opt,name=execution,proto3" json:"execution,omitempty"`
 	// Jira Cloud import settings
@@ -198,7 +198,7 @@ func (x *Config) GetExport() *ExportConfig {
 	return nil
 }
 
-func (x *Config) GetClaude() *ClaudeConfig {
+func (x *Config) GetClaude() *RuntimeConfig {
 	if x != nil {
 		return x.Claude
 	}
@@ -653,7 +653,7 @@ func (x *ExportConfig) GetFormat() string {
 	return ""
 }
 
-type ClaudeConfig struct {
+type RuntimeConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Default model
 	Model string `protobuf:"bytes,1,opt,name=model,proto3" json:"model,omitempty"`
@@ -667,20 +667,20 @@ type ClaudeConfig struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ClaudeConfig) Reset() {
-	*x = ClaudeConfig{}
+func (x *RuntimeConfig) Reset() {
+	*x = RuntimeConfig{}
 	mi := &file_orc_v1_config_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ClaudeConfig) String() string {
+func (x *RuntimeConfig) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ClaudeConfig) ProtoMessage() {}
+func (*RuntimeConfig) ProtoMessage() {}
 
-func (x *ClaudeConfig) ProtoReflect() protoreflect.Message {
+func (x *RuntimeConfig) ProtoReflect() protoreflect.Message {
 	mi := &file_orc_v1_config_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -692,33 +692,33 @@ func (x *ClaudeConfig) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ClaudeConfig.ProtoReflect.Descriptor instead.
-func (*ClaudeConfig) Descriptor() ([]byte, []int) {
+// Deprecated: Use RuntimeConfig.ProtoReflect.Descriptor instead.
+func (*RuntimeConfig) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ClaudeConfig) GetModel() string {
+func (x *RuntimeConfig) GetModel() string {
 	if x != nil {
 		return x.Model
 	}
 	return ""
 }
 
-func (x *ClaudeConfig) GetThinking() bool {
+func (x *RuntimeConfig) GetThinking() bool {
 	if x != nil {
 		return x.Thinking
 	}
 	return false
 }
 
-func (x *ClaudeConfig) GetMaxTurns() int32 {
+func (x *RuntimeConfig) GetMaxTurns() int32 {
 	if x != nil {
 		return x.MaxTurns
 	}
 	return 0
 }
 
-func (x *ClaudeConfig) GetTemperature() float64 {
+func (x *RuntimeConfig) GetTemperature() float64 {
 	if x != nil {
 		return x.Temperature
 	}
@@ -1704,9 +1704,9 @@ type Agent struct {
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Model         *string                `protobuf:"bytes,4,opt,name=model,proto3,oneof" json:"model,omitempty"`
 	Tools         *ToolPermissions       `protobuf:"bytes,5,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
-	Prompt        *string                `protobuf:"bytes,6,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                 // For sub-agent role context
-	SystemPrompt  *string                `protobuf:"bytes,7,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"` // For executor role - system prompt
-	ClaudeConfig  *string                `protobuf:"bytes,8,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // For executor role - JSON additional config
+	Prompt        *string                `protobuf:"bytes,6,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                    // For sub-agent role context
+	SystemPrompt  *string                `protobuf:"bytes,7,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"`    // For executor role - system prompt
+	RuntimeConfig *string                `protobuf:"bytes,8,opt,name=runtime_config,json=runtimeConfig,proto3,oneof" json:"runtime_config,omitempty"` // For executor role - JSON additional config
 	WorkDir       *string                `protobuf:"bytes,9,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
 	SkillRefs     []string               `protobuf:"bytes,10,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
 	Timeout       *string                `protobuf:"bytes,11,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
@@ -1717,7 +1717,7 @@ type Agent struct {
 	IsBuiltin     bool                   `protobuf:"varint,16,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"` // Whether this is a built-in agent
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	Provider      *string                `protobuf:"bytes,19,opt,name=provider,proto3,oneof" json:"provider,omitempty"` // LLM provider: "claude", "codex", "ollama"
+	Provider      *string                `protobuf:"bytes,19,opt,name=provider,proto3,oneof" json:"provider,omitempty"` // LLM provider: "claude", "codex"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1801,9 +1801,9 @@ func (x *Agent) GetSystemPrompt() string {
 	return ""
 }
 
-func (x *Agent) GetClaudeConfig() string {
-	if x != nil && x.ClaudeConfig != nil {
-		return *x.ClaudeConfig
+func (x *Agent) GetRuntimeConfig() string {
+	if x != nil && x.RuntimeConfig != nil {
+		return *x.RuntimeConfig
 	}
 	return ""
 }
@@ -2231,7 +2231,7 @@ type UpdateConfigRequest struct {
 	Automation    *AutomationConfig      `protobuf:"bytes,2,opt,name=automation,proto3,oneof" json:"automation,omitempty"`
 	Completion    *CompletionConfig      `protobuf:"bytes,3,opt,name=completion,proto3,oneof" json:"completion,omitempty"`
 	Export        *ExportConfig          `protobuf:"bytes,4,opt,name=export,proto3,oneof" json:"export,omitempty"`
-	Claude        *ClaudeConfig          `protobuf:"bytes,5,opt,name=claude,proto3,oneof" json:"claude,omitempty"`
+	Claude        *RuntimeConfig         `protobuf:"bytes,5,opt,name=claude,proto3,oneof" json:"claude,omitempty"`
 	Execution     *ExecutionConfig       `protobuf:"bytes,6,opt,name=execution,proto3,oneof" json:"execution,omitempty"`
 	Jira          *JiraConfig            `protobuf:"bytes,7,opt,name=jira,proto3,oneof" json:"jira,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2296,7 +2296,7 @@ func (x *UpdateConfigRequest) GetExport() *ExportConfig {
 	return nil
 }
 
-func (x *UpdateConfigRequest) GetClaude() *ClaudeConfig {
+func (x *UpdateConfigRequest) GetClaude() *RuntimeConfig {
 	if x != nil {
 		return x.Claude
 	}
@@ -4779,14 +4779,14 @@ type CreateAgentRequest struct {
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	Model         *string                `protobuf:"bytes,5,opt,name=model,proto3,oneof" json:"model,omitempty"`
 	Tools         *ToolPermissions       `protobuf:"bytes,6,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
-	Prompt        *string                `protobuf:"bytes,7,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                 // For sub-agent role
-	SystemPrompt  *string                `protobuf:"bytes,8,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"` // For executor role
-	ClaudeConfig  *string                `protobuf:"bytes,9,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // For executor role - JSON config
+	Prompt        *string                `protobuf:"bytes,7,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                    // For sub-agent role
+	SystemPrompt  *string                `protobuf:"bytes,8,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"`    // For executor role
+	RuntimeConfig *string                `protobuf:"bytes,9,opt,name=runtime_config,json=runtimeConfig,proto3,oneof" json:"runtime_config,omitempty"` // For executor role - JSON config
 	WorkDir       *string                `protobuf:"bytes,10,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
 	SkillRefs     []string               `protobuf:"bytes,11,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
 	Timeout       *string                `protobuf:"bytes,12,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
 	Scope         SettingsScope          `protobuf:"varint,13,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
-	Provider      *string                `protobuf:"bytes,14,opt,name=provider,proto3,oneof" json:"provider,omitempty"` // LLM provider: "claude", "codex", "ollama"
+	Provider      *string                `protobuf:"bytes,14,opt,name=provider,proto3,oneof" json:"provider,omitempty"` // LLM provider: "claude", "codex"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4877,9 +4877,9 @@ func (x *CreateAgentRequest) GetSystemPrompt() string {
 	return ""
 }
 
-func (x *CreateAgentRequest) GetClaudeConfig() string {
-	if x != nil && x.ClaudeConfig != nil {
-		return *x.ClaudeConfig
+func (x *CreateAgentRequest) GetRuntimeConfig() string {
+	if x != nil && x.RuntimeConfig != nil {
+		return *x.RuntimeConfig
 	}
 	return ""
 }
@@ -4971,13 +4971,13 @@ type UpdateAgentRequest struct {
 	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	Model         *string                `protobuf:"bytes,5,opt,name=model,proto3,oneof" json:"model,omitempty"`
 	Tools         *ToolPermissions       `protobuf:"bytes,6,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
-	Prompt        *string                `protobuf:"bytes,7,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                 // For sub-agent role
-	SystemPrompt  *string                `protobuf:"bytes,8,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"` // For executor role
-	ClaudeConfig  *string                `protobuf:"bytes,9,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // For executor role - JSON config
+	Prompt        *string                `protobuf:"bytes,7,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                    // For sub-agent role
+	SystemPrompt  *string                `protobuf:"bytes,8,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"`    // For executor role
+	RuntimeConfig *string                `protobuf:"bytes,9,opt,name=runtime_config,json=runtimeConfig,proto3,oneof" json:"runtime_config,omitempty"` // For executor role - JSON config
 	WorkDir       *string                `protobuf:"bytes,10,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
 	SkillRefs     []string               `protobuf:"bytes,11,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
 	Timeout       *string                `protobuf:"bytes,12,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
-	Provider      *string                `protobuf:"bytes,13,opt,name=provider,proto3,oneof" json:"provider,omitempty"` // LLM provider: "claude", "codex", "ollama"
+	Provider      *string                `protobuf:"bytes,13,opt,name=provider,proto3,oneof" json:"provider,omitempty"` // LLM provider: "claude", "codex"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5068,9 +5068,9 @@ func (x *UpdateAgentRequest) GetSystemPrompt() string {
 	return ""
 }
 
-func (x *UpdateAgentRequest) GetClaudeConfig() string {
-	if x != nil && x.ClaudeConfig != nil {
-		return *x.ClaudeConfig
+func (x *UpdateAgentRequest) GetRuntimeConfig() string {
+	if x != nil && x.RuntimeConfig != nil {
+		return *x.RuntimeConfig
 	}
 	return ""
 }
@@ -7051,7 +7051,7 @@ var File_orc_v1_config_proto protoreflect.FileDescriptor
 
 const file_orc_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"\x13orc/v1/config.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x02\n" +
+	"\x13orc/v1/config.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb8\x02\n" +
 	"\x06Config\x128\n" +
 	"\n" +
 	"automation\x18\x01 \x01(\v2\x18.orc.v1.AutomationConfigR\n" +
@@ -7059,8 +7059,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"completion\x18\x02 \x01(\v2\x18.orc.v1.CompletionConfigR\n" +
 	"completion\x12,\n" +
-	"\x06export\x18\x03 \x01(\v2\x14.orc.v1.ExportConfigR\x06export\x12,\n" +
-	"\x06claude\x18\x04 \x01(\v2\x14.orc.v1.ClaudeConfigR\x06claude\x125\n" +
+	"\x06export\x18\x03 \x01(\v2\x14.orc.v1.ExportConfigR\x06export\x12-\n" +
+	"\x06claude\x18\x04 \x01(\v2\x15.orc.v1.RuntimeConfigR\x06claude\x125\n" +
 	"\texecution\x18\x05 \x01(\v2\x17.orc.v1.ExecutionConfigR\texecution\x12&\n" +
 	"\x04jira\x18\x06 \x01(\v2\x12.orc.v1.JiraConfigR\x04jira\"l\n" +
 	"\x10AutomationConfig\x12\x18\n" +
@@ -7099,8 +7099,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\fExportConfig\x12/\n" +
 	"\x13include_transcripts\x18\x01 \x01(\bR\x12includeTranscripts\x12/\n" +
 	"\x13include_attachments\x18\x02 \x01(\bR\x12includeAttachments\x12\x16\n" +
-	"\x06format\x18\x03 \x01(\tR\x06format\"\x7f\n" +
-	"\fClaudeConfig\x12\x14\n" +
+	"\x06format\x18\x03 \x01(\tR\x06format\"\x80\x01\n" +
+	"\rRuntimeConfig\x12\x14\n" +
 	"\x05model\x18\x01 \x01(\tR\x05model\x12\x1a\n" +
 	"\bthinking\x18\x02 \x01(\bR\bthinking\x12\x1b\n" +
 	"\tmax_turns\x18\x03 \x01(\x05R\bmaxTurns\x12 \n" +
@@ -7212,7 +7212,7 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\ftokens_today\x18\x01 \x01(\x03R\vtokensToday\x12\x1d\n" +
 	"\n" +
 	"tasks_done\x18\x02 \x01(\x05R\ttasksDone\x12!\n" +
-	"\fsuccess_rate\x18\x03 \x01(\x01R\vsuccessRate\"\xba\x06\n" +
+	"\fsuccess_rate\x18\x03 \x01(\x01R\vsuccessRate\"\xbd\x06\n" +
 	"\x05Agent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -7220,8 +7220,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x05model\x18\x04 \x01(\tH\x00R\x05model\x88\x01\x01\x122\n" +
 	"\x05tools\x18\x05 \x01(\v2\x17.orc.v1.ToolPermissionsH\x01R\x05tools\x88\x01\x01\x12\x1b\n" +
 	"\x06prompt\x18\x06 \x01(\tH\x02R\x06prompt\x88\x01\x01\x12(\n" +
-	"\rsystem_prompt\x18\a \x01(\tH\x03R\fsystemPrompt\x88\x01\x01\x12(\n" +
-	"\rclaude_config\x18\b \x01(\tH\x04R\fclaudeConfig\x88\x01\x01\x12\x1e\n" +
+	"\rsystem_prompt\x18\a \x01(\tH\x03R\fsystemPrompt\x88\x01\x01\x12*\n" +
+	"\x0eruntime_config\x18\b \x01(\tH\x04R\rruntimeConfig\x88\x01\x01\x12\x1e\n" +
 	"\bwork_dir\x18\t \x01(\tH\x05R\aworkDir\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"skill_refs\x18\n" +
@@ -7242,8 +7242,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x06_modelB\b\n" +
 	"\x06_toolsB\t\n" +
 	"\a_promptB\x10\n" +
-	"\x0e_system_promptB\x10\n" +
-	"\x0e_claude_configB\v\n" +
+	"\x0e_system_promptB\x11\n" +
+	"\x0f_runtime_configB\v\n" +
 	"\t_work_dirB\n" +
 	"\n" +
 	"\b_timeoutB\a\n" +
@@ -7273,7 +7273,7 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\";\n" +
 	"\x11GetConfigResponse\x12&\n" +
-	"\x06config\x18\x01 \x01(\v2\x0e.orc.v1.ConfigR\x06config\"\xcc\x03\n" +
+	"\x06config\x18\x01 \x01(\v2\x0e.orc.v1.ConfigR\x06config\"\xcd\x03\n" +
 	"\x13UpdateConfigRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12=\n" +
@@ -7283,8 +7283,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"completion\x18\x03 \x01(\v2\x18.orc.v1.CompletionConfigH\x01R\n" +
 	"completion\x88\x01\x01\x121\n" +
-	"\x06export\x18\x04 \x01(\v2\x14.orc.v1.ExportConfigH\x02R\x06export\x88\x01\x01\x121\n" +
-	"\x06claude\x18\x05 \x01(\v2\x14.orc.v1.ClaudeConfigH\x03R\x06claude\x88\x01\x01\x12:\n" +
+	"\x06export\x18\x04 \x01(\v2\x14.orc.v1.ExportConfigH\x02R\x06export\x88\x01\x01\x122\n" +
+	"\x06claude\x18\x05 \x01(\v2\x15.orc.v1.RuntimeConfigH\x03R\x06claude\x88\x01\x01\x12:\n" +
 	"\texecution\x18\x06 \x01(\v2\x17.orc.v1.ExecutionConfigH\x04R\texecution\x88\x01\x01\x12+\n" +
 	"\x04jira\x18\a \x01(\v2\x12.orc.v1.JiraConfigH\x05R\x04jira\x88\x01\x01B\r\n" +
 	"\v_automationB\r\n" +
@@ -7471,7 +7471,7 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"7\n" +
 	"\x10GetAgentResponse\x12#\n" +
-	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xce\x04\n" +
+	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xd1\x04\n" +
 	"\x12CreateAgentRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
@@ -7481,8 +7481,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x05model\x18\x05 \x01(\tH\x00R\x05model\x88\x01\x01\x122\n" +
 	"\x05tools\x18\x06 \x01(\v2\x17.orc.v1.ToolPermissionsH\x01R\x05tools\x88\x01\x01\x12\x1b\n" +
 	"\x06prompt\x18\a \x01(\tH\x02R\x06prompt\x88\x01\x01\x12(\n" +
-	"\rsystem_prompt\x18\b \x01(\tH\x03R\fsystemPrompt\x88\x01\x01\x12(\n" +
-	"\rclaude_config\x18\t \x01(\tH\x04R\fclaudeConfig\x88\x01\x01\x12\x1e\n" +
+	"\rsystem_prompt\x18\b \x01(\tH\x03R\fsystemPrompt\x88\x01\x01\x12*\n" +
+	"\x0eruntime_config\x18\t \x01(\tH\x04R\rruntimeConfig\x88\x01\x01\x12\x1e\n" +
 	"\bwork_dir\x18\n" +
 	" \x01(\tH\x05R\aworkDir\x88\x01\x01\x12\x1d\n" +
 	"\n" +
@@ -7493,14 +7493,14 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x06_modelB\b\n" +
 	"\x06_toolsB\t\n" +
 	"\a_promptB\x10\n" +
-	"\x0e_system_promptB\x10\n" +
-	"\x0e_claude_configB\v\n" +
+	"\x0e_system_promptB\x11\n" +
+	"\x0f_runtime_configB\v\n" +
 	"\t_work_dirB\n" +
 	"\n" +
 	"\b_timeoutB\v\n" +
 	"\t_provider\":\n" +
 	"\x13CreateAgentResponse\x12#\n" +
-	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xc4\x04\n" +
+	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xc7\x04\n" +
 	"\x12UpdateAgentRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
@@ -7510,8 +7510,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x05model\x18\x05 \x01(\tH\x02R\x05model\x88\x01\x01\x122\n" +
 	"\x05tools\x18\x06 \x01(\v2\x17.orc.v1.ToolPermissionsH\x03R\x05tools\x88\x01\x01\x12\x1b\n" +
 	"\x06prompt\x18\a \x01(\tH\x04R\x06prompt\x88\x01\x01\x12(\n" +
-	"\rsystem_prompt\x18\b \x01(\tH\x05R\fsystemPrompt\x88\x01\x01\x12(\n" +
-	"\rclaude_config\x18\t \x01(\tH\x06R\fclaudeConfig\x88\x01\x01\x12\x1e\n" +
+	"\rsystem_prompt\x18\b \x01(\tH\x05R\fsystemPrompt\x88\x01\x01\x12*\n" +
+	"\x0eruntime_config\x18\t \x01(\tH\x06R\rruntimeConfig\x88\x01\x01\x12\x1e\n" +
 	"\bwork_dir\x18\n" +
 	" \x01(\tH\aR\aworkDir\x88\x01\x01\x12\x1d\n" +
 	"\n" +
@@ -7523,8 +7523,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x06_modelB\b\n" +
 	"\x06_toolsB\t\n" +
 	"\a_promptB\x10\n" +
-	"\x0e_system_promptB\x10\n" +
-	"\x0e_claude_configB\v\n" +
+	"\x0e_system_promptB\x11\n" +
+	"\x0f_runtime_configB\v\n" +
 	"\t_work_dirB\n" +
 	"\n" +
 	"\b_timeoutB\v\n" +
@@ -7755,7 +7755,7 @@ var file_orc_v1_config_proto_goTypes = []any{
 	(*PRConfig)(nil),                       // 5: orc.v1.PRConfig
 	(*CIConfig)(nil),                       // 6: orc.v1.CIConfig
 	(*ExportConfig)(nil),                   // 7: orc.v1.ExportConfig
-	(*ClaudeConfig)(nil),                   // 8: orc.v1.ClaudeConfig
+	(*RuntimeConfig)(nil),                  // 8: orc.v1.RuntimeConfig
 	(*ExecutionConfig)(nil),                // 9: orc.v1.ExecutionConfig
 	(*JiraConfig)(nil),                     // 10: orc.v1.JiraConfig
 	(*Settings)(nil),                       // 11: orc.v1.Settings
@@ -7881,7 +7881,7 @@ var file_orc_v1_config_proto_depIdxs = []int32{
 	3,   // 0: orc.v1.Config.automation:type_name -> orc.v1.AutomationConfig
 	4,   // 1: orc.v1.Config.completion:type_name -> orc.v1.CompletionConfig
 	7,   // 2: orc.v1.Config.export:type_name -> orc.v1.ExportConfig
-	8,   // 3: orc.v1.Config.claude:type_name -> orc.v1.ClaudeConfig
+	8,   // 3: orc.v1.Config.claude:type_name -> orc.v1.RuntimeConfig
 	9,   // 4: orc.v1.Config.execution:type_name -> orc.v1.ExecutionConfig
 	10,  // 5: orc.v1.Config.jira:type_name -> orc.v1.JiraConfig
 	5,   // 6: orc.v1.CompletionConfig.pr:type_name -> orc.v1.PRConfig
@@ -7908,7 +7908,7 @@ var file_orc_v1_config_proto_depIdxs = []int32{
 	3,   // 27: orc.v1.UpdateConfigRequest.automation:type_name -> orc.v1.AutomationConfig
 	4,   // 28: orc.v1.UpdateConfigRequest.completion:type_name -> orc.v1.CompletionConfig
 	7,   // 29: orc.v1.UpdateConfigRequest.export:type_name -> orc.v1.ExportConfig
-	8,   // 30: orc.v1.UpdateConfigRequest.claude:type_name -> orc.v1.ClaudeConfig
+	8,   // 30: orc.v1.UpdateConfigRequest.claude:type_name -> orc.v1.RuntimeConfig
 	9,   // 31: orc.v1.UpdateConfigRequest.execution:type_name -> orc.v1.ExecutionConfig
 	10,  // 32: orc.v1.UpdateConfigRequest.jira:type_name -> orc.v1.JiraConfig
 	2,   // 33: orc.v1.UpdateConfigResponse.config:type_name -> orc.v1.Config

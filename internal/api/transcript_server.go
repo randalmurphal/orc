@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/randalmurphal/orc/internal/db"
@@ -87,6 +88,37 @@ func (s *transcriptServer) getProjectDB(projectID string) (*db.ProjectDB, error)
 		return dbBackend.DB(), nil
 	}
 	return nil, fmt.Errorf("backend is not a DatabaseBackend")
+}
+
+func resolveTranscriptSessionMetadata(t *orcv1.Task, phaseID, fallbackSessionID string) (string, error) {
+	if t == nil {
+		if fallbackSessionID == "" {
+			return "", nil
+		}
+		return "", fmt.Errorf("task is required to resolve session metadata")
+	}
+
+	if raw := task.GetPhaseSessionMetadataProto(t, phaseID); raw != "" {
+		if _, err := llmkit.ParseSessionMetadata(raw); err != nil {
+			return "", fmt.Errorf("parse session metadata for phase %s: %w", phaseID, err)
+		}
+		return raw, nil
+	}
+
+	if fallbackSessionID == "" {
+		return "", nil
+	}
+
+	provider := task.GetPhaseProviderProto(t, phaseID)
+	if provider == "" {
+		return "", fmt.Errorf("phase %s is missing provider metadata for session %s", phaseID, fallbackSessionID)
+	}
+
+	raw, err := llmkit.MarshalSessionMetadata(llmkit.SessionMetadataForID(provider, fallbackSessionID))
+	if err != nil {
+		return "", fmt.Errorf("marshal fallback session metadata for phase %s: %w", phaseID, err)
+	}
+	return raw, nil
 }
 
 // ListTranscripts returns transcript files for a task.
@@ -214,7 +246,15 @@ func (s *transcriptServer) GetTranscript(
 		StartedAt: entries[0].Timestamp,
 	}
 	if sessionID != "" {
-		transcript.SessionId = &sessionID
+		taskRecord, err := backend.LoadTask(req.Msg.TaskId)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("task not found"))
+		}
+		sessionMetadata, err := resolveTranscriptSessionMetadata(taskRecord, req.Msg.Phase, sessionID)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		transcript.SessionMetadata = &sessionMetadata
 	}
 	if model != "" {
 		transcript.Model = &model
@@ -331,8 +371,12 @@ func (s *transcriptServer) GetSession(
 	}
 
 	currentPhase := task.GetCurrentPhaseProto(t)
+	sessionID := ""
+	if sessionMetadata, err := llmkit.ParseSessionMetadata(task.GetPhaseSessionMetadataProto(t, currentPhase)); err == nil {
+		sessionID = llmkit.SessionID(sessionMetadata)
+	}
 	session := &orcv1.SessionInfo{
-		Id:     task.GetPhaseSessionIDProto(t, currentPhase),
+		Id:     sessionID,
 		Model:  task.GetPhaseModelProto(t, currentPhase),
 		Status: t.Status.String(),
 	}

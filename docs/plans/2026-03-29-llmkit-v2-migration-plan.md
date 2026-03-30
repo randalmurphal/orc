@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-29
 **Status:** Draft for agreement
-**Scope:** Move orc from `github.com/randalmurphal/llmkit` v1 to `github.com/randalmurphal/llmkit/v2` and clarify ownership boundaries
+**Scope:** Move orc from `github.com/randalmurphal/llmkit/v2` v1 to `github.com/randalmurphal/llmkit/v2/v2` and clarify ownership boundaries
 
 ## Why This Exists
 
@@ -89,7 +89,7 @@ Goals:
 
 Deliverables:
 
-- `go.mod` updated to `github.com/randalmurphal/llmkit/v2`
+- `go.mod` updated to `github.com/randalmurphal/llmkit/v2/v2`
 - imports updated across Go packages
 - llmkit exposes typed provider support definitions used by orc
 - unsupported-provider assumptions removed from orc
@@ -107,7 +107,7 @@ Implementation checklist:
 - in llmkit, add typed provider-definition APIs at the root package boundary
 - in llmkit, define provider definitions for `claude` and `codex` only
 - in llmkit, replace or fold existing root capability tables into those definitions
-- in orc, update `go.mod` and imports from `github.com/randalmurphal/llmkit` to `github.com/randalmurphal/llmkit/v2`
+- in orc, update `go.mod` and imports from `github.com/randalmurphal/llmkit/v2` to `github.com/randalmurphal/llmkit/v2/v2`
 - in orc, update imports in:
   - `internal/executor/claude_executor.go`
   - `internal/executor/codex_executor.go`
@@ -185,11 +185,11 @@ Goals:
 
 - replace Claude-shaped execution config with provider-neutral runtime config
 - rename schema and model fields to `runtime_config`
-- remove old `claude_config` naming entirely
+- remove old `runtime_config` naming entirely
 
 Deliverables:
 
-- `PhaseRuntimeConfig` replaces `PhaseClaudeConfig`
+- `PhaseRuntimeConfig` replaces `PhaseRuntimeConfig`
 - `runtime_config` and `runtime_config_override` replace old storage names
 - old names removed from code, schema, and workflow/template handling
 
@@ -204,8 +204,8 @@ Design rules:
 Implementation checklist:
 
 - define the new runtime config types in orc
-- replace all in-memory uses of `PhaseClaudeConfig` with `PhaseRuntimeConfig`
-- rename DB/model/workflow/template fields from `claude_config` to `runtime_config`
+- replace all in-memory uses of `PhaseRuntimeConfig` with `PhaseRuntimeConfig`
+- rename DB/model/workflow/template fields from `runtime_config` to `runtime_config`
 - update parsing, validation, serialization, and persistence in one cutover
 - update any prompt/template or workflow loader code that still expects old field names
 - support the full intentionally exposed field inventory up front rather than leaving obvious shared/provider-native settings behind
@@ -215,13 +215,13 @@ Likely orc touch points:
 - `internal/executor/phase_config.go`
 - `internal/executor/phase_settings.go`
 - `internal/executor/workflow_phase.go`
-- `internal/db/*` schema and model files referencing `claude_config`
+- `internal/db/*` schema and model files referencing `runtime_config`
 - workflow/template model and storage code
 
 Delete as part of this phase:
 
-- `PhaseClaudeConfig`
-- old `claude_config` and `claude_config_override` names in Go structs and DB/schema code
+- `PhaseRuntimeConfig`
+- old `runtime_config` and `runtime_config_override` names in Go structs and DB/schema code
 - old config parsing paths that accept the Claude-shaped model
 
 ## Phase 5: environment ownership transfer

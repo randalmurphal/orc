@@ -543,10 +543,6 @@ func commitAuthorForProvider(provider string) string {
 	switch provider {
 	case "codex":
 		return "OpenAI Codex <noreply@openai.com>"
-	case "ollama":
-		return "Ollama Local Model <noreply@ollama.ai>"
-	case "lmstudio":
-		return "LM Studio Local Model <noreply@lmstudio.ai>"
 	default:
 		return "Claude Sonnet 4.5 <noreply@anthropic.com>"
 	}

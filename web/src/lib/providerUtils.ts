@@ -2,8 +2,6 @@
 export const PROVIDERS = [
   { value: 'claude', label: 'Claude' },
   { value: 'codex', label: 'Codex (OpenAI)' },
-  { value: 'ollama', label: 'Ollama' },
-  { value: 'lmstudio', label: 'LM Studio' },
 ] as const;
 
 /** Models available per provider */
@@ -18,8 +16,6 @@ export const PROVIDER_MODELS: Record<string, { value: string; label: string }[]>
     { value: 'gpt-4.1', label: 'GPT-4.1' },
     { value: 'o3', label: 'o3' },
   ],
-  ollama: [],  // User-configured, free-form
-  lmstudio: [],  // User-configured, free-form
 };
 
 /** Parse "provider:model" tuple into parts */

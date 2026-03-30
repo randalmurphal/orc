@@ -39,7 +39,7 @@ message Config {
   // Export settings
   ExportConfig export = 3;
   // Claude settings
-  ClaudeConfig claude = 4;
+  RuntimeConfig claude = 4;
   // Execution settings (parallel tasks, cost limits)
   ExecutionConfig execution = 5;
   // Jira Cloud import settings
@@ -119,7 +119,7 @@ message ExportConfig {
   string format = 3;
 }
 
-message ClaudeConfig {
+message RuntimeConfig {
   // Default model
   string model = 1;
   // Enable thinking mode
@@ -301,7 +301,7 @@ message Agent {
   optional ToolPermissions tools = 5;
   optional string prompt = 6;            // For sub-agent role context
   optional string system_prompt = 7;     // For executor role - system prompt
-  optional string claude_config = 8;     // For executor role - JSON additional config
+  optional string runtime_config = 8;     // For executor role - JSON additional config
   optional string work_dir = 9;
   repeated string skill_refs = 10;
   optional string timeout = 11;
@@ -312,7 +312,7 @@ message Agent {
   bool is_builtin = 16;                  // Whether this is a built-in agent
   google.protobuf.Timestamp created_at = 17;
   google.protobuf.Timestamp updated_at = 18;
-  optional string provider = 19;         // LLM provider: "claude", "codex", "ollama"
+  optional string provider = 19;         // LLM provider: "claude", "codex"
   // Note: NO thinking_enabled - that's a phase-level concern, not agent
 }
 
@@ -480,7 +480,7 @@ message UpdateConfigRequest {
   optional AutomationConfig automation = 2;
   optional CompletionConfig completion = 3;
   optional ExportConfig export = 4;
-  optional ClaudeConfig claude = 5;
+  optional RuntimeConfig claude = 5;
   optional ExecutionConfig execution = 6;
   optional JiraConfig jira = 7;
 }
@@ -736,12 +736,12 @@ message CreateAgentRequest {
   optional ToolPermissions tools = 6;
   optional string prompt = 7;            // For sub-agent role
   optional string system_prompt = 8;     // For executor role
-  optional string claude_config = 9;     // For executor role - JSON config
+  optional string runtime_config = 9;     // For executor role - JSON config
   optional string work_dir = 10;
   repeated string skill_refs = 11;
   optional string timeout = 12;
   SettingsScope scope = 13;
-  optional string provider = 14;         // LLM provider: "claude", "codex", "ollama"
+  optional string provider = 14;         // LLM provider: "claude", "codex"
 }
 
 message CreateAgentResponse {
@@ -757,11 +757,11 @@ message UpdateAgentRequest {
   optional ToolPermissions tools = 6;
   optional string prompt = 7;            // For sub-agent role
   optional string system_prompt = 8;     // For executor role
-  optional string claude_config = 9;     // For executor role - JSON config
+  optional string runtime_config = 9;     // For executor role - JSON config
   optional string work_dir = 10;
   repeated string skill_refs = 11;
   optional string timeout = 12;
-  optional string provider = 13;         // LLM provider: "claude", "codex", "ollama"
+  optional string provider = 13;         // LLM provider: "claude", "codex"
 }
 
 message UpdateAgentResponse {

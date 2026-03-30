@@ -88,8 +88,8 @@ Purpose:
 
 Focus:
 
-- replace `PhaseClaudeConfig` with provider-neutral runtime config
-- replace `claude_config` naming in memory and storage in one cutover
+- replace `PhaseRuntimeConfig` with provider-neutral runtime config
+- replace `runtime_config` naming in memory and storage in one cutover
 - separate `shared` fields from `providers.<name>` sections
 
 Key rule:
@@ -118,7 +118,7 @@ Likely files:
 - `internal/executor/phase_config.go`
 - `internal/executor/phase_settings.go`
 - `internal/executor/workflow_phase.go`
-- DB schema/model files referencing `claude_config`
+- DB schema/model files referencing `runtime_config`
 - workflow/template storage and parsing code
 
 ## Workstream 4: Provider Support Validation

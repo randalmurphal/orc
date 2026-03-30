@@ -16,4 +16,4 @@ retry_from_phase: breakdown
 
 quality_checks: '[{"type":"code","name":"tests","enabled":true,"on_failure":"block"},{"type":"code","name":"lint","enabled":true,"on_failure":"block"},{"type":"code","name":"build","enabled":true,"on_failure":"block"},{"type":"code","name":"typecheck","enabled":true,"on_failure":"block"},{"type":"code","name":"lint-web","enabled":true,"on_failure":"block"},{"type":"code","name":"typecheck-web","enabled":true,"on_failure":"block"}]'
 
-claude_config: '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bash {{hook:orc-verify-completion}}"}]}]}}'
+runtime_config: '{"providers":{"claude":{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bash {{hook:orc-verify-completion}}"}]}]}}}}'

@@ -472,7 +472,7 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 			DependsOn:            p.DependsOn,
 			ModelOverride:        p.ModelOverride,
 			ProviderOverride:     p.ProviderOverride,
-			ClaudeConfigOverride: p.ClaudeConfigOverride,
+			RuntimeConfigOverride: p.RuntimeConfigOverride,
 		}
 		if p.Thinking != nil {
 			wp.ThinkingOverride = p.Thinking
@@ -548,7 +548,7 @@ func parsePhaseYAML(data []byte) (*PhaseTemplate, error) {
 		QualityChecks:    pt.QualityChecks,
 		RetryFromPhase:   pt.RetryFromPhase,
 		RetryPromptPath:  pt.RetryPromptPath,
-		ClaudeConfig:     pt.ClaudeConfig,
+		RuntimeConfig:     pt.RuntimeConfig,
 		Provider:         pt.Provider,
 	}
 
@@ -596,7 +596,7 @@ type workflowPhaseYAML struct {
 	DependsOn            []string `yaml:"depends_on,omitempty"`
 	ModelOverride        string   `yaml:"model_override,omitempty"`
 	ProviderOverride     string   `yaml:"provider_override,omitempty"`
-	ClaudeConfigOverride string   `yaml:"claude_config_override,omitempty"`
+	RuntimeConfigOverride string   `yaml:"runtime_config_override,omitempty"`
 	Thinking             *bool    `yaml:"thinking,omitempty"`
 	GateType             string   `yaml:"gate_type,omitempty"`
 	Condition            string   `yaml:"condition,omitempty"`
@@ -642,6 +642,6 @@ type phaseYAML struct {
 	RetryFromPhase  string `yaml:"retry_from_phase,omitempty"`
 	RetryPromptPath string `yaml:"retry_prompt_path,omitempty"`
 	QualityChecks   string `yaml:"quality_checks,omitempty"`
-	ClaudeConfig    string `yaml:"claude_config,omitempty"`
+	RuntimeConfig    string `yaml:"runtime_config,omitempty"`
 	Provider        string `yaml:"provider,omitempty"`
 }

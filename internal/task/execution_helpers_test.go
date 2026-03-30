@@ -3,6 +3,7 @@ package task
 import (
 	"testing"
 
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -124,10 +125,10 @@ func TestResetTaskForFreshRunProto_ClearsRuntimeState(t *testing.T) {
 	task.Execution = &orcv1.ExecutionState{
 		Phases: map[string]*orcv1.PhaseState{
 			"review": {
-				Status:    orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
-				StartedAt: now,
-				SessionId: strPtr("session-1"),
-				Tokens:    &orcv1.TokenUsage{TotalTokens: 10},
+				Status:          orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+				StartedAt:       now,
+				SessionMetadata: strPtr(mustSessionMetadata(t, "claude", "session-1")),
+				Tokens:          &orcv1.TokenUsage{TotalTokens: 10},
 			},
 		},
 		Gates:  []*orcv1.GateDecision{{Phase: "review"}},
@@ -163,3 +164,12 @@ func TestResetTaskForFreshRunProto_ClearsRuntimeState(t *testing.T) {
 func testStrPtr(v string) *string { return &v }
 
 func testInt32Ptr(v int32) *int32 { return &v }
+
+func mustSessionMetadata(t *testing.T, provider, sessionID string) string {
+	t.Helper()
+	metadata, err := llmkit.MarshalSessionMetadata(llmkit.SessionMetadataForID(provider, sessionID))
+	if err != nil {
+		t.Fatalf("marshal session metadata: %v", err)
+	}
+	return metadata
+}

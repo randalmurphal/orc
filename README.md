@@ -606,7 +606,7 @@ All task data is stored in SQLite databases (or PostgreSQL for team mode), not i
 ```bash
 # Clone with dependencies
 git clone https://github.com/randalmurphal/orc
-git clone https://github.com/randalmurphal/llmkit
+git clone https://github.com/randalmurphal/llmkit/v2
 git clone https://github.com/randalmurphal/flowgraph
 git clone https://github.com/randalmurphal/devflow
 

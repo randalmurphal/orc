@@ -5,26 +5,36 @@
  * - Display phases in sequence order with visual indicators
  * - Add phases from template selector
  * - Edit phase overrides (model, thinking, gate, iterations)
- * - Edit claude_config overrides (hooks, skills, MCP, tools, env) with inherited/override distinction
+ * - Edit runtime_config overrides (hooks, skills, MCP, tools, env) with inherited/override distinction
  * - Remove phases with confirmation
  * - Reorder phases with up/down buttons
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { create } from '@bufbuild/protobuf';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import * as RadixSelect from '@radix-ui/react-select';
 import { Button, Icon } from '@/components/ui';
 import { GateType, type WorkflowPhase, type PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
+import type { Hook, Skill } from '@/gen/orc/v1/config_pb';
+import { GetMCPServerRequestSchema, type MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
 import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
 import { TagInput } from '@/components/core/TagInput';
 import { KeyValueEditor } from '@/components/core/KeyValueEditor';
-import { parseClaudeConfig, serializeClaudeConfig, type ClaudeConfigState } from '@/lib/claudeConfigUtils';
+import {
+	parseRuntimeConfig,
+	serializeRuntimeConfig,
+	hydrateSelectedMCPServers,
+	type RuntimeConfigState,
+	type HookDefinition,
+} from '@/lib/runtimeConfigUtils';
+import { configClient, mcpClient } from '@/lib/client';
 import './PhaseListEditor.css';
 
 export interface PhaseOverrides {
 	modelOverride?: string;
 	thinkingOverride?: boolean;
 	gateTypeOverride?: GateType;
-	claudeConfigOverride?: string;
+	runtimeConfigOverride?: string;
 }
 
 export interface AddPhaseRequest {
@@ -102,14 +112,46 @@ export function PhaseListEditor({
 	const [editingPhase, setEditingPhase] = useState<WorkflowPhase | null>(null);
 	const [editOverrides, setEditOverrides] = useState<PhaseOverrides>({});
 
-	// Claude config override state (for edit dialog)
+	// Runtime config override state (for edit dialog)
 	const [overrideHooks, setOverrideHooks] = useState<string[]>([]);
 	const [overrideSkills, setOverrideSkills] = useState<string[]>([]);
 	const [overrideMcpServers, setOverrideMcpServers] = useState<string[]>([]);
 	const [overrideAllowedTools, setOverrideAllowedTools] = useState<string[]>([]);
 	const [overrideDisallowedTools, setOverrideDisallowedTools] = useState<string[]>([]);
 	const [overrideEnv, setOverrideEnv] = useState<Record<string, string>>({});
+	const [overrideHookConfig, setOverrideHookConfig] = useState<Record<string, unknown>>({});
+	const [overrideHookEventTypes, setOverrideHookEventTypes] = useState<Record<string, string>>({});
+	const [overrideMcpServerData, setOverrideMcpServerData] = useState<Record<string, unknown>>({});
 	const [jsonOverride, setJsonOverride] = useState('');
+	const [jsonOverrideDirty, setJsonOverrideDirty] = useState(false);
+	const [availableHooks, setAvailableHooks] = useState<Hook[]>([]);
+	const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
+	const [availableMcpServers, setAvailableMcpServers] = useState<MCPServerInfo[]>([]);
+
+	useEffect(() => {
+		if (!editingPhase) {
+			return;
+		}
+		let mounted = true;
+		configClient.listHooks({}).then((response) => {
+			if (mounted) {
+				setAvailableHooks(response.hooks);
+			}
+		}).catch(() => {});
+		configClient.listSkills({}).then((response) => {
+			if (mounted) {
+				setAvailableSkills(response.skills);
+			}
+		}).catch(() => {});
+		mcpClient.listMCPServers({}).then((response) => {
+			if (mounted) {
+				setAvailableMcpServers(response.servers);
+			}
+		}).catch(() => {});
+		return () => {
+			mounted = false;
+		};
+	}, [editingPhase]);
 
 	// Sort phases by sequence
 	const sortedPhases = useMemo(() => {
@@ -130,11 +172,11 @@ export function PhaseListEditor({
 		return Math.max(...phases.map((p) => p.sequence)) + 1;
 	}, [phases]);
 
-	// Parse template claude_config for the editing phase
-	const templateConfig = useMemo<ClaudeConfigState>(() => {
-		if (!editingPhase) return parseClaudeConfig(undefined);
+	// Parse template runtime_config for the editing phase
+	const templateConfig = useMemo<RuntimeConfigState>(() => {
+		if (!editingPhase) return parseRuntimeConfig(undefined);
 		const tmpl = editingPhase.template;
-		return parseClaudeConfig((tmpl as Record<string, unknown> | undefined)?.claudeConfig as string | undefined);
+		return parseRuntimeConfig((tmpl as Record<string, unknown> | undefined)?.runtimeConfig as string | undefined);
 	}, [editingPhase]);
 
 	// Handle add phase
@@ -161,48 +203,185 @@ export function PhaseListEditor({
 			gateTypeOverride: phase.gateTypeOverride,
 		});
 
-		// Parse existing claude_config_override
-		const override = parseClaudeConfig(phase.claudeConfigOverride as string | undefined);
+		// Parse existing runtime_config_override
+		const override = parseRuntimeConfig(phase.runtimeConfigOverride as string | undefined);
 		setOverrideHooks(override.hooks);
 		setOverrideSkills(override.skillRefs);
 		setOverrideMcpServers(override.mcpServers);
 		setOverrideAllowedTools(override.allowedTools);
 		setOverrideDisallowedTools(override.disallowedTools);
 		setOverrideEnv(override.env);
-		setJsonOverride('');
+		setOverrideHookConfig(override.hookConfig ?? {});
+		setOverrideHookEventTypes(override.hookEventTypes ?? {});
+		setOverrideMcpServerData(override.mcpServerData ?? {});
+		setJsonOverride(phase.runtimeConfigOverride || '');
+		setJsonOverrideDirty(false);
 	}, []);
 
+	useEffect(() => {
+		if (!editingPhase) {
+			return;
+		}
+		let mounted = true;
+		hydrateSelectedMCPServers(
+			overrideMcpServers,
+			overrideMcpServerData,
+			async (name) => {
+				const response = await mcpClient.getMCPServer(
+					create(GetMCPServerRequestSchema, { name }),
+				);
+				if (!response.server) {
+					return undefined;
+				}
+				return {
+					type: response.server.type,
+					command: response.server.command,
+					args: response.server.args,
+					env: response.server.env,
+					url: response.server.url,
+					headers: response.server.headers,
+					disabled: response.server.disabled,
+				};
+			},
+		).then((hydrated) => {
+			if (mounted) {
+				setOverrideMcpServerData(hydrated);
+			}
+		}).catch(() => {});
+		return () => {
+			mounted = false;
+		};
+	}, [editingPhase, overrideMcpServers, overrideMcpServerData]);
+
+	useEffect(() => {
+		if (!editingPhase || jsonOverrideDirty) {
+			return;
+		}
+		setJsonOverride(
+			serializeRuntimeConfig(
+				{
+					hooks: overrideHooks,
+					skillRefs: overrideSkills,
+					mcpServers: overrideMcpServers,
+					allowedTools: overrideAllowedTools,
+					disallowedTools: overrideDisallowedTools,
+					env: overrideEnv,
+					mcpServerData: overrideMcpServerData,
+					hookConfig: overrideHookConfig,
+					hookEventTypes: overrideHookEventTypes,
+					extra: {},
+				},
+				{
+					hookDefinitions: availableHooks.map((hook): HookDefinition => ({
+						name: hook.name,
+						eventType: hook.eventType,
+					})),
+				},
+			),
+		);
+	}, [
+		editingPhase,
+		jsonOverrideDirty,
+		overrideHooks,
+		overrideSkills,
+		overrideMcpServers,
+		overrideAllowedTools,
+		overrideDisallowedTools,
+		overrideEnv,
+		overrideMcpServerData,
+		overrideHookConfig,
+		overrideHookEventTypes,
+		availableHooks,
+	]);
+
 	// Serialize override config state to JSON
-	const buildClaudeConfigOverride = useCallback((): string | undefined => {
-		const state: ClaudeConfigState = {
+	const buildRuntimeConfigOverride = useCallback(async (): Promise<string | undefined> => {
+		let state: RuntimeConfigState = {
 			hooks: overrideHooks,
 			skillRefs: overrideSkills,
 			mcpServers: overrideMcpServers,
 			allowedTools: overrideAllowedTools,
 			disallowedTools: overrideDisallowedTools,
 			env: overrideEnv,
+			mcpServerData: overrideMcpServerData,
+			hookConfig: overrideHookConfig,
+			hookEventTypes: overrideHookEventTypes,
 			extra: {},
 		};
-		const serialized = serializeClaudeConfig(state);
+
+		if (jsonOverrideDirty && jsonOverride.trim() !== '') {
+			try {
+				state = parseRuntimeConfig(jsonOverride);
+			} catch {
+				// Keep structured state when raw JSON is invalid.
+			}
+		}
+
+		const serialized = serializeRuntimeConfig(
+			{
+				...state,
+				mcpServerData: await hydrateSelectedMCPServers(
+					state.mcpServers,
+					state.mcpServerData ?? {},
+					async (name) => {
+						const response = await mcpClient.getMCPServer(
+							create(GetMCPServerRequestSchema, { name }),
+						);
+						if (!response.server) {
+							return undefined;
+						}
+						return {
+							type: response.server.type,
+							command: response.server.command,
+							args: response.server.args,
+							env: response.server.env,
+							url: response.server.url,
+							headers: response.server.headers,
+							disabled: response.server.disabled,
+						};
+					},
+				),
+			},
+			{
+				hookDefinitions: availableHooks.map((hook): HookDefinition => ({
+					name: hook.name,
+					eventType: hook.eventType,
+				})),
+			},
+		);
 		if (serialized === '{}') return undefined;
 		return serialized;
-	}, [overrideHooks, overrideSkills, overrideMcpServers, overrideAllowedTools, overrideDisallowedTools, overrideEnv]);
+	}, [
+		overrideHooks,
+		overrideSkills,
+		overrideMcpServers,
+		overrideAllowedTools,
+		overrideDisallowedTools,
+		overrideEnv,
+		overrideMcpServerData,
+		overrideHookConfig,
+		overrideHookEventTypes,
+		jsonOverride,
+		jsonOverrideDirty,
+		availableHooks,
+	]);
 
 	// Handle save phase overrides
 	const handleSavePhase = useCallback(async () => {
 		if (!editingPhase) return;
-		const claudeConfigOverride = buildClaudeConfigOverride();
+		const runtimeConfigOverride = await buildRuntimeConfigOverride();
 		try {
 			await onUpdatePhase(editingPhase.id, {
 				...editOverrides,
-				claudeConfigOverride,
+				runtimeConfigOverride,
 			});
 		} catch {
 			return;
 		}
 		setEditingPhase(null);
 		setEditOverrides({});
-	}, [editingPhase, editOverrides, buildClaudeConfigOverride, onUpdatePhase]);
+		setJsonOverrideDirty(false);
+	}, [editingPhase, editOverrides, buildRuntimeConfigOverride, onUpdatePhase]);
 
 	// Handle remove phase
 	const handleRemovePhase = useCallback(
@@ -235,10 +414,18 @@ export function PhaseListEditor({
 
 	// Clear override for a specific section
 	const handleClearOverride = useCallback((section: string) => {
+		setJsonOverrideDirty(false);
 		switch (section) {
-			case 'hooks': setOverrideHooks([]); break;
+			case 'hooks':
+				setOverrideHooks([]);
+				setOverrideHookConfig({});
+				setOverrideHookEventTypes({});
+				break;
 			case 'skills': setOverrideSkills([]); break;
-			case 'mcpServers': setOverrideMcpServers([]); break;
+			case 'mcpServers':
+				setOverrideMcpServers([]);
+				setOverrideMcpServerData({});
+				break;
 			case 'allowedTools': setOverrideAllowedTools([]); break;
 			case 'disallowedTools': setOverrideDisallowedTools([]); break;
 			case 'env': setOverrideEnv({}); break;
@@ -605,9 +792,9 @@ export function PhaseListEditor({
 						</RadixSelect.Root>
 					</div>
 
-					{/* ─── Claude Config Override Sections ─────────────────── */}
+					{/* ─── Runtime Config Override Sections ────────────────── */}
 
-					<ClaudeConfigSections
+					<RuntimeConfigSections
 						templateConfig={templateConfig}
 						overrideHooks={overrideHooks}
 						overrideSkills={overrideSkills}
@@ -616,13 +803,37 @@ export function PhaseListEditor({
 						overrideDisallowedTools={overrideDisallowedTools}
 						overrideEnv={overrideEnv}
 						jsonOverride={jsonOverride}
-						onOverrideHooksChange={setOverrideHooks}
-						onOverrideSkillsChange={setOverrideSkills}
-						onOverrideMcpServersChange={setOverrideMcpServers}
-						onOverrideAllowedToolsChange={setOverrideAllowedTools}
-						onOverrideDisallowedToolsChange={setOverrideDisallowedTools}
-						onOverrideEnvChange={setOverrideEnv}
-						onJsonOverrideChange={setJsonOverride}
+						availableHookNames={availableHooks.map((hook) => hook.name)}
+						availableSkillNames={availableSkills.map((skill) => skill.name)}
+						availableMcpServerNames={availableMcpServers.map((server) => server.name)}
+						onOverrideHooksChange={(value) => {
+							setJsonOverrideDirty(false);
+							setOverrideHooks(value);
+						}}
+						onOverrideSkillsChange={(value) => {
+							setJsonOverrideDirty(false);
+							setOverrideSkills(value);
+						}}
+						onOverrideMcpServersChange={(value) => {
+							setJsonOverrideDirty(false);
+							setOverrideMcpServers(value);
+						}}
+						onOverrideAllowedToolsChange={(value) => {
+							setJsonOverrideDirty(false);
+							setOverrideAllowedTools(value);
+						}}
+						onOverrideDisallowedToolsChange={(value) => {
+							setJsonOverrideDirty(false);
+							setOverrideDisallowedTools(value);
+						}}
+						onOverrideEnvChange={(value) => {
+							setJsonOverrideDirty(false);
+							setOverrideEnv(value);
+						}}
+						onJsonOverrideChange={(value) => {
+							setJsonOverride(value);
+							setJsonOverrideDirty(true);
+						}}
 						onClearOverride={handleClearOverride}
 					/>
 
@@ -651,10 +862,10 @@ export function PhaseListEditor({
 	);
 }
 
-// ─── Claude Config Sections Component ─────────────────────────────────────────
+// ─── Runtime Config Sections Component ────────────────────────────────────────
 
-interface ClaudeConfigSectionsProps {
-	templateConfig: ClaudeConfigState;
+interface RuntimeConfigSectionsProps {
+	templateConfig: RuntimeConfigState;
 	overrideHooks: string[];
 	overrideSkills: string[];
 	overrideMcpServers: string[];
@@ -662,6 +873,9 @@ interface ClaudeConfigSectionsProps {
 	overrideDisallowedTools: string[];
 	overrideEnv: Record<string, string>;
 	jsonOverride: string;
+	availableHookNames: string[];
+	availableSkillNames: string[];
+	availableMcpServerNames: string[];
 	onOverrideHooksChange: (hooks: string[]) => void;
 	onOverrideSkillsChange: (skills: string[]) => void;
 	onOverrideMcpServersChange: (servers: string[]) => void;
@@ -672,7 +886,7 @@ interface ClaudeConfigSectionsProps {
 	onClearOverride: (section: string) => void;
 }
 
-function ClaudeConfigSections({
+function RuntimeConfigSections({
 	templateConfig,
 	overrideHooks,
 	overrideSkills,
@@ -681,6 +895,9 @@ function ClaudeConfigSections({
 	overrideDisallowedTools,
 	overrideEnv,
 	jsonOverride,
+	availableHookNames,
+	availableSkillNames,
+	availableMcpServerNames,
 	onOverrideHooksChange,
 	onOverrideSkillsChange,
 	onOverrideMcpServersChange,
@@ -689,7 +906,7 @@ function ClaudeConfigSections({
 	onOverrideEnvChange,
 	onJsonOverrideChange,
 	onClearOverride,
-}: ClaudeConfigSectionsProps) {
+}: RuntimeConfigSectionsProps) {
 	return (
 		<div className="claude-config-sections">
 			{/* Hooks */}
@@ -698,6 +915,7 @@ function ClaudeConfigSections({
 				testId="hooks-picker"
 				inherited={templateConfig.hooks}
 				overrides={overrideHooks}
+				availableItems={availableHookNames}
 				onChange={onOverrideHooksChange}
 				onClear={() => onClearOverride('hooks')}
 			/>
@@ -708,6 +926,7 @@ function ClaudeConfigSections({
 				testId="mcp-servers-picker"
 				inherited={templateConfig.mcpServers}
 				overrides={overrideMcpServers}
+				availableItems={availableMcpServerNames}
 				onChange={onOverrideMcpServersChange}
 				onClear={() => onClearOverride('mcpServers')}
 			/>
@@ -718,6 +937,7 @@ function ClaudeConfigSections({
 				testId="skills-picker"
 				inherited={templateConfig.skillRefs}
 				overrides={overrideSkills}
+				availableItems={availableSkillNames}
 				onChange={onOverrideSkillsChange}
 				onClear={() => onClearOverride('skills')}
 			/>
@@ -776,6 +996,7 @@ interface ListOverrideSectionProps {
 	testId: string;
 	inherited: string[];
 	overrides: string[];
+	availableItems?: string[];
 	onChange: (items: string[]) => void;
 	onClear: () => void;
 }
@@ -785,6 +1006,7 @@ function ListOverrideSection({
 	testId,
 	inherited,
 	overrides,
+	availableItems,
 	onChange,
 	onClear,
 }: ListOverrideSectionProps) {
@@ -793,6 +1015,14 @@ function ListOverrideSection({
 	const overrideCount = uniqueOverrideItems.length;
 
 	const handleAdd = useCallback(() => {
+		if (availableItems && availableItems.length > 0) {
+			const selected = new Set([...inherited, ...overrides]);
+			const nextAvailable = availableItems.find((item) => !selected.has(item));
+			if (nextAvailable) {
+				onChange([...overrides, nextAvailable]);
+			}
+			return;
+		}
 		const baseName = `new-${title.toLowerCase().replace(/\s+/g, '-')}`;
 		let name = baseName;
 		let counter = 1;
@@ -800,7 +1030,10 @@ function ListOverrideSection({
 			name = `${baseName}-${counter++}`;
 		}
 		onChange([...overrides, name]);
-	}, [title, overrides, inherited, onChange]);
+	}, [availableItems, title, overrides, inherited, onChange]);
+
+	const addDisabled = availableItems !== undefined &&
+		availableItems.every((item) => inherited.includes(item) || overrides.includes(item));
 
 	return (
 		<CollapsibleSettingsSection
@@ -831,6 +1064,7 @@ function ListOverrideSection({
 						onClick={handleAdd}
 						aria-label="Add"
 						role="button"
+						disabled={addDisabled}
 					>
 						Add
 					</button>

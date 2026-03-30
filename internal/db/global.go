@@ -765,7 +765,7 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			output_type, quality_checks,
 			thinking_enabled, gate_type, checkpoint,
-			retry_from_phase, retry_prompt_path, system_prompt, claude_config,
+			retry_from_phase, retry_prompt_path, system_prompt, runtime_config,
 			is_builtin, created_at, updated_at,
 			gate_input_config, gate_output_config, gate_mode, gate_agent_id, type, provider)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -790,7 +790,7 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			retry_from_phase = excluded.retry_from_phase,
 			retry_prompt_path = excluded.retry_prompt_path,
 			system_prompt = excluded.system_prompt,
-			claude_config = excluded.claude_config,
+			runtime_config = excluded.runtime_config,
 			gate_input_config = excluded.gate_input_config,
 			gate_output_config = excluded.gate_output_config,
 			gate_mode = excluded.gate_mode,
@@ -803,7 +803,7 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 		pt.InputVariables, pt.OutputSchema, pt.ProducesArtifact, pt.ArtifactType, pt.OutputVarName,
 		pt.OutputType, pt.QualityChecks,
 		thinkingEnabled, pt.GateType, pt.Checkpoint,
-		pt.RetryFromPhase, pt.RetryPromptPath, "", pt.ClaudeConfig, // system_prompt empty, claude_config from struct
+		pt.RetryFromPhase, pt.RetryPromptPath, "", pt.RuntimeConfig, // system_prompt empty, runtime_config from struct
 		pt.IsBuiltin, pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339),
 		pt.GateInputConfig, pt.GateOutputConfig, pt.GateMode, gateAgentID, phaseType, pt.Provider)
 	if err != nil {
@@ -822,7 +822,7 @@ func (g *GlobalDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
 			thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
 			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
-			COALESCE(claude_config, '') as claude_config,
+			COALESCE(runtime_config, '') as runtime_config,
 			COALESCE(type, 'llm') as type,
 			COALESCE(provider, '') as provider
 		FROM phase_templates WHERE id = ?
@@ -848,7 +848,7 @@ func (g *GlobalDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
 			thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
 			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
-			COALESCE(claude_config, '') as claude_config,
+			COALESCE(runtime_config, '') as runtime_config,
 			COALESCE(type, 'llm') as type,
 			COALESCE(provider, '') as provider
 		FROM phase_templates
@@ -974,7 +974,7 @@ func (g *GlobalDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 		INSERT INTO workflow_phases (workflow_id, phase_template_id, sequence, depends_on,
 			agent_override, sub_agents_override,
 			model_override, provider_override, thinking_override, gate_type_override, condition,
-			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y,
+			quality_checks_override, loop_config, runtime_config_override, before_triggers, position_x, position_y,
 			type_override)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(workflow_id, phase_template_id) DO UPDATE SET
@@ -989,7 +989,7 @@ func (g *GlobalDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 			condition = excluded.condition,
 			quality_checks_override = excluded.quality_checks_override,
 			loop_config = excluded.loop_config,
-			claude_config_override = excluded.claude_config_override,
+			runtime_config_override = excluded.runtime_config_override,
 			before_triggers = excluded.before_triggers,
 			position_x = excluded.position_x,
 			position_y = excluded.position_y,
@@ -997,7 +997,7 @@ func (g *GlobalDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 	`, wp.WorkflowID, wp.PhaseTemplateID, wp.Sequence, wp.DependsOn,
 		agentOverride, subAgentsOverride,
 		wp.ModelOverride, wp.ProviderOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition,
-		wp.QualityChecksOverride, wp.LoopConfig, wp.ClaudeConfigOverride, wp.BeforeTriggers, posX, posY,
+		wp.QualityChecksOverride, wp.LoopConfig, wp.RuntimeConfigOverride, wp.BeforeTriggers, posX, posY,
 		wp.TypeOverride)
 	if err != nil {
 		return fmt.Errorf("save workflow phase: %w", err)
@@ -1023,7 +1023,7 @@ func (g *GlobalDB) GetWorkflowPhases(workflowID string) ([]*WorkflowPhase, error
 		SELECT id, workflow_id, phase_template_id, sequence, depends_on,
 			agent_override, sub_agents_override,
 			model_override, COALESCE(provider_override, '') as provider_override, thinking_override, gate_type_override, condition,
-			quality_checks_override, loop_config, claude_config_override, before_triggers, position_x, position_y,
+			quality_checks_override, loop_config, runtime_config_override, before_triggers, position_x, position_y,
 			COALESCE(type_override, '') as type_override
 		FROM workflow_phases
 		WHERE workflow_id = ?
@@ -1134,7 +1134,7 @@ func (g *GlobalDB) SaveAgent(a *Agent) error {
 	a.UpdatedAt = now
 
 	_, err = g.Exec(`
-		INSERT INTO agents (id, name, description, prompt, tools, model, provider, system_prompt, claude_config, is_builtin, created_at, updated_at)
+		INSERT INTO agents (id, name, description, prompt, tools, model, provider, system_prompt, runtime_config, is_builtin, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
@@ -1144,11 +1144,11 @@ func (g *GlobalDB) SaveAgent(a *Agent) error {
 			model = excluded.model,
 			provider = excluded.provider,
 			system_prompt = excluded.system_prompt,
-			claude_config = excluded.claude_config,
+			runtime_config = excluded.runtime_config,
 			is_builtin = excluded.is_builtin,
 			updated_at = excluded.updated_at
 	`, a.ID, a.Name, a.Description, a.Prompt, string(toolsJSON),
-		a.Model, a.Provider, a.SystemPrompt, a.ClaudeConfig, a.IsBuiltin, a.CreatedAt, a.UpdatedAt)
+		a.Model, a.Provider, a.SystemPrompt, a.RuntimeConfig, a.IsBuiltin, a.CreatedAt, a.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("save agent %s: %w", a.ID, err)
 	}
@@ -1163,7 +1163,7 @@ func (g *GlobalDB) GetAgent(id string) (*Agent, error) {
 	var model, provider, systemPrompt, claudeConfig sql.NullString
 
 	err := g.QueryRow(`
-		SELECT id, name, description, prompt, tools, model, provider, system_prompt, claude_config, is_builtin, created_at, updated_at
+		SELECT id, name, description, prompt, tools, model, provider, system_prompt, runtime_config, is_builtin, created_at, updated_at
 		FROM agents WHERE id = ?
 	`, id).Scan(
 		&a.ID, &a.Name, &a.Description, &a.Prompt, &toolsJSON,
@@ -1186,7 +1186,7 @@ func (g *GlobalDB) GetAgent(id string) (*Agent, error) {
 		a.SystemPrompt = systemPrompt.String
 	}
 	if claudeConfig.Valid {
-		a.ClaudeConfig = claudeConfig.String
+		a.RuntimeConfig = claudeConfig.String
 	}
 
 	if toolsJSON != "" {
@@ -1201,7 +1201,7 @@ func (g *GlobalDB) GetAgent(id string) (*Agent, error) {
 // ListAgents returns all agents from global DB.
 func (g *GlobalDB) ListAgents() ([]*Agent, error) {
 	rows, err := g.Query(`
-		SELECT id, name, description, prompt, tools, model, provider, system_prompt, claude_config, is_builtin, created_at, updated_at
+		SELECT id, name, description, prompt, tools, model, provider, system_prompt, runtime_config, is_builtin, created_at, updated_at
 		FROM agents
 		ORDER BY is_builtin DESC, name ASC
 	`)
@@ -1233,7 +1233,7 @@ func (g *GlobalDB) ListAgents() ([]*Agent, error) {
 			a.SystemPrompt = systemPrompt.String
 		}
 		if claudeConfig.Valid {
-			a.ClaudeConfig = claudeConfig.String
+			a.RuntimeConfig = claudeConfig.String
 		}
 
 		if toolsJSON != "" {

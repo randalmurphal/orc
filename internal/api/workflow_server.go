@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"slices"
 	"sort"
 	"strings"
 
@@ -56,13 +55,13 @@ func NewWorkflowServer(
 }
 
 // validateProviderString returns an InvalidArgument error if the provider is not recognized.
-// Uses config.ValidLLMProviders as the single source of truth for known providers.
+// llmkit owns the provider definitions; orc only consults config.IsValidLLMProvider.
 func validateProviderString(provider string) error {
-	if slices.Contains(config.ValidLLMProviders, strings.ToLower(strings.TrimSpace(provider))) {
+	if config.IsValidLLMProvider(provider) {
 		return nil
 	}
 	return connect.NewError(connect.CodeInvalidArgument,
-		fmt.Errorf("invalid provider %q (supported: claude, codex, ollama, lmstudio)", provider))
+		fmt.Errorf("invalid provider %q (supported: claude, codex)", provider))
 }
 
 // SetProjectCache sets the project cache for multi-project support.
@@ -599,8 +598,8 @@ func (s *workflowServer) UpdatePhase(
 	if req.Msg.SubAgentsOverrideSet != nil && *req.Msg.SubAgentsOverrideSet {
 		existingPhase.SubAgentsOverride = dependsOnToJSON(req.Msg.SubAgentsOverride)
 	}
-	if req.Msg.ClaudeConfigOverride != nil {
-		existingPhase.ClaudeConfigOverride = *req.Msg.ClaudeConfigOverride
+	if req.Msg.RuntimeConfigOverride != nil {
+		existingPhase.RuntimeConfigOverride = *req.Msg.RuntimeConfigOverride
 	}
 	if req.Msg.LoopConfig != nil {
 		existingPhase.LoopConfig = *req.Msg.LoopConfig
@@ -935,8 +934,8 @@ func (s *workflowServer) CreatePhaseTemplate(
 	if req.Msg.ThinkingEnabled != nil {
 		tmpl.ThinkingEnabled = req.Msg.ThinkingEnabled
 	}
-	if req.Msg.ClaudeConfig != nil {
-		tmpl.ClaudeConfig = *req.Msg.ClaudeConfig
+	if req.Msg.RuntimeConfig != nil {
+		tmpl.RuntimeConfig = *req.Msg.RuntimeConfig
 	}
 	if req.Msg.Provider != nil {
 		if err := validateProviderString(*req.Msg.Provider); err != nil {
@@ -1028,8 +1027,8 @@ func (s *workflowServer) UpdatePhaseTemplate(
 	if req.Msg.ThinkingEnabled != nil {
 		pt.ThinkingEnabled = req.Msg.ThinkingEnabled
 	}
-	if req.Msg.ClaudeConfig != nil {
-		pt.ClaudeConfig = *req.Msg.ClaudeConfig
+	if req.Msg.RuntimeConfig != nil {
+		pt.RuntimeConfig = *req.Msg.RuntimeConfig
 	}
 	if req.Msg.GateType != nil {
 		pt.GateType = workflow.GateType(protoGateTypeToString(*req.Msg.GateType))
@@ -1115,8 +1114,8 @@ func (s *workflowServer) updateDBOnlyPhaseTemplate(
 	if req.ThinkingEnabled != nil {
 		tmpl.ThinkingEnabled = req.ThinkingEnabled
 	}
-	if req.ClaudeConfig != nil {
-		tmpl.ClaudeConfig = *req.ClaudeConfig
+	if req.RuntimeConfig != nil {
+		tmpl.RuntimeConfig = *req.RuntimeConfig
 	}
 	if req.GateType != nil {
 		tmpl.GateType = protoGateTypeToString(*req.GateType)
@@ -1643,8 +1642,8 @@ func dbWorkflowPhasesToProto(phases []*db.WorkflowPhase) []*orcv1.WorkflowPhase 
 				result[i].SubAgentsOverride = subAgentIDs
 			}
 		}
-		if p.ClaudeConfigOverride != "" {
-			result[i].ClaudeConfigOverride = &p.ClaudeConfigOverride
+		if p.RuntimeConfigOverride != "" {
+			result[i].RuntimeConfigOverride = &p.RuntimeConfigOverride
 		}
 		if p.GateTypeOverride != "" {
 			gt := stringToProtoGateType(p.GateTypeOverride)
@@ -1809,8 +1808,8 @@ func dbWorkflowPhaseToProto(p *db.WorkflowPhase) *orcv1.WorkflowPhase {
 	if p.LoopConfig != "" {
 		result.LoopConfig = &p.LoopConfig
 	}
-	if p.ClaudeConfigOverride != "" {
-		result.ClaudeConfigOverride = &p.ClaudeConfigOverride
+	if p.RuntimeConfigOverride != "" {
+		result.RuntimeConfigOverride = &p.RuntimeConfigOverride
 	}
 	if p.ProviderOverride != "" {
 		result.ProviderOverride = &p.ProviderOverride
@@ -1904,8 +1903,8 @@ func dbPhaseTemplateToProto(t *db.PhaseTemplate) *orcv1.PhaseTemplate {
 	if t.RetryPromptPath != "" {
 		result.RetryPromptPath = &t.RetryPromptPath
 	}
-	if t.ClaudeConfig != "" {
-		result.ClaudeConfig = &t.ClaudeConfig
+	if t.RuntimeConfig != "" {
+		result.RuntimeConfig = &t.RuntimeConfig
 	}
 	if t.Provider != "" {
 		result.Provider = &t.Provider

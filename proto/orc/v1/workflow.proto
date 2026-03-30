@@ -92,7 +92,7 @@ message PhaseTemplate {
   bool checkpoint = 15;
   optional string retry_from_phase = 16;
   optional string retry_prompt_path = 17;
-  optional string claude_config = 18;  // Per-phase settings (hooks, MCP, skills, env) - JSON PhaseClaudeConfig
+  optional string runtime_config = 18;  // Per-phase settings (hooks, MCP, skills, env) - JSON PhaseRuntimeConfig
   bool is_builtin = 19;
   google.protobuf.Timestamp created_at = 20;
   google.protobuf.Timestamp updated_at = 21;
@@ -100,7 +100,7 @@ message PhaseTemplate {
   optional string agent_id = 22;              // Executor agent reference
   repeated string sub_agent_ids = 23;         // Sub-agent references
   optional string output_var_name = 24;       // Variable name for phase output (e.g., 'SPEC_CONTENT')
-  optional string provider = 25;              // LLM provider override: "claude", "codex", "ollama"
+  optional string provider = 25;              // LLM provider override: "claude", "codex"
 }
 
 message Workflow {
@@ -117,7 +117,7 @@ message Workflow {
   optional string completion_action = 11; // "pr", "commit", "none", or "" (inherit from config)
   optional string target_branch = 12; // Default PR target branch for this workflow, or "" (inherit from config)
   reserved 13; // was default_max_iterations (removed)
-  optional string default_provider = 14; // Default LLM provider: "claude", "codex", "ollama"
+  optional string default_provider = 14; // Default LLM provider: "claude", "codex"
 }
 
 message WorkflowPhase {
@@ -131,14 +131,14 @@ message WorkflowPhase {
   optional bool thinking_override = 8;          // Phase-level thinking override
   optional GateType gate_type_override = 9;
   optional string condition = 10;
-  optional string claude_config_override = 11;  // Can still override claude config
+  optional string runtime_config_override = 11;  // Per-workflow runtime config override
   optional double position_x = 12;
   optional double position_y = 13;
   optional string loop_config = 14;
   // NEW: Agent overrides
   optional string agent_override = 15;          // Override executor agent
   repeated string sub_agents_override = 16;     // Override sub-agents
-  optional string provider_override = 17;       // Override LLM provider: "claude", "codex", "ollama"
+  optional string provider_override = 17;       // Override LLM provider: "claude", "codex"
   PhaseTemplate template = 100;
 }
 
@@ -207,7 +207,7 @@ message WorkflowRunPhase {
   double cost_usd = 11;
   optional string content = 12;
   optional string error = 13;
-  optional string session_id = 14;
+  optional string session_metadata = 14;
   PhaseTemplate template = 100;
 }
 
@@ -294,7 +294,7 @@ message CreateWorkflowRequest {
   optional string based_on = 7;
   optional string completion_action = 8; // "pr", "commit", "none", or "" (inherit from config)
   optional string target_branch = 9; // Default PR target branch for this workflow
-  optional string default_provider = 10; // Default LLM provider: "claude", "codex", "ollama"
+  optional string default_provider = 10; // Default LLM provider: "claude", "codex"
 }
 
 message CreateWorkflowResponse {
@@ -310,7 +310,7 @@ message UpdateWorkflowRequest {
   optional string completion_action = 6; // "pr", "commit", "none", or "" (inherit from config)
   optional string target_branch = 7; // Default PR target branch for this workflow
   reserved 8; // was default_max_iterations (removed)
-  optional string default_provider = 9; // Default LLM provider: "claude", "codex", "ollama"
+  optional string default_provider = 9; // Default LLM provider: "claude", "codex"
 }
 
 message UpdateWorkflowResponse {
@@ -349,9 +349,9 @@ message AddPhaseRequest {
   optional string agent_override = 10;          // Override executor agent
   repeated string sub_agents_override = 11;     // Override sub-agents
   // Claude configuration override (JSON)
-  optional string claude_config_override = 12;
+  optional string runtime_config_override = 12;
   // Provider override
-  optional string provider_override = 13;       // Override LLM provider: "claude", "codex", "ollama"
+  optional string provider_override = 13;       // Override LLM provider: "claude", "codex"
 }
 
 message AddPhaseResponse {
@@ -373,11 +373,11 @@ message UpdatePhaseRequest {
   repeated string sub_agents_override = 11;     // Override sub-agents
   optional bool sub_agents_override_set = 13;   // True = update sub_agents (even if empty)
   // Claude configuration override (JSON)
-  optional string claude_config_override = 12;
+  optional string runtime_config_override = 12;
   // Loop configuration (JSON)
   optional string loop_config = 14;
   // Provider override
-  optional string provider_override = 15;       // Override LLM provider: "claude", "codex", "ollama"
+  optional string provider_override = 15;       // Override LLM provider: "claude", "codex"
 }
 
 message UpdatePhaseResponse {
@@ -471,10 +471,10 @@ message CreatePhaseTemplateRequest {
   bool checkpoint = 14;
   optional string agent_id = 15;         // Executor agent reference
   repeated string sub_agent_ids = 16;    // Sub-agent references
-  optional string claude_config = 17;    // Per-phase settings JSON
+  optional string runtime_config = 17;    // Per-phase settings JSON
   optional string output_var_name = 18;  // Variable name for phase output
   repeated string input_variables = 19;  // Input variable names used by this template
-  optional string provider = 20;         // LLM provider: "claude", "codex", "ollama"
+  optional string provider = 20;         // LLM provider: "claude", "codex"
 }
 
 message CreatePhaseTemplateResponse {
@@ -498,10 +498,10 @@ message UpdatePhaseTemplateRequest {
   optional bool checkpoint = 14;
   optional string agent_id = 15;         // Executor agent reference
   repeated string sub_agent_ids = 16;    // Sub-agent references
-  optional string claude_config = 17;    // Per-phase settings JSON
+  optional string runtime_config = 17;    // Per-phase settings JSON
   optional string output_var_name = 18;  // Variable name for phase output
   repeated string input_variables = 19;  // Input variable names
-  optional string provider = 20;         // LLM provider: "claude", "codex", "ollama"
+  optional string provider = 20;         // LLM provider: "claude", "codex"
 }
 
 message UpdatePhaseTemplateResponse {

@@ -49,7 +49,7 @@ CREATE TABLE workflow_phases_new (
     condition TEXT,
     quality_checks_override TEXT,
     loop_config TEXT,
-    claude_config_override TEXT,
+    runtime_config_override TEXT,
     position_x REAL,
     position_y REAL,
     agent_override TEXT,  -- FK to agents removed - agents is now a VIEW
@@ -89,7 +89,7 @@ CREATE TABLE phase_templates_new (
     output_var_name TEXT,
     output_type TEXT DEFAULT 'none',
     quality_checks TEXT,
-    claude_config TEXT,
+    runtime_config TEXT,
     system_prompt TEXT,
     agent_id TEXT,
     sub_agents TEXT,
@@ -117,8 +117,8 @@ SELECT * FROM _agents_storage WHERE id NOT LIKE 'executor-%';
 CREATE TRIGGER agents_insert
 INSTEAD OF INSERT ON agents
 BEGIN
-    INSERT INTO _agents_storage (id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at)
-    VALUES (NEW.id, NEW.name, NEW.description, NEW.prompt, NEW.tools, NEW.model, NEW.system_prompt, NEW.claude_config, NEW.is_builtin,
+    INSERT INTO _agents_storage (id, name, description, prompt, tools, model, system_prompt, runtime_config, is_builtin, created_at, updated_at)
+    VALUES (NEW.id, NEW.name, NEW.description, NEW.prompt, NEW.tools, NEW.model, NEW.system_prompt, NEW.runtime_config, NEW.is_builtin,
             COALESCE(NEW.created_at, datetime('now')), COALESCE(NEW.updated_at, datetime('now')))
     ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
@@ -127,7 +127,7 @@ BEGIN
         tools = excluded.tools,
         model = excluded.model,
         system_prompt = excluded.system_prompt,
-        claude_config = excluded.claude_config,
+        runtime_config = excluded.runtime_config,
         is_builtin = excluded.is_builtin,
         updated_at = excluded.updated_at;
 END;
@@ -142,7 +142,7 @@ BEGIN
         tools = NEW.tools,
         model = NEW.model,
         system_prompt = NEW.system_prompt,
-        claude_config = NEW.claude_config,
+        runtime_config = NEW.runtime_config,
         is_builtin = NEW.is_builtin,
         updated_at = COALESCE(NEW.updated_at, datetime('now'))
     WHERE id = OLD.id;
