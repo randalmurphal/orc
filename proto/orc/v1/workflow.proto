@@ -114,7 +114,7 @@ message Workflow {
   optional string based_on = 8;
   google.protobuf.Timestamp created_at = 9;
   google.protobuf.Timestamp updated_at = 10;
-  optional string completion_action = 11; // "pr", "commit", "none", or "" (inherit from config)
+  optional string completion_action = 11; // "pr", "merge", "commit", "none", or "" (inherit from config)
   optional string target_branch = 12; // Default PR target branch for this workflow, or "" (inherit from config)
   reserved 13; // was default_max_iterations (removed)
   optional string default_provider = 14; // Default LLM provider: "claude", "codex"
@@ -292,7 +292,7 @@ message CreateWorkflowRequest {
   optional string default_model = 5;
   bool default_thinking = 6;
   optional string based_on = 7;
-  optional string completion_action = 8; // "pr", "commit", "none", or "" (inherit from config)
+  optional string completion_action = 8; // "pr", "merge", "commit", "none", or "" (inherit from config)
   optional string target_branch = 9; // Default PR target branch for this workflow
   optional string default_provider = 10; // Default LLM provider: "claude", "codex"
 }
@@ -307,7 +307,7 @@ message UpdateWorkflowRequest {
   optional string description = 3;
   optional string default_model = 4;
   optional bool default_thinking = 5;
-  optional string completion_action = 6; // "pr", "commit", "none", or "" (inherit from config)
+  optional string completion_action = 6; // "pr", "merge", "commit", "none", or "" (inherit from config)
   optional string target_branch = 7; // Default PR target branch for this workflow
   reserved 8; // was default_max_iterations (removed)
   optional string default_provider = 9; // Default LLM provider: "claude", "codex"

@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"testing"
 	"time"
@@ -19,11 +20,11 @@ import (
 func createTestWorkflow(t *testing.T, backend storage.Backend, id string) {
 	t.Helper()
 	wf := &db.Workflow{
-		ID:           id,
-		Name:         id,
+		ID:   id,
+		Name: id,
 
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	if err := backend.SaveWorkflow(wf); err != nil {
 		t.Fatalf("save workflow: %v", err)
@@ -179,11 +180,9 @@ func TestPhaseUpdatesTaskCurrentPhase_MultiplePhases(t *testing.T) {
 	}
 }
 
-// TestPhaseUpdatesTaskCurrentPhase_SaveError verifies the failure mode from the spec:
-// if SaveTask fails when setting CurrentPhase, the executor should log a warning
-// and continue execution (non-fatal). We test with nil task (standalone workflow)
-// to verify no panic occurs.
-func TestPhaseUpdatesTaskCurrentPhase_SaveError(t *testing.T) {
+// TestPhaseUpdatesTaskCurrentPhase_NilTask verifies standalone workflow execution
+// still does not panic when no task record exists.
+func TestPhaseUpdatesTaskCurrentPhase_NilTask(t *testing.T) {
 	t.Parallel()
 
 	backend := storage.NewTestBackend(t)
@@ -222,8 +221,61 @@ func TestPhaseUpdatesTaskCurrentPhase_SaveError(t *testing.T) {
 	// Should not panic even with nil task
 	ctx := context.Background()
 	_, err := we.executePhaseWithTimeout(ctx, tmpl, phase, map[string]string{}, nil, run, runPhase, nil)
-	// We don't care about the specific error — just that it doesn't panic
 	_ = err
+}
+
+func TestPhaseUpdatesTaskCurrentPhase_SaveFailureIsFatal(t *testing.T) {
+	t.Parallel()
+
+	base := storage.NewTestBackend(t)
+
+	tsk := task.NewProtoTask("TASK-004", "Task save failure")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := base.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	createTestWorkflow(t, base, "test-workflow")
+	taskID := "TASK-004"
+	run := &db.WorkflowRun{
+		ID:         "RUN-005",
+		WorkflowID: "test-workflow",
+		TaskID:     &taskID,
+	}
+	if err := base.SaveWorkflowRun(run); err != nil {
+		t.Fatalf("save workflow run: %v", err)
+	}
+
+	runPhase := &db.WorkflowRunPhase{
+		WorkflowRunID:   "RUN-005",
+		PhaseTemplateID: "implement",
+	}
+
+	backend := &saveTaskFailBackend{Backend: base, saveErr: errors.New("save task failed")}
+	we := &WorkflowExecutor{
+		backend: backend,
+		orcConfig: &config.Config{
+			Timeouts: config.TimeoutsConfig{PhaseMax: 0},
+		},
+		logger:   slog.Default(),
+		resolver: variable.NewResolver("/tmp"),
+		task:     tsk,
+	}
+	we.turnExecutor = NewMockTurnExecutor(`{"status":"complete","summary":"Done"}`)
+
+	_, err := we.executePhaseWithTimeout(
+		context.Background(),
+		&db.PhaseTemplate{ID: "implement", Name: "Implement"},
+		&db.WorkflowPhase{PhaseTemplateID: "implement"},
+		map[string]string{},
+		nil,
+		run,
+		runPhase,
+		tsk,
+	)
+	if err == nil {
+		t.Fatal("expected save task phase start failure")
+	}
 }
 
 // TestPhaseUpdatesTaskCurrentPhase_Loop verifies edge case: when a phase loops
@@ -293,4 +345,13 @@ func TestPhaseUpdatesTaskCurrentPhase_Loop(t *testing.T) {
 	if currentPhase != "implement" {
 		t.Errorf("after loop-back: task.CurrentPhase = %q, want %q", currentPhase, "implement")
 	}
+}
+
+type saveTaskFailBackend struct {
+	storage.Backend
+	saveErr error
+}
+
+func (b *saveTaskFailBackend) SaveTask(*orcv1.Task) error {
+	return b.saveErr
 }

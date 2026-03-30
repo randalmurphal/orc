@@ -57,7 +57,8 @@ func TestResolveExecutorAgent(t *testing.T) {
 		tmpl := &db.PhaseTemplate{ID: "implement"}
 		phase := &db.WorkflowPhase{}
 
-		agent := env.executor.resolveExecutorAgent(tmpl, phase)
+		agent, err := env.executor.resolveExecutorAgent(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Nil(t, agent)
 	})
@@ -80,7 +81,8 @@ func TestResolveExecutorAgent(t *testing.T) {
 		}
 		phase := &db.WorkflowPhase{}
 
-		agent := env.executor.resolveExecutorAgent(tmpl, phase)
+		agent, err := env.executor.resolveExecutorAgent(tmpl, phase)
+		require.NoError(t, err)
 
 		require.NotNil(t, agent)
 		assert.Equal(t, "impl-executor", agent.ID)
@@ -112,7 +114,8 @@ func TestResolveExecutorAgent(t *testing.T) {
 			AgentOverride: "custom-executor",
 		}
 
-		agent := env.executor.resolveExecutorAgent(tmpl, phase)
+		agent, err := env.executor.resolveExecutorAgent(tmpl, phase)
+		require.NoError(t, err)
 
 		require.NotNil(t, agent)
 		assert.Equal(t, "custom-executor", agent.ID)
@@ -128,8 +131,8 @@ func TestResolveExecutorAgent(t *testing.T) {
 		}
 		phase := &db.WorkflowPhase{}
 
-		agent := env.executor.resolveExecutorAgent(tmpl, phase)
-
+		agent, err := env.executor.resolveExecutorAgent(tmpl, phase)
+		require.Error(t, err)
 		assert.Nil(t, agent)
 	})
 }
@@ -143,7 +146,8 @@ func TestResolvePhaseModel(t *testing.T) {
 			ModelOverride: "haiku",
 		}
 
-		model := env.executor.resolvePhaseModel(tmpl, phase)
+		model, err := env.executor.resolvePhaseModel(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "haiku", model)
 	})
@@ -165,7 +169,8 @@ func TestResolvePhaseModel(t *testing.T) {
 		}
 		phase := &db.WorkflowPhase{}
 
-		model := env.executor.resolvePhaseModel(tmpl, phase)
+		model, err := env.executor.resolvePhaseModel(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "sonnet", model)
 	})
@@ -188,7 +193,8 @@ func TestResolvePhaseModel(t *testing.T) {
 		}
 		phase := &db.WorkflowPhase{}
 
-		model := env.executor.resolvePhaseModel(tmpl, phase)
+		model, err := env.executor.resolvePhaseModel(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "haiku", model)
 	})
@@ -201,7 +207,8 @@ func TestResolvePhaseModel(t *testing.T) {
 		tmpl := &db.PhaseTemplate{ID: "implement"}
 		phase := &db.WorkflowPhase{}
 
-		model := env.executor.resolvePhaseModel(tmpl, phase)
+		model, err := env.executor.resolvePhaseModel(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "opus", model)
 	})
@@ -224,7 +231,8 @@ func TestResolvePhaseModel(t *testing.T) {
 			ModelOverride: "opus", // Override the agent model
 		}
 
-		model := env.executor.resolvePhaseModel(tmpl, phase)
+		model, err := env.executor.resolvePhaseModel(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "opus", model)
 	})
@@ -426,7 +434,8 @@ func TestResolvePhaseModel_WorkflowDefaultModel(t *testing.T) {
 		tmpl := &db.PhaseTemplate{ID: "implement"}
 		phase := &db.WorkflowPhase{}
 
-		model := env.executor.resolvePhaseModel(tmpl, phase)
+		model, err := env.executor.resolvePhaseModel(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "sonnet", model)
 	})
@@ -454,7 +463,8 @@ func TestResolvePhaseModel_WorkflowDefaultModel(t *testing.T) {
 		}
 		phase := &db.WorkflowPhase{}
 
-		model := env.executor.resolvePhaseModel(tmpl, phase)
+		model, err := env.executor.resolvePhaseModel(tmpl, phase)
+		require.NoError(t, err)
 
 		// Workflow default_model should win over agent model
 		assert.Equal(t, "sonnet", model)
@@ -474,7 +484,8 @@ func TestResolvePhaseModel_WorkflowDefaultModel(t *testing.T) {
 			ModelOverride: "opus", // Phase override should win
 		}
 
-		model := env.executor.resolvePhaseModel(tmpl, phase)
+		model, err := env.executor.resolvePhaseModel(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "opus", model)
 	})
@@ -502,7 +513,8 @@ func TestResolvePhaseModel_WorkflowDefaultModel(t *testing.T) {
 		}
 		phase := &db.WorkflowPhase{}
 
-		model := env.executor.resolvePhaseModel(tmpl, phase)
+		model, err := env.executor.resolvePhaseModel(tmpl, phase)
+		require.NoError(t, err)
 
 		// Should fall through to agent model
 		assert.Equal(t, "haiku", model)
@@ -623,7 +635,8 @@ func TestResolvePhaseProvider(t *testing.T) {
 		tmpl := &db.PhaseTemplate{ID: "implement"}
 		phase := &db.WorkflowPhase{}
 
-		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err := env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "claude", provider)
 	})
@@ -634,7 +647,8 @@ func TestResolvePhaseProvider(t *testing.T) {
 		tmpl := &db.PhaseTemplate{ID: "implement", Provider: "claude"}
 		phase := &db.WorkflowPhase{ProviderOverride: "codex"}
 
-		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err := env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "codex", provider)
 	})
@@ -648,7 +662,8 @@ func TestResolvePhaseProvider(t *testing.T) {
 		phase := &db.WorkflowPhase{ModelOverride: "codex:gpt-5"}
 
 		// Model tuple is a fallback — only used when no explicit provider is set
-		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err := env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "codex", provider)
 	})
@@ -659,7 +674,8 @@ func TestResolvePhaseProvider(t *testing.T) {
 		tmpl := &db.PhaseTemplate{ID: "implement", Provider: "codex"}
 		phase := &db.WorkflowPhase{}
 
-		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err := env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "codex", provider)
 	})
@@ -674,7 +690,8 @@ func TestResolvePhaseProvider(t *testing.T) {
 		tmpl := &db.PhaseTemplate{ID: "implement"}
 		phase := &db.WorkflowPhase{}
 
-		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err := env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "codex", provider)
 	})
@@ -692,7 +709,8 @@ func TestResolvePhaseProvider(t *testing.T) {
 		tmpl := &db.PhaseTemplate{ID: "implement", AgentID: "impl-executor"}
 		phase := &db.WorkflowPhase{}
 
-		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err := env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "codex", provider)
 	})
@@ -704,9 +722,21 @@ func TestResolvePhaseProvider(t *testing.T) {
 		tmpl := &db.PhaseTemplate{ID: "implement"}
 		phase := &db.WorkflowPhase{}
 
-		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err := env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "codex", provider)
+	})
+
+	t.Run("rejects unsupported provider before execution", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{ProviderOverride: "ollama"}
+
+		provider, err := env.executor.resolvePhaseProvider(tmpl, phase)
+		require.Error(t, err)
+		assert.Empty(t, provider)
 	})
 
 	t.Run("run-level provider is highest priority", func(t *testing.T) {
@@ -726,12 +756,14 @@ func TestResolvePhaseProvider(t *testing.T) {
 		phase := &db.WorkflowPhase{}
 
 		// Run-level override wins over everything
-		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err := env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 		assert.Equal(t, "codex", provider)
 
 		// Remove run-level — agent provider wins over config
 		env.executor.runProvider = ""
-		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err = env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 		assert.Equal(t, "claude", provider)
 	})
 
@@ -743,7 +775,8 @@ func TestResolvePhaseProvider(t *testing.T) {
 		tmpl := &db.PhaseTemplate{ID: "implement"}
 		phase := &db.WorkflowPhase{}
 
-		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err := env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 
 		assert.Equal(t, "codex", provider)
 	})
@@ -773,43 +806,51 @@ func TestResolvePhaseProvider(t *testing.T) {
 		}
 
 		// Run-level override wins over everything
-		provider := env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err := env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 		assert.Equal(t, "codex", provider)
 
 		// Remove run-level — phase override wins
 		env.executor.runProvider = ""
-		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err = env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 		assert.Equal(t, "claude", provider)
 
 		// Remove phase override — workflow default wins
 		phase.ProviderOverride = ""
-		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err = env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 		assert.Equal(t, "codex", provider)
 
 		// Remove workflow default — template wins
 		env.executor.wf.DefaultProvider = ""
-		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err = env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 		assert.Equal(t, "codex", provider)
 
 		// Remove template provider — agent wins
 		tmpl.Provider = ""
-		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err = env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 		assert.Equal(t, "codex", provider)
 
 		// Remove agent provider — config wins
 		testAgent.Provider = ""
 		require.NoError(t, env.projectDB.SaveAgent(testAgent))
-		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err = env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 		assert.Equal(t, "codex", provider)
 
 		// Remove config provider — model tuple fallback wins
 		env.executor.orcConfig.Provider = ""
-		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err = env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 		assert.Equal(t, "codex", provider)
 
 		// Remove model override — defaults to claude
 		phase.ModelOverride = ""
-		provider = env.executor.resolvePhaseProvider(tmpl, phase)
+		provider, err = env.executor.resolvePhaseProvider(tmpl, phase)
+		require.NoError(t, err)
 		assert.Equal(t, "claude", provider)
 	})
 }

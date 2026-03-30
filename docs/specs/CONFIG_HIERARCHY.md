@@ -215,7 +215,7 @@ worktree:
 
 # Task completion actions
 completion:
-  action: pr                           # pr | merge | none
+  action: pr                           # pr | merge | commit | none
   target_branch: main
   delete_branch: true
   pr:

@@ -1,5 +1,6 @@
 // workflow_completion.go contains completion actions for workflow execution.
-// This includes PR creation, direct merge, worktree management, and sync operations.
+// This includes commit-only completion, PR creation, direct merge, worktree management,
+// and sync operations.
 package executor
 
 import (
@@ -19,7 +20,7 @@ import (
 	"github.com/randalmurphal/orc/internal/variable"
 )
 
-// runCompletion executes the completion action (sync, PR/merge) for a task.
+// runCompletion executes the completion action (sync, commit, PR/merge) for a task.
 func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *orcv1.Task) error {
 	if we.orcConfig == nil {
 		return nil
@@ -50,109 +51,160 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *orcv1.Task) er
 		return fmt.Errorf("git operations not available")
 	}
 
-	// Skip if no remote is configured
-	if !gitOps.HasRemote("origin") {
-		we.logger.Debug("skipping completion: no remote configured")
-		return nil
-	}
+	hasRemote := gitOps.HasRemote("origin")
+	requiresRemote := action == "pr" || action == "merge"
 
-	// Auto-commit any uncommitted changes before PR/merge
-	// This prevents work loss when Claude forgets to commit
+	// Auto-commit any uncommitted changes before commit/PR/merge.
+	// This prevents work loss when the harness forgets to commit before handoff.
 	if err := we.autoCommitBeforeCompletion(gitOps, t); err != nil {
 		we.logger.Warn("auto-commit failed, continuing anyway", "error", err)
-		// Non-fatal: PR might still succeed if changes were committed by Claude
+		// Non-fatal: completion may still succeed if changes were already committed.
+	}
+
+	if requiresRemote && !hasRemote {
+		we.logger.Debug("skipping completion: no remote configured", "action", action)
+		return nil
 	}
 
 	// Resolve target branch using 6-level priority: task > workflow > initiative > staging > config > default
 	targetBranch := we.resolveTargetBranch(t)
 
-	we.logger.Info("syncing with target branch before completion",
-		"target", targetBranch,
-		"action", action)
+	if hasRemote {
+		we.logger.Info("syncing with target branch before completion",
+			"target", targetBranch,
+			"action", action)
 
-	// Fetch latest
-	if err := gitOps.Fetch("origin"); err != nil {
-		we.logger.Warn("fetch failed, continuing anyway", "error", err)
-	}
+		// Fetch latest
+		if err := gitOps.Fetch("origin"); err != nil {
+			we.logger.Warn("fetch failed, continuing anyway", "error", err)
+		}
 
-	target := "origin/" + targetBranch
+		target := "origin/" + targetBranch
 
-	// Check divergence
-	ahead, behind, err := gitOps.GetCommitCounts(target)
-	if err != nil {
-		we.logger.Warn("could not determine divergence", "error", err)
-	} else if behind > 0 {
-		// Attempt rebase
-		result, err := gitOps.RebaseWithConflictCheck(target)
+		// Check divergence
+		ahead, behind, err := gitOps.GetCommitCounts(target)
 		if err != nil {
-			if errors.Is(err, git.ErrMergeConflict) {
-				we.logger.Warn("sync encountered conflicts",
-					"task", t.Id,
-					"conflict_files", result.ConflictFiles)
+			we.logger.Warn("could not determine divergence", "error", err)
+		} else if behind > 0 {
+			// Attempt rebase
+			result, err := gitOps.RebaseWithConflictCheck(target)
+			if err != nil {
+				if errors.Is(err, git.ErrMergeConflict) {
+					we.logger.Warn("sync encountered conflicts",
+						"task", t.Id,
+						"conflict_files", result.ConflictFiles)
 
-				syncCfg := we.orcConfig.Completion.Sync
+					syncCfg := we.orcConfig.Completion.Sync
 
-				// Try automatic conflict resolution if enabled
-				if syncCfg.AutoResolve {
-					resolveResult, resolveErr := we.attemptConflictResolution(ctx, t, result.ConflictFiles, syncCfg)
-					if resolveErr == nil && resolveResult.Resolved {
-						we.logger.Info("conflicts auto-resolved",
-							"task", t.Id,
-							"files_resolved", len(resolveResult.ResolvedFiles))
-						// Continue to PR creation
-					} else {
-						we.logger.Warn("auto-resolve failed, checking fail_on_conflict",
-							"error", resolveErr)
-						if syncCfg.FailOnConflict {
-							return fmt.Errorf("%w: auto-resolve failed: %v", ErrSyncConflict, resolveErr)
+					// Try automatic conflict resolution if enabled
+					if syncCfg.AutoResolve {
+						resolveResult, resolveErr := we.attemptConflictResolution(ctx, t, result.ConflictFiles, syncCfg)
+						if resolveErr == nil && resolveResult.Resolved {
+							we.logger.Info("conflicts auto-resolved",
+								"task", t.Id,
+								"files_resolved", len(resolveResult.ResolvedFiles))
+							// Continue to completion action.
+						} else {
+							we.logger.Warn("auto-resolve failed, checking fail_on_conflict",
+								"error", resolveErr)
+							if syncCfg.FailOnConflict {
+								return fmt.Errorf("%w: auto-resolve failed: %v", ErrSyncConflict, resolveErr)
+							}
 						}
+					} else if syncCfg.FailOnConflict {
+						return fmt.Errorf("%w: %d conflict files", ErrSyncConflict, len(result.ConflictFiles))
 					}
-				} else if syncCfg.FailOnConflict {
-					return fmt.Errorf("%w: %d conflict files", ErrSyncConflict, len(result.ConflictFiles))
+				} else {
+					return fmt.Errorf("rebase failed: %w", err)
 				}
 			} else {
-				return fmt.Errorf("rebase failed: %w", err)
+				we.logger.Info("synced with target branch",
+					"commits_behind", behind,
+					"commits_ahead", ahead)
 			}
-		} else {
-			we.logger.Info("synced with target branch",
-				"commits_behind", behind,
-				"commits_ahead", ahead)
 		}
-	}
 
-	// Re-check commit counts after sync/rebase — rebase may have changed them.
-	// If ahead == 0, there are no commits to deliver via PR or merge.
-	aheadAfterSync, _, recheckErr := gitOps.GetCommitCounts(target)
-	if recheckErr != nil {
-		we.logger.Warn("could not re-check commit counts after sync, continuing to completion action",
-			"error", recheckErr)
-	} else if aheadAfterSync == 0 {
-		we.logger.Info("skipping completion: no commits ahead of target",
-			"task", t.Id,
-			"target", targetBranch,
-			"reason", "task branch has no commits to deliver")
-		task.EnsureMetadataProto(t)
-		t.Metadata["completion_skipped"] = "no_changes"
-		t.Metadata["completion_note"] = fmt.Sprintf(
-			"No commits between %s and %s — work may already exist on target branch",
-			t.Branch, targetBranch)
-		if saveErr := we.backend.SaveTask(t); saveErr != nil {
-			we.logger.Warn("failed to save task metadata after completion skip",
-				"task", t.Id, "error", saveErr)
+		// Re-check commit counts after sync/rebase — rebase may have changed them.
+		aheadAfterSync, _, recheckErr := gitOps.GetCommitCounts(target)
+		if recheckErr != nil {
+			we.logger.Warn("could not re-check commit counts after sync, continuing to completion action",
+				"error", recheckErr)
+		} else if aheadAfterSync == 0 {
+			we.logger.Info("skipping completion: no commits ahead of target",
+				"task", t.Id,
+				"target", targetBranch,
+				"reason", "task branch has no commits to deliver")
+			return we.markCompletionSkippedNoChanges(
+				t,
+				targetBranch,
+				fmt.Sprintf("No commits between %s and %s — work may already exist on target branch", t.Branch, targetBranch),
+				"save task metadata after completion skip",
+			)
 		}
-		return nil
 	}
 
 	// Execute completion action
+	clearCompletionSkipMetadata(t)
 	switch action {
 	case "merge":
 		return we.directMerge(ctx, t, gitOps, targetBranch)
 	case "pr":
 		return we.createPR(ctx, t, gitOps, targetBranch)
+	case "commit":
+		return we.commitOnly(t, gitOps, targetBranch, hasRemote)
 	default:
-		we.logger.Warn("unknown completion action", "action", action)
-		return nil
+		return fmt.Errorf("unknown completion action %q", action)
 	}
+}
+
+func clearCompletionSkipMetadata(t *orcv1.Task) {
+	if t == nil {
+		return
+	}
+	task.EnsureMetadataProto(t)
+	delete(t.Metadata, "completion_skipped")
+	delete(t.Metadata, "completion_note")
+}
+
+func (we *WorkflowExecutor) markCompletionSkippedNoChanges(t *orcv1.Task, targetBranch, note, action string) error {
+	clearCompletionSkipMetadata(t)
+	t.Metadata["completion_skipped"] = "no_changes"
+	t.Metadata["completion_note"] = note
+	t.Metadata["completion_target_branch"] = targetBranch
+	return we.saveTaskStrict(t, action)
+}
+
+func (we *WorkflowExecutor) commitOnly(t *orcv1.Task, gitOps *git.Git, targetBranch string, hasRemote bool) error {
+	if hasRemote {
+		if err := gitOps.PushWithForceFallback("origin", t.Branch, false, we.logger); err != nil {
+			return fmt.Errorf("push task branch: %w", err)
+		}
+		we.logger.Info("commit-only completion preserved task branch on remote",
+			"task", t.Id,
+			"branch", t.Branch,
+			"target", targetBranch)
+	} else {
+		we.logger.Info("commit-only completion preserved task branch locally",
+			"task", t.Id,
+			"branch", t.Branch)
+	}
+
+	task.EnsureMetadataProto(t)
+	clearCompletionSkipMetadata(t)
+	t.Metadata["completion_action_taken"] = "commit"
+	if hasRemote {
+		t.Metadata["completion_note"] = fmt.Sprintf(
+			"Committed changes remain on task branch %s and were pushed to origin; target branch %s was not merged",
+			t.Branch, targetBranch,
+		)
+	} else {
+		t.Metadata["completion_note"] = fmt.Sprintf(
+			"Committed changes remain on local task branch %s; no remote was configured for push",
+			t.Branch,
+		)
+	}
+
+	return we.saveTaskStrict(t, "save task after commit-only completion")
 }
 
 // directMerge merges the task branch directly into target.
@@ -169,16 +221,12 @@ func (we *WorkflowExecutor) directMerge(ctx context.Context, t *orcv1.Task, gitO
 		we.logger.Info("skipping direct merge: no commits ahead of target",
 			"task", t.Id,
 			"target", targetBranch)
-		task.EnsureMetadataProto(t)
-		t.Metadata["completion_skipped"] = "no_changes"
-		t.Metadata["completion_note"] = fmt.Sprintf(
-			"No commits between %s and %s — nothing to merge",
-			t.Branch, targetBranch)
-		if saveErr := we.backend.SaveTask(t); saveErr != nil {
-			we.logger.Warn("failed to save task metadata after merge skip",
-				"task", t.Id, "error", saveErr)
-		}
-		return nil
+		return we.markCompletionSkippedNoChanges(
+			t,
+			targetBranch,
+			fmt.Sprintf("No commits between %s and %s — nothing to merge", t.Branch, targetBranch),
+			"save task metadata after merge skip",
+		)
 	}
 
 	// Push task branch first (with force fallback for divergent history from previous runs)
@@ -210,8 +258,8 @@ func (we *WorkflowExecutor) directMerge(ctx context.Context, t *orcv1.Task, gitO
 	// Update task with merge info
 	t.Status = orcv1.TaskStatus_TASK_STATUS_CLOSED
 	task.MarkCompletedProto(t)
-	if err := we.backend.SaveTask(t); err != nil {
-		we.logger.Warn("failed to save task after direct merge", "task", t.Id, "error", err)
+	if err := we.saveTaskStrict(t, "save task after direct merge"); err != nil {
+		return err
 	}
 
 	we.logger.Info("direct merge completed", "task", t.Id, "target", targetBranch)
@@ -297,8 +345,8 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 
 		// Save PR info to task metadata
 		task.SetPRInfoProto(t, existingPR.HTMLURL, existingPR.Number)
-		if err := we.backend.SaveTask(t); err != nil {
-			we.logger.Warn("failed to save task with PR info", "task", t.Id, "error", err)
+		if err := we.saveTaskStrict(t, "save task with existing PR info"); err != nil {
+			return err
 		}
 
 		// Apply auto-merge/approve settings to reused PR
@@ -330,8 +378,8 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 
 	// Update task with PR info
 	task.SetPRInfoProto(t, pr.HTMLURL, pr.Number)
-	if err := we.backend.SaveTask(t); err != nil {
-		we.logger.Warn("failed to save task with PR info", "task", t.Id, "error", err)
+	if err := we.saveTaskStrict(t, "save task with PR info"); err != nil {
+		return err
 	}
 
 	we.logger.Info("PR created", "url", pr.HTMLURL, "number", pr.Number)
@@ -385,8 +433,8 @@ func (we *WorkflowExecutor) setupWorktree(t *orcv1.Task) error {
 	// Set task branch before any git operations reference it
 	// Uses task.BranchName override if set, otherwise auto-generates from task ID
 	t.Branch = ResolveBranchName(t, we.gitOps, initiativePrefix)
-	if err := we.backend.SaveTask(t); err != nil {
-		we.logger.Warn("failed to save task branch", "task_id", t.Id, "error", err)
+	if err := we.saveTaskStrict(t, "save task branch"); err != nil {
+		return err
 	}
 
 	logMsg := "created worktree"
@@ -625,8 +673,8 @@ func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *orcv1.Task) 
 			"branch", t.Branch)
 		task.ClearFreshResetMarkerProto(t)
 		if we.backend != nil {
-			if err := we.backend.SaveTask(t); err != nil {
-				we.logger.Warn("failed to clear fresh reset marker after sync skip", "task", t.Id, "error", err)
+			if err := we.saveTaskStrict(t, "clear fresh reset marker after sync skip"); err != nil {
+				return err
 			}
 		}
 	}

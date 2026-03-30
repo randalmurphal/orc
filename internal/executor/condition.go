@@ -347,13 +347,13 @@ func (we *WorkflowExecutor) SkipPhaseForCondition(
 	now := time.Now()
 	runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_SKIPPED.String()
 	runPhase.CompletedAt = &now
-	if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
-		return fmt.Errorf("save skipped run phase %s: %w", phaseID, err)
+	if err := we.saveWorkflowRunPhaseStrict(runPhase, fmt.Sprintf("save skipped run phase %s", phaseID)); err != nil {
+		return err
 	}
 
 	// Save task state
-	if err := we.backend.SaveTask(t); err != nil {
-		return fmt.Errorf("save task after skip %s: %w", phaseID, err)
+	if err := we.saveTaskStrict(t, fmt.Sprintf("save task after skip %s", phaseID)); err != nil {
+		return err
 	}
 
 	// Publish skip event

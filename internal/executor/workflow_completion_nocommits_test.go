@@ -322,6 +322,29 @@ func TestRunCompletion_NoCommits_MergeAction(t *testing.T) {
 	}
 }
 
+// TestRunCompletion_NoCommits_CommitAction verifies commit-only completion also
+// skips cleanly when there are no commits to deliver.
+func TestRunCompletion_NoCommits_CommitAction(t *testing.T) {
+	t.Parallel()
+	we, _, _ := setupCompletionTestWithRemote(t)
+	we.orcConfig.Completion.Action = "commit"
+
+	tsk := newTestTask("TASK-100")
+	if err := we.backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	err := we.runCompletion(context.Background(), tsk)
+	if err != nil {
+		t.Fatalf("runCompletion() with action=commit returned error: %v", err)
+	}
+
+	task.EnsureMetadataProto(tsk)
+	if _, ok := tsk.Metadata["completion_skipped"]; !ok {
+		t.Fatal("completion_skipped metadata not set for commit action with 0 commits")
+	}
+}
+
 // --- Edge Cases ---
 
 // TestRunCompletion_NoCommits_IdenticalBranches verifies behavior when

@@ -2521,7 +2521,7 @@ Configurable workflow definitions with composable phases.
 | `name` | Display name | Required |
 | `default_model` | `sonnet`, `opus`, `haiku` | (inherit) |
 | `default_thinking` | `true`, `false` | `false` |
-| `completion_action` | `pr`, `commit`, `none`, `""` | `""` (inherit from config) |
+| `completion_action` | `pr`, `merge`, `commit`, `none`, `""` | `""` (inherit from config) |
 
 **Clone workflow body:**
 ```json

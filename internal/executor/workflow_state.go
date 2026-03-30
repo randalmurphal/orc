@@ -26,20 +26,19 @@ func truncateDiagnosticDetail(detail string, maxLen int) string {
 
 // finalizeBlockedRun marks the task blocked, terminalizes the workflow run, and
 // releases the executor claim. This is the fail-closed path for blocked work.
-func (we *WorkflowExecutor) finalizeBlockedRun(run *db.WorkflowRun, t *orcv1.Task, reason, blockedReason string) {
+func (we *WorkflowExecutor) finalizeBlockedRun(run *db.WorkflowRun, t *orcv1.Task, reason, blockedReason string) error {
 	now := time.Now()
+	var persistErr error
 
 	if run != nil {
 		run.Status = string(workflow.RunStatusCompleted)
 		run.Error = reason
 		run.CompletedAt = &now
-		if err := we.backend.SaveWorkflowRun(run); err != nil {
-			we.logger.Warn("failed to save blocked workflow run", "run", run.ID, "error", err)
-		}
+		persistErr = combineExecutionErrors(persistErr, we.saveWorkflowRunStrict(run, "save blocked workflow run"))
 	}
 
 	if t == nil {
-		return
+		return persistErr
 	}
 
 	t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
@@ -52,41 +51,35 @@ func (we *WorkflowExecutor) finalizeBlockedRun(run *db.WorkflowRun, t *orcv1.Tas
 	if we.task != nil {
 		task.SetErrorProto(we.task.Execution, reason)
 	}
-	if err := we.backend.SaveTask(t); err != nil {
-		we.logger.Warn("failed to save blocked task", "task_id", t.Id, "error", err)
-	}
+	persistErr = combineExecutionErrors(persistErr, we.saveTaskStrict(t, "save blocked task"))
 	if err := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusBlocked, reason); err != nil {
 		we.logger.Warn("failed to save blocked-task attention signal", "task_id", t.Id, "error", err)
 	}
-	if err := we.backend.ClearTaskExecutor(t.Id); err != nil {
-		we.logger.Warn("failed to clear task executor", "task_id", t.Id, "error", err)
-	}
+	persistErr = combineExecutionErrors(persistErr, we.clearTaskExecutorStrict(t.Id, "clear task executor after blocked run"))
 	we.publishTaskUpdated(t)
+	return persistErr
 }
 
 // failRun marks a run as failed and syncs task status.
 // Commits any work-in-progress before updating status to preserve changes.
-func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *orcv1.Task, err error) {
+func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *orcv1.Task, err error) error {
 	// Commit work-in-progress before marking failed (match interruptRun behavior)
 	// This preserves any uncommitted changes so they can be recovered on retry
 	if t != nil && run.CurrentPhase != "" {
 		we.commitWIPOnInterrupt(t, run.CurrentPhase)
 	}
 
+	var persistErr error
 	run.Status = string(workflow.RunStatusFailed)
 	run.Error = err.Error()
 	run.CompletedAt = timePtr(time.Now())
-	if saveErr := we.backend.SaveWorkflowRun(run); saveErr != nil {
-		we.logger.Error("failed to save run failure", "error", saveErr)
-	}
+	persistErr = combineExecutionErrors(persistErr, we.saveWorkflowRunStrict(run, "save run failure"))
 
 	// Sync task status to Failed
 	if t != nil {
 		t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 		task.UpdateTimestampProto(t)
-		if saveErr := we.backend.SaveTask(t); saveErr != nil {
-			we.logger.Error("failed to save task status failed", "task_id", t.Id, "error", saveErr)
-		}
+		persistErr = combineExecutionErrors(persistErr, we.saveTaskStrict(t, "save task status failed"))
 		if signalErr := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusFailed, err.Error()); signalErr != nil {
 			we.logger.Error("failed to save failed-task attention signal", "task_id", t.Id, "error", signalErr)
 		}
@@ -97,53 +90,47 @@ func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *orcv1.Task, err erro
 		// Fire lifecycle triggers for task failure (fire-and-forget)
 		we.fireLifecycleTriggers(context.Background(), workflow.WorkflowTriggerEventOnTaskFailed, we.wf, t)
 	}
+	return persistErr
 }
 
 // failGateRejection records the error in execution state, fails the run, and clears the executor.
 // Used by the gate handling section when a rejection should terminate the task.
-func (we *WorkflowExecutor) failGateRejection(run *db.WorkflowRun, t *orcv1.Task, failErr error) {
+func (we *WorkflowExecutor) failGateRejection(run *db.WorkflowRun, t *orcv1.Task, failErr error) error {
+	var persistErr error
 	if we.task != nil {
 		task.SetErrorProto(we.task.Execution, failErr.Error())
-		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
-			we.logger.Warn("failed to save error state", "error", saveErr)
-		}
+		persistErr = combineExecutionErrors(persistErr, we.saveTaskStrict(we.task, "save gate rejection error state"))
 	}
-	we.failRun(run, t, failErr)
+	persistErr = combineExecutionErrors(persistErr, we.failRun(run, t, failErr))
 	if t != nil {
-		if clearErr := we.backend.ClearTaskExecutor(t.Id); clearErr != nil {
-			we.logger.Warn("failed to clear task executor", "error", clearErr)
-		}
+		persistErr = combineExecutionErrors(persistErr, we.clearTaskExecutorStrict(t.Id, "clear task executor after gate rejection"))
 	}
+	return persistErr
 }
 
 // failSetup handles failures during setup phase (before any phase runs).
-func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *orcv1.Task, err error) {
+func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *orcv1.Task, err error) error {
 	taskID := ""
 	if t != nil {
 		taskID = t.Id
 	}
 	we.logger.Error("task setup failed", "task", taskID, "error", err)
 
+	var persistErr error
 	// Clear execution tracking on task and set error in state
 	if t != nil {
-		if clearErr := we.backend.ClearTaskExecutor(t.Id); clearErr != nil {
-			we.logger.Warn("failed to clear task executor on setup failure", "error", clearErr)
-		}
+		persistErr = combineExecutionErrors(persistErr, we.clearTaskExecutorStrict(t.Id, "clear task executor on setup failure"))
 	}
 	if we.task != nil {
 		task.SetErrorProto(we.task.Execution, err.Error())
-		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
-			we.logger.Error("failed to save state on setup failure", "error", saveErr)
-		}
+		persistErr = combineExecutionErrors(persistErr, we.saveTaskStrict(we.task, "save state on setup failure"))
 	}
 
 	// Update task status
 	if t != nil {
 		t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 		task.UpdateTimestampProto(t)
-		if saveErr := we.backend.SaveTask(t); saveErr != nil {
-			we.logger.Error("failed to save task on setup failure", "error", saveErr)
-		}
+		persistErr = combineExecutionErrors(persistErr, we.saveTaskStrict(t, "save task on setup failure"))
 		if signalErr := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusFailed, err.Error()); signalErr != nil {
 			we.logger.Error("failed to save setup-failure attention signal", "task_id", t.Id, "error", signalErr)
 		}
@@ -153,14 +140,13 @@ func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *orcv1.Task, err er
 	run.Status = string(workflow.RunStatusFailed)
 	run.Error = err.Error()
 	run.CompletedAt = timePtr(time.Now())
-	if saveErr := we.backend.SaveWorkflowRun(run); saveErr != nil {
-		we.logger.Error("failed to save run on setup failure", "error", saveErr)
-	}
+	persistErr = combineExecutionErrors(persistErr, we.saveWorkflowRunStrict(run, "save run on setup failure"))
+	return persistErr
 }
 
-func (we *WorkflowExecutor) failTaskAfterCompletionError(t *orcv1.Task, completionErr error) {
+func (we *WorkflowExecutor) failTaskAfterCompletionError(t *orcv1.Task, completionErr error) error {
 	if t == nil || completionErr == nil {
-		return
+		return nil
 	}
 
 	t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
@@ -168,18 +154,17 @@ func (we *WorkflowExecutor) failTaskAfterCompletionError(t *orcv1.Task, completi
 	t.Metadata["failed_reason"] = "completion_failed"
 	t.Metadata["failed_error"] = completionErr.Error()
 	task.UpdateTimestampProto(t)
-	if err := we.backend.SaveTask(t); err != nil {
-		we.logger.Warn("failed to save failed task", "task", t.Id, "error", err)
-	}
+	persistErr := we.saveTaskStrict(t, "save failed task after completion error")
 	if err := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusFailed, completionErr.Error()); err != nil {
 		we.logger.Error("failed to save completion-failure attention signal", "task_id", t.Id, "error", err)
 	}
 	we.publishTaskUpdated(t)
+	return persistErr
 }
 
 // interruptRun marks a run as cancelled (interrupted by context cancellation) and syncs task status.
 // Commits work-in-progress before updating status to preserve changes.
-func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *orcv1.Task, currentPhase string, err error) {
+func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *orcv1.Task, currentPhase string, err error) error {
 	we.logger.Info("run interrupted", "run_id", run.ID, "phase", currentPhase, "reason", err.Error())
 
 	// Commit work-in-progress before updating state
@@ -187,35 +172,31 @@ func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *orcv1.Task, cur
 		we.commitWIPOnInterrupt(t, currentPhase)
 	}
 
+	var persistErr error
 	run.Status = string(workflow.RunStatusCancelled)
 	run.Error = err.Error()
 	run.CompletedAt = timePtr(time.Now())
-	if saveErr := we.backend.SaveWorkflowRun(run); saveErr != nil {
-		we.logger.Error("failed to save run interruption", "error", saveErr)
-	}
+	persistErr = combineExecutionErrors(persistErr, we.saveWorkflowRunStrict(run, "save run interruption"))
 
 	// Update execution state
 	if we.task != nil {
 		task.InterruptPhaseProto(we.task.Execution, currentPhase)
 		task.SetErrorProto(we.task.Execution, fmt.Sprintf("interrupted during %s: %s", currentPhase, err.Error()))
-		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
-			we.logger.Error("failed to save state on interrupt", "error", saveErr)
-		}
+		persistErr = combineExecutionErrors(persistErr, we.saveTaskStrict(we.task, "save state on interrupt"))
 	}
 
 	// Sync task status to Paused (can be resumed)
 	if t != nil {
 		t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 		task.UpdateTimestampProto(t)
-		if saveErr := we.backend.SaveTask(t); saveErr != nil {
-			we.logger.Error("failed to save task status paused", "task_id", t.Id, "error", saveErr)
-		}
+		persistErr = combineExecutionErrors(persistErr, we.saveTaskStrict(t, "save task status paused"))
 		if resolveErr := we.resolveAttentionSignalsForTask(t.Id, "executor"); resolveErr != nil {
 			we.logger.Error("failed to resolve attention signals on interrupt", "task_id", t.Id, "error", resolveErr)
 		}
 		// Publish task updated event for real-time UI updates
 		we.publishTaskUpdated(t)
 	}
+	return persistErr
 }
 
 // commitWIPOnInterrupt commits any work-in-progress and pushes to remote.

@@ -42,7 +42,7 @@ type GateMode string
 
 const (
 	GateModeGate     GateMode = "gate"     // Synchronous, can block progression
-	GateModeReaction GateMode = "reaction"  // Asynchronous, fire-and-forget
+	GateModeReaction GateMode = "reaction" // Asynchronous, fire-and-forget
 )
 
 // GateAction defines the action to take on gate approval/rejection.
@@ -50,20 +50,20 @@ type GateAction string
 
 const (
 	GateActionContinue  GateAction = "continue"   // Continue to next phase
-	GateActionRetry     GateAction = "retry"       // Retry from specified phase
-	GateActionFail      GateAction = "fail"        // Fail the task
-	GateActionSkipPhase GateAction = "skip_phase"  // Skip the next phase
-	GateActionRunScript GateAction = "run_script"  // Run a script
+	GateActionRetry     GateAction = "retry"      // Retry from specified phase
+	GateActionFail      GateAction = "fail"       // Fail the task
+	GateActionSkipPhase GateAction = "skip_phase" // Skip the next phase
+	GateActionRunScript GateAction = "run_script" // Run a script
 )
 
 // WorkflowTriggerEvent defines lifecycle event types for workflow-level triggers.
 type WorkflowTriggerEvent string
 
 const (
-	WorkflowTriggerEventOnTaskCreated        WorkflowTriggerEvent = "on_task_created"
-	WorkflowTriggerEventOnTaskCompleted      WorkflowTriggerEvent = "on_task_completed"
-	WorkflowTriggerEventOnTaskFailed         WorkflowTriggerEvent = "on_task_failed"
-	WorkflowTriggerEventOnInitiativePlanned  WorkflowTriggerEvent = "on_initiative_planned"
+	WorkflowTriggerEventOnTaskCreated       WorkflowTriggerEvent = "on_task_created"
+	WorkflowTriggerEventOnTaskCompleted     WorkflowTriggerEvent = "on_task_completed"
+	WorkflowTriggerEventOnTaskFailed        WorkflowTriggerEvent = "on_task_failed"
+	WorkflowTriggerEventOnInitiativePlanned WorkflowTriggerEvent = "on_initiative_planned"
 )
 
 // GateInputConfig defines what context the gate evaluator receives.
@@ -84,10 +84,10 @@ type GateOutputConfig struct {
 
 // BeforePhaseTrigger defines a trigger that runs before a phase starts.
 type BeforePhaseTrigger struct {
-	AgentID      string           `json:"agent_id" yaml:"agent_id"`
+	AgentID      string            `json:"agent_id" yaml:"agent_id"`
 	InputConfig  *GateInputConfig  `json:"input_config,omitempty" yaml:"input_config,omitempty"`
 	OutputConfig *GateOutputConfig `json:"output_config,omitempty" yaml:"output_config,omitempty"`
-	Mode         GateMode         `json:"mode,omitempty" yaml:"mode,omitempty"`
+	Mode         GateMode          `json:"mode,omitempty" yaml:"mode,omitempty"`
 }
 
 // WorkflowTrigger defines a workflow-level lifecycle trigger.
@@ -127,11 +127,11 @@ const (
 type VariableSourceType string
 
 const (
-	SourceTypeStatic        VariableSourceType = "static"         // Fixed value
-	SourceTypeEnv           VariableSourceType = "env"            // Environment variable
-	SourceTypeScript        VariableSourceType = "script"         // Script output
-	SourceTypeAPI           VariableSourceType = "api"            // HTTP GET response
-	SourceTypePhaseOutput   VariableSourceType = "phase_output"   // Prior phase artifact
+	SourceTypeStatic         VariableSourceType = "static"          // Fixed value
+	SourceTypeEnv            VariableSourceType = "env"             // Environment variable
+	SourceTypeScript         VariableSourceType = "script"          // Script output
+	SourceTypeAPI            VariableSourceType = "api"             // HTTP GET response
+	SourceTypePhaseOutput    VariableSourceType = "phase_output"    // Prior phase artifact
 	SourceTypePromptFragment VariableSourceType = "prompt_fragment" // Reusable prompt snippet
 )
 
@@ -153,7 +153,7 @@ type PhaseTemplate struct {
 	PromptPath    string       `json:"prompt_path,omitempty" db:"prompt_path"`
 
 	// Contract
-	InputVariables   []string `json:"input_variables,omitempty"`   // Parsed from JSON
+	InputVariables   []string `json:"input_variables,omitempty"` // Parsed from JSON
 	OutputSchema     string   `json:"output_schema,omitempty" db:"output_schema"`
 	ProducesArtifact bool     `json:"produces_artifact" db:"produces_artifact"`
 	ArtifactType     string   `json:"artifact_type,omitempty" db:"artifact_type"`
@@ -165,13 +165,13 @@ type PhaseTemplate struct {
 	Checkpoint      bool     `json:"checkpoint" db:"checkpoint"`
 
 	// Gate configuration (extended)
-	GateMode        GateMode         `json:"gate_mode,omitempty" db:"gate_mode"`
-	GateAgentID     string           `json:"gate_agent_id,omitempty" db:"gate_agent_id"`
+	GateMode         GateMode          `json:"gate_mode,omitempty" db:"gate_mode"`
+	GateAgentID      string            `json:"gate_agent_id,omitempty" db:"gate_agent_id"`
 	GateInputConfig  *GateInputConfig  `json:"gate_input_config,omitempty"`
 	GateOutputConfig *GateOutputConfig `json:"gate_output_config,omitempty"`
 
 	// Quality checks
-	OutputType    string `json:"output_type,omitempty" db:"output_type"`    // 'code', 'tests', 'document', 'data', 'research', 'none'
+	OutputType    string `json:"output_type,omitempty" db:"output_type"`       // 'code', 'tests', 'document', 'data', 'research', 'none'
 	QualityChecks string `json:"quality_checks,omitempty" db:"quality_checks"` // JSON array of QualityCheck
 
 	// Retry configuration
@@ -193,18 +193,18 @@ type PhaseTemplate struct {
 // Workflow composes phases into an execution plan.
 // Stored in workflows table.
 type Workflow struct {
-	ID               string `json:"id" db:"id"`
-	Name             string `json:"name" db:"name"`
-	Description      string `json:"description,omitempty" db:"description"`
-	DefaultModel     string `json:"default_model,omitempty" db:"default_model"`
-	DefaultProvider  string `json:"default_provider,omitempty" db:"default_provider"`
-	DefaultThinking  bool   `json:"default_thinking" db:"default_thinking"`
-	CompletionAction string `json:"completion_action,omitempty" yaml:"completion_action" db:"completion_action"` // "pr", "commit", "none", or "" (inherit)
-	TargetBranch         string       `json:"target_branch,omitempty" yaml:"target_branch" db:"target_branch"`             // Default PR target branch, or "" (inherit from config)
-	IsBuiltin            bool         `json:"is_builtin" db:"is_builtin"`
-	BasedOn              string       `json:"based_on,omitempty" db:"based_on"`
-	CreatedAt            time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt            time.Time    `json:"updated_at" db:"updated_at"`
+	ID               string    `json:"id" db:"id"`
+	Name             string    `json:"name" db:"name"`
+	Description      string    `json:"description,omitempty" db:"description"`
+	DefaultModel     string    `json:"default_model,omitempty" db:"default_model"`
+	DefaultProvider  string    `json:"default_provider,omitempty" db:"default_provider"`
+	DefaultThinking  bool      `json:"default_thinking" db:"default_thinking"`
+	CompletionAction string    `json:"completion_action,omitempty" yaml:"completion_action" db:"completion_action"` // "pr", "merge", "commit", "none", or "" (inherit)
+	TargetBranch     string    `json:"target_branch,omitempty" yaml:"target_branch" db:"target_branch"`             // Default PR target branch, or "" (inherit from config)
+	IsBuiltin        bool      `json:"is_builtin" db:"is_builtin"`
+	BasedOn          string    `json:"based_on,omitempty" db:"based_on"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
 
 	// Workflow-level lifecycle triggers
 	Triggers []WorkflowTrigger `json:"triggers,omitempty"`
@@ -217,18 +217,18 @@ type Workflow struct {
 // WorkflowPhase links a phase template to a workflow with order and overrides.
 // Stored in workflow_phases table.
 type WorkflowPhase struct {
-	ID              int    `json:"id" db:"id"`
-	WorkflowID      string `json:"workflow_id" db:"workflow_id"`
-	PhaseTemplateID string `json:"phase_template_id" db:"phase_template_id"`
-	Sequence        int    `json:"sequence" db:"sequence"`
-	DependsOn []string `json:"depends_on,omitempty"` // Parsed from JSON
+	ID              int      `json:"id" db:"id"`
+	WorkflowID      string   `json:"workflow_id" db:"workflow_id"`
+	PhaseTemplateID string   `json:"phase_template_id" db:"phase_template_id"`
+	Sequence        int      `json:"sequence" db:"sequence"`
+	DependsOn       []string `json:"depends_on,omitempty"` // Parsed from JSON
 
 	// Per-workflow overrides (nil = use phase template defaults)
-	ModelOverride    string `json:"model_override,omitempty" db:"model_override"`
-	ProviderOverride string `json:"provider_override,omitempty" db:"provider_override"`
-	ThinkingOverride      *bool    `json:"thinking_override,omitempty" db:"thinking_override"`
-	GateTypeOverride      GateType `json:"gate_type_override,omitempty" db:"gate_type_override"`
-	Condition             string   `json:"condition,omitempty" db:"condition"` // JSON skip conditions
+	ModelOverride    string   `json:"model_override,omitempty" db:"model_override"`
+	ProviderOverride string   `json:"provider_override,omitempty" db:"provider_override"`
+	ThinkingOverride *bool    `json:"thinking_override,omitempty" db:"thinking_override"`
+	GateTypeOverride GateType `json:"gate_type_override,omitempty" db:"gate_type_override"`
+	Condition        string   `json:"condition,omitempty" db:"condition"` // JSON skip conditions
 
 	// Claude CLI configuration override (JSON)
 	// Merged with PhaseTemplate.RuntimeConfig, with this taking precedence
@@ -251,12 +251,12 @@ type WorkflowPhase struct {
 // WorkflowVariable defines a custom variable for a workflow.
 // Stored in workflow_variables table.
 type WorkflowVariable struct {
-	ID          int                `json:"id" db:"id"`
-	WorkflowID  string             `json:"workflow_id" db:"workflow_id"`
-	Name        string             `json:"name" db:"name"`
-	Description string             `json:"description,omitempty" db:"description"`
-	SourceType  VariableSourceType `json:"source_type" db:"source_type"`
-	SourceConfig string            `json:"source_config" db:"source_config"` // JSON config
+	ID           int                `json:"id" db:"id"`
+	WorkflowID   string             `json:"workflow_id" db:"workflow_id"`
+	Name         string             `json:"name" db:"name"`
+	Description  string             `json:"description,omitempty" db:"description"`
+	SourceType   VariableSourceType `json:"source_type" db:"source_type"`
+	SourceConfig string             `json:"source_config" db:"source_config"` // JSON config
 
 	Required        bool   `json:"required" db:"required"`
 	DefaultValue    string `json:"default_value,omitempty" db:"default_value"`
@@ -303,8 +303,8 @@ type WorkflowRun struct {
 	Instructions string `json:"instructions,omitempty" db:"instructions"`
 
 	// Status
-	Status       RunStatus `json:"status" db:"status"`
-	CurrentPhase string    `json:"current_phase,omitempty" db:"current_phase"`
+	Status       RunStatus  `json:"status" db:"status"`
+	CurrentPhase string     `json:"current_phase,omitempty" db:"current_phase"`
 	StartedAt    *time.Time `json:"started_at,omitempty" db:"started_at"`
 	CompletedAt  *time.Time `json:"completed_at,omitempty" db:"completed_at"`
 
@@ -312,9 +312,9 @@ type WorkflowRun struct {
 	VariablesSnapshot map[string]string `json:"variables_snapshot,omitempty"` // Parsed from JSON
 
 	// Metrics
-	TotalCostUSD       float64 `json:"total_cost_usd" db:"total_cost_usd"`
-	TotalInputTokens   int     `json:"total_input_tokens" db:"total_input_tokens"`
-	TotalOutputTokens  int     `json:"total_output_tokens" db:"total_output_tokens"`
+	TotalCostUSD      float64 `json:"total_cost_usd" db:"total_cost_usd"`
+	TotalInputTokens  int     `json:"total_input_tokens" db:"total_input_tokens"`
+	TotalOutputTokens int     `json:"total_output_tokens" db:"total_output_tokens"`
 
 	// Error tracking
 	Error string `json:"error,omitempty" db:"error"`
@@ -378,7 +378,7 @@ type EnvSourceConfig struct {
 
 // ScriptSourceConfig for script-based variable sources.
 type ScriptSourceConfig struct {
-	Path      string   `json:"path"`       // Path relative to .orc/scripts/
+	Path      string   `json:"path"` // Path relative to .orc/scripts/
 	Args      []string `json:"args,omitempty"`
 	TimeoutMs int      `json:"timeout_ms,omitempty"` // Default 5000
 }

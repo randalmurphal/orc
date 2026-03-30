@@ -51,7 +51,8 @@ $ orc init
 ? When tasks complete
   > Create PR    - Open pull request for review
     Merge        - Merge directly to target branch
-    None         - Just commit, no PR or merge
+    Commit only  - Push the task branch without opening a PR
+    None         - Skip completion actions
 
 ? Default model
   > claude-opus-4-5  - Best quality (recommended)
@@ -219,9 +220,13 @@ func detectProject(path string) (*ProjectInfo, error) {
     Merges to target branch immediately.
     Good for: Solo projects, auto-approved changes.
 
+    Commit only
+    Commits and preserves the task branch without creating a PR.
+    Good for: Manual workflows, branch-based handoff.
+
     None
-    Just commits to the task branch.
-    Good for: Manual workflow, CI/CD handles merging.
+    Skips completion actions after phase execution.
+    Good for: Fully manual follow-up outside orc.
 
   [↑↓ to move, Enter to select]
 ```

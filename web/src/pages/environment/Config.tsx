@@ -330,6 +330,7 @@ export function Config() {
 								>
 									<option value="pr">Create PR</option>
 									<option value="merge">Merge</option>
+									<option value="commit">Commit only</option>
 									<option value="none">None</option>
 								</select>
 							</div>

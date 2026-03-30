@@ -945,7 +945,7 @@ func (c *Config) Validate() error {
 
 	// Validate completion action
 	if c.Completion.Action != "" && !contains(ValidCompletionActions, c.Completion.Action) {
-		return fmt.Errorf("invalid completion.action: %s (must be one of: pr, merge, none)",
+		return fmt.Errorf("invalid completion.action: %s (must be one of: pr, merge, commit, none)",
 			c.Completion.Action)
 	}
 

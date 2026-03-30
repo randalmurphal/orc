@@ -282,7 +282,7 @@ type FinalizeConfig struct {
 
 // CompletionConfig defines task completion behavior.
 type CompletionConfig struct {
-	// Action defines what happens on completion: "pr", "merge", "none" (default: "pr")
+	// Action defines what happens on completion: "pr", "merge", "commit", "none" (default: "pr")
 	Action string `yaml:"action"`
 
 	// TargetBranch is the branch to merge into (default: "main")
@@ -1370,7 +1370,7 @@ var (
 	ValidModes = []string{"local", "shared_db", "sync_server"}
 
 	// ValidCompletionActions are the allowed values for completion.action
-	ValidCompletionActions = []string{"pr", "merge", "none", ""}
+	ValidCompletionActions = []string{"pr", "merge", "commit", "none", ""}
 
 	// ValidSyncStrategies are the allowed values for completion.sync.strategy
 	ValidSyncStrategies = []string{

@@ -109,13 +109,13 @@ func (we *WorkflowExecutor) handleCompletionWithTriggers(
 			// Gate rejected: set task to BLOCKED
 			t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 			task.UpdateTimestampProto(t)
-			if saveErr := we.backend.SaveTask(t); saveErr != nil {
-				we.logger.Error("failed to save blocked task after gate rejection",
-					"task_id", t.Id, "error", saveErr)
-			}
+			persistErr := we.saveTaskStrict(t, "save blocked task after completion trigger rejection")
 			if saveErr := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusBlocked, rejErr.Reason); saveErr != nil {
 				we.logger.Error("failed to save blocked-task attention signal after gate rejection",
 					"task_id", t.Id, "error", saveErr)
+			}
+			if persistErr != nil {
+				return combineExecutionErrors(err, persistErr)
 			}
 			return err
 		}

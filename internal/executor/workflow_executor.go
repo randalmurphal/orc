@@ -465,20 +465,18 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 			// Record failure to DB if we have enough state
 			if run != nil {
-				we.failRun(run, t, panicErr)
+				runErr = combineExecutionErrors(runErr, we.failRun(run, t, panicErr))
 			} else if t != nil {
 				// run not created yet, but task exists — mark task failed directly
 				task.SetErrorProto(t.Execution, panicErr.Error())
-				we.failTaskAfterCompletionError(t, panicErr)
+				runErr = combineExecutionErrors(runErr, we.failTaskAfterCompletionError(t, panicErr))
 			}
 			// Clear executor claim so task isn't orphaned
 			if t != nil {
-				if clearErr := we.backend.ClearTaskExecutor(t.Id); clearErr != nil {
-					we.logger.Error("failed to clear executor after panic", "error", clearErr)
-				}
+				runErr = combineExecutionErrors(runErr, we.clearTaskExecutorStrict(t.Id, "clear executor after panic"))
 			}
 			runResult = nil
-			runErr = panicErr
+			runErr = combineExecutionErrors(panicErr, runErr)
 		}
 	}()
 
@@ -503,8 +501,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	if wf.Triggers != "" {
 		wfTyped = &workflow.Workflow{ID: wf.ID}
 		if parseErr := json.Unmarshal([]byte(wf.Triggers), &wfTyped.Triggers); parseErr != nil {
-			we.logger.Warn("failed to parse workflow triggers", "workflow", workflowID, "error", parseErr)
-			wfTyped = nil
+			return nil, fmt.Errorf("parse workflow triggers for %s: %w", workflowID, parseErr)
 		}
 	}
 
@@ -567,8 +564,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		// Set workflow_id on task if not already set (enables `orc show` to display correct phases)
 		if t.WorkflowId == nil || *t.WorkflowId != workflowID {
 			t.WorkflowId = &workflowID
-			if err := we.backend.SaveTask(t); err != nil {
-				we.logger.Error("failed to save workflow_id to task", "task_id", t.Id, "error", err)
+			if err := we.saveTaskStrict(t, "save workflow_id to task"); err != nil {
+				return nil, err
 			}
 		}
 
@@ -670,8 +667,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	// Setup worktree for task-based contexts
 	if t != nil && we.orcConfig.Worktree.Enabled && we.gitOps != nil {
 		if err := we.setupWorktree(t); err != nil {
-			we.failSetup(run, t, err)
-			return nil, fmt.Errorf("setup worktree: %w", err)
+			return nil, combineExecutionErrors(fmt.Errorf("setup worktree: %w", err), we.failSetup(run, t, err))
 		}
 		// Cleanup worktree on exit based on config and success
 		defer we.cleanupWorktree(t)
@@ -697,14 +693,13 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			// worktrees are cleaned up. This bypasses the config-gated deferred cleanup.
 			we.cleanupSyncFailure(t)
 
-			we.failSetup(run, t, err)
-			return nil, fmt.Errorf("sync on start: %w", err)
+			return nil, combineExecutionErrors(fmt.Errorf("sync on start: %w", err), we.failSetup(run, t, err))
 		}
 	}
 
 	// Save run
-	if err := we.backend.SaveWorkflowRun(run); err != nil {
-		return nil, fmt.Errorf("save workflow run: %w", err)
+	if err := we.saveWorkflowRunStrict(run, "save workflow run"); err != nil {
+		return nil, err
 	}
 
 	// Build resolution context
@@ -716,8 +711,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	// Resolve all variables
 	vars, err := we.resolver.ResolveAll(execCtx, varDefs, rctx)
 	if err != nil {
-		we.failRun(run, t, fmt.Errorf("resolve variables: %w", err))
-		return nil, err
+		runErr := fmt.Errorf("resolve variables: %w", err)
+		return nil, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 	}
 
 	// Store variable snapshot
@@ -725,8 +720,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	run.VariablesSnapshot = string(varsJSON)
 	run.Status = string(workflow.RunStatusRunning)
 	run.StartedAt = timePtr(time.Now())
-	if err := we.backend.SaveWorkflowRun(run); err != nil {
-		return nil, fmt.Errorf("save workflow run: %w", err)
+	if err := we.saveWorkflowRunStrict(run, "save workflow run with variables snapshot"); err != nil {
+		return nil, err
 	}
 
 	// Store run-level provider override (applies to all phases unless overridden per-phase)
@@ -757,8 +752,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						break
 					}
 				}
-				if err := we.backend.SaveTask(t); err != nil {
-					we.logger.Warn("failed to save retry phase reset on resume", "error", err)
+				if err := we.saveTaskStrict(t, "save retry phase reset on resume"); err != nil {
+					return nil, err
 				}
 			}
 		}
@@ -767,8 +762,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		} else {
 			t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 		}
-		if err := we.backend.SaveTask(t); err != nil {
-			we.logger.Error("failed to save task status running", "task_id", t.Id, "error", err)
+		if err := we.saveTaskStrict(t, "save task status running"); err != nil {
+			return nil, err
 		}
 		if we.isResuming {
 			if err := we.resolveAttentionSignalsForTask(t.Id, "resume"); err != nil {
@@ -819,12 +814,12 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		if content, ok := we.prePopulatedOutputs[phase.PhaseTemplateID]; ok {
 			tmpl, err := we.globalDB.GetPhaseTemplate(phase.PhaseTemplateID)
 			if err != nil {
-				we.failRun(run, t, fmt.Errorf("load phase template %s for pre-populated output: %w", phase.PhaseTemplateID, err))
-				return result, err
+				runErr := fmt.Errorf("load phase template %s for pre-populated output: %w", phase.PhaseTemplateID, err)
+				return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 			}
 			if tmpl == nil {
-				we.failRun(run, t, fmt.Errorf("phase template not found: %s", phase.PhaseTemplateID))
-				return result, fmt.Errorf("phase template not found: %s", phase.PhaseTemplateID)
+				runErr := fmt.Errorf("phase template not found: %s", phase.PhaseTemplateID)
+				return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 			}
 			outputVarName := tmpl.OutputVarName
 			if outputVarName == "" {
@@ -838,8 +833,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				Status:          orcv1.PhaseStatus_PHASE_STATUS_SKIPPED.String(),
 				CompletedAt:     timePtr(time.Now()),
 			}
-			if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
-				we.logger.Warn("failed to save pre-populated phase state", "phase", phase.PhaseTemplateID, "error", err)
+			if err := we.saveWorkflowRunPhaseStrict(runPhase, "save pre-populated phase state"); err != nil {
+				return result, combineExecutionErrors(err, we.failRun(run, t, err))
 			}
 			result.PhaseResults = append(result.PhaseResults, PhaseResult{
 				PhaseID:         phase.PhaseTemplateID,
@@ -855,18 +850,17 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		// Load phase template from GlobalDB (definitions are seeded there, not ProjectDB)
 		tmpl, err := we.globalDB.GetPhaseTemplate(phase.PhaseTemplateID)
 		if err != nil {
-			we.failRun(run, t, fmt.Errorf("load phase template %s: %w", phase.PhaseTemplateID, err))
-			return result, err
+			runErr := fmt.Errorf("load phase template %s: %w", phase.PhaseTemplateID, err)
+			return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 		}
 		if tmpl == nil {
-			we.failRun(run, t, fmt.Errorf("phase template not found: %s", phase.PhaseTemplateID))
-			return result, fmt.Errorf("phase template not found: %s", phase.PhaseTemplateID)
+			runErr := fmt.Errorf("phase template not found: %s", phase.PhaseTemplateID)
+			return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 		}
 
 		// Check for context cancellation (from SIGUSR1 pause signal)
 		if execCtx.Err() != nil {
-			we.interruptRun(run, t, phase.PhaseTemplateID, execCtx.Err())
-			return result, execCtx.Err()
+			return result, combineExecutionErrors(execCtx.Err(), we.interruptRun(run, t, phase.PhaseTemplateID, execCtx.Err()))
 		}
 
 		// Apply per-phase model/provider overrides (e.g., bench variant config)
@@ -882,54 +876,58 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			}
 		}
 
-		// Create run phase record (best-effort — run metadata must never prevent task execution)
+		// Create run phase record before any phase work starts.
 		runPhase := &db.WorkflowRunPhase{
 			WorkflowRunID:   runID,
 			PhaseTemplateID: phase.PhaseTemplateID,
 			Status:          orcv1.PhaseStatus_PHASE_STATUS_PENDING.String(),
 		}
-		if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
-			we.logger.Error("failed to save run phase record", "phase", phase.PhaseTemplateID, "error", err)
+		if err := we.saveWorkflowRunPhaseStrict(runPhase, "save run phase record"); err != nil {
+			return result, combineExecutionErrors(err, we.failRun(run, t, err))
 		}
 
-		// Update run with current phase (best-effort)
+		// Update run with current phase before phase execution continues.
 		run.CurrentPhase = phase.PhaseTemplateID
-		if err := we.backend.SaveWorkflowRun(run); err != nil {
-			we.logger.Error("failed to update run current phase", "phase", phase.PhaseTemplateID, "error", err)
+		if err := we.saveWorkflowRunStrict(run, "update run current phase"); err != nil {
+			return result, combineExecutionErrors(err, we.failRun(run, t, err))
 		}
 
 		// Update phase in resolution context
 		rctx.Phase = tmpl.ID
-		rctx.Provider = we.resolvePhaseProvider(tmpl, phase)
+		provider, err := we.resolvePhaseProvider(tmpl, phase)
+		if err != nil {
+			return result, combineExecutionErrors(err, we.failRun(run, t, err))
+		}
+		rctx.Provider = provider
 
 		controlPlaneUsage, err := we.phaseControlPlaneVariableUsage(tmpl, phase)
 		if err != nil {
-			we.failRun(run, t, fmt.Errorf("detect control-plane variable usage for phase %s: %w", tmpl.ID, err))
-			return result, err
+			runErr := fmt.Errorf("detect control-plane variable usage for phase %s: %w", tmpl.ID, err)
+			return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 		}
 		threadUsage, err := we.phaseThreadVariableUsage(tmpl, phase)
 		if err != nil {
-			we.failRun(run, t, fmt.Errorf("detect thread variable usage for phase %s: %w", tmpl.ID, err))
-			return result, err
+			runErr := fmt.Errorf("detect thread variable usage for phase %s: %w", tmpl.ID, err)
+			return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 		}
 
 		// Enrich context with phase-specific data (review findings, test results, etc.)
 		if err := we.enrichContextForPhase(rctx, tmpl.ID, t, threadUsage); err != nil {
-			we.failRun(run, t, fmt.Errorf("populate phase context for phase %s: %w", tmpl.ID, err))
-			return result, err
+			runErr := fmt.Errorf("populate phase context for phase %s: %w", tmpl.ID, err)
+			return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 		}
 		if controlPlaneUsage.Any() {
 			if err := we.populateControlPlaneContext(rctx, tmpl.ID, t, controlPlaneUsage); err != nil {
-				we.failRun(run, t, fmt.Errorf("populate control-plane context for phase %s: %w", tmpl.ID, err))
-				return result, err
+				runErr := fmt.Errorf("populate control-plane context for phase %s: %w", tmpl.ID, err)
+				return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 			}
 		}
 
 		// Re-resolve variables with updated context
 		vars, err = we.resolver.ResolveAll(execCtx, varDefs, rctx)
 		if err != nil {
-			we.failRun(run, t, fmt.Errorf("resolve variables for phase %s: %w", tmpl.ID, err))
-			return result, err
+			runErr := fmt.Errorf("resolve variables for phase %s: %w", tmpl.ID, err)
+			return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 		}
 
 		// Evaluate phase condition — skip phase if condition evaluates to false
@@ -942,22 +940,22 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			}
 			condResult, condErr := EvaluateCondition(phase.Condition, condCtx)
 			if condErr != nil {
-				we.failRun(run, t, fmt.Errorf("evaluate condition for phase %s: %w", phase.PhaseTemplateID, condErr))
-				return result, condErr
+				runErr := fmt.Errorf("evaluate condition for phase %s: %w", phase.PhaseTemplateID, condErr)
+				return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 			}
 			if !condResult {
 				if t != nil {
 					if err := we.SkipPhaseForCondition(t, run, runPhase, phase); err != nil {
-						we.failRun(run, t, fmt.Errorf("skip phase %s: %w", phase.PhaseTemplateID, err))
-						return result, err
+						runErr := fmt.Errorf("skip phase %s: %w", phase.PhaseTemplateID, err)
+						return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 					}
 				} else {
 					// Non-task context: just mark run phase as skipped
 					now := time.Now()
 					runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_SKIPPED.String()
 					runPhase.CompletedAt = &now
-					if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
-						we.logger.Error("failed to save skipped run phase", "phase", phase.PhaseTemplateID, "error", err)
+					if err := we.saveWorkflowRunPhaseStrict(runPhase, "save skipped run phase"); err != nil {
+						return result, combineExecutionErrors(err, we.failRun(run, t, err))
 					}
 					we.logger.Info("phase skipped by condition (no task)", "phase", phase.PhaseTemplateID)
 				}
@@ -977,18 +975,20 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		}
 		if phase.BeforeTriggers != "" {
 			if parseErr := json.Unmarshal([]byte(phase.BeforeTriggers), &wfPhase.BeforeTriggers); parseErr != nil {
-				we.logger.Warn("failed to parse before-phase triggers", "phase", phase.PhaseTemplateID, "error", parseErr)
+				runErr := fmt.Errorf("parse before-phase triggers for %s: %w", phase.PhaseTemplateID, parseErr)
+				return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 			}
 		}
 		triggerResult := we.evaluateBeforePhaseTriggers(execCtx, wfPhase, t, vars)
 		if triggerResult.Blocked {
 			reason := fmt.Sprintf("blocked by before-phase trigger: %s", triggerResult.BlockedReason)
 			we.logger.Info("phase blocked by before-phase trigger", "phase", tmpl.ID, "reason", triggerResult.BlockedReason)
-			we.finalizeBlockedRun(run, t, reason, "before_phase_trigger")
+			blockErr := fmt.Errorf("%w: %s", ErrTaskBlocked, reason)
+			persistErr := we.finalizeBlockedRun(run, t, reason, "before_phase_trigger")
 			result.Success = false
 			result.Error = reason
 			result.CompletedAt = run.CompletedAt
-			return result, fmt.Errorf("%w: %s", ErrTaskBlocked, reason)
+			return result, combineExecutionErrors(blockErr, persistErr)
 		}
 		// Apply any updated variables from triggers
 		if triggerResult.UpdatedVars != nil {
@@ -1025,11 +1025,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				// Check if this was triggered by pause signal (execCtx cancelled)
 				// Note: The error may be "signal: killed" from subprocess, not context.Canceled
 				if execCtx.Err() != nil {
-					we.interruptRun(run, t, phase.PhaseTemplateID, execCtx.Err())
-					return result, err
+					return result, combineExecutionErrors(err, we.interruptRun(run, t, phase.PhaseTemplateID, execCtx.Err()))
 				}
-				we.failRun(run, t, err)
-				return result, err
+				return result, combineExecutionErrors(err, we.failRun(run, t, err))
 			}
 		}
 
@@ -1061,12 +1059,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		if phase.LoopConfig != "" {
 			loopCfg, loopErr := db.ParseLoopConfig(phase.LoopConfig)
 			if loopErr != nil {
-				if phaseResult.BlockedReason != "" {
-					blockOnLoopFailure = true
-					blockedLoopReason = fmt.Sprintf("invalid loop config for blocked phase %s: %v", tmpl.ID, loopErr)
-				} else {
-					we.logger.Warn("invalid loop config", "phase", tmpl.ID, "error", loopErr)
-				}
+				runErr := fmt.Errorf("invalid loop config for phase %s: %w", tmpl.ID, loopErr)
+				return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 			} else if loopCfg != nil && len(loopCfg.Condition) > 0 {
 				maxLoops := loopCfg.EffectiveMaxLoops()
 				if we.maxLoopOverride > 0 && maxLoops > we.maxLoopOverride {
@@ -1079,7 +1073,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					// Legacy string condition → delegate to existing evaluator
 					var legacyCond string
 					if err := json.Unmarshal(loopCfg.Condition, &legacyCond); err != nil {
-						we.logger.Warn("invalid legacy loop condition", "phase", tmpl.ID, "error", err)
+						runErr := fmt.Errorf("invalid legacy loop condition for phase %s: %w", tmpl.ID, err)
+						return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 					} else {
 						shouldLoop = we.evaluateLoopCondition(legacyCond, tmpl.ID, vars, rctx)
 					}
@@ -1092,12 +1087,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					}
 					condResult, condErr := EvaluateCondition(string(loopCfg.Condition), condCtx)
 					if condErr != nil {
-						if phaseResult.BlockedReason != "" {
-							blockOnLoopFailure = true
-							blockedLoopReason = fmt.Sprintf("invalid loop condition for blocked phase %s: %v", tmpl.ID, condErr)
-						} else {
-							we.logger.Warn("invalid loop condition", "phase", tmpl.ID, "error", condErr)
-						}
+						runErr := fmt.Errorf("invalid loop condition for phase %s: %w", tmpl.ID, condErr)
+						return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 					} else {
 						shouldLoop = condResult
 					}
@@ -1210,8 +1201,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 								}
 								we.task.Execution.Phases[phaseID].Iterations = int32(loopCount + 1)
 							}
-							if err := we.backend.SaveTask(we.task); err != nil {
-								we.logger.Warn("failed to save loop state", "error", err)
+							if err := we.saveTaskStrict(we.task, "save loop state"); err != nil {
+								return result, combineExecutionErrors(err, we.failRun(run, t, err))
 							}
 						}
 
@@ -1240,18 +1231,19 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				reason = fmt.Sprintf("blocked phase %s could not continue looping safely", tmpl.ID)
 			}
 			we.logger.Info("blocked phase cannot continue after loop evaluation", "phase", tmpl.ID, "reason", reason)
-			we.finalizeBlockedRun(run, t, reason, "review_loop_exhausted")
+			blockErr := fmt.Errorf("%w: %s", ErrTaskBlocked, reason)
+			persistErr := we.finalizeBlockedRun(run, t, reason, "review_loop_exhausted")
 			result.Success = false
 			result.Error = reason
 			result.CompletedAt = run.CompletedAt
-			return result, fmt.Errorf("%w: %s", ErrTaskBlocked, reason)
+			return result, combineExecutionErrors(blockErr, persistErr)
 		}
 
 		// Evaluate phase gate
 		gateResult, gateErr := we.evaluatePhaseGate(ctx, tmpl, phase, phaseResult.Content, t, rctx)
 		if gateErr != nil {
-			we.failRun(run, t, fmt.Errorf("evaluate gate for %s: %w", tmpl.ID, gateErr))
-			return result, gateErr
+			runErr := fmt.Errorf("evaluate gate for %s: %w", tmpl.ID, gateErr)
+			return result, combineExecutionErrors(runErr, we.failRun(run, t, runErr))
 		}
 
 		// Handle blocked phases: force gate rejection to trigger retry.
@@ -1283,11 +1275,12 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				// Task is blocked waiting for human decision
 				reason := fmt.Sprintf("blocked at gate: %s (phase %s)", gateResult.Reason, tmpl.ID)
 				we.logger.Info("gate decision pending", "phase", tmpl.ID)
-				we.finalizeBlockedRun(run, t, reason, "gate_pending")
+				blockErr := fmt.Errorf("%w: %s", ErrTaskBlocked, reason)
+				persistErr := we.finalizeBlockedRun(run, t, reason, "gate_pending")
 				result.Success = false
 				result.Error = reason
 				result.CompletedAt = run.CompletedAt
-				return result, fmt.Errorf("%w: %s", ErrTaskBlocked, reason)
+				return result, combineExecutionErrors(blockErr, persistErr)
 			}
 
 			if !gateResult.Approved {
@@ -1308,8 +1301,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				case workflow.GateActionSkipPhase, workflow.GateActionContinue:
 					if we.phaseRequiresPassingReview(tmpl.ID) {
 						failErr := fmt.Errorf("review did not pass: %s", gateResult.Reason)
-						we.failGateRejection(run, t, failErr)
-						return result, failErr
+						return result, combineExecutionErrors(failErr, we.failGateRejection(run, t, failErr))
 					}
 					// skip_phase / continue: don't retry or fail, proceed to next phase
 					we.logger.Info("gate rejected, action allows continuation",
@@ -1321,8 +1313,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				case workflow.GateActionFail:
 					// SC-1: fail immediately regardless of phase type
 					failErr := fmt.Errorf("gate rejected: %s", gateResult.Reason)
-					we.failGateRejection(run, t, failErr)
-					return result, failErr
+					return result, combineExecutionErrors(failErr, we.failGateRejection(run, t, failErr))
 
 				default:
 					// Retry action or legacy behavior
@@ -1353,14 +1344,12 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					if rejectedAction == workflow.GateActionRetry {
 						if gateResult.RetryPhase == "" {
 							failErr := fmt.Errorf("gate rejected with retry action but no retry_from configured for phase %s", tmpl.ID)
-							we.failGateRejection(run, t, failErr)
-							return result, failErr
+							return result, combineExecutionErrors(failErr, we.failGateRejection(run, t, failErr))
 						}
 						if retryCount >= retryMax {
 							// SC-3: max retries exhausted
 							failErr := fmt.Errorf("gate rejected: max retries (%d) exhausted for phase %s: %s", retryMax, tmpl.ID, gateResult.Reason)
-							we.failGateRejection(run, t, failErr)
-							return result, failErr
+							return result, combineExecutionErrors(failErr, we.failGateRejection(run, t, failErr))
 						}
 					}
 
@@ -1394,16 +1383,16 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 								if tmpl.ID == "review" {
 									task.RecordReviewRejectionProto(t)
 								}
-								if err := we.backend.SaveTask(t); err != nil {
-									we.logger.Warn("failed to save task after retry", "task", t.Id, "error", err)
+								if err := we.saveTaskStrict(t, "save task after retry"); err != nil {
+									return result, combineExecutionErrors(err, we.failRun(run, t, err))
 								}
 							}
 
 							if we.task != nil {
 								reason := fmt.Sprintf("Gate rejected for phase %s: %s", tmpl.ID, gateResult.Reason)
 								task.SetRetryState(we.task, tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, int32(retryCount))
-								if err := we.backend.SaveTask(we.task); err != nil {
-									we.logger.Warn("failed to save retry state", "error", err)
+								if err := we.saveTaskStrict(we.task, "save retry state"); err != nil {
+									return result, combineExecutionErrors(err, we.failRun(run, t, err))
 								}
 
 							}
@@ -1413,8 +1402,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 								for k := retryIdx; k <= i; k++ {
 									task.ResetPhaseProto(we.task.Execution, phases[k].PhaseTemplateID)
 								}
-								if err := we.backend.SaveTask(we.task); err != nil {
-									we.logger.Warn("failed to save retry phase reset", "error", err)
+								if err := we.saveTaskStrict(we.task, "save retry phase reset"); err != nil {
+									return result, combineExecutionErrors(err, we.failRun(run, t, err))
 								}
 							}
 
@@ -1426,8 +1415,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					// No retry executed — handle based on action type
 					if rejectedAction == workflow.GateActionRetry {
 						failErr := fmt.Errorf("gate rejected: retry target %q not found for phase %s", gateResult.RetryPhase, tmpl.ID)
-						we.failGateRejection(run, t, failErr)
-						return result, failErr
+						return result, combineExecutionErrors(failErr, we.failGateRejection(run, t, failErr))
 					}
 
 					// Legacy behavior (empty action): review→fail, other→continue
@@ -1435,8 +1423,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						we.logger.Warn("review gate rejected with no retries remaining",
 							"phase", tmpl.ID, "reason", gateResult.Reason)
 						failErr := fmt.Errorf("review gate rejected: %s", gateResult.Reason)
-						we.failGateRejection(run, t, failErr)
-						return result, failErr
+						return result, combineExecutionErrors(failErr, we.failGateRejection(run, t, failErr))
 					}
 
 					// Non-review phase — log rejection and continue (automation-first)
@@ -1461,8 +1448,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						if we.task != nil {
 							task.EnsurePhaseProto(we.task.Execution, nextPhaseID)
 							we.task.Execution.Phases[nextPhaseID].Status = orcv1.PhaseStatus_PHASE_STATUS_SKIPPED
-							if err := we.backend.SaveTask(we.task); err != nil {
-								we.logger.Warn("failed to save skipped phase", "error", err)
+							if err := we.saveTaskStrict(we.task, "save skipped phase"); err != nil {
+								return result, combineExecutionErrors(err, we.failRun(run, t, err))
 							}
 						}
 						i++ // Skip next phase in the loop
@@ -1497,8 +1484,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					)
 				}
 
-				if err := we.backend.SaveTask(we.task); err != nil {
-					we.logger.Warn("failed to save gate decision state", "error", err)
+				if err := we.saveTaskStrict(we.task, "save gate decision state"); err != nil {
+					return result, combineExecutionErrors(err, we.failRun(run, t, err))
 				}
 			}
 		}
@@ -1525,11 +1512,15 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				t.Metadata["blocked_error"] = completionErr.Error()
 
 				// Clear executor claim
-				if err := we.backend.ClearTaskExecutor(t.Id); err != nil {
-					we.logger.Warn("failed to clear task executor", "error", err)
+				if err := we.clearTaskExecutorStrict(t.Id, "clear task executor after completion conflict"); err != nil {
+					result.Success = false
+					result.Error = err.Error()
+					return result, err
 				}
-				if err := we.backend.SaveTask(t); err != nil {
-					we.logger.Warn("failed to save blocked task", "task", t.Id, "error", err)
+				if err := we.saveTaskStrict(t, "save blocked task after completion conflict"); err != nil {
+					result.Success = false
+					result.Error = err.Error()
+					return result, err
 				}
 				if err := we.upsertTaskAttentionSignal(t, controlplane.AttentionSignalStatusBlocked, completionErr.Error()); err != nil {
 					we.logger.Warn("failed to save blocked-task attention signal", "task_id", t.Id, "error", err)
@@ -1538,8 +1529,10 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				// Run is completed but task is blocked
 				run.Status = string(workflow.RunStatusCompleted)
 				run.CompletedAt = timePtr(time.Now())
-				if err := we.backend.SaveWorkflowRun(run); err != nil {
-					we.logger.Warn("failed to save workflow run", "run", run.ID, "error", err)
+				if err := we.saveWorkflowRunStrict(run, "save blocked workflow run after completion conflict"); err != nil {
+					result.Success = false
+					result.Error = err.Error()
+					return result, err
 				}
 
 				result.CompletedAt = run.CompletedAt
@@ -1550,18 +1543,24 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 			// Other completion errors - fail the task properly
 			we.logger.Error("completion action failed", "task", t.Id, "error", completionErr)
-			we.failTaskAfterCompletionError(t, completionErr)
+			if err := we.failTaskAfterCompletionError(t, completionErr); err != nil {
+				result.Success = false
+				result.Error = err.Error()
+				return result, combineExecutionErrors(fmt.Errorf("completion failed: %w", completionErr), err)
+			}
 			result.Success = false
 			result.Error = completionErr.Error()
 			return result, fmt.Errorf("completion failed: %w", completionErr)
 		}
 	}
 
-	// Complete run record (best-effort — run metadata must never prevent task completion)
+	// Complete run record before returning success to the caller.
 	run.Status = string(workflow.RunStatusCompleted)
 	run.CompletedAt = timePtr(time.Now())
-	if err := we.backend.SaveWorkflowRun(run); err != nil {
-		we.logger.Error("failed to save workflow run as completed", "run", run.ID, "error", err)
+	if err := we.saveWorkflowRunStrict(run, "save workflow run as completed"); err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		return result, err
 	}
 
 	// Evaluate completion triggers (gate-mode on_task_completed can block)
@@ -1579,8 +1578,10 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	if t != nil {
 		t.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		t.CompletedAt = timestamppb.Now()
-		if err := we.backend.SaveTask(t); err != nil {
-			we.logger.Error("failed to save task status completed", "task_id", t.Id, "error", err)
+		if err := we.saveTaskStrict(t, "save task status completed"); err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			return result, err
 		}
 		if err := we.resolveAttentionSignalsForTask(t.Id, "executor"); err != nil {
 			we.logger.Error("failed to resolve attention signals on completion", "task_id", t.Id, "error", err)
@@ -1619,8 +1620,10 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 	// Clear execution state and release executor claim
 	if t != nil {
-		if err := we.backend.ClearTaskExecutor(t.Id); err != nil {
-			we.logger.Warn("failed to clear task executor", "error", err)
+		if err := we.clearTaskExecutorStrict(t.Id, "clear task executor after workflow completion"); err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			return result, err
 		}
 	}
 
@@ -2541,8 +2544,8 @@ func (we *WorkflowExecutor) createTaskForRunProto(opts WorkflowRunOptions, workf
 		t.Category = opts.Category
 	}
 
-	if err := we.backend.SaveTask(t); err != nil {
-		return nil, fmt.Errorf("save task: %w", err)
+	if err := we.saveTaskStrict(t, "save task"); err != nil {
+		return nil, err
 	}
 
 	return t, nil

@@ -508,7 +508,7 @@ func getConfigDocs() []ConfigDoc {
 		{Key: "testing.coverage_threshold", Type: "int", Default: "0", EnvVar: "", Description: "Minimum coverage percentage (0 = disabled)", Category: "Testing"},
 
 		// Completion
-		{Key: "completion.action", Type: "string", Default: "pr", EnvVar: "", Description: "Action after completion (pr, merge, none)", Category: "Completion"},
+		{Key: "completion.action", Type: "string", Default: "pr", EnvVar: "", Description: "Action after completion (pr, merge, commit, none)", Category: "Completion"},
 		{Key: "completion.target_branch", Type: "string", Default: "main", EnvVar: "", Description: "Branch to merge into", Category: "Completion"},
 		{Key: "completion.delete_branch", Type: "bool", Default: "true", EnvVar: "", Description: "Delete task branch after merge", Category: "Completion"},
 		{Key: "completion.pr.auto_merge", Type: "bool", Default: "true", EnvVar: "", Description: "Enable auto-merge when PR approved", Category: "Completion"},

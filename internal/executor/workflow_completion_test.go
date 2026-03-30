@@ -13,8 +13,10 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
-	"google.golang.org/protobuf/proto"
+	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
+	"google.golang.org/protobuf/proto"
 )
 
 // setupWorkflowExecutorTest creates a test WorkflowExecutor with a real git repo
@@ -86,6 +88,7 @@ func setupWorkflowExecutorTest(t *testing.T) (*WorkflowExecutor, *git.Git, strin
 	we := &WorkflowExecutor{
 		worktreeGit: gitOps,
 		orcConfig:   cfg,
+		backend:     storage.NewTestBackend(t),
 		logger:      slog.Default(),
 	}
 
@@ -108,7 +111,7 @@ func TestAutoCommitBeforeCompletion_DetectsAndCommitsChanges(t *testing.T) {
 
 	// Create task
 	tsk := &orcv1.Task{
-		Id:     "TASK-001",
+		Id: "TASK-001",
 	}
 
 	// Call autoCommitBeforeCompletion (this function doesn't exist yet - test will fail)
@@ -172,7 +175,7 @@ func TestAutoCommitBeforeCompletion_SkipsCleanWorktree(t *testing.T) {
 
 	// Create task
 	tsk := &orcv1.Task{
-		Id:     "TASK-001",
+		Id: "TASK-001",
 	}
 
 	// Call autoCommitBeforeCompletion with clean worktree
@@ -256,7 +259,7 @@ func TestAutoCommitBeforeCompletion_IncludesAllChanges(t *testing.T) {
 
 	// Create task
 	tsk := &orcv1.Task{
-		Id:     "TASK-001",
+		Id: "TASK-001",
 	}
 
 	// Call autoCommitBeforeCompletion
@@ -290,7 +293,7 @@ func TestAutoCommitBeforeCompletion_IncludesAllChanges(t *testing.T) {
 
 // TestRunCompletion_CallsAutoCommitBeforePR verifies that runCompletion
 // calls autoCommitBeforeCompletion before attempting to create a PR.
-// Covers: SC-2 (auto-commit only runs when completion action is 'pr' or 'merge')
+// Covers: SC-2 (auto-commit only runs when completion action is 'pr', 'merge', or 'commit')
 func TestRunCompletion_CallsAutoCommitBeforePR(t *testing.T) {
 	t.Parallel()
 	we, gitOps, tmpDir := setupWorkflowExecutorTest(t)
@@ -336,7 +339,7 @@ func TestRunCompletion_CallsAutoCommitBeforePR(t *testing.T) {
 
 // TestRunCompletion_SkipsAutoCommitWhenActionNone verifies that runCompletion
 // does not attempt auto-commit when the completion action is "none".
-// Covers: SC-2 (auto-commit only runs when action is 'pr' or 'merge')
+// Covers: SC-2 (auto-commit does not run when action is 'none')
 func TestRunCompletion_SkipsAutoCommitWhenActionNone(t *testing.T) {
 	t.Parallel()
 	we, gitOps, tmpDir := setupWorkflowExecutorTest(t)
@@ -352,7 +355,7 @@ func TestRunCompletion_SkipsAutoCommitWhenActionNone(t *testing.T) {
 
 	// Create task with "none" action
 	tsk := &orcv1.Task{
-		Id:     "TASK-001",
+		Id: "TASK-001",
 	}
 
 	ctx := context.Background()
@@ -591,7 +594,7 @@ func TestRunCompletion_WorkflowActionOverridesConfig(t *testing.T) {
 	}
 
 	tsk := &orcv1.Task{
-		Id:     "TASK-001",
+		Id: "TASK-001",
 	}
 
 	ctx := context.Background()
@@ -634,7 +637,7 @@ func TestRunCompletion_EmptyWorkflowActionFallsBackToConfig(t *testing.T) {
 	}
 
 	tsk := &orcv1.Task{
-		Id:     "TASK-001",
+		Id: "TASK-001",
 	}
 
 	ctx := context.Background()
@@ -655,37 +658,82 @@ func TestRunCompletion_EmptyWorkflowActionFallsBackToConfig(t *testing.T) {
 	}
 }
 
-// TestRunCompletion_WorkflowCommitActionOverridesConfigPR verifies that
-// workflow.CompletionAction="commit" overrides config's "pr" action.
-// Covers: SC-1 (workflow CompletionAction overrides config)
-func TestRunCompletion_WorkflowCommitActionOverridesConfigPR(t *testing.T) {
+// TestRunCompletion_WorkflowCommitActionPushesBranch verifies that workflow-level
+// commit-only completion preserves the task branch without creating a PR or merge.
+func TestRunCompletion_WorkflowCommitActionPushesBranch(t *testing.T) {
 	t.Parallel()
-	we, gitOps, tmpDir := setupWorkflowExecutorTest(t)
+	we, _, workDir := setupCompletionTestWithRemote(t)
 
-	// Config says "pr" but workflow says "commit" - should do commit only
+	// Config says "pr" but workflow overrides to commit-only.
 	we.orcConfig.Completion.Action = "pr"
 	we.wf = &workflow.Workflow{
-		ID:               "commit-only-workflow",
-		Name:             "Commit Only",
+		ID:               "commit-action-workflow",
+		Name:             "Commit Action",
 		CompletionAction: "commit",
 	}
 
-	// Create a commit on the branch
-	newFile := filepath.Join(tmpDir, "feature.go")
+	// Create a committed change on the task branch.
+	newFile := filepath.Join(workDir, "feature.go")
 	if err := os.WriteFile(newFile, []byte("package main\n// feature"), 0644); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
 	cmd := exec.Command("git", "add", ".")
-	cmd.Dir = tmpDir
+	cmd.Dir = workDir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to stage: %v", err)
 	}
 
 	cmd = exec.Command("git", "commit", "-m", "Add feature")
-	cmd.Dir = tmpDir
+	cmd.Dir = workDir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to commit: %v", err)
+	}
+
+	tsk := &orcv1.Task{
+		Id:     "TASK-100",
+		Branch: "orc/TASK-100",
+	}
+
+	ctx := context.Background()
+	err := we.runCompletion(ctx, tsk)
+	if err != nil {
+		t.Fatalf("runCompletion() error = %v, want nil", err)
+	}
+
+	// Verify the branch was pushed to origin.
+	cmd = exec.Command("git", "rev-parse", "origin/orc/TASK-100")
+	cmd.Dir = workDir
+	if out, revErr := cmd.CombinedOutput(); revErr != nil {
+		t.Fatalf("rev-parse origin task branch failed: %v\nOutput: %s", revErr, out)
+	}
+
+	task.EnsureMetadataProto(tsk)
+	if got := tsk.Metadata["completion_action_taken"]; got != "commit" {
+		t.Fatalf("completion_action_taken = %q, want commit", got)
+	}
+	if !strings.Contains(tsk.Metadata["completion_note"], "pushed to origin") {
+		t.Fatalf("completion_note = %q, want remote branch preservation note", tsk.Metadata["completion_note"])
+	}
+}
+
+// TestRunCompletion_CommitActionWithoutRemoteKeepsLocalBranch verifies that
+// commit-only completion still succeeds for local-only repositories.
+func TestRunCompletion_CommitActionWithoutRemoteKeepsLocalBranch(t *testing.T) {
+	t.Parallel()
+	we, gitOps, tmpDir := setupWorkflowExecutorTest(t)
+
+	cmd := exec.Command("git", "remote", "remove", "origin")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to remove origin: %v", err)
+	}
+
+	we.orcConfig.Completion.Action = "commit"
+
+	newFile := filepath.Join(tmpDir, "local_only.go")
+	if err := os.WriteFile(newFile, []byte("package main\n"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
 	}
 
 	tsk := &orcv1.Task{
@@ -693,23 +741,23 @@ func TestRunCompletion_WorkflowCommitActionOverridesConfigPR(t *testing.T) {
 		Branch: "orc/TASK-001",
 	}
 
-	ctx := context.Background()
-	// runCompletion with "commit" action will fail on directMerge because
-	// we don't have a proper remote setup, but we can verify the execution
-	// path based on logs or by checking that createPR was NOT called.
-	// For this test, we just verify no crash and the action is attempted.
-	_ = we.runCompletion(ctx, tsk)
+	if err := we.runCompletion(context.Background(), tsk); err != nil {
+		t.Fatalf("runCompletion() error = %v, want nil", err)
+	}
 
-	// The test passes if we got here - it means workflow.CompletionAction was read.
-	// With current code that ignores workflow, this would have tried createPR
-	// and failed differently. After the fix, it will try directMerge instead.
-
-	// Verify worktree is still clean (no new uncommitted changes)
 	hasChanges, err := gitOps.HasUncommittedChanges()
 	if err != nil {
 		t.Fatalf("HasUncommittedChanges() error: %v", err)
 	}
 	if hasChanges {
-		t.Error("unexpected uncommitted changes after runCompletion")
+		t.Fatal("expected commit-only completion to auto-commit local changes")
+	}
+
+	task.EnsureMetadataProto(tsk)
+	if got := tsk.Metadata["completion_action_taken"]; got != "commit" {
+		t.Fatalf("completion_action_taken = %q, want commit", got)
+	}
+	if !strings.Contains(tsk.Metadata["completion_note"], "no remote was configured") {
+		t.Fatalf("completion_note = %q, want local-only preservation note", tsk.Metadata["completion_note"])
 	}
 }

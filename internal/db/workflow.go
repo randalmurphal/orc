@@ -46,7 +46,7 @@ type PhaseTemplate struct {
 	SubAgents string `json:"sub_agents,omitempty"` // JSON array of agent IDs to include as sub-agents
 
 	// Prompt configuration (WHAT to do)
-	PromptSource  string `json:"prompt_source"`  // 'embedded', 'db', 'file'
+	PromptSource  string `json:"prompt_source"` // 'embedded', 'db', 'file'
 	PromptContent string `json:"prompt_content,omitempty"`
 	PromptPath    string `json:"prompt_path,omitempty"`
 
@@ -62,7 +62,7 @@ type PhaseTemplate struct {
 	QualityChecks string `json:"quality_checks,omitempty"` // JSON array of QualityCheck
 
 	// Execution config
-	ThinkingEnabled *bool `json:"thinking_enabled,omitempty"` // Phase-level concern (not agent-level)
+	ThinkingEnabled *bool  `json:"thinking_enabled,omitempty"` // Phase-level concern (not agent-level)
 	GateType        string `json:"gate_type"`
 	Checkpoint      bool   `json:"checkpoint"`
 
@@ -95,19 +95,19 @@ type PhaseTemplate struct {
 
 // Workflow represents a composed execution plan.
 type Workflow struct {
-	ID                   string    `json:"id"`
-	Name                 string    `json:"name"`
-	Description          string    `json:"description,omitempty"`
-	DefaultModel     string `json:"default_model,omitempty"`
-	DefaultProvider string `json:"default_provider,omitempty"`
-	DefaultThinking  bool   `json:"default_thinking"`
-	CompletionAction string `json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit)
-	TargetBranch         string    `json:"target_branch,omitempty"`     // Default PR target branch, or "" (inherit from config)
-	IsBuiltin            bool      `json:"is_builtin"`
-	BasedOn              string    `json:"based_on,omitempty"`
-	Triggers             string    `json:"triggers,omitempty"` // JSON array of WorkflowTrigger
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID               string    `json:"id"`
+	Name             string    `json:"name"`
+	Description      string    `json:"description,omitempty"`
+	DefaultModel     string    `json:"default_model,omitempty"`
+	DefaultProvider  string    `json:"default_provider,omitempty"`
+	DefaultThinking  bool      `json:"default_thinking"`
+	CompletionAction string    `json:"completion_action,omitempty"` // "pr", "merge", "commit", "none", or "" (inherit)
+	TargetBranch     string    `json:"target_branch,omitempty"`     // Default PR target branch, or "" (inherit from config)
+	IsBuiltin        bool      `json:"is_builtin"`
+	BasedOn          string    `json:"based_on,omitempty"`
+	Triggers         string    `json:"triggers,omitempty"` // JSON array of WorkflowTrigger
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 
 	// Loaded relations (not stored directly)
 	Phases []*WorkflowPhase `json:"phases,omitempty"`
@@ -286,11 +286,11 @@ type WorkflowPhase struct {
 	SubAgentsOverride string `json:"sub_agents_override,omitempty"` // Override sub-agents (JSON array)
 
 	// Per-workflow overrides
-	ModelOverride    string `json:"model_override,omitempty"`    // Override agent's model for this workflow
-	ProviderOverride string `json:"provider_override,omitempty"` // Override provider for this workflow
+	ModelOverride         string `json:"model_override,omitempty"`    // Override agent's model for this workflow
+	ProviderOverride      string `json:"provider_override,omitempty"` // Override provider for this workflow
 	ThinkingOverride      *bool  `json:"thinking_override,omitempty"`
 	GateTypeOverride      string `json:"gate_type_override,omitempty"`
-	Condition             string `json:"condition,omitempty"`              // JSON - conditional execution
+	Condition             string `json:"condition,omitempty"`               // JSON - conditional execution
 	QualityChecksOverride string `json:"quality_checks_override,omitempty"` // JSON array, NULL=use template, []=disable all
 
 	// Loop configuration (JSON) - defines iterative loop behavior
@@ -317,7 +317,7 @@ type WorkflowVariable struct {
 	WorkflowID      string `json:"workflow_id"`
 	Name            string `json:"name"`
 	Description     string `json:"description,omitempty"`
-	SourceType      string `json:"source_type"` // 'static', 'script', 'api', 'phase_output', 'env', 'prompt_fragment'
+	SourceType      string `json:"source_type"`   // 'static', 'script', 'api', 'phase_output', 'env', 'prompt_fragment'
 	SourceConfig    string `json:"source_config"` // JSON
 	Required        bool   `json:"required"`
 	DefaultValue    string `json:"default_value,omitempty"`
@@ -332,7 +332,7 @@ type WorkflowRun struct {
 	WorkflowID string `json:"workflow_id"`
 
 	// Context
-	ContextType string  `json:"context_type"` // 'task', 'branch', 'pr', 'standalone', 'tag'
+	ContextType string  `json:"context_type"`           // 'task', 'branch', 'pr', 'standalone', 'tag'
 	ContextData string  `json:"context_data,omitempty"` // JSON
 	TaskID      *string `json:"task_id,omitempty"`
 

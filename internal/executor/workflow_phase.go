@@ -241,7 +241,7 @@ func (we *WorkflowExecutor) executePhase(
 	// Update phase status
 	runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 	runPhase.StartedAt = timePtr(startTime)
-	if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
+	if err := we.saveWorkflowRunPhaseStrict(runPhase, "update phase status"); err != nil {
 		return result, fmt.Errorf("update phase status: %w", err)
 	}
 
@@ -260,10 +260,7 @@ func (we *WorkflowExecutor) executePhase(
 	if phase.LoopConfig != "" && rctx != nil {
 		loopCfg, err := db.ParseLoopConfig(phase.LoopConfig)
 		if err != nil {
-			we.logger.Warn("failed to parse loop config, using base template",
-				"phase", tmpl.ID,
-				"error", err,
-			)
+			return result, fmt.Errorf("parse loop config for phase %s: %w", tmpl.ID, err)
 		} else if loopCfg != nil && len(loopCfg.LoopTemplates) > 0 {
 			iteration := rctx.GetEffectiveReviewRound()
 			iterationTemplate := loopCfg.GetTemplateForIteration(iteration, tmpl.PromptPath)
@@ -328,8 +325,8 @@ func (we *WorkflowExecutor) executePhase(
 			runPhase.Status = result.Status
 			runPhase.Error = result.Error
 			runPhase.CompletedAt = timePtr(time.Now())
-			if saveErr := we.backend.SaveWorkflowRunPhase(runPhase); saveErr != nil {
-				we.logger.Warn("failed to save failed non-LLM phase state", "phase", tmpl.ID, "error", saveErr)
+			if saveErr := we.saveWorkflowRunPhaseStrict(runPhase, "save failed non-LLM phase state"); saveErr != nil {
+				return result, joinExecutionError(execErr, "save failed non-LLM phase state", saveErr)
 			}
 			if t != nil {
 				we.publisher.PhaseFailed(t.Id, tmpl.ID, execErr)
@@ -351,8 +348,8 @@ func (we *WorkflowExecutor) executePhase(
 		if result.Content != "" {
 			runPhase.Content = result.Content
 		}
-		if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
-			we.logger.Warn("failed to save non-LLM run phase", "error", err)
+		if err := we.saveWorkflowRunPhaseStrict(runPhase, "save non-LLM run phase"); err != nil {
+			return result, err
 		}
 
 		// Publish appropriate event
@@ -368,8 +365,8 @@ func (we *WorkflowExecutor) executePhase(
 		run.TotalCostUSD += result.CostUSD
 		run.TotalInputTokens += result.InputTokens
 		run.TotalOutputTokens += result.OutputTokens
-		if err := we.backend.SaveWorkflowRun(run); err != nil {
-			we.logger.Warn("failed to update run totals for non-LLM phase", "error", err)
+		if err := we.saveWorkflowRunStrict(run, "update run totals for non-LLM phase"); err != nil {
+			return result, err
 		}
 
 		// Update execution state if available
@@ -386,8 +383,8 @@ func (we *WorkflowExecutor) executePhase(
 				CacheReadInputTokens:     int32(result.CacheReadTokens),
 				TotalTokens:              int32(result.InputTokens + result.OutputTokens + result.CacheCreationTokens + result.CacheReadTokens),
 			})
-			if err := we.backend.SaveTask(we.task); err != nil {
-				we.logger.Warn("failed to save task execution state for non-LLM phase", "error", err)
+			if err := we.saveTaskStrict(we.task, "save task execution state for non-LLM phase"); err != nil {
+				return result, err
 			}
 		}
 
@@ -408,10 +405,15 @@ func (we *WorkflowExecutor) executePhase(
 	renderedPrompt := variable.RenderTemplate(promptContent, vars)
 
 	// Determine model (workflow phase override > template default > config default)
-	model := we.resolvePhaseModel(tmpl, phase)
+	model, err := we.resolvePhaseModel(tmpl, phase)
+	if err != nil {
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
+		result.Error = err.Error()
+		return result, err
+	}
 
-	// Resolve effective Claude configuration for this phase
-	claudeConfig, err := we.getEffectivePhaseRuntimeConfig(tmpl, phase)
+	// Resolve the effective runtime configuration for this phase.
+	runtimeConfig, err := we.getEffectivePhaseRuntimeConfig(tmpl, phase)
 	if err != nil {
 		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		result.Error = err.Error()
@@ -422,34 +424,36 @@ func (we *WorkflowExecutor) executePhase(
 	if rctx.TaskWeight != "" && we.globalDB != nil {
 		phaseAgents, err := LoadPhaseAgents(we.globalDB, tmpl.ID, rctx.TaskWeight, vars)
 		if err != nil {
-			we.logger.Warn("failed to load phase agents", "phase", tmpl.ID, "weight", rctx.TaskWeight, "error", err)
+			result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
+			result.Error = err.Error()
+			return result, fmt.Errorf("load phase agents for %s: %w", tmpl.ID, err)
 		} else if len(phaseAgents) > 0 {
-			if claudeConfig == nil {
-				claudeConfig = &PhaseRuntimeConfig{}
+			if runtimeConfig == nil {
+				runtimeConfig = &PhaseRuntimeConfig{}
 			}
-			if claudeConfig.Providers.Claude == nil {
-				claudeConfig.Providers.Claude = &llmkit.ClaudeRuntimeConfig{}
+			if runtimeConfig.Providers.Claude == nil {
+				runtimeConfig.Providers.Claude = &llmkit.ClaudeRuntimeConfig{}
 			}
-			if claudeConfig.Providers.Claude.InlineAgents == nil {
-				claudeConfig.Providers.Claude.InlineAgents = make(map[string]InlineAgentDef)
+			if runtimeConfig.Providers.Claude.InlineAgents == nil {
+				runtimeConfig.Providers.Claude.InlineAgents = make(map[string]InlineAgentDef)
 			}
-			maps.Copy(claudeConfig.Providers.Claude.InlineAgents, phaseAgents)
+			maps.Copy(runtimeConfig.Providers.Claude.InlineAgents, phaseAgents)
 			we.logger.Info("loaded phase agents", "phase", tmpl.ID, "weight", rctx.TaskWeight, "count", len(phaseAgents))
 		}
 	}
 
 	// Merge runtime MCP settings (headless mode, task-specific user-data-dir) into phase MCP config
 	// This applies orc config settings to MCP servers defined in phase templates
-	if claudeConfig != nil && len(claudeConfig.Shared.MCPServers) > 0 {
-		claudeConfig.Shared.MCPServers = MergeMCPConfigSettings(claudeConfig.Shared.MCPServers, rctx.TaskID, we.orcConfig)
+	if runtimeConfig != nil && len(runtimeConfig.Shared.MCPServers) > 0 {
+		runtimeConfig.Shared.MCPServers = MergeMCPConfigSettings(runtimeConfig.Shared.MCPServers, rctx.TaskID, we.orcConfig)
 	}
 
 	// Determine provider (workflow phase override > template > workflow default > config > "claude")
-	provider := we.resolvePhaseProvider(tmpl, phase)
-
-	// Validate provider is known (reject typos and unsupported providers)
-	if err := validateProvider(provider); err != nil {
-		return result, fmt.Errorf("execute phase %s: %w", tmpl.ID, err)
+	provider, err := we.resolvePhaseProvider(tmpl, phase)
+	if err != nil {
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
+		result.Error = err.Error()
+		return result, err
 	}
 
 	var preparedRuntime *llmkit.PreparedRuntime
@@ -462,7 +466,7 @@ func (we *WorkflowExecutor) executePhase(
 				"ORC_TASK_ID": rctx.TaskID,
 			},
 		}
-		preparedRuntime, err = PreparePhaseRuntime(ctx, provider, we.worktreePath, claudeConfig, baseCfg, we.globalDB, we.globalDB)
+		preparedRuntime, err = PreparePhaseRuntime(ctx, provider, we.worktreePath, runtimeConfig, baseCfg, we.globalDB, we.globalDB)
 		if err != nil {
 			result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 			result.Error = err.Error()
@@ -498,16 +502,16 @@ func (we *WorkflowExecutor) executePhase(
 		if runPhase.Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED.String() {
 			runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED.String()
 			runPhase.CompletedAt = timePtr(time.Now())
-			if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
-				we.logger.Warn("failed to update run phase status", "error", err)
+			if err := we.saveWorkflowRunPhaseStrict(runPhase, "update run phase status after crash recovery"); err != nil {
+				return result, err
 			}
 		}
 
 		// Complete the task state that wasn't saved before crash
 		if we.task != nil {
 			task.CompletePhaseProto(we.task.Execution, tmpl.ID, runPhase.CommitSHA)
-			if err := we.backend.SaveTask(we.task); err != nil {
-				we.logger.Warn("failed to save task execution state", "error", err)
+			if err := we.saveTaskStrict(we.task, "save task execution state after crash recovery"); err != nil {
+				return result, err
 			}
 		}
 
@@ -521,8 +525,8 @@ func (we *WorkflowExecutor) executePhase(
 
 	// Validate the resolved runtime config against llmkit's provider definition.
 	runtimeCfg := llmkit.RuntimeConfig{}
-	if claudeConfig != nil {
-		runtimeCfg = claudeConfig.ToLLMKit()
+	if runtimeConfig != nil {
+		runtimeCfg = runtimeConfig.ToLLMKit()
 	}
 	if err := llmkit.ValidateRuntimeConfig(provider, runtimeCfg); err != nil {
 		return result, fmt.Errorf("provider validation: %w", err)
@@ -542,7 +546,7 @@ func (we *WorkflowExecutor) executePhase(
 		ReviewRound:   rctx.ReviewRound, // For review phase: controls schema selection
 		PhaseTemplate: tmpl,
 		WorkflowPhase: phase,
-		RuntimeConfig:  claudeConfig,
+		RuntimeConfig: runtimeConfig,
 	}
 
 	// Record session metadata on task for monitoring (provider:model per phase)
@@ -580,8 +584,8 @@ func (we *WorkflowExecutor) executePhase(
 		runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		runPhase.Error = result.Error
 		runPhase.CompletedAt = timePtr(time.Now())
-		if saveErr := we.backend.SaveWorkflowRunPhase(runPhase); saveErr != nil {
-			we.logger.Warn("failed to save failed phase state", "phase", tmpl.ID, "error", saveErr)
+		if saveErr := we.saveWorkflowRunPhaseStrict(runPhase, "save failed phase state"); saveErr != nil {
+			return result, joinExecutionError(err, "save failed phase state", saveErr)
 		}
 		// Publish phase failed event for real-time UI updates
 		if t != nil {
@@ -694,8 +698,8 @@ func (we *WorkflowExecutor) executePhase(
 	if result.Content != "" {
 		runPhase.Content = result.Content
 	}
-	if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
-		we.logger.Warn("failed to save run phase", "error", err)
+	if err := we.saveWorkflowRunPhaseStrict(runPhase, "save run phase"); err != nil {
+		return result, err
 	}
 
 	// Publish phase complete event for real-time UI updates
@@ -709,13 +713,13 @@ func (we *WorkflowExecutor) executePhase(
 	run.TotalCostUSD += result.CostUSD
 	run.TotalInputTokens += result.InputTokens
 	run.TotalOutputTokens += result.OutputTokens
-	if err := we.backend.SaveWorkflowRun(run); err != nil {
-		we.logger.Warn("failed to update run totals", "error", err)
+	if err := we.saveWorkflowRunStrict(run, "update run totals"); err != nil {
+		return result, err
 	}
 
 	// Record cost to global database for cross-project analytics
-	phaseModel := we.resolvePhaseModel(tmpl, phase)
-	phaseProvider := we.resolvePhaseProvider(tmpl, phase)
+	phaseModel := model
+	phaseProvider := provider
 	we.recordCostToGlobal(ctx, t, tmpl.ID, result, phaseModel, phaseProvider, time.Since(startTime))
 
 	// Update execution state if available (Task-centric approach)
@@ -743,8 +747,8 @@ func (we *WorkflowExecutor) executePhase(
 			currentPhase = *we.task.CurrentPhase
 		}
 		task.AddCostProto(we.task.Execution, currentPhase, result.CostUSD)
-		if err := we.backend.SaveTask(we.task); err != nil {
-			we.logger.Warn("failed to save task execution state", "error", err)
+		if err := we.saveTaskStrict(we.task, "save task execution state"); err != nil {
+			return result, err
 		}
 	}
 
@@ -764,7 +768,9 @@ func (we *WorkflowExecutor) executeWithProvider(ctx context.Context, cfg PhaseEx
 	if err != nil {
 		return result, fmt.Errorf("%s prepare: %w", adapter.Name(), err)
 	}
-	we.clearRetryStateForFreshPhaseStart(cfg.PhaseID, pctx.ShouldResume)
+	if err := we.clearRetryStateForFreshPhaseStart(cfg.PhaseID, pctx.ShouldResume); err != nil {
+		return result, err
+	}
 	result.SessionID = pctx.SessionID
 
 	// 2. Create or inject TurnExecutor
@@ -813,7 +819,7 @@ func (we *WorkflowExecutor) executeWithProvider(ctx context.Context, cfg PhaseEx
 
 			// Provider-specific post-turn (Codex: persist thread_id)
 			if postErr := adapter.PostTurn(currentTurn, pctx, &cfg, we); postErr != nil {
-				we.logger.Warn("post-turn failed", "provider", adapter.Name(), "error", postErr)
+				return result, fmt.Errorf("%s post-turn: %w", adapter.Name(), postErr)
 			}
 
 			// Token accumulation — uniform, all fields, all providers
@@ -905,24 +911,21 @@ func (we *WorkflowExecutor) executeWithProvider(ctx context.Context, cfg PhaseEx
 	return result, fmt.Errorf("max orc retries (%d) reached without completion (%s)", MaxOrcRetries, adapter.Name())
 }
 
-func (we *WorkflowExecutor) clearRetryStateForFreshPhaseStart(phaseID string, resumed bool) {
+func (we *WorkflowExecutor) clearRetryStateForFreshPhaseStart(phaseID string, resumed bool) error {
 	if resumed || we.task == nil || !shouldStartFreshRetryPhase(we.task, phaseID) {
-		return
+		return nil
 	}
 
 	task.ClearRetryState(we.task)
-	if err := we.backend.SaveTask(we.task); err != nil {
-		we.logger.Warn("failed to clear retry state for fresh phase start",
-			"phase", phaseID,
-			"error", err,
-		)
-		return
+	if err := we.saveTaskStrict(we.task, "clear retry state for fresh phase start"); err != nil {
+		return err
 	}
 
 	we.logger.Info("cleared retry state after starting fresh retry phase",
 		"task", we.task.Id,
 		"phase", phaseID,
 	)
+	return nil
 }
 
 // updatePhaseIterations persists the current iteration count for real-time monitoring.
@@ -1026,97 +1029,6 @@ func (we *WorkflowExecutor) loadSystemPromptFile(path string) (string, error) {
 	return string(content), nil
 }
 
-// resolveExecutorAgent resolves the executor agent for a phase.
-// Priority: workflow_phases.agent_override > phase_templates.agent_id
-// Returns nil if no agent is configured (agents are optional during transition period).
-func (we *WorkflowExecutor) resolveExecutorAgent(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) *db.Agent {
-	// 1. Check workflow_phases.agent_override (per-workflow override)
-	if phase.AgentOverride != "" {
-		agent, err := we.projectDB.GetAgent(phase.AgentOverride)
-		if err != nil {
-			we.logger.Warn("failed to load agent override",
-				"agent_id", phase.AgentOverride,
-				"phase", tmpl.ID,
-				"error", err,
-			)
-			return nil
-		}
-		return agent
-	}
-
-	// 2. Use phase_templates.agent_id (phase template default)
-	if tmpl.AgentID != "" {
-		agent, err := we.projectDB.GetAgent(tmpl.AgentID)
-		if err != nil {
-			we.logger.Warn("failed to load phase agent",
-				"agent_id", tmpl.AgentID,
-				"phase", tmpl.ID,
-				"error", err,
-			)
-			return nil
-		}
-		return agent
-	}
-
-	// No agent configured - caller should use fallback defaults
-	return nil
-}
-
-// resolvePhaseModel determines which model to use for a phase.
-// Priority: workflow phase override > workflow default_model > executor agent model > config default
-// If the model string contains a provider prefix (e.g., "codex:gpt-5"), the prefix is stripped
-// and only the model name is returned (e.g., "gpt-5"). Provider extraction is handled separately
-// by resolvePhaseProvider.
-func (we *WorkflowExecutor) resolvePhaseModel(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) string {
-	// Workflow phase override takes precedence (per-workflow customization)
-	if phase.ModelOverride != "" {
-		if _, m := ParseProviderModel(phase.ModelOverride); m != "" {
-			return m
-		}
-		return phase.ModelOverride
-	}
-
-	// Workflow default_model (workflow-level default)
-	if we.wf != nil && we.wf.DefaultModel != "" {
-		if _, m := ParseProviderModel(we.wf.DefaultModel); m != "" {
-			return m
-		}
-		return we.wf.DefaultModel
-	}
-
-	// Executor agent model
-	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.Model != "" {
-		if _, m := ParseProviderModel(agent.Model); m != "" {
-			return m
-		}
-		return agent.Model
-	}
-
-	// Provider-aware model resolution.
-	// Resolve provider first — codex-family providers should NOT inherit the global
-	// config model (which is typically a Claude model like "opus").
-	provider := we.resolvePhaseProvider(tmpl, phase)
-	if isCodexFamilyProvider(provider) {
-		if m := providerDefaultModel(provider); m != "" {
-			return m
-		}
-	}
-
-	// Config default model (applies to primary provider, typically Claude)
-	if we.orcConfig != nil && we.orcConfig.Model != "" {
-		if _, m := ParseProviderModel(we.orcConfig.Model); m != "" {
-			return m
-		}
-		return we.orcConfig.Model
-	}
-
-	// Ultimate fallback
-	if m := providerDefaultModel(provider); m != "" {
-		return m
-	}
-	return "opus"
-}
-
 // shouldUseThinking determines if extended thinking should be enabled.
 // Resolution chain:
 // 1. Phase ThinkingOverride (highest priority)
@@ -1207,14 +1119,19 @@ func (we *WorkflowExecutor) executePhaseWithTimeout(
 	// Update task.CurrentPhase BEFORE phase execution begins (SC-1, SC-3).
 	// This ensures `orc status` can read the current phase directly from the task record.
 	if t != nil {
-		provider := we.resolvePhaseProvider(tmpl, phase)
-		model := we.resolvePhaseModel(tmpl, phase)
+		provider, err := we.resolvePhaseProvider(tmpl, phase)
+		if err != nil {
+			return PhaseResult{}, err
+		}
+		model, err := we.resolvePhaseModel(tmpl, phase)
+		if err != nil {
+			return PhaseResult{}, err
+		}
 		task.SetCurrentPhaseProto(t, tmpl.ID)
 		task.StartPhaseProto(t.Execution, tmpl.ID)
 		setTaskSessionMetadata(t, tmpl.ID, provider, model)
-		if err := we.backend.SaveTask(t); err != nil {
-			// Non-fatal: workflow run still tracks the phase. Log and continue.
-			we.logger.Warn("failed to save task phase start", "task", t.Id, "phase", tmpl.ID, "error", err)
+		if err := we.saveTaskStrict(t, fmt.Sprintf("save task phase start for %s", tmpl.ID)); err != nil {
+			return PhaseResult{}, err
 		}
 	}
 
@@ -1381,87 +1298,4 @@ func (we *WorkflowExecutor) runQualityChecks(ctx context.Context, cfg PhaseExecu
 	)
 
 	return runner.Run(ctx)
-}
-
-// getEffectivePhaseRuntimeConfig resolves the effective runtime configuration for a phase.
-// Priority order:
-//  1. executor agent runtime_config (base)
-//  2. phase_templates.runtime_config (template default)
-//  3. workflow_phases.runtime_config_override (per-workflow override)
-//
-// System prompt precedence is:
-//  1. executor_agent.system_prompt
-//  2. runtime_config.shared.system_prompt
-func (we *WorkflowExecutor) getEffectivePhaseRuntimeConfig(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) (*PhaseRuntimeConfig, error) {
-	var cfg *PhaseRuntimeConfig
-
-	// 1. Load executor agent's RuntimeConfig as base
-	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.RuntimeConfig != "" {
-		base, err := ParsePhaseRuntimeConfig(agent.RuntimeConfig)
-		if err != nil {
-			return nil, fmt.Errorf("parse agent runtime_config for %s: %w", agent.ID, err)
-		} else if base != nil {
-			cfg = base
-		}
-	}
-
-	// 2. Merge template's runtime_config (between agent and workflow override)
-	if tmpl != nil && tmpl.RuntimeConfig != "" {
-		tmplCfg, err := ParsePhaseRuntimeConfig(tmpl.RuntimeConfig)
-		if err != nil {
-			return nil, fmt.Errorf("parse template runtime_config for %s: %w", tmpl.ID, err)
-		} else if tmplCfg != nil {
-			if cfg == nil {
-				cfg = tmplCfg
-			} else {
-				cfg = cfg.Merge(tmplCfg)
-			}
-		}
-	}
-
-	// 3. Merge workflow phase override (can override agent + template config)
-	if phase != nil && phase.RuntimeConfigOverride != "" {
-		override, err := ParsePhaseRuntimeConfig(phase.RuntimeConfigOverride)
-		if err != nil {
-			return nil, fmt.Errorf("parse workflow phase runtime_config_override for %s: %w", phase.PhaseTemplateID, err)
-		} else if override != nil {
-			if cfg == nil {
-				cfg = override
-			} else {
-				cfg = cfg.Merge(override)
-			}
-		}
-	}
-
-	// Ensure we have a config to set system prompt
-	if cfg == nil {
-		cfg = &PhaseRuntimeConfig{}
-	}
-
-	// 4. Resolve system prompt (DB-first approach).
-	// Priority: executor_agent.system_prompt (DB) > runtime_config.shared.system_prompt.
-	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.SystemPrompt != "" {
-		cfg.Shared.SystemPrompt = agent.SystemPrompt
-	}
-
-	// Return nil if config is empty (no special configuration)
-	if cfg.IsEmpty() {
-		return nil, nil
-	}
-
-	return cfg, nil
-}
-
-// setTaskSessionMetadata records session metadata on the task for monitoring.
-// Stores provider and model as task-level metadata keyed by phase ID since
-// PhaseState does not have a metadata field.
-func setTaskSessionMetadata(t *orcv1.Task, phaseID, provider, model string) {
-	if t == nil {
-		return
-	}
-	if t.Metadata == nil {
-		t.Metadata = make(map[string]string)
-	}
-	t.Metadata["phase:"+phaseID+":provider"] = provider
-	t.Metadata["phase:"+phaseID+":model"] = model
 }

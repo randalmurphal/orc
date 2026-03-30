@@ -106,6 +106,18 @@ func TestValidateProvider(t *testing.T) {
 	}
 }
 
+func TestValidateProvider_RejectsFutureLLMKitProvidersUntilOrcAdoptsThem(t *testing.T) {
+	const provider = "future-test-provider"
+	llmkit.RegisterProviderDefinition(llmkit.ProviderDefinition{
+		Name:      provider,
+		Supported: true,
+	})
+
+	if err := validateProvider(provider); err == nil {
+		t.Fatalf("validateProvider(%q) should reject providers not explicitly adopted by orc", provider)
+	}
+}
+
 func TestValidateProviderCapabilities(t *testing.T) {
 	claudeCfg := llmkit.RuntimeConfig{
 		Providers: llmkit.RuntimeProviderConfig{

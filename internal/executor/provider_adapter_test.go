@@ -133,7 +133,9 @@ func TestClearRetryStateForFreshPhaseStart_ClearsMetadataOnFreshStart(t *testing
 		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 
-	we.clearRetryStateForFreshPhaseStart("implement_codex", false)
+	if err := we.clearRetryStateForFreshPhaseStart("implement_codex", false); err != nil {
+		t.Fatalf("clearRetryStateForFreshPhaseStart(): %v", err)
+	}
 
 	if rs := task.GetRetryState(tsk); rs != nil {
 		t.Fatalf("retry state should be cleared after fresh retry start, got %+v", rs)
@@ -164,7 +166,9 @@ func TestClearRetryStateForFreshPhaseStart_PreservesMetadataOnResume(t *testing.
 		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 
-	we.clearRetryStateForFreshPhaseStart("implement_codex", true)
+	if err := we.clearRetryStateForFreshPhaseStart("implement_codex", true); err != nil {
+		t.Fatalf("clearRetryStateForFreshPhaseStart(): %v", err)
+	}
 
 	if rs := task.GetRetryState(tsk); rs == nil {
 		t.Fatal("retry state should remain while phase is resuming")

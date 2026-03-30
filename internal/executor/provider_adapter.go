@@ -127,8 +127,8 @@ func (a *claudeAdapter) PrepareExecution(cfg *PhaseExecutionConfig, we *Workflow
 			return nil, fmt.Errorf("marshal claude session metadata: %w", err)
 		}
 		task.SetPhaseSessionMetadataProto(we.task.Execution, cfg.PhaseID, sessionMetadata)
-		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
-			return nil, fmt.Errorf("persist claude session metadata for phase %s: %w", cfg.PhaseID, saveErr)
+		if saveErr := we.saveTaskStrict(we.task, fmt.Sprintf("persist claude session metadata for phase %s", cfg.PhaseID)); saveErr != nil {
+			return nil, saveErr
 		}
 	}
 
@@ -265,8 +265,8 @@ func (a *codexAdapter) PostTurn(turnResult *TurnResult, _ *ProviderExecContext, 
 			return fmt.Errorf("marshal codex session metadata: %w", err)
 		}
 		task.SetPhaseSessionMetadataProto(we.task.Execution, cfg.PhaseID, sessionMetadata)
-		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
-			return fmt.Errorf("persist codex session metadata for phase %s: %w", cfg.PhaseID, saveErr)
+		if saveErr := we.saveTaskStrict(we.task, fmt.Sprintf("persist codex session metadata for phase %s", cfg.PhaseID)); saveErr != nil {
+			return saveErr
 		}
 	}
 	return nil

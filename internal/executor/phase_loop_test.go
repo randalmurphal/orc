@@ -836,10 +836,10 @@ func TestPhaseLoop_InvalidCondition(t *testing.T) {
 		Prompt:      "test invalid condition",
 	})
 	if err == nil {
-		t.Fatal("Run() should block on invalid loop condition for a blocked phase")
+		t.Fatal("Run() should fail on invalid loop condition")
 	}
-	if !errors.Is(err, ErrTaskBlocked) {
-		t.Fatalf("Run() error = %v, want ErrTaskBlocked", err)
+	if !strings.Contains(err.Error(), "invalid loop condition for phase review") {
+		t.Fatalf("Run() error = %v, want invalid loop condition failure", err)
 	}
 
 	// Verify NO loop happened (2 calls: implement + review)
