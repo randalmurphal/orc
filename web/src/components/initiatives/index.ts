@@ -22,3 +22,5 @@ export {
 // Initiative views
 export { InitiativesView } from './InitiativesView';
 export type { InitiativesViewProps } from './InitiativesView';
+export { DependencyGraph } from './DependencyGraph';
+export * from './detail';

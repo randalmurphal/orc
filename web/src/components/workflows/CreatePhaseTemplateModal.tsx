@@ -11,25 +11,26 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { create } from '@bufbuild/protobuf';
 import { Modal } from '@/components/overlays/Modal';
 import { Button, Icon } from '@/components/ui';
-import { workflowClient, configClient, mcpClient } from '@/lib/client';
+import { workflowClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 import type { PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
-import type { Agent, Hook, Skill } from '@/gen/orc/v1/config_pb';
-import { GetMCPServerRequestSchema, type MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
 import { GateType, PromptSource } from '@/gen/orc/v1/workflow_pb';
-import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
-import { LibraryPicker } from '@/components/core/LibraryPicker';
-import { TagInput } from '@/components/core/TagInput';
-import { KeyValueEditor } from '@/components/core/KeyValueEditor';
 import {
 	parseRuntimeConfig,
 	serializeRuntimeConfig,
 	hydrateSelectedMCPServers,
 	type HookDefinition,
 } from '@/lib/runtimeConfigUtils';
+import { GATE_TYPE_OPTIONS, slugify } from './phase-template-modal/constants';
+import { PromptEditor } from './phase-template-modal/PromptEditor';
+import { RuntimeConfigSections } from './phase-template-modal/RuntimeConfigSections';
+import { VariableTagInput } from './phase-template-modal/VariableTagInput';
+import {
+	fetchMCPServerDefinition,
+	usePhaseTemplateLibraries,
+} from './phase-template-modal/usePhaseTemplateLibraries';
 import './CreatePhaseTemplateModal.css';
 
 export interface CreatePhaseTemplateModalProps {
@@ -39,240 +40,6 @@ export interface CreatePhaseTemplateModalProps {
 	onClose: () => void;
 	/** Callback when template is successfully created */
 	onCreated: (template: PhaseTemplate) => void;
-}
-
-const GATE_TYPE_OPTIONS = [
-	{ value: GateType.AUTO, label: 'Auto' },
-	{ value: GateType.HUMAN, label: 'Human' },
-	{ value: GateType.SKIP, label: 'Skip' },
-];
-
-/** Common variable suggestions for input variables */
-const VARIABLE_SUGGESTIONS = [
-	'SPEC_CONTENT',
-	'PROJECT_ROOT',
-	'TASK_DESCRIPTION',
-	'WORKTREE_PATH',
-	'INITIATIVE_VISION',
-	'INITIATIVE_DECISIONS',
-	'RETRY_ATTEMPT',
-	'RETRY_FROM_PHASE',
-	'RETRY_REASON',
-	'RETRY_FEEDBACK',
-	'TDD_TEST_CONTENT',
-	'BREAKDOWN_CONTENT',
-];
-
-/** Convert a name to a URL-friendly slug */
-function slugify(name: string): string {
-	return name
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '')
-		.replace(/-+/g, '-');
-}
-
-/**
- * VariableTagInput - Tag input with variable suggestions dropdown
- */
-interface VariableTagInputProps {
-	tags: string[];
-	onChange: (tags: string[]) => void;
-	suggestions?: string[];
-	placeholder?: string;
-}
-
-function VariableTagInput({ tags, onChange, suggestions = VARIABLE_SUGGESTIONS, placeholder }: VariableTagInputProps) {
-	const [inputValue, setInputValue] = useState('');
-	const [showSuggestions, setShowSuggestions] = useState(false);
-	const inputRef = useRef<HTMLInputElement>(null);
-
-	const filteredSuggestions = suggestions.filter(
-		(s) => !tags.includes(s) && s.toLowerCase().includes(inputValue.toLowerCase())
-	);
-
-	const addTag = useCallback(
-		(value: string) => {
-			const trimmed = value.trim().toUpperCase();
-			if (!trimmed) return;
-			if (tags.includes(trimmed)) return;
-			onChange([...tags, trimmed]);
-			setInputValue('');
-		},
-		[tags, onChange]
-	);
-
-	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent<HTMLInputElement>) => {
-			if (e.key === 'Enter') {
-				e.preventDefault();
-				addTag(inputValue);
-			} else if (e.key === 'Backspace' && inputValue === '' && tags.length > 0) {
-				onChange(tags.slice(0, -1));
-			} else if (e.key === 'Escape') {
-				setShowSuggestions(false);
-			}
-		},
-		[inputValue, tags, onChange, addTag]
-	);
-
-	const handleInputChange = useCallback(
-		(e: React.ChangeEvent<HTMLInputElement>) => {
-			setInputValue(e.target.value);
-			setShowSuggestions(true);
-		},
-		[]
-	);
-
-	const removeTag = useCallback(
-		(index: number) => {
-			onChange(tags.filter((_, i) => i !== index));
-		},
-		[tags, onChange]
-	);
-
-	const handleSuggestionClick = useCallback(
-		(suggestion: string) => {
-			addTag(suggestion);
-			setShowSuggestions(false);
-			inputRef.current?.focus();
-		},
-		[addTag]
-	);
-
-	return (
-		<div className="variable-tag-input">
-			<div className="variable-tag-input__chips">
-				{tags.map((tag, index) => (
-					<span key={tag} className="variable-tag-input__chip" data-tag={tag}>
-						<span className="label-text">{tag}</span>
-						<button
-							type="button"
-							className="variable-tag-input__chip-remove"
-							onClick={() => removeTag(index)}
-							aria-label={`Remove ${tag}`}
-						>
-							×
-						</button>
-					</span>
-				))}
-			</div>
-			<div className="variable-tag-input__input-wrapper">
-				<input
-					ref={inputRef}
-					type="text"
-					className="variable-tag-input__input"
-					value={inputValue}
-					onChange={handleInputChange}
-					onKeyDown={handleKeyDown}
-					onFocus={() => setShowSuggestions(true)}
-					onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-					placeholder={placeholder || 'Add variable...'}
-					aria-label="Input Variables"
-				/>
-				{showSuggestions && filteredSuggestions.length > 0 && (
-					<ul className="variable-tag-input__suggestions" role="listbox">
-						{filteredSuggestions.map((suggestion) => (
-							<li
-								key={suggestion}
-								role="option"
-								aria-selected={false}
-								className="variable-tag-input__suggestion"
-								onMouseDown={(e) => {
-									e.preventDefault();
-									handleSuggestionClick(suggestion);
-								}}
-							>
-								{suggestion}
-							</li>
-						))}
-					</ul>
-				)}
-			</div>
-		</div>
-	);
-}
-
-/**
- * PromptEditor - Textarea with {{VARIABLE}} highlighting overlay
- */
-interface PromptEditorProps {
-	value: string;
-	onChange: (value: string) => void;
-	placeholder?: string;
-}
-
-function PromptEditor({ value, onChange, placeholder }: PromptEditorProps) {
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
-	const highlightRef = useRef<HTMLDivElement>(null);
-
-	// Sync scroll between textarea and highlight overlay
-	const handleScroll = useCallback(() => {
-		if (textareaRef.current && highlightRef.current) {
-			highlightRef.current.scrollTop = textareaRef.current.scrollTop;
-			highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
-		}
-	}, []);
-
-	// Render text with highlighted variables
-	const renderHighlightedText = useCallback((text: string) => {
-		const parts: React.ReactNode[] = [];
-		// Match {{VARIABLE_NAME}} patterns
-		const regex = /(\{\{[A-Z_][A-Z0-9_]*\}\})/g;
-		let lastIndex = 0;
-		let match;
-
-		while ((match = regex.exec(text)) !== null) {
-			// Add text before the match
-			if (match.index > lastIndex) {
-				parts.push(
-					<span key={`text-${lastIndex}`} className="prompt-editor-text">
-						{text.slice(lastIndex, match.index)}
-					</span>
-				);
-			}
-			// Add the highlighted variable
-			parts.push(
-				<span key={`var-${match.index}`} className="prompt-editor-highlight variable-highlight" data-variable-highlight>
-					{match[1]}
-				</span>
-			);
-			lastIndex = regex.lastIndex;
-		}
-
-		// Add remaining text
-		if (lastIndex < text.length) {
-			parts.push(
-				<span key={`text-${lastIndex}`} className="prompt-editor-text">
-					{text.slice(lastIndex)}
-				</span>
-			);
-		}
-
-		return parts;
-	}, []);
-
-	return (
-		<div className="prompt-editor">
-			<div
-				ref={highlightRef}
-				className="prompt-editor__highlight-overlay"
-				aria-hidden="true"
-			>
-				{renderHighlightedText(value)}
-			</div>
-			<textarea
-				ref={textareaRef}
-				className="prompt-editor__textarea"
-				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				onScroll={handleScroll}
-				placeholder={placeholder || 'Enter your prompt template...'}
-				aria-label="Prompt Content"
-				rows={8}
-			/>
-		</div>
-	);
 }
 
 /**
@@ -322,19 +89,19 @@ export function CreatePhaseTemplateModal({
 	const jsonOverrideActiveRef = useRef(false);
 
 	// Library data
-	const [hooks, setHooks] = useState<Hook[]>([]);
-	const [skills, setSkills] = useState<Skill[]>([]);
-	const [mcpServers, setMcpServers] = useState<MCPServerInfo[]>([]);
-	const [hooksError, setHooksError] = useState('');
-	const [skillsError, setSkillsError] = useState('');
-	const [mcpError, setMcpError] = useState('');
-	const [hooksLoading, setHooksLoading] = useState(true);
-	const [skillsLoading, setSkillsLoading] = useState(true);
-	const [mcpLoading, setMcpLoading] = useState(true);
-
-	// Agents list
-	const [agents, setAgents] = useState<Agent[]>([]);
-	const [agentsLoading, setAgentsLoading] = useState(true);
+	const {
+		agents,
+		agentsLoading,
+		hooks,
+		hooksError,
+		hooksLoading,
+		skills,
+		skillsError,
+		skillsLoading,
+		mcpServers,
+		mcpError,
+		mcpLoading,
+	} = usePhaseTemplateLibraries();
 
 	// Saving state
 	const [saving, setSaving] = useState(false);
@@ -367,58 +134,6 @@ export function CreatePhaseTemplateModal({
 			jsonOverrideActiveRef.current = false;
 		}
 	}, [open]);
-
-	// Fetch agents, hooks, skills, MCP servers on mount
-	useEffect(() => {
-		let mounted = true;
-
-		configClient.listAgents({}).then((response) => {
-			if (mounted) {
-				setAgents(response.agents);
-				setAgentsLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) setAgentsLoading(false);
-		});
-
-		configClient.listHooks({}).then((response) => {
-			if (mounted) {
-				setHooks(response.hooks);
-				setHooksLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) {
-				setHooksError('Failed to load hooks');
-				setHooksLoading(false);
-			}
-		});
-
-		configClient.listSkills({}).then((response) => {
-			if (mounted) {
-				setSkills(response.skills);
-				setSkillsLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) {
-				setSkillsError('Failed to load skills');
-				setSkillsLoading(false);
-			}
-		});
-
-		mcpClient.listMCPServers({}).then((response) => {
-			if (mounted) {
-				setMcpServers(response.servers);
-				setMcpLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) {
-				setMcpError('Failed to load MCP servers');
-				setMcpLoading(false);
-			}
-		});
-
-		return () => { mounted = false; };
-	}, []);
 
 	// Auto-generate ID from name (unless manually edited)
 	const handleNameChange = useCallback((newName: string) => {
@@ -463,23 +178,7 @@ export function CreatePhaseTemplateModal({
 		hydrateSelectedMCPServers(
 			selectedMCPServers,
 			mcpServerData,
-			async (name) => {
-				const response = await mcpClient.getMCPServer(
-					create(GetMCPServerRequestSchema, { name }),
-				);
-				if (!response.server) {
-					return undefined;
-				}
-				return {
-					type: response.server.type,
-					command: response.server.command,
-					args: response.server.args,
-					env: response.server.env,
-					url: response.server.url,
-					headers: response.server.headers,
-					disabled: response.server.disabled,
-				};
-			},
+			fetchMCPServerDefinition,
 		).then((hydrated) => {
 			if (mounted) {
 				setMcpServerData(hydrated);
@@ -532,23 +231,7 @@ export function CreatePhaseTemplateModal({
 			const hydratedMcpServerData = await hydrateSelectedMCPServers(
 				selectedMCPServers,
 				mcpServerData,
-				async (name) => {
-					const response = await mcpClient.getMCPServer(
-						create(GetMCPServerRequestSchema, { name }),
-					);
-					if (!response.server) {
-						return undefined;
-					}
-					return {
-						type: response.server.type,
-						command: response.server.command,
-						args: response.server.args,
-						env: response.server.env,
-						url: response.server.url,
-						headers: response.server.headers,
-						disabled: response.server.disabled,
-					};
-				},
+				fetchMCPServerDefinition,
 			);
 			const runtimeConfig = serializeRuntimeConfig({
 				hooks: selectedHooks,
@@ -857,99 +540,58 @@ export function CreatePhaseTemplateModal({
 				<div className="create-template-section">
 					<h3 className="create-template-section-title">Runtime Config</h3>
 
-					<CollapsibleSettingsSection title="Hooks" badgeCount={selectedHooks.length} badgeText={String(selectedHooks.length)}>
-						<LibraryPicker
-							type="hooks"
-							items={hooks}
-							selectedNames={selectedHooks}
-							onSelectionChange={(names) => {
-								setSelectedHooks(names);
-								jsonOverrideActiveRef.current = false;
-							}}
-							error={hooksError}
-							loading={hooksLoading}
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="MCP Servers" badgeCount={selectedMCPServers.length} badgeText={String(selectedMCPServers.length)}>
-						<LibraryPicker
-							type="mcpServers"
-							items={mcpServers}
-							selectedNames={selectedMCPServers}
-							onSelectionChange={(names) => {
-								setSelectedMCPServers(names);
-								jsonOverrideActiveRef.current = false;
-							}}
-							error={mcpError}
-							loading={mcpLoading}
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="Skills" badgeCount={selectedSkills.length} badgeText={String(selectedSkills.length)}>
-						<LibraryPicker
-							type="skills"
-							items={skills}
-							selectedNames={selectedSkills}
-							onSelectionChange={(names) => {
-								setSelectedSkills(names);
-								jsonOverrideActiveRef.current = false;
-							}}
-							error={skillsError}
-							loading={skillsLoading}
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="Allowed Tools" badgeCount={allowedTools.length} badgeText={String(allowedTools.length)}>
-						<TagInput
-							tags={allowedTools}
-							onChange={(tags) => {
-								setAllowedTools(tags);
-								jsonOverrideActiveRef.current = false;
-							}}
-							placeholder="Add tool name..."
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="Disallowed Tools" badgeCount={disallowedTools.length} badgeText={String(disallowedTools.length)}>
-						<TagInput
-							tags={disallowedTools}
-							onChange={(tags) => {
-								setDisallowedTools(tags);
-								jsonOverrideActiveRef.current = false;
-							}}
-							placeholder="Add tool name..."
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="Env Vars" badgeCount={Object.keys(envVars).length} badgeText={String(Object.keys(envVars).length)}>
-						<KeyValueEditor
-							entries={envVars}
-							onChange={(entries) => {
-								setEnvVars(entries);
-								jsonOverrideActiveRef.current = false;
-							}}
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="JSON Override" badgeCount={0}>
-						<div className="create-template-json-override">
-							<textarea
-								className={`create-template-json-textarea ${jsonError ? 'create-template-json-textarea--error' : ''}`}
-								value={jsonOverride}
-								onChange={(e) => {
-									setJsonOverride(e.target.value);
-									jsonOverrideActiveRef.current = true;
-									setJsonError('');
-								}}
-								onBlur={handleJsonBlur}
-								rows={8}
-								aria-label="JSON override"
-							/>
-							{jsonError && (
-								<span className="create-template-json-error">{jsonError}</span>
-							)}
-						</div>
-					</CollapsibleSettingsSection>
+					<RuntimeConfigSections
+						selectedHooks={selectedHooks}
+						onSelectedHooksChange={(names) => {
+							setSelectedHooks(names);
+							jsonOverrideActiveRef.current = false;
+						}}
+						selectedMcpServers={selectedMCPServers}
+						onSelectedMcpServersChange={(names) => {
+							setSelectedMCPServers(names);
+							jsonOverrideActiveRef.current = false;
+						}}
+						selectedSkills={selectedSkills}
+						onSelectedSkillsChange={(names) => {
+							setSelectedSkills(names);
+							jsonOverrideActiveRef.current = false;
+						}}
+						allowedTools={allowedTools}
+						onAllowedToolsChange={(tags) => {
+							setAllowedTools(tags);
+							jsonOverrideActiveRef.current = false;
+						}}
+						disallowedTools={disallowedTools}
+						onDisallowedToolsChange={(tags) => {
+							setDisallowedTools(tags);
+							jsonOverrideActiveRef.current = false;
+						}}
+						envVars={envVars}
+						onEnvVarsChange={(entries) => {
+							setEnvVars(entries);
+							jsonOverrideActiveRef.current = false;
+						}}
+						jsonOverride={jsonOverride}
+						onJsonOverrideChange={(value) => {
+							setJsonOverride(value);
+							jsonOverrideActiveRef.current = true;
+							setJsonError('');
+						}}
+						onJsonOverrideBlur={handleJsonBlur}
+						jsonError={jsonError}
+						hooks={hooks}
+						hooksError={hooksError}
+						hooksLoading={hooksLoading}
+						skills={skills}
+						skillsError={skillsError}
+						skillsLoading={skillsLoading}
+						mcpServers={mcpServers}
+						mcpError={mcpError}
+						mcpLoading={mcpLoading}
+						jsonWrapperClassName="create-template-json-override"
+						jsonTextareaClassName="create-template-json-textarea"
+						jsonErrorClassName="create-template-json-error"
+					/>
 				</div>
 
 				{/* Actions */}

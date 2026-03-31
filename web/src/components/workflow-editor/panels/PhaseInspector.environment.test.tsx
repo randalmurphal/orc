@@ -46,6 +46,16 @@ const mockListHooks = vi.fn().mockResolvedValue({ hooks: [] });
 const mockListSkills = vi.fn().mockResolvedValue({ skills: [] });
 const mockListMCPServers = vi.fn().mockResolvedValue({ servers: [] });
 const mockGetMCPServer = vi.fn();
+const phaseInspectorLibraryData = {
+	agents: [] as Agent[],
+	hooks: [] as unknown[],
+	skills: [] as Skill[],
+	mcpServers: [] as MCPServerInfo[],
+	agentsLoading: false,
+	hooksLoading: false,
+	skillsLoading: false,
+	mcpLoading: false,
+};
 
 vi.mock('@/lib/client', () => ({
 	workflowClient: {
@@ -60,6 +70,11 @@ vi.mock('@/lib/client', () => ({
 		listMCPServers: (...args: unknown[]) => mockListMCPServers(...args),
 		getMCPServer: (...args: unknown[]) => mockGetMCPServer(...args),
 	},
+}));
+
+vi.mock('./phase-inspector/hooks', () => ({
+	useMobileViewport: () => false,
+	usePhaseInspectorLibraryData: () => phaseInspectorLibraryData,
 }));
 
 // Import after mocks are set up
@@ -81,10 +96,14 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockListAgents.mockResolvedValue({ agents: [] });
-		mockListHooks.mockResolvedValue({ hooks: [] });
-		mockListSkills.mockResolvedValue({ skills: [] });
-		mockListMCPServers.mockResolvedValue({ servers: [] });
+		phaseInspectorLibraryData.agents = [];
+		phaseInspectorLibraryData.hooks = [];
+		phaseInspectorLibraryData.skills = [];
+		phaseInspectorLibraryData.mcpServers = [];
+		phaseInspectorLibraryData.agentsLoading = false;
+		phaseInspectorLibraryData.hooksLoading = false;
+		phaseInspectorLibraryData.skillsLoading = false;
+		phaseInspectorLibraryData.mcpLoading = false;
 		mockGetMCPServer.mockImplementation(async (request: { name?: string }) => ({
 			server: request.name === 'filesystem'
 				? { name: 'filesystem', type: 'stdio', command: 'npx @mcp/server-fs', args: [], env: {}, headers: {}, disabled: false }
@@ -114,7 +133,7 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 
 		it('reorders sub-agents when item is dragged to new position', async () => {
 			const phase = createPhaseWithSubAgents(['agent-1', 'agent-2', 'agent-3']);
-			mockListAgents.mockResolvedValue({ agents: mockAgents });
+			phaseInspectorLibraryData.agents = mockAgents;
 
 			const onWorkflowRefresh = vi.fn();
 
@@ -160,7 +179,7 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 
 		it('drag handles have data-testid for each sub-agent in editable mode', async () => {
 			const phase = createPhaseWithSubAgents(['agent-1', 'agent-2']);
-			mockListAgents.mockResolvedValue({ agents: mockAgents });
+			phaseInspectorLibraryData.agents = mockAgents;
 
 			render(
 				<PhaseInspector
@@ -197,7 +216,7 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 			const phase = createMockWorkflowPhase({
 				template: createMockPhaseTemplate({ name: 'implement' }),
 			});
-			mockListMCPServers.mockResolvedValue({ servers: mockMCPServers });
+			phaseInspectorLibraryData.mcpServers = mockMCPServers;
 
 			render(
 				<PhaseInspector
@@ -230,7 +249,7 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 			const phase = createMockWorkflowPhase({
 				template: createMockPhaseTemplate({ name: 'implement' }),
 			});
-			mockListMCPServers.mockResolvedValue({ servers: mockMCPServers });
+			phaseInspectorLibraryData.mcpServers = mockMCPServers;
 
 			render(
 				<PhaseInspector
@@ -275,7 +294,7 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 			const phase = createMockWorkflowPhase({
 				template: createMockPhaseTemplate({ name: 'implement' }),
 			});
-			mockListSkills.mockResolvedValue({ skills: mockSkills });
+			phaseInspectorLibraryData.skills = mockSkills;
 
 			render(
 				<PhaseInspector
@@ -304,7 +323,7 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 			const phase = createMockWorkflowPhase({
 				template: createMockPhaseTemplate({ name: 'implement' }),
 			});
-			mockListSkills.mockResolvedValue({ skills: mockSkills });
+			phaseInspectorLibraryData.skills = mockSkills;
 
 			render(
 				<PhaseInspector
@@ -371,9 +390,7 @@ describe('TASK-773: PhaseInspector Enhancements', () => {
 			const phase = createMockWorkflowPhase({
 				template: createMockPhaseTemplate({ name: 'implement' }),
 			});
-			mockListHooks.mockResolvedValue({
-				hooks: [createMockHook({ name: 'test-hook', eventType: 'PreToolUse' })],
-			});
+			phaseInspectorLibraryData.hooks = [createMockHook({ name: 'test-hook', eventType: 'PreToolUse' })];
 
 			render(
 				<PhaseInspector

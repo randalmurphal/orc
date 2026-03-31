@@ -30,6 +30,8 @@ export interface WorkflowDetailPanelProps {
 	onClose: () => void;
 	/** Callback when clone action is triggered */
 	onClone: (workflow: Workflow) => void;
+	/** Callback when edit action is triggered */
+	onEdit?: (workflow: Workflow) => void;
 	/** Callback when workflow is deleted */
 	onDeleted: (id: string) => void;
 }
@@ -110,6 +112,7 @@ export function WorkflowDetailPanel({
 	isOpen,
 	onClose,
 	onClone,
+	onEdit,
 	onDeleted,
 }: WorkflowDetailPanelProps) {
 	const [details, setDetails] = useState<WorkflowWithDetails | null>(null);
@@ -180,11 +183,9 @@ export function WorkflowDetailPanel({
 
 	const handleEdit = useCallback(() => {
 		if (workflow && !workflow.isBuiltin) {
-			window.dispatchEvent(
-				new CustomEvent('orc:edit-workflow', { detail: { workflow } })
-			);
+			onEdit?.(workflow);
 		}
-	}, [workflow]);
+	}, [onEdit, workflow]);
 
 	if (!workflow) {
 		return null;

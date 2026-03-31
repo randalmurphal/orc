@@ -50,12 +50,13 @@ export interface WorkflowCardProps {
 	source?: DefinitionSource;
 	onSelect?: (workflow: Workflow) => void;
 	onClone?: (workflow: Workflow) => void;
+	onEdit?: (workflow: Workflow) => void;
 }
 
 /**
  * WorkflowCard displays a workflow with its name, phase count, and actions.
  */
-export function WorkflowCard({ workflow, phaseCount, source, onSelect, onClone }: WorkflowCardProps) {
+export function WorkflowCard({ workflow, phaseCount, source, onSelect, onClone, onEdit }: WorkflowCardProps) {
 	const handleClick = () => {
 		onSelect?.(workflow);
 	};
@@ -67,9 +68,7 @@ export function WorkflowCard({ workflow, phaseCount, source, onSelect, onClone }
 
 	const handleEdit = (e: React.MouseEvent) => {
 		e.stopPropagation();
-		window.dispatchEvent(
-			new CustomEvent('orc:edit-workflow', { detail: { workflow } })
-		);
+		onEdit?.(workflow);
 	};
 
 	return (

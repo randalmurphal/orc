@@ -23,77 +23,25 @@ import { initiativeClient, taskClient } from '@/lib/client';
 import { timestampToDate } from '@/lib/time';
 import { useInitiativeStore, useCurrentProjectId } from '@/stores';
 import { useDocumentTitle } from '@/hooks';
-import { Icon, type IconName } from '@/components/ui/Icon';
+import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/overlays/Modal';
-import { DependencyGraph } from '@/components/initiative/DependencyGraph';
+import {
+	AddDecisionModal,
+	ArchiveInitiativeModal,
+	EditInitiativeModal,
+	getInitiativeEmoji,
+	InitiativeDecisionsSection,
+	InitiativeDependencyGraphSection,
+	InitiativeHeaderSection,
+	InitiativeKnowledgeSection,
+	InitiativeProgressSection,
+	InitiativeStatsSection,
+	InitiativeTasksSection,
+	LinkTaskModal,
+	stripLeadingEmoji,
+	type TaskFilter,
+} from '@/components/initiatives';
 import './InitiativeDetailPage.css';
-
-type TaskFilter = 'all' | 'completed' | 'running' | 'planned';
-
-// Map TaskStatus enum to display string for task cards
-function getTaskStatusDisplay(status: TaskStatus): string {
-	switch (status) {
-		case TaskStatus.COMPLETED:
-			return 'completed';
-		case TaskStatus.RUNNING:
-			return 'running';
-		case TaskStatus.BLOCKED:
-			return 'blocked';
-		case TaskStatus.PAUSED:
-			return 'paused';
-		case TaskStatus.FAILED:
-			return 'failed';
-		case TaskStatus.PLANNED:
-			return 'planned';
-		case TaskStatus.CREATED:
-			return 'created';
-		case TaskStatus.CLASSIFYING:
-			return 'classifying';
-		case TaskStatus.FINALIZING:
-			return 'finalizing';
-		case TaskStatus.CLOSED:
-			return 'closed';
-		default:
-			return 'pending';
-	}
-}
-
-// Map InitiativeStatus enum to display string
-function getInitiativeStatusDisplay(status: InitiativeStatus): string {
-	switch (status) {
-		case InitiativeStatus.DRAFT:
-			return 'draft';
-		case InitiativeStatus.ACTIVE:
-			return 'active';
-		case InitiativeStatus.COMPLETED:
-			return 'completed';
-		case InitiativeStatus.ARCHIVED:
-			return 'archived';
-		default:
-			return 'unknown';
-	}
-}
-
-/**
- * Extract first emoji from text or return default based on status
- */
-function extractEmoji(text: string, status?: InitiativeStatus): string {
-	const emojiMatch = text.match(/^(\p{Emoji})/u);
-	if (emojiMatch) return emojiMatch[1];
-
-	// Default emojis by status
-	switch (status) {
-		case InitiativeStatus.ACTIVE:
-			return '🚀';
-		case InitiativeStatus.COMPLETED:
-			return '✅';
-		case InitiativeStatus.ARCHIVED:
-			return '📦';
-		default:
-			return '📋';
-	}
-}
 
 export function InitiativeDetailPage() {
 	const { id } = useParams<{ id: string }>();
@@ -429,39 +377,6 @@ export function InitiativeDetailPage() {
 		}
 	}, [initiative, projectId, decisionText, decisionRationale, decisionBy, loadInitiative]);
 
-	const getStatusIcon = useCallback((status: TaskStatus) => {
-		switch (status) {
-			case TaskStatus.COMPLETED:
-				return 'check-circle';
-			case TaskStatus.RUNNING:
-				return 'play-circle';
-			case TaskStatus.FAILED:
-				return 'x-circle';
-			case TaskStatus.PAUSED:
-				return 'pause-circle';
-			case TaskStatus.BLOCKED:
-				return 'alert-circle';
-			default:
-				return 'circle';
-		}
-	}, []);
-
-	const getStatusClass = useCallback((status: TaskStatus) => {
-		switch (status) {
-			case TaskStatus.COMPLETED:
-				return 'status-success';
-			case TaskStatus.RUNNING:
-				return 'status-running';
-			case TaskStatus.FAILED:
-				return 'status-danger';
-			case TaskStatus.BLOCKED:
-			case TaskStatus.PAUSED:
-				return 'status-warning';
-			default:
-				return 'status-pending';
-		}
-	}, []);
-
 	const formatDate = useCallback((timestamp?: Timestamp) => {
 		const date = timestampToDate(timestamp);
 		if (!date) return 'Unknown date';
@@ -470,36 +385,6 @@ export function InitiativeDetailPage() {
 
 	const formatCost = useCallback((cost: number) => {
 		return `$${cost.toFixed(2)}`;
-	}, []);
-
-	const getNoteTypeIcon = useCallback((noteType: string): IconName => {
-		switch (noteType) {
-			case 'pattern':
-				return 'code';
-			case 'warning':
-				return 'alert-triangle';
-			case 'learning':
-				return 'brain';
-			case 'handoff':
-				return 'chevron-right';
-			default:
-				return 'message-square';
-		}
-	}, []);
-
-	const getNoteTypeLabel = useCallback((noteType: string): string => {
-		switch (noteType) {
-			case 'pattern':
-				return 'Patterns';
-			case 'warning':
-				return 'Warnings';
-			case 'learning':
-				return 'Learnings';
-			case 'handoff':
-				return 'Handoffs';
-			default:
-				return 'Notes';
-		}
 	}, []);
 
 	if (loading) {
@@ -535,593 +420,105 @@ export function InitiativeDetailPage() {
 		);
 	}
 
-	const emoji = extractEmoji(initiative.title + ' ' + (initiative.vision || ''), initiative.status);
-	const titleWithoutEmoji = initiative.title.replace(/^(\p{Emoji})\s*/u, '');
+	const emoji = getInitiativeEmoji(`${initiative.title} ${initiative.vision || ''}`, initiative.status);
+	const titleWithoutEmoji = stripLeadingEmoji(initiative.title);
 
 	return (
 		<div className="page initiative-detail-page">
 			<div className="initiative-detail">
-				{/* Back Link - navigates to initiatives list */}
 				<Link to="/initiatives" className="back-link">
 					<Icon name="arrow-left" size={16} />
 					<span>Back to Initiatives</span>
 				</Link>
-
-				{/* Header Section */}
-				<header className="initiative-header">
-					<div className="header-top">
-						<div className="title-row">
-							<span className="initiative-emoji">{emoji}</span>
-							<h1 className="initiative-title">{titleWithoutEmoji}</h1>
-						</div>
-						<div className="header-actions">
-							<span className={`status-badge status-${getInitiativeStatusDisplay(initiative.status)}`}>
-								{getInitiativeStatusDisplay(initiative.status)}
-							</span>
-							{/* Status transition buttons based on current status */}
-							{initiative.status === InitiativeStatus.DRAFT && (
-								<Button
-									variant="primary"
-									onClick={handleActivate}
-									loading={statusActionLoading}
-									leftIcon={<Icon name="play" size={16} />}
-								>
-									Activate
-								</Button>
-							)}
-							{initiative.status === InitiativeStatus.ACTIVE && (
-								<Button
-									variant="success"
-									onClick={handleComplete}
-									loading={statusActionLoading}
-									leftIcon={<Icon name="check" size={16} />}
-								>
-									Complete
-								</Button>
-							)}
-							{initiative.status === InitiativeStatus.COMPLETED && (
-								<Button
-									variant="secondary"
-									onClick={handleActivate}
-									loading={statusActionLoading}
-									leftIcon={<Icon name="rotate-ccw" size={16} />}
-								>
-									Reopen
-								</Button>
-							)}
-
-							<Button variant="secondary" onClick={openEditModal} leftIcon={<Icon name="edit" size={16} />}>
-								Edit
-							</Button>
-
-							{initiative.status !== InitiativeStatus.ARCHIVED && (
-								<Button
-									variant="ghost"
-									className="btn-danger-hover"
-									onClick={() => setConfirmArchiveOpen(true)}
-									leftIcon={<Icon name="archive" size={16} />}
-								>
-									Archive
-								</Button>
-							)}
-						</div>
-					</div>
-
-					{initiative.vision && (
-						<p className="initiative-vision">{initiative.vision}</p>
-					)}
-				</header>
-
-				{/* Progress Section */}
-				<div className="progress-section">
-					<div className="progress-label">
-						<span>Progress</span>
-						<span className="progress-count">
-							{progress.completed}/{progress.total} tasks ({progress.percentage}%)
-						</span>
-					</div>
-					<div className="progress-bar">
-						<div
-							className="progress-fill"
-							style={{ width: `${progress.percentage}%` }}
-						></div>
-					</div>
-				</div>
-
-				{/* Stats Row */}
-				<div className="stats-row">
-					<div className="stat-card">
-						<span className="stat-label">Total Tasks</span>
-						<span className="stat-value">{progress.total}</span>
-					</div>
-					<div className="stat-card">
-						<span className="stat-label">Completed</span>
-						<span className="stat-value stat-success">{progress.completed}</span>
-					</div>
-					<div className="stat-card">
-						<span className="stat-label">Total Cost</span>
-						<span className="stat-value stat-primary">{formatCost(totalCost)}</span>
-					</div>
-				</div>
-
-				{/* Side-by-Side: Decisions Section */}
-				<section className="decisions-section">
-					<div className="section-header">
-						<h2>Decisions</h2>
-						<Button
-							variant="secondary"
-							size="sm"
-							onClick={openAddDecisionModal}
-							leftIcon={<Icon name="plus" size={14} />}
-						>
-							Add Decision
-						</Button>
-					</div>
-
-					{initiative.decisions && initiative.decisions.length > 0 ? (
-						<div className="decision-list">
-							{initiative.decisions.map((decision) => (
-								<div key={decision.id} className="decision-item">
-									<div className="decision-header">
-										<span className="decision-date">
-											{formatDate(decision.date)}
-										</span>
-										{decision.by && (
-											<span className="decision-by">
-												by {decision.by}
-											</span>
-										)}
-									</div>
-									<p className="decision-text">{decision.decision}</p>
-									{decision.rationale && (
-										<p className="decision-rationale">
-											{decision.rationale}
-										</p>
-									)}
-								</div>
-							))}
-						</div>
-					) : (
-						<div className="empty-state-inline">
-							<span>No decisions recorded yet</span>
-						</div>
-					)}
-				</section>
-
-				{/* Knowledge Section */}
-				<section className="knowledge-section">
-					<div className="section-header section-header-collapsible">
-						<h2>Knowledge ({notes.length})</h2>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => setKnowledgeExpanded((prev) => !prev)}
-							aria-expanded={knowledgeExpanded}
-							leftIcon={<Icon name={knowledgeExpanded ? 'chevron-up' : 'chevron-down'} size={16} />}
-						>
-							{knowledgeExpanded ? 'Collapse' : 'Expand'}
-						</Button>
-					</div>
-
-					{knowledgeExpanded && (
-						<>
-							{notesLoading ? (
-								<div className="loading-inline">
-									<div className="spinner-sm"></div>
-									<span>Loading notes...</span>
-								</div>
-							) : notes.length > 0 ? (
-								<div className="notes-by-type">
-									{['pattern', 'warning', 'learning', 'handoff'].map((noteType) => {
-										const typeNotes = notesByType[noteType];
-										if (!typeNotes || typeNotes.length === 0) return null;
-										return (
-											<div key={noteType} className="note-type-group">
-												<div className="note-type-header">
-													<span className={`note-type-icon type-${noteType}`}>
-														<Icon name={getNoteTypeIcon(noteType)} size={14} />
-													</span>
-													<span>{getNoteTypeLabel(noteType)}</span>
-													<span className="note-type-count">({typeNotes.length})</span>
-												</div>
-												{typeNotes.map((note) => (
-													<div key={note.id} className="note-item">
-														<p className="note-content">{note.content}</p>
-														<div className="note-meta">
-															<span className={`note-author-badge author-${note.authorType}`}>
-																{note.authorType === 'agent' ? '🤖 Agent' : '👤 Human'}
-															</span>
-															{note.sourceTask && (
-																<Link to={`/tasks/${note.sourceTask}`} className="note-source-task">
-																	{note.sourceTask}
-																</Link>
-															)}
-															<span>{formatDate(note.createdAt)}</span>
-														</div>
-														{note.relevantFiles && note.relevantFiles.length > 0 && (
-															<div className="note-relevant-files">
-																{note.relevantFiles.map((file, idx) => (
-																	<span key={idx} className="note-file">{file}</span>
-																))}
-															</div>
-														)}
-													</div>
-												))}
-											</div>
-										);
-									})}
-								</div>
-							) : (
-								<div className="empty-state-inline">
-									<Icon name="brain" size={24} />
-									<span>No knowledge captured yet. Notes will appear as tasks share learnings.</span>
-								</div>
-							)}
-						</>
-					)}
-				</section>
-
-				{/* Tasks Section */}
-				<section className="tasks-section">
-					<div className="section-header">
-						<h2>Tasks</h2>
-						<div className="section-actions">
-							<select
-								className="filter-select"
-								value={taskFilter}
-								onChange={(e) => setTaskFilter(e.target.value as TaskFilter)}
-								aria-label="Filter tasks"
-							>
-								<option value="all">All</option>
-								<option value="completed">Completed</option>
-								<option value="running">In Progress</option>
-								<option value="planned">Planned</option>
-							</select>
-							<Button
-								variant="secondary"
-								size="sm"
-								onClick={openLinkTaskModal}
-								leftIcon={<Icon name="link" size={14} />}
-							>
-								Link Existing
-							</Button>
-						</div>
-					</div>
-
-					{filteredTasks.length > 0 ? (
-						<div className="task-list">
-							{filteredTasks.map((task) => (
-								<div key={task.id} className="task-item">
-									<Link
-										to={`/tasks/${task.id}`}
-										className="task-link"
-									>
-										<span
-											className={`task-status ${getStatusClass(task.status)}`}
-										>
-											<Icon
-												name={getStatusIcon(task.status) as IconName}
-												size={16}
-											/>
-										</span>
-										<span className="task-id">{task.id}</span>
-										<span className="task-title">
-											{task.title}
-										</span>
-										<span className="task-status-text">
-											{getTaskStatusDisplay(task.status)}
-										</span>
-									</Link>
-									<Button
-										variant="ghost"
-										iconOnly
-										size="sm"
-										className="btn-icon btn-remove"
-										onClick={() => unlinkTask(task.id)}
-										title="Remove from initiative"
-										aria-label="Remove from initiative"
-									>
-										<Icon name="x" size={14} />
-									</Button>
-								</div>
-							))}
-						</div>
-					) : initiative.tasks && initiative.tasks.length > 0 ? (
-						<div className="empty-state-inline">
-							<span>No tasks match the current filter</span>
-						</div>
-					) : (
-						<div className="empty-state">
-							<Icon name="clipboard" size={32} />
-							<p>No tasks in this initiative yet</p>
-							<Button variant="primary" onClick={openLinkTaskModal}>
-								Link a Task
-							</Button>
-						</div>
-					)}
-				</section>
-
-				{/* Dependency Graph Section - Collapsible */}
-				<section className="graph-section">
-					<div className="section-header section-header-collapsible">
-						<h2>Dependency Graph</h2>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={toggleGraph}
-							aria-expanded={graphExpanded}
-							leftIcon={<Icon name={graphExpanded ? 'chevron-up' : 'chevron-down'} size={16} />}
-						>
-							{graphExpanded ? 'Collapse' : 'Expand'}
-						</Button>
-					</div>
-
-					{graphExpanded && (
-						<div className="graph-content">
-							{graphLoading ? (
-								<div className="graph-loading">
-									<div className="spinner"></div>
-									<span>Loading graph...</span>
-								</div>
-							) : graphError ? (
-								<div className="graph-error">
-									<p>{graphError}</p>
-									<Button
-										variant="secondary"
-										onClick={() => {
-											setGraphData(null);
-											loadGraphData();
-										}}
-									>
-										Retry
-									</Button>
-								</div>
-							) : graphData && graphData.nodes.length > 0 ? (
-								<div className="graph-container-wrapper">
-									<DependencyGraph
-										nodes={graphData.nodes}
-										edges={graphData.edges}
-									/>
-								</div>
-							) : (
-								<div className="empty-state-inline">
-									<Icon name="git-branch" size={24} />
-									<span>No tasks with dependencies to visualize</span>
-								</div>
-							)}
-						</div>
-					)}
-				</section>
+				<InitiativeHeaderSection
+					initiative={initiative}
+					emoji={emoji}
+					titleWithoutEmoji={titleWithoutEmoji}
+					statusActionLoading={statusActionLoading}
+					onActivate={handleActivate}
+					onComplete={handleComplete}
+					onEdit={openEditModal}
+					onArchive={() => setConfirmArchiveOpen(true)}
+				/>
+				<InitiativeProgressSection progress={progress} />
+				<InitiativeStatsSection progress={progress} totalCost={totalCost} formatCost={formatCost} />
+				<InitiativeDecisionsSection
+					initiative={initiative}
+					formatDate={formatDate}
+					onAddDecision={openAddDecisionModal}
+				/>
+				<InitiativeKnowledgeSection
+					notes={notes}
+					notesByType={notesByType}
+					notesLoading={notesLoading}
+					knowledgeExpanded={knowledgeExpanded}
+					formatDate={formatDate}
+					onToggle={() => setKnowledgeExpanded((prev) => !prev)}
+				/>
+				<InitiativeTasksSection
+					tasks={filteredTasks}
+					allTaskCount={initiative.tasks?.length ?? 0}
+					taskFilter={taskFilter}
+					onTaskFilterChange={setTaskFilter}
+					onLinkTask={openLinkTaskModal}
+					onUnlinkTask={unlinkTask}
+				/>
+				<InitiativeDependencyGraphSection
+					graphExpanded={graphExpanded}
+					graphLoading={graphLoading}
+					graphError={graphError}
+					graphData={graphData}
+					onToggle={toggleGraph}
+					onRetry={() => {
+						setGraphData(null);
+						loadGraphData();
+					}}
+				/>
 			</div>
 
-			{/* Edit Initiative Modal */}
-			<Modal
+			<EditInitiativeModal
 				open={editModalOpen}
+				title={editTitle}
+				vision={editVision}
+				status={editStatus}
+				branchBase={editBranchBase}
+				branchPrefix={editBranchPrefix}
 				onClose={() => setEditModalOpen(false)}
-				title="Edit Initiative"
-			>
-				<form
-					onSubmit={(e) => {
-						e.preventDefault();
-						saveEdit();
-					}}
-				>
-					<div className="form-group">
-						<label htmlFor="edit-title">Title</label>
-						<input
-							id="edit-title"
-							type="text"
-							value={editTitle}
-							onChange={(e) => setEditTitle(e.target.value)}
-							required
-						/>
-					</div>
-
-					<div className="form-group">
-						<label htmlFor="edit-vision">Vision</label>
-						<textarea
-							id="edit-vision"
-							value={editVision}
-							onChange={(e) => setEditVision(e.target.value)}
-							rows={3}
-							placeholder="What is the goal of this initiative?"
-						></textarea>
-					</div>
-
-					<div className="form-group">
-						<label htmlFor="edit-status">Status</label>
-						<select
-							id="edit-status"
-							value={editStatus}
-							onChange={(e) => setEditStatus(Number(e.target.value) as InitiativeStatus)}
-						>
-							<option value={InitiativeStatus.DRAFT}>Draft</option>
-							<option value={InitiativeStatus.ACTIVE}>Active</option>
-							<option value={InitiativeStatus.COMPLETED}>Completed</option>
-							<option value={InitiativeStatus.ARCHIVED}>Archived</option>
-						</select>
-					</div>
-
-					<div className="form-section-divider">
-						<span className="divider-label">Branch Configuration</span>
-					</div>
-
-					<div className="form-group">
-						<label htmlFor="edit-branch-base">Target Branch</label>
-						<input
-							id="edit-branch-base"
-							type="text"
-							value={editBranchBase}
-							onChange={(e) => setEditBranchBase(e.target.value)}
-							placeholder="e.g., feature/user-auth"
-						/>
-						<span className="form-hint">
-							Tasks in this initiative will target this branch instead of main
-						</span>
-					</div>
-
-					<div className="form-group">
-						<label htmlFor="edit-branch-prefix">Task Branch Prefix</label>
-						<input
-							id="edit-branch-prefix"
-							type="text"
-							value={editBranchPrefix}
-							onChange={(e) => setEditBranchPrefix(e.target.value)}
-							placeholder="e.g., feature/auth-"
-						/>
-						<span className="form-hint">
-							Task branches will be named: {editBranchPrefix || 'feature/auth-'}TASK-XXX
-						</span>
-					</div>
-
-					<div className="modal-actions">
-						<Button variant="secondary" onClick={() => setEditModalOpen(false)}>
-							Cancel
-						</Button>
-						<Button variant="primary" type="submit">
-							Save Changes
-						</Button>
-					</div>
-				</form>
-			</Modal>
-
-			{/* Link Task Modal */}
-			<Modal
+				onSave={saveEdit}
+				setTitle={setEditTitle}
+				setVision={setEditVision}
+				setStatus={setEditStatus}
+				setBranchBase={setEditBranchBase}
+				setBranchPrefix={setEditBranchPrefix}
+			/>
+			<LinkTaskModal
 				open={linkTaskModalOpen}
+				search={linkTaskSearch}
+				loading={linkTaskLoading}
+				tasks={filteredAvailableTasks}
 				onClose={() => setLinkTaskModalOpen(false)}
-				title="Link Existing Task"
-			>
-				<div className="link-task-content">
-					<div className="form-group">
-						<label htmlFor="task-search">Search Tasks</label>
-						<input
-							id="task-search"
-							type="text"
-							value={linkTaskSearch}
-							onChange={(e) => setLinkTaskSearch(e.target.value)}
-							placeholder="Search by ID or title..."
-						/>
-					</div>
-
-					{linkTaskLoading ? (
-						<div className="loading-inline">
-							<div className="spinner-sm"></div>
-							<span>Loading tasks...</span>
-						</div>
-					) : filteredAvailableTasks.length > 0 ? (
-						<div className="available-tasks">
-							{filteredAvailableTasks.map((task) => (
-								<Button
-									key={task.id}
-									variant="ghost"
-									className="available-task-item"
-									onClick={() => linkTask(task.id)}
-								>
-									<span className="task-id">{task.id}</span>
-									<span className="task-title">{task.title}</span>
-									<span className={`task-status-badge status-${getTaskStatusDisplay(task.status)}`}>
-										{getTaskStatusDisplay(task.status)}
-									</span>
-								</Button>
-							))}
-						</div>
-					) : (
-						<p className="no-tasks-message">No available tasks to link</p>
-					)}
-				</div>
-			</Modal>
-
-			{/* Add Decision Modal */}
-			<Modal
+				onSearchChange={setLinkTaskSearch}
+				onLinkTask={linkTask}
+			/>
+			<AddDecisionModal
 				open={addDecisionModalOpen}
+				decisionText={decisionText}
+				decisionRationale={decisionRationale}
+				decisionBy={decisionBy}
+				addingDecision={addingDecision}
 				onClose={() => setAddDecisionModalOpen(false)}
-				title="Add Decision"
-			>
-				<form
-					onSubmit={(e) => {
-						e.preventDefault();
-						addDecision();
-					}}
-				>
-					<div className="form-group">
-						<label htmlFor="decision-text">Decision</label>
-						<textarea
-							id="decision-text"
-							value={decisionText}
-							onChange={(e) => setDecisionText(e.target.value)}
-							rows={2}
-							required
-							placeholder="What was decided?"
-						></textarea>
-					</div>
-
-					<div className="form-group">
-						<label htmlFor="decision-rationale">Rationale (optional)</label>
-						<textarea
-							id="decision-rationale"
-							value={decisionRationale}
-							onChange={(e) => setDecisionRationale(e.target.value)}
-							rows={2}
-							placeholder="Why was this decision made?"
-						></textarea>
-					</div>
-
-					<div className="form-group">
-						<label htmlFor="decision-by">Decided By (optional)</label>
-						<input
-							id="decision-by"
-							type="text"
-							value={decisionBy}
-							onChange={(e) => setDecisionBy(e.target.value)}
-							placeholder="Name or initials"
-						/>
-					</div>
-
-					<div className="modal-actions">
-						<Button variant="secondary" onClick={() => setAddDecisionModalOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							variant="primary"
-							type="submit"
-							disabled={!decisionText.trim()}
-							loading={addingDecision}
-						>
-							Add Decision
-						</Button>
-					</div>
-				</form>
-			</Modal>
-
-			{/* Archive Confirmation Modal */}
-			<Modal
+				onAddDecision={addDecision}
+				setDecisionText={setDecisionText}
+				setDecisionRationale={setDecisionRationale}
+				setDecisionBy={setDecisionBy}
+			/>
+			<ArchiveInitiativeModal
 				open={confirmArchiveOpen}
+				title={initiative.title}
+				loading={statusActionLoading}
 				onClose={() => setConfirmArchiveOpen(false)}
-				title="Archive Initiative"
-			>
-				<div className="confirm-dialog">
-					<p className="confirm-message">
-						Are you sure you want to archive <strong>"{initiative.title}"</strong>?
-					</p>
-					<p className="confirm-hint">
-						Archived initiatives are hidden from most views but can be restored later.
-					</p>
-					<div className="modal-actions">
-						<Button variant="secondary" onClick={() => setConfirmArchiveOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							variant="danger"
-							onClick={handleArchive}
-							loading={statusActionLoading}
-						>
-							Archive Initiative
-						</Button>
-					</div>
-				</div>
-			</Modal>
-
-			{/* Error notification */}
+				onArchive={handleArchive}
+			/>
 			{error && initiative && (
 				<div className="error-toast">
 					<span>{error}</span>

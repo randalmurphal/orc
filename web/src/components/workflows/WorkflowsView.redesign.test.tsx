@@ -16,6 +16,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ComponentProps } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { WorkflowsView } from './WorkflowsView';
 import {
@@ -53,10 +54,10 @@ vi.mock('@/stores/workflowStore', () => ({
 import { workflowClient } from '@/lib/client';
 
 /** Render WorkflowsView with router context */
-function renderWorkflowsView() {
+function renderWorkflowsView(props: Partial<ComponentProps<typeof WorkflowsView>> = {}) {
 	return render(
 		<MemoryRouter>
-			<WorkflowsView />
+			<WorkflowsView {...props} />
 		</MemoryRouter>
 	);
 }
@@ -248,10 +249,9 @@ describe('WorkflowsView Redesign - TASK-750', () => {
 				createMockListPhaseTemplatesResponse([])
 			);
 
-			const cloneEventHandler = vi.fn();
-			window.addEventListener('orc:clone-workflow', cloneEventHandler);
+			const onCloneWorkflow = vi.fn();
 
-			renderWorkflowsView();
+			renderWorkflowsView({ onCloneWorkflow });
 
 			await waitFor(() => {
 				expect(screen.getByText('Medium')).toBeInTheDocument();
@@ -264,9 +264,7 @@ describe('WorkflowsView Redesign - TASK-750', () => {
 			expect(cloneButton).toBeInTheDocument();
 			await user.click(cloneButton);
 
-			expect(cloneEventHandler).toHaveBeenCalled();
-
-			window.removeEventListener('orc:clone-workflow', cloneEventHandler);
+			expect(onCloneWorkflow).toHaveBeenCalledWith(expect.objectContaining({ id: 'medium' }));
 		});
 	});
 
@@ -373,10 +371,9 @@ describe('WorkflowsView Redesign - TASK-750', () => {
 				createMockListPhaseTemplatesResponse([])
 			);
 
-			const addWorkflowEventHandler = vi.fn();
-			window.addEventListener('orc:add-workflow', addWorkflowEventHandler);
+			const onCreateWorkflow = vi.fn();
 
-			renderWorkflowsView();
+			renderWorkflowsView({ onCreateWorkflow });
 
 			await waitFor(() => {
 				expect(workflowClient.listWorkflows).toHaveBeenCalled();
@@ -387,9 +384,7 @@ describe('WorkflowsView Redesign - TASK-750', () => {
 			expect(newWorkflowButton).toBeInTheDocument();
 
 			await user.click(newWorkflowButton);
-			expect(addWorkflowEventHandler).toHaveBeenCalled();
-
-			window.removeEventListener('orc:add-workflow', addWorkflowEventHandler);
+			expect(onCreateWorkflow).toHaveBeenCalled();
 		});
 
 		it('preserves phase templates section functionality', async () => {
@@ -529,8 +524,8 @@ describe('WorkflowsView Redesign - TASK-750', () => {
 		});
 	});
 
-	describe('Integration: Event system wiring', () => {
-		it('maintains all event dispatching for workflow operations', async () => {
+	describe('Integration: callback wiring', () => {
+		it('maintains workflow callbacks for primary operations', async () => {
 			const user = userEvent.setup();
 			const customWorkflows = [
 				createMockWorkflow({ id: 'my-workflow', name: 'My Custom Flow', isBuiltin: false }),
@@ -544,30 +539,30 @@ describe('WorkflowsView Redesign - TASK-750', () => {
 				createMockListPhaseTemplatesResponse([])
 			);
 
-			// Listen for all workflow-related events
-			const selectHandler = vi.fn();
-			const cloneHandler = vi.fn();
-			const addHandler = vi.fn();
+			const onSelectWorkflow = vi.fn();
+			const onCloneWorkflow = vi.fn();
+			const onCreateWorkflow = vi.fn();
 
-			window.addEventListener('orc:select-workflow', selectHandler);
-			window.addEventListener('orc:clone-workflow', cloneHandler);
-			window.addEventListener('orc:add-workflow', addHandler);
-
-			renderWorkflowsView();
+			renderWorkflowsView({ onSelectWorkflow, onCloneWorkflow, onCreateWorkflow });
 
 			await waitFor(() => {
 				expect(screen.getByText('My Custom Flow')).toBeInTheDocument();
 			});
 
-			// Test "New Workflow" button event
+			// Test "New Workflow" callback
 			const newButton = screen.getByRole('button', { name: /new workflow/i });
 			await user.click(newButton);
-			expect(addHandler).toHaveBeenCalled();
+			expect(onCreateWorkflow).toHaveBeenCalled();
 
-			// Cleanup
-			window.removeEventListener('orc:select-workflow', selectHandler);
-			window.removeEventListener('orc:clone-workflow', cloneHandler);
-			window.removeEventListener('orc:add-workflow', addHandler);
+			const workflowCard = screen.getByText('My Custom Flow').closest('[role="button"]');
+			expect(workflowCard).toBeInTheDocument();
+			await user.click(workflowCard!);
+			expect(onSelectWorkflow).toHaveBeenCalledWith(expect.objectContaining({ id: 'my-workflow' }));
+
+			const editButton = workflowCard?.querySelector('button[title*="Edit"]') as HTMLButtonElement | null;
+			expect(editButton).toBeInTheDocument();
+			await user.click(editButton!);
+			expect(onCloneWorkflow).not.toHaveBeenCalled();
 		});
 
 		it('preserves workflow store integration', async () => {

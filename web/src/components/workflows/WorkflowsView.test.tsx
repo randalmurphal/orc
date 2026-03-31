@@ -9,13 +9,14 @@
  * - TASK-703 SC-1: "Create From Scratch" button appears in Phase Templates section
  *
  * Preservation Requirements:
- * - Phase template card click still fires orc:select-phase-template event
- * - Clone button on workflow cards still fires orc:clone-workflow event
+ * - Phase template card click still invokes selection callback
+ * - Clone button on workflow cards still invokes clone callback
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ComponentProps } from 'react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { WorkflowsView } from './WorkflowsView';
 import {
@@ -43,7 +44,7 @@ function LocationDisplay() {
 }
 
 /** Render WorkflowsView with router context */
-function renderWorkflowsView() {
+function renderWorkflowsView(props: Partial<ComponentProps<typeof WorkflowsView>> = {}) {
 	return render(
 		<MemoryRouter initialEntries={['/workflows']}>
 			<Routes>
@@ -51,7 +52,7 @@ function renderWorkflowsView() {
 					path="/workflows"
 					element={
 						<>
-							<WorkflowsView />
+							<WorkflowsView {...props} />
 							<LocationDisplay />
 						</>
 					}
@@ -136,7 +137,7 @@ describe('WorkflowsView', () => {
 	});
 
 	describe('preservation: clone button still works', () => {
-		it('clone button dispatches orc:clone-workflow event', async () => {
+		it('clone button invokes clone callback', async () => {
 			const user = userEvent.setup();
 			const workflows = [
 				createMockWorkflow({ id: 'medium', name: 'Medium', isBuiltin: true }),
@@ -150,10 +151,9 @@ describe('WorkflowsView', () => {
 				createMockListPhaseTemplatesResponse([])
 			);
 
-			const eventHandler = vi.fn();
-			window.addEventListener('orc:clone-workflow', eventHandler);
+			const onCloneWorkflow = vi.fn();
 
-			renderWorkflowsView();
+			renderWorkflowsView({ onCloneWorkflow });
 
 			await waitFor(() => {
 				expect(screen.getByText('Medium')).toBeTruthy();
@@ -166,15 +166,12 @@ describe('WorkflowsView', () => {
 			expect(cloneButton).not.toBeNull();
 			await user.click(cloneButton!);
 
-			// Clone event should have fired (not navigation)
-			expect(eventHandler).toHaveBeenCalled();
-
-			window.removeEventListener('orc:clone-workflow', eventHandler);
+			expect(onCloneWorkflow).toHaveBeenCalledWith(expect.objectContaining({ id: 'medium' }));
 		});
 	});
 
-	describe('preservation: phase template card click still fires event', () => {
-		it('phase template card click fires orc:select-phase-template event', async () => {
+	describe('preservation: phase template card click still invokes callback', () => {
+		it('phase template card click invokes selection callback', async () => {
 			const user = userEvent.setup();
 			const templates = [
 				createMockPhaseTemplate({ id: 'implement', name: 'Implement' }),
@@ -189,10 +186,9 @@ describe('WorkflowsView', () => {
 				sources: { implement: DefinitionSource.EMBEDDED },
 			});
 
-			const eventHandler = vi.fn();
-			window.addEventListener('orc:select-phase-template', eventHandler);
+			const onSelectPhaseTemplate = vi.fn();
 
-			renderWorkflowsView();
+			renderWorkflowsView({ onSelectPhaseTemplate });
 
 			await waitFor(() => {
 				expect(screen.getByText('Implement')).toBeTruthy();
@@ -202,10 +198,11 @@ describe('WorkflowsView', () => {
 			const templateCard = screen.getByText('Implement').closest('[role="button"]');
 			if (templateCard) {
 				await user.click(templateCard);
-				expect(eventHandler).toHaveBeenCalled();
+				expect(onSelectPhaseTemplate).toHaveBeenCalledWith(
+					expect.objectContaining({ id: 'implement' }),
+					DefinitionSource.EMBEDDED
+				);
 			}
-
-			window.removeEventListener('orc:select-phase-template', eventHandler);
 		});
 	});
 
@@ -237,7 +234,7 @@ describe('WorkflowsView', () => {
 			expect(createButton).toBeTruthy();
 		});
 
-		it('dispatches orc:create-phase-template event when "Create From Scratch" is clicked', async () => {
+		it('invokes create-phase-template callback when "Create From Scratch" is clicked', async () => {
 			const user = userEvent.setup();
 
 			vi.mocked(workflowClient.listWorkflows).mockResolvedValue({
@@ -249,10 +246,9 @@ describe('WorkflowsView', () => {
 				sources: {},
 			});
 
-			const eventHandler = vi.fn();
-			window.addEventListener('orc:create-phase-template', eventHandler);
+			const onCreatePhaseTemplate = vi.fn();
 
-			renderWorkflowsView();
+			renderWorkflowsView({ onCreatePhaseTemplate });
 
 			await waitFor(() => {
 				expect(workflowClient.listPhaseTemplates).toHaveBeenCalled();
@@ -262,10 +258,7 @@ describe('WorkflowsView', () => {
 			const createButton = screen.getByRole('button', { name: /create from scratch/i });
 			await user.click(createButton);
 
-			// Event should have been dispatched
-			expect(eventHandler).toHaveBeenCalled();
-
-			window.removeEventListener('orc:create-phase-template', eventHandler);
+			expect(onCreatePhaseTemplate).toHaveBeenCalled();
 		});
 
 		it('button appears below Phase Templates header', async () => {

@@ -9,6 +9,7 @@ export { WorkflowDetailPanel, type WorkflowDetailPanelProps } from './WorkflowDe
 export { CloneWorkflowModal, type CloneWorkflowModalProps } from './CloneWorkflowModal';
 export { CreateWorkflowModal, type CreateWorkflowModalProps } from './CreateWorkflowModal';
 export { EditWorkflowModal, type EditWorkflowModalProps } from './EditWorkflowModal';
+export { WorkflowSettingsModal } from './WorkflowSettingsModal';
 export { PhaseListEditor, type PhaseListEditorProps, type PhaseOverrides, type AddPhaseRequest } from './PhaseListEditor';
 export { PhaseTemplateDetailPanel, type PhaseTemplateDetailPanelProps } from './PhaseTemplateDetailPanel';
 export { ClonePhaseTemplateModal, type ClonePhaseTemplateModalProps } from './ClonePhaseTemplateModal';

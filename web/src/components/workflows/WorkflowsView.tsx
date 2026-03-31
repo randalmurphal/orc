@@ -16,6 +16,12 @@ import './WorkflowsView.css';
 
 export interface WorkflowsViewProps {
 	className?: string;
+	onSelectWorkflow?: (workflow: Workflow) => void;
+	onCloneWorkflow?: (workflow: Workflow) => void;
+	onEditWorkflow?: (workflow: Workflow) => void;
+	onSelectPhaseTemplate?: (template: PhaseTemplate, source?: DefinitionSource) => void;
+	onCreateWorkflow?: () => void;
+	onCreatePhaseTemplate?: () => void;
 }
 
 function WorkflowCardSkeleton() {
@@ -85,7 +91,15 @@ function WorkflowsViewError({ error, onRetry }: WorkflowsViewErrorProps) {
 /**
  * WorkflowsView displays all workflows and phase templates.
  */
-export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
+export function WorkflowsView({
+	className = '',
+	onSelectWorkflow,
+	onCloneWorkflow,
+	onEditWorkflow,
+	onSelectPhaseTemplate,
+	onCreateWorkflow,
+	onCreatePhaseTemplate,
+}: WorkflowsViewProps) {
 	const navigate = useNavigate();
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -134,27 +148,28 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 
 	const handleSelectWorkflow = useCallback((workflow: Workflow) => {
 		navigate(`/workflows/${workflow.id}`);
-	}, [navigate]);
+		onSelectWorkflow?.(workflow);
+	}, [navigate, onSelectWorkflow]);
 
 	const handleCloneWorkflow = useCallback((workflow: Workflow) => {
-		window.dispatchEvent(new CustomEvent('orc:clone-workflow', { detail: { workflow } }));
-	}, []);
+		onCloneWorkflow?.(workflow);
+	}, [onCloneWorkflow]);
+
+	const handleEditWorkflow = useCallback((workflow: Workflow) => {
+		onEditWorkflow?.(workflow);
+	}, [onEditWorkflow]);
 
 	const handleSelectPhaseTemplate = useCallback((template: PhaseTemplate) => {
-		window.dispatchEvent(
-			new CustomEvent('orc:select-phase-template', {
-				detail: { template, source: phaseSources[template.id] }
-			})
-		);
-	}, [phaseSources]);
+		onSelectPhaseTemplate?.(template, phaseSources[template.id]);
+	}, [onSelectPhaseTemplate, phaseSources]);
 
 	const handleAddWorkflow = useCallback(() => {
-		window.dispatchEvent(new CustomEvent('orc:add-workflow'));
-	}, []);
+		onCreateWorkflow?.();
+	}, [onCreateWorkflow]);
 
 	const handleCreatePhaseTemplate = useCallback(() => {
-		window.dispatchEvent(new CustomEvent('orc:create-phase-template'));
-	}, []);
+		onCreatePhaseTemplate?.();
+	}, [onCreatePhaseTemplate]);
 
 	// Separate built-in and custom workflows
 	const builtinWorkflows = workflows.filter((wf) => wf.isBuiltin);
@@ -204,6 +219,7 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 									source={workflowSources[workflow.id]}
 									onSelect={handleSelectWorkflow}
 									onClone={handleCloneWorkflow}
+									onEdit={handleEditWorkflow}
 								/>
 							))}
 						</div>
@@ -231,6 +247,7 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 									source={workflowSources[workflow.id]}
 									onSelect={handleSelectWorkflow}
 									onClone={handleCloneWorkflow}
+									onEdit={handleEditWorkflow}
 								/>
 							))}
 						</div>

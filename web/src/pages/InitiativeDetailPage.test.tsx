@@ -23,6 +23,7 @@ const mockGetDependencyGraph = vi.fn();
 const mockLinkTasks = vi.fn();
 const mockUnlinkTask = vi.fn();
 const mockAddDecision = vi.fn();
+const mockListInitiativeNotes = vi.fn();
 const mockListTasks = vi.fn();
 
 vi.mock('@/lib/client', () => ({
@@ -33,6 +34,7 @@ vi.mock('@/lib/client', () => ({
 		linkTasks: (...args: unknown[]) => mockLinkTasks(...args),
 		unlinkTask: (...args: unknown[]) => mockUnlinkTask(...args),
 		addDecision: (...args: unknown[]) => mockAddDecision(...args),
+		listInitiativeNotes: (...args: unknown[]) => mockListInitiativeNotes(...args),
 	},
 	taskClient: {
 		listTasks: (...args: unknown[]) => mockListTasks(...args),
@@ -82,6 +84,7 @@ describe('InitiativeDetailPage', () => {
 		vi.clearAllMocks();
 		mockGetInitiative.mockResolvedValue({ initiative: mockInitiative });
 		mockListTasks.mockResolvedValue({ tasks: [] });
+		mockListInitiativeNotes.mockResolvedValue({ notes: [] });
 		mockGetDependencyGraph.mockResolvedValue({
 			graph: { nodes: [], edges: [] },
 		});

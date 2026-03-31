@@ -35,6 +35,16 @@ const mockListAgents = vi.fn().mockResolvedValue({ agents: [] });
 const mockListHooks = vi.fn().mockResolvedValue({ hooks: [] });
 const mockListSkills = vi.fn().mockResolvedValue({ skills: [] });
 const mockListMCPServers = vi.fn().mockResolvedValue({ servers: [] });
+const phaseInspectorLibraryData = {
+	agents: [] as Agent[],
+	hooks: [] as unknown[],
+	skills: [] as unknown[],
+	mcpServers: [] as unknown[],
+	agentsLoading: false,
+	hooksLoading: false,
+	skillsLoading: false,
+	mcpLoading: false,
+};
 
 vi.mock('@/lib/client', () => ({
 	workflowClient: {
@@ -48,6 +58,11 @@ vi.mock('@/lib/client', () => ({
 	mcpClient: {
 		listMCPServers: (...args: unknown[]) => mockListMCPServers(...args),
 	},
+}));
+
+vi.mock('./phase-inspector/hooks', () => ({
+	useMobileViewport: () => false,
+	usePhaseInspectorLibraryData: () => phaseInspectorLibraryData,
 }));
 
 // Import after mocks are set up
@@ -83,10 +98,14 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.useFakeTimers();
-		mockListAgents.mockResolvedValue({ agents: mockAgents });
-		mockListHooks.mockResolvedValue({ hooks: [] });
-		mockListSkills.mockResolvedValue({ skills: [] });
-		mockListMCPServers.mockResolvedValue({ servers: [] });
+		phaseInspectorLibraryData.agents = mockAgents;
+		phaseInspectorLibraryData.hooks = [];
+		phaseInspectorLibraryData.skills = [];
+		phaseInspectorLibraryData.mcpServers = [];
+		phaseInspectorLibraryData.agentsLoading = false;
+		phaseInspectorLibraryData.hooksLoading = false;
+		phaseInspectorLibraryData.skillsLoading = false;
+		phaseInspectorLibraryData.mcpLoading = false;
 	});
 
 	afterEach(() => {
@@ -390,8 +409,9 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 			await userEvent.clear(nameInput);
 			fireEvent.blur(nameInput);
 
-			// Wait a bit to ensure no save was triggered
-			await new Promise((resolve) => setTimeout(resolve, 600));
+			await waitFor(() => {
+				expect(screen.getByText(/name cannot be empty/i)).toBeInTheDocument();
+			});
 
 			// Should not have been called with empty name
 			expect(mockUpdatePhase).not.toHaveBeenCalledWith(
@@ -520,9 +540,7 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 		});
 
 		it('shows loading state for agents', async () => {
-			mockListAgents.mockImplementation(
-				() => new Promise((resolve) => setTimeout(() => resolve({ agents: mockAgents }), 100))
-			);
+			phaseInspectorLibraryData.agentsLoading = true;
 
 			const phase = createMockWorkflowPhase({
 				template: createMockPhaseTemplate({ name: 'implement' }),
@@ -539,6 +557,7 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 
 			// Should show loading for agents
 			expect(screen.getByText(/loading agents/i)).toBeInTheDocument();
+			phaseInspectorLibraryData.agentsLoading = false;
 		});
 
 		it('returns null when no phase is provided', () => {
@@ -686,7 +705,7 @@ describe('TASK-774: PhaseInspector Core Functionality', () => {
 
 		it('handles no available agents gracefully', async () => {
 			vi.useRealTimers(); // Need real timers for async agent loading
-			mockListAgents.mockResolvedValue({ agents: [] });
+			phaseInspectorLibraryData.agents = [];
 
 			const phase = createMockWorkflowPhase({
 				template: createMockPhaseTemplate({ name: 'implement' }),

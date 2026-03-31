@@ -14,25 +14,28 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { create } from '@bufbuild/protobuf';
 import { Modal } from '@/components/overlays/Modal';
 import { Button, Icon } from '@/components/ui';
-import { workflowClient, configClient, mcpClient } from '@/lib/client';
+import { workflowClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 import type { PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
-import type { Agent, Hook, Skill } from '@/gen/orc/v1/config_pb';
-import { GetMCPServerRequestSchema, type MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
 import { GateType, PromptSource } from '@/gen/orc/v1/workflow_pb';
-import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
-import { LibraryPicker } from '@/components/core/LibraryPicker';
 import { TagInput } from '@/components/core/TagInput';
-import { KeyValueEditor } from '@/components/core/KeyValueEditor';
 import {
 	parseRuntimeConfig,
 	serializeRuntimeConfig,
 	hydrateSelectedMCPServers,
 	type HookDefinition,
 } from '@/lib/runtimeConfigUtils';
+import {
+	GATE_TYPE_OPTIONS,
+	VARIABLE_SUGGESTIONS,
+} from './phase-template-modal/constants';
+import { RuntimeConfigSections } from './phase-template-modal/RuntimeConfigSections';
+import {
+	fetchMCPServerDefinition,
+	usePhaseTemplateLibraries,
+} from './phase-template-modal/usePhaseTemplateLibraries';
 import './EditPhaseTemplateModal.css';
 
 export interface EditPhaseTemplateModalProps {
@@ -47,12 +50,6 @@ export interface EditPhaseTemplateModalProps {
 	/** Callback when template is successfully updated */
 	onUpdated: (template: PhaseTemplate) => void;
 }
-
-const GATE_TYPE_OPTIONS = [
-	{ value: GateType.AUTO, label: 'Auto' },
-	{ value: GateType.HUMAN, label: 'Human' },
-	{ value: GateType.SKIP, label: 'Skip' },
-];
 
 /**
  * EditPhaseTemplateModal allows editing phase template metadata.
@@ -97,77 +94,25 @@ export function EditPhaseTemplateModal({
 	const [jsonError, setJsonError] = useState('');
 
 	// Library data
-	const [hooks, setHooks] = useState<Hook[]>([]);
-	const [skills, setSkills] = useState<Skill[]>([]);
-	const [mcpServers, setMcpServers] = useState<MCPServerInfo[]>([]);
-	const [hooksError, setHooksError] = useState('');
-	const [skillsError, setSkillsError] = useState('');
-	const [mcpError, setMcpError] = useState('');
-	const [hooksLoading, setHooksLoading] = useState(true);
-	const [skillsLoading, setSkillsLoading] = useState(true);
-	const [mcpLoading, setMcpLoading] = useState(true);
-
-	// Agents list for dropdown
-	const [agents, setAgents] = useState<Agent[]>([]);
-	const [agentsLoading, setAgentsLoading] = useState(true);
+	const {
+		agents,
+		agentsLoading,
+		hooks,
+		hooksError,
+		hooksLoading,
+		skills,
+		skillsError,
+		skillsLoading,
+		mcpServers,
+		mcpError,
+		mcpLoading,
+	} = usePhaseTemplateLibraries();
 
 	// Loading state
 	const [saving, setSaving] = useState(false);
 
 	// Track whether JSON override was the last edit source
 	const jsonOverrideActiveRef = useRef(false);
-
-	// Fetch agents, hooks, skills, MCP servers on mount
-	useEffect(() => {
-		let mounted = true;
-
-		configClient.listAgents({}).then((response) => {
-			if (mounted) {
-				setAgents(response.agents);
-				setAgentsLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) setAgentsLoading(false);
-		});
-
-		configClient.listHooks({}).then((response) => {
-			if (mounted) {
-				setHooks(response.hooks);
-				setHooksLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) {
-				setHooksError('Failed to load hooks');
-				setHooksLoading(false);
-			}
-		});
-
-		configClient.listSkills({}).then((response) => {
-			if (mounted) {
-				setSkills(response.skills);
-				setSkillsLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) {
-				setSkillsError('Failed to load skills');
-				setSkillsLoading(false);
-			}
-		});
-
-		mcpClient.listMCPServers({}).then((response) => {
-			if (mounted) {
-				setMcpServers(response.servers);
-				setMcpLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) {
-				setMcpError('Failed to load MCP servers');
-				setMcpLoading(false);
-			}
-		});
-
-		return () => { mounted = false; };
-	}, []);
 
 	// Reset form when template changes or modal opens
 	useEffect(() => {
@@ -211,23 +156,7 @@ export function EditPhaseTemplateModal({
 		hydrateSelectedMCPServers(
 			selectedMCPServers,
 			mcpServerData,
-			async (name) => {
-				const response = await mcpClient.getMCPServer(
-					create(GetMCPServerRequestSchema, { name }),
-				);
-				if (!response.server) {
-					return undefined;
-				}
-				return {
-					type: response.server.type,
-					command: response.server.command,
-					args: response.server.args,
-					env: response.server.env,
-					url: response.server.url,
-					headers: response.server.headers,
-					disabled: response.server.disabled,
-				};
-			},
+			fetchMCPServerDefinition,
 		).then((hydrated) => {
 			if (mounted) {
 				setMcpServerData(hydrated);
@@ -301,23 +230,7 @@ export function EditPhaseTemplateModal({
 			const hydratedMcpServerData = await hydrateSelectedMCPServers(
 				selectedMCPServers,
 				mcpServerData,
-				async (name) => {
-					const response = await mcpClient.getMCPServer(
-						create(GetMCPServerRequestSchema, { name }),
-					);
-					if (!response.server) {
-						return undefined;
-					}
-					return {
-						type: response.server.type,
-						command: response.server.command,
-						args: response.server.args,
-						env: response.server.env,
-						url: response.server.url,
-						headers: response.server.headers,
-						disabled: response.server.disabled,
-					};
-				},
+				fetchMCPServerDefinition,
 			);
 			const runtimeConfig = serializeRuntimeConfig({
 				hooks: selectedHooks,
@@ -395,16 +308,9 @@ export function EditPhaseTemplateModal({
 		onClose();
 	}, [onClose]);
 
-	const suggestedInputVariables = [
-		'SPEC_CONTENT',
-		'PROJECT_ROOT',
-		'TASK_DESCRIPTION',
-		'WORKTREE_PATH',
-		'RETRY_ATTEMPT',
-		'RETRY_FROM_PHASE',
-		'RETRY_REASON',
-		'RETRY_FEEDBACK',
-	].filter((varName) => !inputVariables.includes(varName));
+	const suggestedInputVariables = VARIABLE_SUGGESTIONS.filter(
+		(varName) => !inputVariables.includes(varName),
+	);
 
 	// Built-in template message
 	if (isBuiltin) {
@@ -554,99 +460,58 @@ export function EditPhaseTemplateModal({
 				<div className="edit-template-section">
 					<h3 className="edit-template-section-title">Runtime Config</h3>
 
-					<CollapsibleSettingsSection title="Hooks" badgeCount={selectedHooks.length}>
-						<LibraryPicker
-							type="hooks"
-							items={hooks}
-							selectedNames={selectedHooks}
-							onSelectionChange={(names) => {
-								setSelectedHooks(names);
-								jsonOverrideActiveRef.current = false;
-							}}
-							error={hooksError}
-							loading={hooksLoading}
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="MCP Servers" badgeCount={selectedMCPServers.length}>
-						<LibraryPicker
-							type="mcpServers"
-							items={mcpServers}
-							selectedNames={selectedMCPServers}
-							onSelectionChange={(names) => {
-								setSelectedMCPServers(names);
-								jsonOverrideActiveRef.current = false;
-							}}
-							error={mcpError}
-							loading={mcpLoading}
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="Skills" badgeCount={selectedSkills.length}>
-						<LibraryPicker
-							type="skills"
-							items={skills}
-							selectedNames={selectedSkills}
-							onSelectionChange={(names) => {
-								setSelectedSkills(names);
-								jsonOverrideActiveRef.current = false;
-							}}
-							error={skillsError}
-							loading={skillsLoading}
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="Allowed Tools" badgeCount={allowedTools.length}>
-						<TagInput
-							tags={allowedTools}
-							onChange={(tags) => {
-								setAllowedTools(tags);
-								jsonOverrideActiveRef.current = false;
-							}}
-							placeholder="Add tool name..."
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="Disallowed Tools" badgeCount={disallowedTools.length}>
-						<TagInput
-							tags={disallowedTools}
-							onChange={(tags) => {
-								setDisallowedTools(tags);
-								jsonOverrideActiveRef.current = false;
-							}}
-							placeholder="Add tool name..."
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="Env Vars" badgeCount={Object.keys(envVars).length}>
-						<KeyValueEditor
-							entries={envVars}
-							onChange={(entries) => {
-								setEnvVars(entries);
-								jsonOverrideActiveRef.current = false;
-							}}
-						/>
-					</CollapsibleSettingsSection>
-
-					<CollapsibleSettingsSection title="JSON Override" badgeCount={0}>
-						<div className="edit-template-json-override">
-							<textarea
-								className={`edit-template-json-textarea ${jsonError ? 'edit-template-json-textarea--error' : ''}`}
-								value={jsonOverride}
-								onChange={(e) => {
-									setJsonOverride(e.target.value);
-									jsonOverrideActiveRef.current = true;
-									setJsonError('');
-								}}
-								onBlur={handleJsonBlur}
-								rows={8}
-								aria-label="JSON override"
-							/>
-							{jsonError && (
-								<span className="edit-template-json-error">{jsonError}</span>
-							)}
-						</div>
-					</CollapsibleSettingsSection>
+					<RuntimeConfigSections
+						selectedHooks={selectedHooks}
+						onSelectedHooksChange={(names) => {
+							setSelectedHooks(names);
+							jsonOverrideActiveRef.current = false;
+						}}
+						selectedMcpServers={selectedMCPServers}
+						onSelectedMcpServersChange={(names) => {
+							setSelectedMCPServers(names);
+							jsonOverrideActiveRef.current = false;
+						}}
+						selectedSkills={selectedSkills}
+						onSelectedSkillsChange={(names) => {
+							setSelectedSkills(names);
+							jsonOverrideActiveRef.current = false;
+						}}
+						allowedTools={allowedTools}
+						onAllowedToolsChange={(tags) => {
+							setAllowedTools(tags);
+							jsonOverrideActiveRef.current = false;
+						}}
+						disallowedTools={disallowedTools}
+						onDisallowedToolsChange={(tags) => {
+							setDisallowedTools(tags);
+							jsonOverrideActiveRef.current = false;
+						}}
+						envVars={envVars}
+						onEnvVarsChange={(entries) => {
+							setEnvVars(entries);
+							jsonOverrideActiveRef.current = false;
+						}}
+						jsonOverride={jsonOverride}
+						onJsonOverrideChange={(value) => {
+							setJsonOverride(value);
+							jsonOverrideActiveRef.current = true;
+							setJsonError('');
+						}}
+						onJsonOverrideBlur={handleJsonBlur}
+						jsonError={jsonError}
+						hooks={hooks}
+						hooksError={hooksError}
+						hooksLoading={hooksLoading}
+						skills={skills}
+						skillsError={skillsError}
+						skillsLoading={skillsLoading}
+						mcpServers={mcpServers}
+						mcpError={mcpError}
+						mcpLoading={mcpLoading}
+						jsonWrapperClassName="edit-template-json-override"
+						jsonTextareaClassName="edit-template-json-textarea"
+						jsonErrorClassName="edit-template-json-error"
+					/>
 				</div>
 
 				{/* Data Flow Section */}

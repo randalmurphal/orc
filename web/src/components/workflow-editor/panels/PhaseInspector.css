@@ -502,7 +502,7 @@
 	background: var(--red, #ef4444);
 }
 
-/* ─── Legacy Tab Styles (hidden but preserved for backwards compatibility) ── */
+/* ─── Hidden Tab Layout Styles ─────────────────────────────────────────────── */
 
 .phase-inspector__tabs {
 	display: none;
@@ -537,7 +537,7 @@
 	padding: var(--space-2);
 }
 
-/* ─── Settings Tab (keeping existing styles for legacy components) ─────────── */
+/* ─── Settings Tab Styles ──────────────────────────────────────────────────── */
 
 .phase-inspector-settings {
 	display: flex;

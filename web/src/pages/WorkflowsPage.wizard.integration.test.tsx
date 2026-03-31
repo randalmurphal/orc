@@ -54,6 +54,7 @@ vi.mock('@/stores/workflowStore', () => ({
 		removeWorkflow: vi.fn(),
 		updateWorkflow: vi.fn(),
 		setWorkflows: vi.fn(),
+		setPhaseTemplates: vi.fn(),
 		refreshWorkflows: vi.fn(),
 		refreshPhaseTemplates: vi.fn(),
 	})),
@@ -173,7 +174,8 @@ describe('WorkflowsPage - Wizard Integration', () => {
 			expect(screen.getByRole('button', { name: /custom/i })).toBeInTheDocument();
 		});
 
-		it('dispatches orc:add-workflow event opens wizard (not old modal)', async () => {
+		it('clicking New Workflow opens wizard (not old modal)', async () => {
+			const user = userEvent.setup();
 			renderWithRouter(<WorkflowsPage />);
 
 			// Wait for page to load
@@ -181,8 +183,7 @@ describe('WorkflowsPage - Wizard Integration', () => {
 				expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 			});
 
-			// Dispatch the custom event (this is how WorkflowsView triggers modal open)
-			window.dispatchEvent(new CustomEvent('orc:add-workflow'));
+			await user.click(await screen.findByRole('button', { name: /new workflow/i }));
 
 			// Should show the WIZARD, not the old CreateWorkflowModal
 			await waitFor(() => {
@@ -209,7 +210,7 @@ describe('WorkflowsPage - Wizard Integration', () => {
 			renderWithRouter(<WorkflowsPage />);
 
 			// Open wizard
-			window.dispatchEvent(new CustomEvent('orc:add-workflow'));
+			await user.click(await screen.findByRole('button', { name: /new workflow/i }));
 
 			await waitFor(() => {
 				expect(screen.getByText(/what kind of workflow/i)).toBeInTheDocument();
@@ -270,7 +271,7 @@ describe('WorkflowsPage - Wizard Integration', () => {
 			renderWithRouter(<WorkflowsPage />);
 
 			// Open wizard
-			window.dispatchEvent(new CustomEvent('orc:add-workflow'));
+			await user.click(await screen.findByRole('button', { name: /new workflow/i }));
 
 			await waitFor(() => {
 				expect(screen.getByRole('button', { name: /skip to editor/i })).toBeInTheDocument();
@@ -294,7 +295,7 @@ describe('WorkflowsPage - Wizard Integration', () => {
 			renderWithRouter(<WorkflowsPage />);
 
 			// Open wizard
-			window.dispatchEvent(new CustomEvent('orc:add-workflow'));
+			await user.click(await screen.findByRole('button', { name: /new workflow/i }));
 
 			await waitFor(() => {
 				expect(screen.getByText(/what kind of workflow/i)).toBeInTheDocument();
@@ -313,10 +314,11 @@ describe('WorkflowsPage - Wizard Integration', () => {
 		});
 
 		it('wizard closes via escape key', async () => {
+			const user = userEvent.setup();
 			renderWithRouter(<WorkflowsPage />);
 
 			// Open wizard
-			window.dispatchEvent(new CustomEvent('orc:add-workflow'));
+			await user.click(await screen.findByRole('button', { name: /new workflow/i }));
 
 			await waitFor(() => {
 				expect(screen.getByText(/what kind of workflow/i)).toBeInTheDocument();
@@ -350,8 +352,9 @@ describe('WorkflowsPage - Wizard Integration', () => {
 		it('does NOT show old CreateWorkflowModal UI elements', async () => {
 			renderWithRouter(<WorkflowsPage />);
 
+			const user = userEvent.setup();
 			// Open the workflow creation flow
-			window.dispatchEvent(new CustomEvent('orc:add-workflow'));
+			await user.click(await screen.findByRole('button', { name: /new workflow/i }));
 
 			await waitFor(() => {
 				// Wait for modal to appear
