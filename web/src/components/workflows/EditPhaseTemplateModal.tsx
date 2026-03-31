@@ -33,9 +33,7 @@ import {
 	VARIABLE_SUGGESTIONS,
 } from './phase-template-modal/constants';
 import { RuntimeConfigSections } from './phase-template-modal/RuntimeConfigSections';
-import {
-	usePhaseTemplateLibraries,
-} from './phase-template-modal/usePhaseTemplateLibraries';
+import { useLibraryData } from '@/hooks/useLibraryData';
 import './EditPhaseTemplateModal.css';
 
 export interface EditPhaseTemplateModalProps {
@@ -106,7 +104,7 @@ export function EditPhaseTemplateModal({
 		mcpServers,
 		mcpError,
 		mcpLoading,
-	} = usePhaseTemplateLibraries();
+	} = useLibraryData();
 
 	// Loading state
 	const [saving, setSaving] = useState(false);

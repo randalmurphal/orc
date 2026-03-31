@@ -237,44 +237,8 @@ func diffResultToProto(d *diff.DiffResult) *orcv1.DiffResult {
 	}
 
 	result.Files = make([]*orcv1.FileDiff, len(d.Files))
-	for i, f := range d.Files {
-		fileDiff := &orcv1.FileDiff{
-			Path:      f.Path,
-			Status:    f.Status,
-			Additions: int32(f.Additions),
-			Deletions: int32(f.Deletions),
-			Binary:    f.Binary,
-			Syntax:    f.Syntax,
-		}
-		if f.OldPath != "" {
-			fileDiff.OldPath = &f.OldPath
-		}
-		fileDiff.Hunks = make([]*orcv1.DiffHunk, len(f.Hunks))
-		for j, h := range f.Hunks {
-			fileDiff.Hunks[j] = &orcv1.DiffHunk{
-				OldStart: int32(h.OldStart),
-				OldLines: int32(h.OldLines),
-				NewStart: int32(h.NewStart),
-				NewLines: int32(h.NewLines),
-			}
-			fileDiff.Hunks[j].Lines = make([]*orcv1.DiffLine, len(h.Lines))
-			for k, l := range h.Lines {
-				line := &orcv1.DiffLine{
-					Type:    l.Type,
-					Content: l.Content,
-				}
-				if l.OldLine > 0 {
-					oldLine := int32(l.OldLine)
-					line.OldLine = &oldLine
-				}
-				if l.NewLine > 0 {
-					newLine := int32(l.NewLine)
-					line.NewLine = &newLine
-				}
-				fileDiff.Hunks[j].Lines[k] = line
-			}
-		}
-		result.Files[i] = fileDiff
+	for i := range d.Files {
+		result.Files[i] = fileDiffToProto(&d.Files[i])
 	}
 
 	return result

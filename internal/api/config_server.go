@@ -453,30 +453,6 @@ func protoToClaudeSettings(s *orcv1.Settings) *claudeconfig.Settings {
 	return result
 }
 
-// hookScriptToProto converts a db.HookScript to proto Hook.
-func hookScriptToProto(hs *db.HookScript) *orcv1.Hook {
-	return &orcv1.Hook{
-		Id:          hs.ID,
-		Name:        hs.Name,
-		Description: hs.Description,
-		Content:     hs.Content,
-		EventType:   hs.EventType,
-		IsBuiltin:   hs.IsBuiltin,
-	}
-}
-
-// dbSkillToProto converts a db.Skill to proto Skill.
-func dbSkillToProto(s *db.Skill) *orcv1.Skill {
-	return &orcv1.Skill{
-		Id:              s.ID,
-		Name:            s.Name,
-		Description:     s.Description,
-		Content:         s.Content,
-		IsBuiltin:       s.IsBuiltin,
-		SupportingFiles: s.SupportingFiles,
-	}
-}
-
 // GetConfigStats returns configuration stats for the settings page.
 func (s *configServer) GetConfigStats(
 	ctx context.Context,
@@ -528,5 +504,36 @@ func (s *configServer) GetConfigStats(
 	return connect.NewResponse(&orcv1.GetConfigStatsResponse{
 		Stats: stats,
 	}), nil
+}
+
+// discoverCommands reads .claude/commands/ for flat .md files and returns them as proto Skills.
+// Non-.md files and subdirectories are ignored.
+func discoverCommands(claudeDir string, scope orcv1.SettingsScope) []*orcv1.Skill {
+	commandsDir := filepath.Join(claudeDir, "commands")
+	entries, err := os.ReadDir(commandsDir)
+	if err != nil {
+		return nil
+	}
+
+	var commands []*orcv1.Skill
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if filepath.Ext(entry.Name()) != ".md" {
+			continue
+		}
+		name := entry.Name()[:len(entry.Name())-len(".md")]
+		content, err := os.ReadFile(filepath.Join(commandsDir, entry.Name()))
+		if err != nil {
+			continue
+		}
+		commands = append(commands, &orcv1.Skill{
+			Name:    name,
+			Content: string(content),
+			Scope:   scope,
+		})
+	}
+	return commands
 }
 

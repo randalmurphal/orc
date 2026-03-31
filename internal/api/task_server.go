@@ -1035,10 +1035,6 @@ func (s *taskServer) RemoveRelated(
 	return connect.NewResponse(&orcv1.RemoveRelatedResponse{}), nil
 }
 
-// ============================================================================
-// Task Control Methods
-// ============================================================================
-
 // RunTask starts execution of a task.
 // This validates the task can be run and spawns an executor via callback.
 func (s *taskServer) RunTask(
@@ -1246,10 +1242,6 @@ func (s *taskServer) SkipBlock(
 	}), nil
 }
 
-// ============================================================================
-// Retry Methods
-// ============================================================================
-
 // RetryTask retries a failed task from a specific phase.
 func (s *taskServer) RetryTask(
 	ctx context.Context,
@@ -1365,10 +1357,6 @@ func (s *taskServer) RetryPreview(
 		Info: info,
 	}), nil
 }
-
-// ============================================================================
-// Finalize Methods
-// ============================================================================
 
 // FinalizeTask starts the finalize process for a completed task.
 func (s *taskServer) FinalizeTask(

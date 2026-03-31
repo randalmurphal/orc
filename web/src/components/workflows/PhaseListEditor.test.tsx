@@ -25,6 +25,7 @@ import { PhaseListEditor } from './PhaseListEditor';
 import { create } from '@bufbuild/protobuf';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
 import {
+	ListAgentsResponseSchema,
 	ListHooksResponseSchema,
 	ListSkillsResponseSchema,
 } from '@/gen/orc/v1/config_pb';
@@ -44,6 +45,7 @@ import type { WorkflowPhase, PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
 
 vi.mock('@/lib/client', () => ({
 	configClient: {
+		listAgents: vi.fn(),
 		listHooks: vi.fn(),
 		listSkills: vi.fn(),
 	},
@@ -155,6 +157,9 @@ describe('PhaseListEditor', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		vi.mocked(configClient.listAgents).mockResolvedValue(
+			create(ListAgentsResponseSchema, { agents: [] }),
+		);
 		vi.mocked(configClient.listHooks).mockResolvedValue(
 			create(ListHooksResponseSchema, { hooks: mockHooks }),
 		);

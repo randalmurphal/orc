@@ -1,7 +1,5 @@
 package config
 
-import "fmt"
-
 // ResolveGateType returns the effective gate type for a phase given task weight.
 func (c *Config) ResolveGateType(phase string, weight string) string {
 	if c.Gates.WeightOverrides != nil {
@@ -61,24 +59,6 @@ func (c *Config) ExecutorPrefix() string {
 		return ""
 	}
 	return c.Identity.Initials
-}
-
-// ShouldSkipQA returns true if QA should be skipped for the given task weight.
-func (c *Config) ShouldSkipQA(weight string) bool {
-	if !c.QA.Enabled {
-		return true
-	}
-	for _, w := range c.QA.SkipForWeights {
-		if w == weight {
-			return true
-		}
-	}
-	return false
-}
-
-// ShouldSkipReview returns true if review should be skipped.
-func (c *Config) ShouldSkipReview() bool {
-	return !c.Review.Enabled
 }
 
 // EffectiveMaxRetries returns the configured maximum retry attempts.
@@ -165,25 +145,3 @@ func (c *Config) ShouldValidateCriteria(weight string) bool {
 	return c.ShouldValidateForWeight(weight)
 }
 
-// DSN returns the database connection string based on current config.
-func (c *Config) DSN() string {
-	if c.Database.Driver == "postgres" {
-		return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-			c.Database.Postgres.User,
-			c.Database.Postgres.Password,
-			c.Database.Postgres.Host,
-			c.Database.Postgres.Port,
-			c.Database.Postgres.Database,
-			c.Database.Postgres.SSLMode,
-		)
-	}
-	return c.Database.SQLite.Path
-}
-
-// GlobalDSN returns the global database connection string.
-func (c *Config) GlobalDSN() string {
-	if c.Database.Driver == "postgres" {
-		return c.DSN()
-	}
-	return c.Database.SQLite.GlobalPath
-}

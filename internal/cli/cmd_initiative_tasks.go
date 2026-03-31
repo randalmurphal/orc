@@ -193,7 +193,6 @@ Examples:
 	}
 
 	cmd.Flags().String("all-matching", "", "link all tasks matching pattern (matches ID or title)")
-	cmd.Flags().Bool("shared", false, "use shared initiative")
 
 	return cmd
 }
@@ -294,7 +293,6 @@ Examples:
 	}
 
 	cmd.Flags().Bool("all", false, "unlink all tasks from the initiative")
-	cmd.Flags().Bool("shared", false, "use shared initiative")
 
 	return cmd
 }

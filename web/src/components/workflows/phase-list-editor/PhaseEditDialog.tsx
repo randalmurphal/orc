@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as RadixSelect from '@radix-ui/react-select';
 import { Button, Icon } from '@/components/ui';
 import { GateType, type PhaseTemplate, type WorkflowPhase } from '@/gen/orc/v1/workflow_pb';
-import type { Hook, Skill } from '@/gen/orc/v1/config_pb';
-import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
-import { configClient, mcpClient } from '@/lib/client';
+import { useLibraryData } from '@/hooks/useLibraryData';
 import {
 	fetchMCPServerConfig,
 	hydrateSelectedMCPServers,
@@ -41,35 +39,12 @@ export function PhaseEditDialog({
 	const [overrideMcpServerData, setOverrideMcpServerData] = useState<Record<string, unknown>>({});
 	const [jsonOverride, setJsonOverride] = useState('');
 	const [jsonOverrideDirty, setJsonOverrideDirty] = useState(false);
-	const [availableHooks, setAvailableHooks] = useState<Hook[]>([]);
-	const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
-	const [availableMcpServers, setAvailableMcpServers] = useState<MCPServerInfo[]>([]);
 
-	useEffect(() => {
-		if (!phase) {
-			return;
-		}
-
-		let mounted = true;
-		configClient.listHooks({}).then((response) => {
-			if (mounted) {
-				setAvailableHooks(response.hooks);
-			}
-		}).catch(() => {});
-		configClient.listSkills({}).then((response) => {
-			if (mounted) {
-				setAvailableSkills(response.skills);
-			}
-		}).catch(() => {});
-		mcpClient.listMCPServers({}).then((response) => {
-			if (mounted) {
-				setAvailableMcpServers(response.servers);
-			}
-		}).catch(() => {});
-		return () => {
-			mounted = false;
-		};
-	}, [phase]);
+	const {
+		hooks: availableHooks,
+		skills: availableSkills,
+		mcpServers: availableMcpServers,
+	} = useLibraryData();
 
 	useEffect(() => {
 		if (!phase) {

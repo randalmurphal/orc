@@ -12,6 +12,7 @@ export interface LibraryData {
 	hooksLoading: boolean;
 	skillsLoading: boolean;
 	mcpLoading: boolean;
+	agentsError: string;
 	hooksError: string;
 	skillsError: string;
 	mcpError: string;
@@ -26,6 +27,7 @@ export function useLibraryData(): LibraryData {
 	const [hooksLoading, setHooksLoading] = useState(true);
 	const [skillsLoading, setSkillsLoading] = useState(true);
 	const [mcpLoading, setMcpLoading] = useState(true);
+	const [agentsError, setAgentsError] = useState('');
 	const [hooksError, setHooksError] = useState('');
 	const [skillsError, setSkillsError] = useState('');
 	const [mcpError, setMcpError] = useState('');
@@ -41,6 +43,8 @@ export function useLibraryData(): LibraryData {
 
 			if (agentsResp.status === 'fulfilled') {
 				setAgents(agentsResp.value.agents);
+			} else {
+				setAgentsError('Failed to load agents');
 			}
 			if (hooksResp.status === 'fulfilled') {
 				setHooks(hooksResp.value.hooks);
@@ -76,6 +80,7 @@ export function useLibraryData(): LibraryData {
 		hooksLoading,
 		skillsLoading,
 		mcpLoading,
+		agentsError,
 		hooksError,
 		skillsError,
 		mcpError,

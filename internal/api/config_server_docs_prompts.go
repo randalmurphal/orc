@@ -309,33 +309,3 @@ func promptToProto(p *prompt.Prompt) *orcv1.PromptTemplate {
 	}
 }
 
-// discoverCommands reads .claude/commands/ for flat .md files and returns them as proto Skills.
-// Non-.md files and subdirectories are ignored.
-func discoverCommands(claudeDir string, scope orcv1.SettingsScope) []*orcv1.Skill {
-	commandsDir := filepath.Join(claudeDir, "commands")
-	entries, err := os.ReadDir(commandsDir)
-	if err != nil {
-		return nil
-	}
-
-	var commands []*orcv1.Skill
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		if filepath.Ext(entry.Name()) != ".md" {
-			continue
-		}
-		name := entry.Name()[:len(entry.Name())-len(".md")]
-		content, err := os.ReadFile(filepath.Join(commandsDir, entry.Name()))
-		if err != nil {
-			continue
-		}
-		commands = append(commands, &orcv1.Skill{
-			Name:    name,
-			Content: string(content),
-			Scope:   scope,
-		})
-	}
-	return commands
-}

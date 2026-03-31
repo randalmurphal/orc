@@ -288,3 +288,27 @@ func (s *configServer) DeleteSkill(
 		Message: "skill deleted",
 	}), nil
 }
+
+// hookScriptToProto converts a db.HookScript to proto Hook.
+func hookScriptToProto(hs *db.HookScript) *orcv1.Hook {
+	return &orcv1.Hook{
+		Id:          hs.ID,
+		Name:        hs.Name,
+		Description: hs.Description,
+		Content:     hs.Content,
+		EventType:   hs.EventType,
+		IsBuiltin:   hs.IsBuiltin,
+	}
+}
+
+// dbSkillToProto converts a db.Skill to proto Skill.
+func dbSkillToProto(s *db.Skill) *orcv1.Skill {
+	return &orcv1.Skill{
+		Id:              s.ID,
+		Name:            s.Name,
+		Description:     s.Description,
+		Content:         s.Content,
+		IsBuiltin:       s.IsBuiltin,
+		SupportingFiles: s.SupportingFiles,
+	}
+}

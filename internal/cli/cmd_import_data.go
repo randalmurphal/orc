@@ -147,7 +147,7 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	}
 	fmt.Printf("%s task %s from %s", action, export.Task.Id, sourceName)
 	if wasRunning {
-		fmt.Printf(" (was running, now interrupted - use 'orc resume %s' to continue)", export.Task.Id)
+		fmt.Printf(" (was running, now paused - use 'orc resume %s' to continue)", export.Task.Id)
 	}
 	fmt.Println()
 	return nil

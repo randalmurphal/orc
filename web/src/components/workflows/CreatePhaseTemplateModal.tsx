@@ -28,9 +28,7 @@ import { GATE_TYPE_TEMPLATE_OPTIONS, slugify } from './phase-template-modal/cons
 import { PromptEditor } from './phase-template-modal/PromptEditor';
 import { RuntimeConfigSections } from './phase-template-modal/RuntimeConfigSections';
 import { VariableTagInput } from './phase-template-modal/VariableTagInput';
-import {
-	usePhaseTemplateLibraries,
-} from './phase-template-modal/usePhaseTemplateLibraries';
+import { useLibraryData } from '@/hooks/useLibraryData';
 import './CreatePhaseTemplateModal.css';
 
 export interface CreatePhaseTemplateModalProps {
@@ -101,7 +99,7 @@ export function CreatePhaseTemplateModal({
 		mcpServers,
 		mcpError,
 		mcpLoading,
-	} = usePhaseTemplateLibraries();
+	} = useLibraryData();
 
 	// Saving state
 	const [saving, setSaving] = useState(false);

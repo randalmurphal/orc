@@ -145,7 +145,7 @@ func FindProjectRoot() (string, error) {
 		return mainRoot, nil
 	}
 
-	if isRealOrcProject(cwd) {
+	if hasConfigFile(cwd) {
 		return cwd, nil
 	}
 
@@ -197,10 +197,6 @@ func extractMainRepoFromWorktreePath(path string) string {
 	}
 
 	return ""
-}
-
-func isRealOrcProject(dir string) bool {
-	return hasConfigFile(dir)
 }
 
 func findMainGitRepo() (string, error) {

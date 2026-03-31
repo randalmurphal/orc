@@ -70,9 +70,6 @@ func TestInitiativeLinkCommand_Structure(t *testing.T) {
 	if cmd.Flag("all-matching") == nil {
 		t.Error("missing --all-matching flag")
 	}
-	if cmd.Flag("shared") == nil {
-		t.Error("missing --shared flag")
-	}
 }
 
 func TestInitiativeUnlinkCommand_Structure(t *testing.T) {
@@ -86,9 +83,6 @@ func TestInitiativeUnlinkCommand_Structure(t *testing.T) {
 	// Verify flags exist
 	if cmd.Flag("all") == nil {
 		t.Error("missing --all flag")
-	}
-	if cmd.Flag("shared") == nil {
-		t.Error("missing --shared flag")
 	}
 }
 

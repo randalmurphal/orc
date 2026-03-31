@@ -314,11 +314,11 @@ export function RuntimeConfigEditor({
 	);
 }
 
-function InheritedChips({ items }: { items?: string[]; label?: string }) {
+function InheritedChips({ items, label }: { items?: string[]; label?: string }) {
 	if (!items || items.length === 0) return null;
 	return (
 		<div className="inherited-chips">
-			<span className="inherited-chips__label">From template:</span>
+			<span className="inherited-chips__label">{label ? `From template (${label}):` : 'From template:'}</span>
 			{items.map((item) => (
 				<span key={item} className="inherited-chips__chip">{item}</span>
 			))}

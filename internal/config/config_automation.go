@@ -38,18 +38,3 @@ func (c *Config) GetEnabledTriggers() []TriggerConfig {
 	return enabled
 }
 
-// GetTriggersByType returns all enabled triggers of a specific type.
-func (c *Config) GetTriggersByType(triggerType TriggerType) []TriggerConfig {
-	var triggers []TriggerConfig
-	for _, t := range c.Automation.Triggers {
-		if t.Enabled && t.Type == triggerType {
-			triggers = append(triggers, t)
-		}
-	}
-	return triggers
-}
-
-// SupportsScheduleTriggers returns true if schedule-based triggers are supported.
-func (c *Config) SupportsScheduleTriggers() bool {
-	return c.IsTeamMode()
-}
