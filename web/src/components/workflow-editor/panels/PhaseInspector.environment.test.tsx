@@ -74,7 +74,10 @@ vi.mock('@/lib/client', () => ({
 
 vi.mock('./phase-inspector/hooks', () => ({
 	useMobileViewport: () => false,
-	usePhaseInspectorLibraryData: () => phaseInspectorLibraryData,
+}));
+
+vi.mock('@/hooks/useLibraryData', () => ({
+	useLibraryData: () => phaseInspectorLibraryData,
 }));
 
 // Import after mocks are set up

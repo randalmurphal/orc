@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/controlplane"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -500,4 +502,160 @@ func completionRecommendationDedupeKey(taskID string, candidate controlplane.Rec
 	}, "\n")
 	sum := sha256.Sum256([]byte(payload))
 	return fmt.Sprintf("task:%s:%s:%s", taskID, candidate.Kind, hex.EncodeToString(sum[:])[:16])
+}
+
+func (we *WorkflowExecutor) publishRecommendationCreated(rec *orcv1.Recommendation) {
+	if we.publisher == nil || rec == nil {
+		return
+	}
+
+	we.publisher.Publish(events.NewProjectEvent(
+		events.EventRecommendationCreated,
+		we.projectIDForEvents(),
+		rec.GetSourceTaskId(),
+		events.RecommendationCreatedData{
+			RecommendationID: rec.GetId(),
+			Kind:             recommendationKindName(rec.GetKind()),
+			Status:           strings.TrimPrefix(strings.ToLower(rec.GetStatus().String()), "recommendation_status_"),
+			Title:            rec.GetTitle(),
+			Summary:          rec.GetSummary(),
+			SourceTaskID:     rec.GetSourceTaskId(),
+			SourceRunID:      rec.GetSourceRunId(),
+			SourceThreadID:   rec.GetSourceThreadId(),
+			PromotedToType:   rec.GetPromotedToType(),
+			PromotedToID:     rec.GetPromotedToId(),
+			PromotedBy:       rec.GetPromotedBy(),
+		},
+	))
+}
+
+func normalizeRecommendationText(value string) string {
+	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(value))), " ")
+}
+
+func parseChangedFilesForRecommendations(t *orcv1.Task) []string {
+	if t == nil || t.Metadata == nil {
+		return nil
+	}
+
+	changedFiles := strings.TrimSpace(t.Metadata["changed_files"])
+	if changedFiles == "" {
+		return nil
+	}
+
+	files := make([]string, 0)
+	for file := range strings.SplitSeq(changedFiles, ",") {
+		file = strings.TrimSpace(file)
+		if file == "" {
+			continue
+		}
+		files = append(files, file)
+	}
+	return files
+}
+
+func buildRecommendationEvidence(
+	run *db.WorkflowRun,
+	phaseID string,
+	detail string,
+	changedFiles []string,
+) string {
+	parts := make([]string, 0, 3)
+	parts = append(parts, fmt.Sprintf("Run %s phase %s.", run.ID, phaseID))
+	if strings.TrimSpace(detail) != "" {
+		parts = append(parts, strings.TrimSpace(detail))
+	}
+	if len(changedFiles) > 0 {
+		parts = append(parts, "Changed files: "+summarizeChangedFiles(changedFiles))
+	}
+	return strings.Join(parts, "\n")
+}
+
+func summarizeChangedFiles(changedFiles []string) string {
+	if len(changedFiles) <= 5 {
+		return strings.Join(changedFiles, ", ")
+	}
+	return strings.Join(changedFiles[:5], ", ") + fmt.Sprintf(" (+%d more)", len(changedFiles)-5)
+}
+
+func recommendationKindFromSeverity(severity string) string {
+	if strings.EqualFold(severity, "high") {
+		return db.RecommendationKindRisk
+	}
+	return db.RecommendationKindCleanup
+}
+
+func confidenceFromSeverity(severity string) string {
+	if strings.EqualFold(severity, "high") {
+		return "high"
+	}
+	return "medium"
+}
+
+func buildReviewIssueTitle(issue ReviewFinding, kind string) string {
+	location := issueLocation(issue)
+	switch {
+	case location != "":
+		return fmt.Sprintf("%s in %s", recommendationTitlePrefix(kind), location)
+	case strings.TrimSpace(issue.Description) != "":
+		return fmt.Sprintf("%s: %s", recommendationTitlePrefix(kind), truncateRecommendationTitle(issue.Description))
+	default:
+		return recommendationTitlePrefix(kind)
+	}
+}
+
+func recommendationTitlePrefix(kind string) string {
+	switch kind {
+	case db.RecommendationKindRisk:
+		return "Investigate review risk"
+	case db.RecommendationKindCleanup:
+		return "Clean up review finding"
+	case db.RecommendationKindDecisionRequest:
+		return "Resolve review decision"
+	default:
+		return "Follow up on review finding"
+	}
+}
+
+func truncateRecommendationTitle(value string) string {
+	value = strings.TrimSpace(value)
+	const maxRunes = 72
+	runes := []rune(value)
+	if len(runes) <= maxRunes {
+		return value
+	}
+	return string(runes[:maxRunes]) + "..."
+}
+
+func issueLocation(issue ReviewFinding) string {
+	switch {
+	case issue.File != "" && issue.Line > 0:
+		return fmt.Sprintf("%s:%d", issue.File, issue.Line)
+	case issue.File != "":
+		return issue.File
+	default:
+		return ""
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func decodeRecommendationPayload(content string) (map[string]any, bool) {
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(content), &payload); err != nil {
+		return nil, false
+	}
+	return payload, true
+}
+
+func isRecommendationDedupeError(err error) bool {
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unique") || strings.Contains(message, "duplicate")
 }

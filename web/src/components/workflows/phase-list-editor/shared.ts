@@ -21,7 +21,7 @@ export const MODEL_OPTIONS = [
 	{ value: 'haiku', label: 'Haiku' },
 ];
 
-export const GATE_TYPE_OPTIONS = [
+export const GATE_TYPE_OVERRIDE_OPTIONS = [
 	{ value: GateType.UNSPECIFIED, label: 'Inherit (default)' },
 	{ value: GateType.AUTO, label: 'Auto' },
 	{ value: GateType.HUMAN, label: 'Human' },

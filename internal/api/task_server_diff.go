@@ -178,3 +178,104 @@ func (s *taskServer) GetFileDiff(
 		File: fileDiffToProto(fileDiff),
 	}), nil
 }
+
+func fileDiffToProto(f *diff.FileDiff) *orcv1.FileDiff {
+	if f == nil {
+		return nil
+	}
+	fileDiff := &orcv1.FileDiff{
+		Path:      f.Path,
+		Status:    f.Status,
+		Additions: int32(f.Additions),
+		Deletions: int32(f.Deletions),
+		Binary:    f.Binary,
+		Syntax:    f.Syntax,
+	}
+	if f.OldPath != "" {
+		fileDiff.OldPath = &f.OldPath
+	}
+	fileDiff.Hunks = make([]*orcv1.DiffHunk, len(f.Hunks))
+	for j, h := range f.Hunks {
+		fileDiff.Hunks[j] = &orcv1.DiffHunk{
+			OldStart: int32(h.OldStart),
+			OldLines: int32(h.OldLines),
+			NewStart: int32(h.NewStart),
+			NewLines: int32(h.NewLines),
+		}
+		fileDiff.Hunks[j].Lines = make([]*orcv1.DiffLine, len(h.Lines))
+		for k, l := range h.Lines {
+			line := &orcv1.DiffLine{
+				Type:    l.Type,
+				Content: l.Content,
+			}
+			if l.OldLine > 0 {
+				oldLine := int32(l.OldLine)
+				line.OldLine = &oldLine
+			}
+			if l.NewLine > 0 {
+				newLine := int32(l.NewLine)
+				line.NewLine = &newLine
+			}
+			fileDiff.Hunks[j].Lines[k] = line
+		}
+	}
+	return fileDiff
+}
+
+func diffResultToProto(d *diff.DiffResult) *orcv1.DiffResult {
+	if d == nil {
+		return nil
+	}
+	result := &orcv1.DiffResult{
+		Base: d.Base,
+		Head: d.Head,
+		Stats: &orcv1.DiffStats{
+			FilesChanged: int32(d.Stats.FilesChanged),
+			Additions:    int32(d.Stats.Additions),
+			Deletions:    int32(d.Stats.Deletions),
+		},
+	}
+
+	result.Files = make([]*orcv1.FileDiff, len(d.Files))
+	for i, f := range d.Files {
+		fileDiff := &orcv1.FileDiff{
+			Path:      f.Path,
+			Status:    f.Status,
+			Additions: int32(f.Additions),
+			Deletions: int32(f.Deletions),
+			Binary:    f.Binary,
+			Syntax:    f.Syntax,
+		}
+		if f.OldPath != "" {
+			fileDiff.OldPath = &f.OldPath
+		}
+		fileDiff.Hunks = make([]*orcv1.DiffHunk, len(f.Hunks))
+		for j, h := range f.Hunks {
+			fileDiff.Hunks[j] = &orcv1.DiffHunk{
+				OldStart: int32(h.OldStart),
+				OldLines: int32(h.OldLines),
+				NewStart: int32(h.NewStart),
+				NewLines: int32(h.NewLines),
+			}
+			fileDiff.Hunks[j].Lines = make([]*orcv1.DiffLine, len(h.Lines))
+			for k, l := range h.Lines {
+				line := &orcv1.DiffLine{
+					Type:    l.Type,
+					Content: l.Content,
+				}
+				if l.OldLine > 0 {
+					oldLine := int32(l.OldLine)
+					line.OldLine = &oldLine
+				}
+				if l.NewLine > 0 {
+					newLine := int32(l.NewLine)
+					line.NewLine = &newLine
+				}
+				fileDiff.Hunks[j].Lines[k] = line
+			}
+		}
+		result.Files[i] = fileDiff
+	}
+
+	return result
+}

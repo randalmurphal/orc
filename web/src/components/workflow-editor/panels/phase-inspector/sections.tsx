@@ -412,13 +412,12 @@ export function SubAgentsSection({
 }
 
 interface PromptSectionProps {
-	phase: WorkflowPhase;
 	template: PhaseTemplate;
 	readOnly: boolean;
 	fieldErrors: FieldErrors;
 }
 
-export function PromptSection({ phase: _phase, template, readOnly, fieldErrors: _fieldErrors }: PromptSectionProps) {
+export function PromptSection({ template, readOnly, fieldErrors }: PromptSectionProps) {
 	const [promptSource, setPromptSource] = useState<PromptSource>(
 		template.promptSource || PromptSource.EMBEDDED,
 	);
@@ -476,7 +475,7 @@ export function PromptSection({ phase: _phase, template, readOnly, fieldErrors: 
 						promptContent={template.promptContent}
 						readOnly={readOnly}
 					/>
-					{_fieldErrors.promptContent && <span className="field-error">Failed to load prompt content</span>}
+					{fieldErrors.promptContent && <span className="field-error">Failed to load prompt content</span>}
 				</div>
 			)}
 
@@ -502,7 +501,6 @@ export function PromptSection({ phase: _phase, template, readOnly, fieldErrors: 
 }
 
 interface DataFlowSectionProps {
-	phase: WorkflowPhase;
 	template: PhaseTemplate;
 	workflowDetails: WorkflowWithDetails;
 	readOnly: boolean;
@@ -511,7 +509,6 @@ interface DataFlowSectionProps {
 }
 
 export function DataFlowSection({
-	phase: _phase,
 	template,
 	workflowDetails,
 	readOnly,
@@ -622,7 +619,6 @@ interface EnvironmentSectionProps {
 	skillsLoading: boolean;
 	mcpLoading: boolean;
 	readOnly: boolean;
-	fieldErrors: FieldErrors;
 	autoSave: AutoSave;
 }
 
@@ -635,7 +631,6 @@ export function EnvironmentSection({
 	skillsLoading,
 	mcpLoading,
 	readOnly,
-	fieldErrors: _fieldErrors,
 	autoSave,
 }: EnvironmentSectionProps) {
 	const [workingDirectory, setWorkingDirectory] = useState('inherit');
@@ -787,7 +782,6 @@ export function EnvironmentSection({
 interface AdvancedSectionProps {
 	phase: WorkflowPhase;
 	readOnly: boolean;
-	fieldErrors: FieldErrors;
 	autoSave: AutoSave;
 	onDeletePhase?: () => void;
 }
@@ -795,7 +789,6 @@ interface AdvancedSectionProps {
 export function AdvancedSection({
 	phase,
 	readOnly,
-	fieldErrors: _fieldErrors,
 	autoSave,
 	onDeletePhase,
 }: AdvancedSectionProps) {

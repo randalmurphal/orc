@@ -1,6 +1,6 @@
 import { GateType } from '@/gen/orc/v1/workflow_pb';
 
-export const GATE_TYPE_OPTIONS = [
+export const GATE_TYPE_TEMPLATE_OPTIONS = [
 	{ value: GateType.AUTO, label: 'Auto' },
 	{ value: GateType.HUMAN, label: 'Human' },
 	{ value: GateType.SKIP, label: 'Skip' },

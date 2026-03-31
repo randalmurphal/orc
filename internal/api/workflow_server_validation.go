@@ -14,42 +14,6 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 )
 
-// SaveWorkflowLayout bulk-saves node positions for workflow phases.
-func (s *workflowServer) SaveWorkflowLayout(
-	ctx context.Context,
-	req *connect.Request[orcv1.SaveWorkflowLayoutRequest],
-) (*connect.Response[orcv1.SaveWorkflowLayoutResponse], error) {
-	if req.Msg.WorkflowId == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workflow_id is required"))
-	}
-
-	backend, err := s.getBackend(req.Msg.GetProjectId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
-	}
-
-	wf, err := s.globalDB.GetWorkflow(req.Msg.WorkflowId)
-	if err != nil || wf == nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.WorkflowId))
-	}
-	if wf.IsBuiltin {
-		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot modify built-in workflow layout"))
-	}
-
-	positions := make(map[string][2]float64, len(req.Msg.Positions))
-	for _, p := range req.Msg.Positions {
-		positions[p.PhaseTemplateId] = [2]float64{p.PositionX, p.PositionY}
-	}
-
-	if err := backend.UpdateWorkflowPhasePositions(req.Msg.WorkflowId, positions); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("update positions: %w", err))
-	}
-
-	return connect.NewResponse(&orcv1.SaveWorkflowLayoutResponse{
-		Success: true,
-	}), nil
-}
-
 // ValidateWorkflow checks workflow structure for cycles, invalid dependency
 // references, and invalid loop_to_phase references.
 func (s *workflowServer) ValidateWorkflow(

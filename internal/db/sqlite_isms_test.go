@@ -115,14 +115,22 @@ func TestBuildTimeseriesQuery_WithProjectFilter(t *testing.T) {
 func TestStrftimeFormat_Removed(t *testing.T) {
 	t.Parallel()
 
-	content, err := os.ReadFile("global.go")
-	if err != nil {
-		t.Fatalf("read global.go: %v", err)
+	globalFiles := []string{
+		"global_projects.go",
+		"global_costs.go",
+		"global_agents.go",
+		"global_workflows.go",
 	}
 
-	// strftimeFormat should be removed entirely
-	if strings.Contains(string(content), "func strftimeFormat(") {
-		t.Error("strftimeFormat() function still exists in global.go - should be removed per SC-2")
+	for _, file := range globalFiles {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("read %s: %v", file, err)
+		}
+
+		if strings.Contains(string(content), "func strftimeFormat(") {
+			t.Errorf("strftimeFormat() function still exists in %s - should be removed per SC-2", file)
+		}
 	}
 }
 
@@ -138,7 +146,10 @@ func TestNoHardcodedDatetimeNow(t *testing.T) {
 	t.Parallel()
 
 	targetFiles := []string{
-		"global.go",
+		"global_projects.go",
+		"global_costs.go",
+		"global_agents.go",
+		"global_workflows.go",
 		"branch.go",
 		"phase_output.go",
 		"project.go",
@@ -474,26 +485,35 @@ func TestSaveSpecForTask_UsesDriverNow(t *testing.T) {
 // SC-3: No hardcoded strftime in global.go
 // =============================================================================
 
-// TestNoHardcodedStrftimeInGlobal verifies that global.go no longer contains
-// hardcoded strftime calls outside of comments.
+// TestNoHardcodedStrftimeInGlobal verifies that global DB files no longer
+// contain hardcoded strftime calls outside of comments.
 // Covers SC-2.
 func TestNoHardcodedStrftimeInGlobal(t *testing.T) {
 	t.Parallel()
 
-	content, err := os.ReadFile("global.go")
-	if err != nil {
-		t.Fatalf("read global.go: %v", err)
+	globalFiles := []string{
+		"global_projects.go",
+		"global_costs.go",
+		"global_agents.go",
+		"global_workflows.go",
 	}
 
-	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "//") {
-			continue
+	for _, file := range globalFiles {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("read %s: %v", file, err)
 		}
-		if strings.Contains(line, "strftime(") {
-			t.Errorf("global.go:%d contains hardcoded strftime: %s",
-				i+1, trimmed)
+
+		lines := strings.Split(string(content), "\n")
+		for i, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			if strings.Contains(line, "strftime(") {
+				t.Errorf("%s:%d contains hardcoded strftime: %s",
+					file, i+1, trimmed)
+			}
 		}
 	}
 }

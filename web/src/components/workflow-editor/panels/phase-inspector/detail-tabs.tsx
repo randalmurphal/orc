@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { GateType, type WorkflowPhase, type WorkflowVariable, type WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
-import type { Agent } from '@/gen/orc/v1/config_pb';
-import { configClient, workflowClient } from '@/lib/client';
+import type { Agent, Hook, Skill } from '@/gen/orc/v1/config_pb';
+import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
+import { workflowClient } from '@/lib/client';
 import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
 import { VariableModal } from '@/components/workflow-editor/VariableModal';
 import { ConditionEditor, LoopEditor } from '@/components/workflows';
@@ -141,6 +142,17 @@ interface SettingsTabProps {
 	onError: (err: string | null) => void;
 	onWorkflowRefresh?: () => void;
 	onDeletePhase?: () => void;
+	agents: Agent[];
+	agentsLoading: boolean;
+	hooks: Hook[];
+	hooksLoading: boolean;
+	hooksError: string;
+	skills: Skill[];
+	skillsLoading: boolean;
+	skillsError: string;
+	mcpServers: MCPServerInfo[];
+	mcpLoading: boolean;
+	mcpError: string;
 }
 
 export function SettingsTab({
@@ -151,12 +163,21 @@ export function SettingsTab({
 	onError,
 	onWorkflowRefresh,
 	onDeletePhase,
+	agents,
+	agentsLoading,
+	hooks,
+	hooksLoading,
+	hooksError,
+	skills,
+	skillsLoading,
+	skillsError,
+	mcpServers,
+	mcpLoading,
+	mcpError,
 }: SettingsTabProps) {
 	const [modelOverride, setModelOverride] = useState<string>(phase.modelOverride ?? '');
 	const [thinkingOverride, setThinkingOverride] = useState<boolean>(phase.thinkingOverride ?? false);
 	const [gateTypeOverride, setGateTypeOverride] = useState<GateType>(phase.gateTypeOverride ?? GateType.UNSPECIFIED);
-	const [agents, setAgents] = useState<Agent[]>([]);
-	const [agentsLoading, setAgentsLoading] = useState(true);
 	const [agentOverride, setAgentOverride] = useState<string>(phase.agentOverride ?? '');
 	const [subAgentsOverride, setSubAgentsOverride] = useState<string[]>(phase.subAgentsOverride ?? []);
 	const [runtimeConfigDraft, setRuntimeConfigDraft] = useState<string | null>(null);
@@ -165,21 +186,6 @@ export function SettingsTab({
 	const [conditionDirty, setConditionDirty] = useState(false);
 	const [loopConfigDraft, setLoopConfigDraft] = useState<string | undefined>(undefined);
 	const [loopConfigDirty, setLoopConfigDirty] = useState(false);
-
-	useEffect(() => {
-		let mounted = true;
-		configClient.listAgents({}).then((response) => {
-			if (mounted) {
-				setAgents(response.agents);
-				setAgentsLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) setAgentsLoading(false);
-		});
-		return () => {
-			mounted = false;
-		};
-	}, []);
 
 	useEffect(() => {
 		setModelOverride(phase.modelOverride ?? '');
@@ -383,7 +389,20 @@ export function SettingsTab({
 				<LoopEditor loopConfig={(loopConfigDirty ? loopConfigDraft : phase.loopConfig) || ''} onChange={handleLoopConfigChange} priorPhases={priorPhases} disabled={readOnly} />
 			</CollapsibleSettingsSection>
 
-			<RuntimeConfigEditor phase={phase} disabled={readOnly} onSave={setRuntimeConfigDraft} />
+			<RuntimeConfigEditor
+					phase={phase}
+					disabled={readOnly}
+					onSave={setRuntimeConfigDraft}
+					hooks={hooks}
+					hooksLoading={hooksLoading}
+					hooksError={hooksError}
+					skills={skills}
+					skillsLoading={skillsLoading}
+					skillsError={skillsError}
+					mcpServers={mcpServers}
+					mcpLoading={mcpLoading}
+					mcpError={mcpError}
+				/>
 
 			{!readOnly && onDeletePhase && (
 				<div className="phase-inspector-danger-zone">

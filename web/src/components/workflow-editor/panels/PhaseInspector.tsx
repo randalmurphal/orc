@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { workflowClient } from '@/lib/client';
 import type { WorkflowPhase, WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
 import type { FieldErrors, SectionState } from './phase-inspector/shared';
-import { useMobileViewport, usePhaseInspectorLibraryData } from './phase-inspector/hooks';
+import { useMobileViewport } from './phase-inspector/hooks';
+import { useLibraryData } from '@/hooks/useLibraryData';
 import {
 	AlwaysVisibleSection,
 	CollapsibleSection,
@@ -12,11 +13,6 @@ import {
 	EnvironmentSection,
 	AdvancedSection,
 } from './phase-inspector/sections';
-export {
-	AvailableVariablesList,
-	CompletionCriteriaTab,
-	SettingsTab,
-} from './phase-inspector/detail-tabs';
 import './PhaseInspector.css';
 
 interface PhaseInspectorProps {
@@ -25,11 +21,6 @@ interface PhaseInspectorProps {
 	readOnly: boolean;
 	onWorkflowRefresh?: () => void;
 	onDeletePhase?: () => void;
-}
-
-// Debounced save state
-interface PendingChanges {
-	[key: string]: unknown;
 }
 
 const DEFAULT_SECTION_STATE: SectionState = {
@@ -61,7 +52,6 @@ export function PhaseInspector({
 	const [savingFields, setSavingFields] = useState(new Set<string>());
 
 	// Auto-save debounce
-	const [_pendingChanges, setPendingChanges] = useState<PendingChanges>({});
 	const debounceTimeoutRef = useRef<number | null>(null);
 
 	const {
@@ -73,7 +63,7 @@ export function PhaseInspector({
 		hooksLoading,
 		skillsLoading,
 		mcpLoading,
-	} = usePhaseInspectorLibraryData();
+	} = useLibraryData();
 
 	// Track scroll position for maintenance during edits
 	const inspectorRef = useRef<HTMLDivElement>(null);
@@ -89,8 +79,7 @@ export function PhaseInspector({
 				setSectionState(DEFAULT_SECTION_STATE);
 			}
 
-			// Clear pending changes and errors for new phase
-			setPendingChanges({});
+			// Clear errors for new phase
 			setFieldErrors({});
 			setSavingFields(new Set());
 
@@ -129,9 +118,6 @@ export function PhaseInspector({
 		async (fieldName: string, value: unknown, immediate = false) => {
 			if (!phase || !workflowDetails?.workflow?.id) return;
 
-			// Update pending changes
-			setPendingChanges(prev => ({ ...prev, [fieldName]: value }));
-
 			// Clear existing timeout
 			if (debounceTimeoutRef.current) {
 				clearTimeout(debounceTimeoutRef.current);
@@ -157,13 +143,6 @@ export function PhaseInspector({
 						inspector.scrollTop = scrollTop;
 					}
 
-					// Clear from pending changes
-					setPendingChanges(prev => {
-						const next = { ...prev };
-						delete next[fieldName];
-						return next;
-					});
-
 					onWorkflowRefresh?.();
 				} catch (error) {
 					const errorMessage = error instanceof Error ? error.message : 'Save failed';
@@ -174,12 +153,6 @@ export function PhaseInspector({
 						[fieldName]: { message: errorMessage, type: 'save' }
 					}));
 
-					// Remove from pending changes (field will revert to original)
-					setPendingChanges(prev => {
-						const next = { ...prev };
-						delete next[fieldName];
-						return next;
-					});
 				} finally {
 					setSavingFields(prev => {
 						const next = new Set(prev);
@@ -303,7 +276,6 @@ export function PhaseInspector({
 					isMobile={isMobile}
 				>
 					<PromptSection
-						phase={phase}
 						template={template}
 						readOnly={isBuiltin}
 						fieldErrors={fieldErrors}
@@ -319,7 +291,6 @@ export function PhaseInspector({
 					isMobile={isMobile}
 				>
 					<DataFlowSection
-						phase={phase}
 						template={template}
 						workflowDetails={workflowDetails}
 						readOnly={readOnly}
@@ -345,7 +316,6 @@ export function PhaseInspector({
 						skillsLoading={skillsLoading}
 						mcpLoading={mcpLoading}
 						readOnly={readOnly}
-						fieldErrors={fieldErrors}
 						autoSave={autoSave}
 					/>
 				</CollapsibleSection>
@@ -361,7 +331,6 @@ export function PhaseInspector({
 					<AdvancedSection
 						phase={phase}
 						readOnly={readOnly}
-						fieldErrors={fieldErrors}
 						autoSave={autoSave}
 						onDeletePhase={onDeletePhase}
 					/>

@@ -7,6 +7,29 @@
  * - EditPhaseTemplateModal (template-level runtime_config editing)
  */
 
+import { create } from '@bufbuild/protobuf';
+import { GetMCPServerRequestSchema } from '@/gen/orc/v1/mcp_pb';
+import { mcpClient } from '@/lib/client';
+
+/** Fetch a single MCP server's config by name. */
+export async function fetchMCPServerConfig(name: string): Promise<Record<string, unknown> | undefined> {
+	const response = await mcpClient.getMCPServer(
+		create(GetMCPServerRequestSchema, { name }),
+	);
+	if (!response.server) {
+		return undefined;
+	}
+	return {
+		type: response.server.type,
+		command: response.server.command,
+		args: response.server.args,
+		env: response.server.env,
+		url: response.server.url,
+		headers: response.server.headers,
+		disabled: response.server.disabled,
+	};
+}
+
 export interface RuntimeConfigState {
 	hooks: string[];
 	skillRefs: string[];

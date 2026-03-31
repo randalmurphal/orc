@@ -250,3 +250,61 @@ func (s *configServer) DeleteAgent(
 		Message: fmt.Sprintf("Agent %s deleted successfully", req.Msg.Name),
 	}), nil
 }
+
+// dbAgentToProto converts a db.Agent to proto Agent with stats and status.
+func dbAgentToProto(a *db.Agent, stats *db.AgentStats, scope orcv1.SettingsScope) *orcv1.Agent {
+	agent := &orcv1.Agent{
+		Id:          a.ID,
+		Name:        a.Name,
+		Description: a.Description,
+		Scope:       scope,
+		IsBuiltin:   a.IsBuiltin,
+	}
+
+	// Set model if present
+	if a.Model != "" {
+		agent.Model = &a.Model
+	}
+
+	// Set provider if present
+	if a.Provider != "" {
+		agent.Provider = &a.Provider
+	}
+
+	// Set prompt if present
+	if a.Prompt != "" {
+		agent.Prompt = &a.Prompt
+	}
+
+	// Set tools if present
+	if len(a.Tools) > 0 {
+		agent.Tools = &orcv1.ToolPermissions{
+			Allow: a.Tools,
+		}
+	}
+
+	// Set status - "active" if running tasks exist for this model, else "idle"
+	status := "idle"
+	if stats != nil && stats.IsActive {
+		status = "active"
+	}
+	agent.Status = &status
+
+	// Set stats
+	if stats != nil {
+		agent.Stats = &orcv1.AgentStats{
+			TokensToday: int64(stats.TokensToday),
+			TasksDone:   int32(stats.TasksDoneTotal),
+			SuccessRate: stats.SuccessRate,
+		}
+	} else {
+		// Return zero stats if no stats available
+		agent.Stats = &orcv1.AgentStats{
+			TokensToday: 0,
+			TasksDone:   0,
+			SuccessRate: 0,
+		}
+	}
+
+	return agent
+}

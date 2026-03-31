@@ -10,7 +10,6 @@ import {
 	type HookDefinition,
 	type RuntimeConfigState,
 } from '@/lib/runtimeConfigUtils';
-import { configClient, mcpClient } from '@/lib/client';
 import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
 import { KeyValueEditor } from '@/components/core/KeyValueEditor';
 import { LibraryPicker } from '@/components/core/LibraryPicker';
@@ -21,9 +20,31 @@ interface RuntimeConfigEditorProps {
 	phase: WorkflowPhase;
 	disabled: boolean;
 	onSave: (json: string) => void;
+	hooks: Hook[];
+	hooksLoading: boolean;
+	hooksError: string;
+	skills: Skill[];
+	skillsLoading: boolean;
+	skillsError: string;
+	mcpServers: MCPServerInfo[];
+	mcpLoading: boolean;
+	mcpError: string;
 }
 
-export function RuntimeConfigEditor({ phase, disabled, onSave }: RuntimeConfigEditorProps) {
+export function RuntimeConfigEditor({
+	phase,
+	disabled,
+	onSave,
+	hooks,
+	hooksLoading,
+	hooksError,
+	skills,
+	skillsLoading,
+	skillsError,
+	mcpServers,
+	mcpLoading,
+	mcpError,
+}: RuntimeConfigEditorProps) {
 	const [selectedHooks, setSelectedHooks] = useState<string[]>([]);
 	const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 	const [selectedMCPServers, setSelectedMCPServers] = useState<string[]>([]);
@@ -37,56 +58,6 @@ export function RuntimeConfigEditor({ phase, disabled, onSave }: RuntimeConfigEd
 	const [jsonText, setJsonText] = useState('');
 	const [jsonError, setJsonError] = useState('');
 	const jsonActiveRef = useRef(false);
-
-	const [hooks, setHooks] = useState<Hook[]>([]);
-	const [skills, setSkills] = useState<Skill[]>([]);
-	const [mcpServers, setMcpServers] = useState<MCPServerInfo[]>([]);
-	const [hooksLoading, setHooksLoading] = useState(true);
-	const [skillsLoading, setSkillsLoading] = useState(true);
-	const [mcpLoading, setMcpLoading] = useState(true);
-	const [hooksError, setHooksError] = useState('');
-	const [skillsError, setSkillsError] = useState('');
-	const [mcpError, setMcpError] = useState('');
-
-	useEffect(() => {
-		let mounted = true;
-		configClient.listHooks({}).then((r) => {
-			if (mounted) {
-				setHooks(r.hooks);
-				setHooksLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) {
-				setHooksError('Failed to load hooks');
-				setHooksLoading(false);
-			}
-		});
-		configClient.listSkills({}).then((r) => {
-			if (mounted) {
-				setSkills(r.skills);
-				setSkillsLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) {
-				setSkillsError('Failed to load skills');
-				setSkillsLoading(false);
-			}
-		});
-		mcpClient.listMCPServers({}).then((r) => {
-			if (mounted) {
-				setMcpServers(r.servers);
-				setMcpLoading(false);
-			}
-		}).catch(() => {
-			if (mounted) {
-				setMcpError('Failed to load MCP servers');
-				setMcpLoading(false);
-			}
-		});
-		return () => {
-			mounted = false;
-		};
-	}, []);
 
 	useEffect(() => {
 		const config = parseRuntimeConfig(phase.runtimeConfigOverride);

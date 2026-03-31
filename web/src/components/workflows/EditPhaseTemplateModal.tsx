@@ -22,18 +22,18 @@ import type { PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
 import { GateType, PromptSource } from '@/gen/orc/v1/workflow_pb';
 import { TagInput } from '@/components/core/TagInput';
 import {
+	fetchMCPServerConfig,
 	parseRuntimeConfig,
 	serializeRuntimeConfig,
 	hydrateSelectedMCPServers,
 	type HookDefinition,
 } from '@/lib/runtimeConfigUtils';
 import {
-	GATE_TYPE_OPTIONS,
+	GATE_TYPE_TEMPLATE_OPTIONS,
 	VARIABLE_SUGGESTIONS,
 } from './phase-template-modal/constants';
 import { RuntimeConfigSections } from './phase-template-modal/RuntimeConfigSections';
 import {
-	fetchMCPServerDefinition,
 	usePhaseTemplateLibraries,
 } from './phase-template-modal/usePhaseTemplateLibraries';
 import './EditPhaseTemplateModal.css';
@@ -156,7 +156,7 @@ export function EditPhaseTemplateModal({
 		hydrateSelectedMCPServers(
 			selectedMCPServers,
 			mcpServerData,
-			fetchMCPServerDefinition,
+			fetchMCPServerConfig,
 		).then((hydrated) => {
 			if (mounted) {
 				setMcpServerData(hydrated);
@@ -230,7 +230,7 @@ export function EditPhaseTemplateModal({
 			const hydratedMcpServerData = await hydrateSelectedMCPServers(
 				selectedMCPServers,
 				mcpServerData,
-				fetchMCPServerDefinition,
+				fetchMCPServerConfig,
 			);
 			const runtimeConfig = serializeRuntimeConfig({
 				hooks: selectedHooks,
@@ -423,7 +423,7 @@ export function EditPhaseTemplateModal({
 								value={gateType}
 								onChange={(e) => setGateType(Number(e.target.value) as GateType)}
 							>
-								{GATE_TYPE_OPTIONS.map((option) => (
+								{GATE_TYPE_TEMPLATE_OPTIONS.map((option) => (
 									<option key={option.value} value={option.value}>
 										{option.label}
 									</option>

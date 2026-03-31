@@ -6,8 +6,10 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // ListAttachments returns all attachments for a task.
@@ -153,4 +155,17 @@ func (s *taskServer) DeleteAttachment(
 	return connect.NewResponse(&orcv1.DeleteAttachmentResponse{
 		Message: "Attachment deleted",
 	}), nil
+}
+
+func attachmentToProto(a *task.Attachment) *orcv1.Attachment {
+	if a == nil {
+		return nil
+	}
+	return &orcv1.Attachment{
+		Filename:    a.Filename,
+		Size:        a.Size,
+		ContentType: a.ContentType,
+		CreatedAt:   timestamppb.New(a.CreatedAt),
+		IsImage:     a.IsImage,
+	}
 }

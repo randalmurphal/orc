@@ -18,17 +18,17 @@ import { toast } from '@/stores/uiStore';
 import type { PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
 import { GateType, PromptSource } from '@/gen/orc/v1/workflow_pb';
 import {
+	fetchMCPServerConfig,
 	parseRuntimeConfig,
 	serializeRuntimeConfig,
 	hydrateSelectedMCPServers,
 	type HookDefinition,
 } from '@/lib/runtimeConfigUtils';
-import { GATE_TYPE_OPTIONS, slugify } from './phase-template-modal/constants';
+import { GATE_TYPE_TEMPLATE_OPTIONS, slugify } from './phase-template-modal/constants';
 import { PromptEditor } from './phase-template-modal/PromptEditor';
 import { RuntimeConfigSections } from './phase-template-modal/RuntimeConfigSections';
 import { VariableTagInput } from './phase-template-modal/VariableTagInput';
 import {
-	fetchMCPServerDefinition,
 	usePhaseTemplateLibraries,
 } from './phase-template-modal/usePhaseTemplateLibraries';
 import './CreatePhaseTemplateModal.css';
@@ -178,7 +178,7 @@ export function CreatePhaseTemplateModal({
 		hydrateSelectedMCPServers(
 			selectedMCPServers,
 			mcpServerData,
-			fetchMCPServerDefinition,
+			fetchMCPServerConfig,
 		).then((hydrated) => {
 			if (mounted) {
 				setMcpServerData(hydrated);
@@ -231,7 +231,7 @@ export function CreatePhaseTemplateModal({
 			const hydratedMcpServerData = await hydrateSelectedMCPServers(
 				selectedMCPServers,
 				mcpServerData,
-				fetchMCPServerDefinition,
+				fetchMCPServerConfig,
 			);
 			const runtimeConfig = serializeRuntimeConfig({
 				hooks: selectedHooks,
@@ -503,7 +503,7 @@ export function CreatePhaseTemplateModal({
 								value={gateType}
 								onChange={(e) => setGateType(Number(e.target.value) as GateType)}
 							>
-								{GATE_TYPE_OPTIONS.map((option) => (
+								{GATE_TYPE_TEMPLATE_OPTIONS.map((option) => (
 									<option key={option.value} value={option.value}>
 										{option.label}
 									</option>

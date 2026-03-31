@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"connectrpc.com/connect"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/config"
 )
 
 // GetWorkflowDefaults returns the workflow defaults configuration.
@@ -86,4 +88,27 @@ func (s *configServer) UpdateWorkflowDefaults(
 			Default:  cfg.WorkflowDefaults.Default,
 		},
 	}), nil
+}
+
+// loadConfigForProject loads configuration for a specific project, or returns server config if projectID is empty.
+func (s *configServer) loadConfigForProject(projectID string) (*config.Config, error) {
+	if projectID == "" {
+		// Return the config that was provided to the server (for tests and current behavior)
+		return s.orcConfig, nil
+	}
+
+	// For project-specific config, we'd need to implement project-specific config loading
+	// For now, return the current config as a fallback
+	return s.orcConfig, nil
+}
+
+// getConfigPath returns the config file path for a project, using the server's work directory.
+func (s *configServer) getConfigPath(projectID string) string {
+	if s.workDir != "" {
+		return filepath.Join(s.workDir, config.OrcDir, config.ConfigFileName)
+	}
+
+	// For project-specific configs, we'd construct the path differently
+	// For now, return the default path
+	return filepath.Join(config.OrcDir, config.ConfigFileName)
 }

@@ -31,3 +31,6 @@ export { useCurrentProject } from '@/stores';
 
 // Toast notification hook
 export { useToast } from './useToast';
+
+// Library data hook (agents, hooks, skills, MCP servers)
+export { useLibraryData, type LibraryData } from './useLibraryData';

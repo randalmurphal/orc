@@ -9,7 +9,6 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/randalmurphal/llmkit/v2/claudeconfig"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/prompt"
 )
@@ -154,59 +153,6 @@ func (s *configServer) DeleteConstitution(
 	}), nil
 }
 
-// GetConfigStats returns configuration stats for the settings page.
-func (s *configServer) GetConfigStats(
-	ctx context.Context,
-	req *connect.Request[orcv1.GetConfigStatsRequest],
-) (*connect.Response[orcv1.GetConfigStatsResponse], error) {
-	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-
-	stats := &orcv1.ConfigStats{}
-	homeDir, _ := os.UserHomeDir()
-	globalClaudeDir := filepath.Join(homeDir, ".claude")
-	projectClaudeDir := filepath.Join(workDir, ".claude")
-
-	globalSkills, _ := claudeconfig.DiscoverSkills(globalClaudeDir)
-	projectSkills, _ := claudeconfig.DiscoverSkills(projectClaudeDir)
-	globalCommands := discoverCommands(globalClaudeDir, orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL)
-	projectCommands := discoverCommands(projectClaudeDir, orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT)
-	stats.SlashCommandsCount = int32(len(globalSkills) + len(projectSkills) + len(globalCommands) + len(projectCommands))
-
-	var claudeMdSize int64
-	if info, err := os.Stat(filepath.Join(homeDir, "CLAUDE.md")); err == nil {
-		claudeMdSize += info.Size()
-	}
-	if info, err := os.Stat(filepath.Join(workDir, "CLAUDE.md")); err == nil {
-		claudeMdSize += info.Size()
-	}
-	stats.ClaudeMdSize = claudeMdSize
-
-	mcpCount, _ := claudeconfig.CountMCPServers(workDir)
-	stats.McpServersCount = int32(mcpCount)
-
-	settings, _ := claudeconfig.LoadSettings(workDir)
-	if settings != nil && settings.Permissions != nil {
-		if len(settings.Permissions.Allow) > 0 && len(settings.Permissions.Deny) == 0 {
-			stats.PermissionsProfile = "allowlist"
-		} else if len(settings.Permissions.Deny) > 0 && len(settings.Permissions.Allow) == 0 {
-			stats.PermissionsProfile = "denylist"
-		} else if len(settings.Permissions.Allow) > 0 && len(settings.Permissions.Deny) > 0 {
-			stats.PermissionsProfile = "mixed"
-		} else {
-			stats.PermissionsProfile = "default"
-		}
-	} else {
-		stats.PermissionsProfile = "default"
-	}
-
-	return connect.NewResponse(&orcv1.GetConfigStatsResponse{
-		Stats: stats,
-	}), nil
-}
-
 // ListPrompts returns all available prompts.
 func (s *configServer) ListPrompts(
 	ctx context.Context,
@@ -341,4 +287,55 @@ func (s *configServer) ListPromptVariables(
 	return connect.NewResponse(&orcv1.ListPromptVariablesResponse{
 		Variables: protoVars,
 	}), nil
+}
+
+// promptInfoToProto converts a PromptInfo to proto (used for List).
+// PromptInfo only has Phase, Source, HasOverride, Variables - no content.
+func promptInfoToProto(p *prompt.PromptInfo) *orcv1.PromptTemplate {
+	return &orcv1.PromptTemplate{
+		Phase:    p.Phase,
+		IsCustom: p.HasOverride,
+		// Note: PromptInfo doesn't include Content - use promptToProto for full content
+	}
+}
+
+// promptToProto converts a Prompt to proto (used for Get/GetDefault).
+// Prompt includes Content.
+func promptToProto(p *prompt.Prompt) *orcv1.PromptTemplate {
+	return &orcv1.PromptTemplate{
+		Phase:    p.Phase,
+		Content:  p.Content,
+		IsCustom: p.Source != prompt.SourceEmbedded,
+	}
+}
+
+// discoverCommands reads .claude/commands/ for flat .md files and returns them as proto Skills.
+// Non-.md files and subdirectories are ignored.
+func discoverCommands(claudeDir string, scope orcv1.SettingsScope) []*orcv1.Skill {
+	commandsDir := filepath.Join(claudeDir, "commands")
+	entries, err := os.ReadDir(commandsDir)
+	if err != nil {
+		return nil
+	}
+
+	var commands []*orcv1.Skill
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if filepath.Ext(entry.Name()) != ".md" {
+			continue
+		}
+		name := entry.Name()[:len(entry.Name())-len(".md")]
+		content, err := os.ReadFile(filepath.Join(commandsDir, entry.Name()))
+		if err != nil {
+			continue
+		}
+		commands = append(commands, &orcv1.Skill{
+			Name:    name,
+			Content: string(content),
+			Scope:   scope,
+		})
+	}
+	return commands
 }

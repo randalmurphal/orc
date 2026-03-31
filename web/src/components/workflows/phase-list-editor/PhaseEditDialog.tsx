@@ -1,12 +1,12 @@
-import { create } from '@bufbuild/protobuf';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as RadixSelect from '@radix-ui/react-select';
 import { Button, Icon } from '@/components/ui';
 import { GateType, type PhaseTemplate, type WorkflowPhase } from '@/gen/orc/v1/workflow_pb';
 import type { Hook, Skill } from '@/gen/orc/v1/config_pb';
-import { GetMCPServerRequestSchema, type MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
+import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
 import { configClient, mcpClient } from '@/lib/client';
 import {
+	fetchMCPServerConfig,
 	hydrateSelectedMCPServers,
 	parseRuntimeConfig,
 	serializeRuntimeConfig,
@@ -14,7 +14,7 @@ import {
 	type RuntimeConfigState,
 } from '@/lib/runtimeConfigUtils';
 import { RuntimeConfigSections } from './runtime-config-sections';
-import { GATE_TYPE_OPTIONS, INHERIT_VALUE, MODEL_OPTIONS, type PhaseOverrides } from './shared';
+import { GATE_TYPE_OVERRIDE_OPTIONS, INHERIT_VALUE, MODEL_OPTIONS, type PhaseOverrides } from './shared';
 
 interface PhaseEditDialogProps {
 	phase: WorkflowPhase | null;
@@ -104,21 +104,7 @@ export function PhaseEditDialog({
 		hydrateSelectedMCPServers(
 			overrideMcpServers,
 			overrideMcpServerData,
-			async (name) => {
-				const response = await mcpClient.getMCPServer(create(GetMCPServerRequestSchema, { name }));
-				if (!response.server) {
-					return undefined;
-				}
-				return {
-					type: response.server.type,
-					command: response.server.command,
-					args: response.server.args,
-					env: response.server.env,
-					url: response.server.url,
-					headers: response.server.headers,
-					disabled: response.server.disabled,
-				};
-			},
+			fetchMCPServerConfig,
 		).then((hydrated) => {
 			if (mounted) {
 				setOverrideMcpServerData(hydrated);
@@ -127,7 +113,7 @@ export function PhaseEditDialog({
 		return () => {
 			mounted = false;
 		};
-	}, [phase, overrideMcpServers, overrideMcpServerData]);
+	}, [phase, overrideMcpServers]);
 
 	useEffect(() => {
 		if (!phase || jsonOverrideDirty) {
@@ -204,21 +190,7 @@ export function PhaseEditDialog({
 				mcpServerData: await hydrateSelectedMCPServers(
 					state.mcpServers,
 					state.mcpServerData ?? {},
-					async (name) => {
-						const response = await mcpClient.getMCPServer(create(GetMCPServerRequestSchema, { name }));
-						if (!response.server) {
-							return undefined;
-						}
-						return {
-							type: response.server.type,
-							command: response.server.command,
-							args: response.server.args,
-							env: response.server.env,
-							url: response.server.url,
-							headers: response.server.headers,
-							disabled: response.server.disabled,
-						};
-					},
+					fetchMCPServerConfig,
 				),
 			},
 			{
@@ -354,7 +326,7 @@ export function PhaseEditDialog({
 				>
 					<RadixSelect.Trigger className="phase-template-trigger" aria-label="Gate" aria-labelledby="phase-gate-label">
 						<RadixSelect.Value placeholder="Inherit (default)">
-							{GATE_TYPE_OPTIONS.find((opt) => opt.value === (editOverrides.gateTypeOverride ?? GateType.UNSPECIFIED))?.label}
+							{GATE_TYPE_OVERRIDE_OPTIONS.find((opt) => opt.value === (editOverrides.gateTypeOverride ?? GateType.UNSPECIFIED))?.label}
 						</RadixSelect.Value>
 						<RadixSelect.Icon className="phase-template-trigger-icon">
 							<Icon name="chevron-down" size={12} />
@@ -363,7 +335,7 @@ export function PhaseEditDialog({
 					<RadixSelect.Portal>
 						<RadixSelect.Content className="phase-template-content" position="popper" sideOffset={4}>
 							<RadixSelect.Viewport className="phase-template-viewport">
-								{GATE_TYPE_OPTIONS.map((opt) => (
+								{GATE_TYPE_OVERRIDE_OPTIONS.map((opt) => (
 									<RadixSelect.Item key={opt.value} value={String(opt.value)} className="phase-template-item">
 										<RadixSelect.ItemText>{opt.label}</RadixSelect.ItemText>
 									</RadixSelect.Item>
