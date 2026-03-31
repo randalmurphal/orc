@@ -482,18 +482,9 @@ func TestNewCommand_RegularOutput_Unchanged(t *testing.T) {
 // attached to the root command hierarchy.
 // =============================================================================
 func newWorkflowsListCmd() *cobra.Command {
-	// Create a new command instance that mirrors the global workflowsCmd
-	// but is not attached to the root command hierarchy.
-	// This is necessary because calling Execute() on a subcommand that's
-	// attached to a parent doesn't work correctly in tests.
-	cmd := &cobra.Command{
-		Use:   "workflows",
-		Short: "List available workflows",
-		RunE:  workflowsCmd.RunE,
-	}
-	// Copy the flags from the global command
-	cmd.Flags().AddFlagSet(workflowsCmd.Flags())
-	return cmd
+	// Create a standalone workflows command for testing.
+	// newWorkflowsCmd() returns a fresh instance not attached to rootCmd.
+	return newWorkflowsCmd()
 }
 
 // =============================================================================

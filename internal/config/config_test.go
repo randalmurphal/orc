@@ -638,78 +638,6 @@ func TestShouldSyncForWeight_StrategyNone(t *testing.T) {
 	}
 }
 
-func TestShouldSyncBeforePhase(t *testing.T) {
-	tests := []struct {
-		strategy SyncStrategy
-		expected bool
-	}{
-		{SyncStrategyNone, false},
-		{SyncStrategyPhase, true},
-		{SyncStrategyCompletion, false},
-		{SyncStrategyDetect, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.strategy), func(t *testing.T) {
-			cfg := Default()
-			cfg.Completion.Sync.Strategy = tt.strategy
-
-			got := cfg.ShouldSyncBeforePhase()
-			if got != tt.expected {
-				t.Errorf("ShouldSyncBeforePhase() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestShouldSyncAtCompletion(t *testing.T) {
-	tests := []struct {
-		strategy SyncStrategy
-		expected bool
-	}{
-		{SyncStrategyNone, false},
-		{SyncStrategyPhase, false},
-		{SyncStrategyCompletion, true},
-		{SyncStrategyDetect, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.strategy), func(t *testing.T) {
-			cfg := Default()
-			cfg.Completion.Sync.Strategy = tt.strategy
-
-			got := cfg.ShouldSyncAtCompletion()
-			if got != tt.expected {
-				t.Errorf("ShouldSyncAtCompletion() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestShouldDetectConflictsOnly(t *testing.T) {
-	tests := []struct {
-		strategy SyncStrategy
-		expected bool
-	}{
-		{SyncStrategyNone, false},
-		{SyncStrategyPhase, false},
-		{SyncStrategyCompletion, false},
-		{SyncStrategyDetect, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.strategy), func(t *testing.T) {
-			cfg := Default()
-			cfg.Completion.Sync.Strategy = tt.strategy
-
-			got := cfg.ShouldDetectConflictsOnly()
-			if got != tt.expected {
-				t.Errorf("ShouldDetectConflictsOnly() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
-
 func TestShouldSyncOnStart(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -1280,78 +1208,6 @@ func TestShouldRunFinalize(t *testing.T) {
 	}
 }
 
-func TestShouldAutoTriggerFinalize(t *testing.T) {
-	tests := []struct {
-		enabled     bool
-		autoTrigger bool
-		expected    bool
-	}{
-		{true, true, true},
-		{true, false, false},
-		{false, true, false},
-		{false, false, false},
-	}
-
-	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			cfg := Default()
-			cfg.Completion.Finalize.Enabled = tt.enabled
-			cfg.Completion.Finalize.AutoTrigger = tt.autoTrigger
-
-			got := cfg.ShouldAutoTriggerFinalize()
-			if got != tt.expected {
-				t.Errorf("ShouldAutoTriggerFinalize() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestFinalizeUsesRebase(t *testing.T) {
-	cfg := Default()
-
-	// Default should be merge (not rebase)
-	if cfg.FinalizeUsesRebase() {
-		t.Error("Default should not use rebase")
-	}
-
-	// Switch to rebase
-	cfg.Completion.Finalize.Sync.Strategy = FinalizeSyncRebase
-	if !cfg.FinalizeUsesRebase() {
-		t.Error("Should use rebase after setting strategy to rebase")
-	}
-}
-
-func TestShouldReReview(t *testing.T) {
-	tests := []struct {
-		name      string
-		enabled   bool
-		threshold string
-		riskLevel RiskLevel
-		expected  bool
-	}{
-		{"low risk, high threshold", true, "high", RiskLow, false},
-		{"medium risk, high threshold", true, "high", RiskMedium, false},
-		{"high risk, high threshold", true, "high", RiskHigh, true},
-		{"critical risk, high threshold", true, "high", RiskCritical, true},
-		{"low risk, low threshold", true, "low", RiskLow, true},
-		{"disabled assessment", false, "low", RiskCritical, false},
-		{"medium risk, medium threshold", true, "medium", RiskMedium, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := Default()
-			cfg.Completion.Finalize.RiskAssessment.Enabled = tt.enabled
-			cfg.Completion.Finalize.RiskAssessment.ReReviewThreshold = tt.threshold
-
-			got := cfg.ShouldReReview(tt.riskLevel)
-			if got != tt.expected {
-				t.Errorf("ShouldReReview(%s) = %v, want %v", tt.riskLevel, got, tt.expected)
-			}
-		})
-	}
-}
-
 func TestParseRiskLevel(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -1399,27 +1255,6 @@ func TestRiskLevel_String(t *testing.T) {
 				t.Errorf("RiskLevel(%d).String() = %s, want %s", tt.level, got, tt.expected)
 			}
 		})
-	}
-}
-
-func TestGetPreMergeGateType(t *testing.T) {
-	cfg := Default()
-
-	// Default should be human
-	if cfg.GetPreMergeGateType() != "human" {
-		t.Errorf("GetPreMergeGateType() = %s, want human", cfg.GetPreMergeGateType())
-	}
-
-	// Set to human
-	cfg.Completion.Finalize.Gates.PreMerge = "human"
-	if cfg.GetPreMergeGateType() != "human" {
-		t.Errorf("GetPreMergeGateType() = %s, want human", cfg.GetPreMergeGateType())
-	}
-
-	// Empty should still respect the quality policy default
-	cfg.Completion.Finalize.Gates.PreMerge = ""
-	if cfg.GetPreMergeGateType() != "human" {
-		t.Errorf("GetPreMergeGateType() = %s, want human (from empty)", cfg.GetPreMergeGateType())
 	}
 }
 
@@ -1519,52 +1354,6 @@ func TestValidate_FinalizeConfig(t *testing.T) {
 	}
 }
 
-func TestShouldResolveConflicts(t *testing.T) {
-	cfg := Default()
-
-	// Default should resolve conflicts
-	if !cfg.ShouldResolveConflicts() {
-		t.Error("Default should resolve conflicts")
-	}
-
-	// Disable
-	cfg.Completion.Finalize.ConflictResolution.Enabled = false
-	if cfg.ShouldResolveConflicts() {
-		t.Error("Should not resolve conflicts when disabled")
-	}
-}
-
-func TestGetConflictInstructions(t *testing.T) {
-	cfg := Default()
-
-	// Default should be empty
-	if cfg.GetConflictInstructions() != "" {
-		t.Errorf("GetConflictInstructions() = %q, want empty", cfg.GetConflictInstructions())
-	}
-
-	// Set instructions
-	cfg.Completion.Finalize.ConflictResolution.Instructions = "Prefer newer code"
-	if cfg.GetConflictInstructions() != "Prefer newer code" {
-		t.Errorf("GetConflictInstructions() = %q, want %q",
-			cfg.GetConflictInstructions(), "Prefer newer code")
-	}
-}
-
-func TestShouldAssessRisk(t *testing.T) {
-	cfg := Default()
-
-	// Default should assess risk
-	if !cfg.ShouldAssessRisk() {
-		t.Error("Default should assess risk")
-	}
-
-	// Disable
-	cfg.Completion.Finalize.RiskAssessment.Enabled = false
-	if cfg.ShouldAssessRisk() {
-		t.Error("Should not assess risk when disabled")
-	}
-}
-
 func TestDefault_AutoTriggerOnApproval(t *testing.T) {
 	cfg := Default()
 
@@ -1650,37 +1439,6 @@ func TestDefault_AutoApprovePR(t *testing.T) {
 	// Default should have auto-approve disabled (opt-in)
 	if cfg.Completion.PR.AutoApprove {
 		t.Error("Completion.PR.AutoApprove should default to false")
-	}
-}
-
-func TestShouldAutoApprovePR(t *testing.T) {
-	tests := []struct {
-		name        string
-		profile     AutomationProfile
-		autoApprove bool
-		expected    bool
-	}{
-		{"auto profile with auto-approve", ProfileAuto, true, true},
-		{"auto profile without auto-approve", ProfileAuto, false, false},
-		{"fast profile with auto-approve", ProfileFast, true, true},
-		{"fast profile without auto-approve", ProfileFast, false, false},
-		{"safe profile with auto-approve", ProfileSafe, true, false}, // Safe always returns false
-		{"safe profile without auto-approve", ProfileSafe, false, false},
-		{"strict profile with auto-approve", ProfileStrict, true, false}, // Strict always returns false
-		{"strict profile without auto-approve", ProfileStrict, false, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := Default()
-			cfg.Profile = tt.profile
-			cfg.Completion.PR.AutoApprove = tt.autoApprove
-
-			got := cfg.ShouldAutoApprovePR()
-			if got != tt.expected {
-				t.Errorf("ShouldAutoApprovePR() = %v, want %v", got, tt.expected)
-			}
-		})
 	}
 }
 

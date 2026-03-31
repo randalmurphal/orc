@@ -659,3 +659,7 @@ func isRecommendationDedupeError(err error) bool {
 	message := strings.ToLower(err.Error())
 	return strings.Contains(message, "unique") || strings.Contains(message, "duplicate")
 }
+
+func recommendationKindName(kind orcv1.RecommendationKind) string {
+	return strings.TrimPrefix(strings.ToLower(kind.String()), "recommendation_kind_")
+}

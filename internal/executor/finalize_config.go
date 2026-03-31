@@ -25,14 +25,3 @@ func (e *FinalizeExecutor) getFinalizeConfig() config.FinalizeConfig {
 	}
 	return e.orcConfig.Completion.Finalize
 }
-
-// getTargetBranch returns the target branch for merging.
-func (e *FinalizeExecutor) getTargetBranch() string {
-	if e.orcConfig != nil && e.orcConfig.Completion.TargetBranch != "" {
-		return e.orcConfig.Completion.TargetBranch
-	}
-	if e.config.TargetBranch != "" {
-		return e.config.TargetBranch
-	}
-	return "main"
-}

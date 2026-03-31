@@ -672,10 +672,6 @@ func promptPendingDecisionSignals(
 	return signals
 }
 
-func recommendationKindName(kind orcv1.RecommendationKind) string {
-	return strings.TrimPrefix(strings.ToLower(kind.String()), "recommendation_kind_")
-}
-
 func taskStatusName(status orcv1.TaskStatus) string {
 	return strings.TrimPrefix(strings.ToLower(status.String()), "task_status_")
 }

@@ -117,57 +117,8 @@ func dbWorkflowToProto(w *db.Workflow) *orcv1.Workflow {
 
 func dbWorkflowPhasesToProto(phases []*db.WorkflowPhase) []*orcv1.WorkflowPhase {
 	result := make([]*orcv1.WorkflowPhase, len(phases))
-	for i, p := range phases {
-		result[i] = &orcv1.WorkflowPhase{
-			Id:              int32(p.ID),
-			WorkflowId:      p.WorkflowID,
-			PhaseTemplateId: p.PhaseTemplateID,
-			Sequence:        int32(p.Sequence),
-		}
-		if p.ModelOverride != "" {
-			result[i].ModelOverride = &p.ModelOverride
-		}
-		if p.ThinkingOverride != nil {
-			result[i].ThinkingOverride = p.ThinkingOverride
-		}
-		if p.DependsOn != "" {
-			var deps []string
-			if err := json.Unmarshal([]byte(p.DependsOn), &deps); err == nil {
-				result[i].DependsOn = deps
-			}
-		}
-		if p.PositionX != nil {
-			result[i].PositionX = p.PositionX
-		}
-		if p.PositionY != nil {
-			result[i].PositionY = p.PositionY
-		}
-		if p.LoopConfig != "" {
-			result[i].LoopConfig = &p.LoopConfig
-		}
-		// Agent overrides (must match dbWorkflowPhaseToProto)
-		if p.AgentOverride != "" {
-			result[i].AgentOverride = &p.AgentOverride
-		}
-		if p.SubAgentsOverride != "" {
-			var subAgentIDs []string
-			if err := json.Unmarshal([]byte(p.SubAgentsOverride), &subAgentIDs); err == nil {
-				result[i].SubAgentsOverride = subAgentIDs
-			}
-		}
-		if p.RuntimeConfigOverride != "" {
-			result[i].RuntimeConfigOverride = &p.RuntimeConfigOverride
-		}
-		if p.GateTypeOverride != "" {
-			gt := stringToProtoGateType(p.GateTypeOverride)
-			result[i].GateTypeOverride = &gt
-		}
-		if p.Condition != "" {
-			result[i].Condition = &p.Condition
-		}
-		if p.ProviderOverride != "" {
-			result[i].ProviderOverride = &p.ProviderOverride
-		}
+	for i := range phases {
+		result[i] = dbWorkflowPhaseToProto(phases[i])
 	}
 	return result
 }

@@ -34,16 +34,6 @@ func (c *Config) ShouldRetryFrom(failedPhase string) string {
 	return ""
 }
 
-// ResolveCompletionAction returns the effective completion action for a task weight.
-func (c *Config) ResolveCompletionAction(weight string) string {
-	if c.Completion.WeightActions != nil {
-		if action, ok := c.Completion.WeightActions[weight]; ok {
-			return action
-		}
-	}
-	return c.Completion.Action
-}
-
 // ApplyProfile applies a preset profile to the configuration.
 func (c *Config) ApplyProfile(profile AutomationProfile) {
 	c.Profile = profile
@@ -114,34 +104,5 @@ func (c *Config) workflowDefaultsMatchBuiltins() bool {
 // IsTeamMode returns true if orc is configured for team mode (shared database).
 func (c *Config) IsTeamMode() bool {
 	return c.Database.Driver == "postgres" || c.Team.Mode == "shared_db"
-}
-
-// ShouldValidateForWeight returns true if validation should run for this task weight.
-func (c *Config) ShouldValidateForWeight(weight string) bool {
-	if !c.Validation.Enabled {
-		return false
-	}
-	for _, w := range c.Validation.SkipForWeights {
-		if w == weight {
-			return false
-		}
-	}
-	return true
-}
-
-// ShouldValidateSpec returns true if Haiku spec validation should run.
-func (c *Config) ShouldValidateSpec(weight string) bool {
-	if !c.Validation.Enabled || !c.Validation.ValidateSpecs {
-		return false
-	}
-	return c.ShouldValidateForWeight(weight)
-}
-
-// ShouldValidateCriteria returns true if Haiku criteria validation should run on completion.
-func (c *Config) ShouldValidateCriteria(weight string) bool {
-	if !c.Validation.Enabled || !c.Validation.ValidateCriteria {
-		return false
-	}
-	return c.ShouldValidateForWeight(weight)
 }
 

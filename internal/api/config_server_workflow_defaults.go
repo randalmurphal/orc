@@ -91,14 +91,8 @@ func (s *configServer) UpdateWorkflowDefaults(
 }
 
 // loadConfigForProject loads configuration for a specific project, or returns server config if projectID is empty.
-func (s *configServer) loadConfigForProject(projectID string) (*config.Config, error) {
-	if projectID == "" {
-		// Return the config that was provided to the server (for tests and current behavior)
-		return s.orcConfig, nil
-	}
-
-	// For project-specific config, we'd need to implement project-specific config loading
-	// For now, return the current config as a fallback
+// Project-specific config loading is not yet implemented; all callers receive the server-wide config.
+func (s *configServer) loadConfigForProject(_ string) (*config.Config, error) {
 	return s.orcConfig, nil
 }
 

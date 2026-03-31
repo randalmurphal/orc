@@ -194,3 +194,32 @@ func (c *Config) validateStorage() error {
 
 	return nil
 }
+
+// ShouldValidateForWeight returns true if validation should run for this task weight.
+func (c *Config) ShouldValidateForWeight(weight string) bool {
+	if !c.Validation.Enabled {
+		return false
+	}
+	for _, w := range c.Validation.SkipForWeights {
+		if w == weight {
+			return false
+		}
+	}
+	return true
+}
+
+// ShouldValidateSpec returns true if Haiku spec validation should run.
+func (c *Config) ShouldValidateSpec(weight string) bool {
+	if !c.Validation.Enabled || !c.Validation.ValidateSpecs {
+		return false
+	}
+	return c.ShouldValidateForWeight(weight)
+}
+
+// ShouldValidateCriteria returns true if Haiku criteria validation should run on completion.
+func (c *Config) ShouldValidateCriteria(weight string) bool {
+	if !c.Validation.Enabled || !c.Validation.ValidateCriteria {
+		return false
+	}
+	return c.ShouldValidateForWeight(weight)
+}

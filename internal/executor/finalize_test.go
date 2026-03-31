@@ -141,65 +141,6 @@ func TestFinalizeExecutor_getFinalizeConfig_Defaults(t *testing.T) {
 	}
 }
 
-func TestFinalizeExecutor_getTargetBranch(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name       string
-		orcConfig  *config.Config
-		execConfig ExecutorConfig
-		expected   string
-	}{
-		{
-			name:       "default to main",
-			orcConfig:  nil,
-			execConfig: ExecutorConfig{},
-			expected:   "main",
-		},
-		{
-			name: "from orc config",
-			orcConfig: &config.Config{
-				Completion: config.CompletionConfig{
-					TargetBranch: "develop",
-				},
-			},
-			execConfig: ExecutorConfig{},
-			expected:   "develop",
-		},
-		{
-			name:      "from exec config when no orc config",
-			orcConfig: nil,
-			execConfig: ExecutorConfig{
-				TargetBranch: "staging",
-			},
-			expected: "staging",
-		},
-		{
-			name: "orc config takes precedence",
-			orcConfig: &config.Config{
-				Completion: config.CompletionConfig{
-					TargetBranch: "main",
-				},
-			},
-			execConfig: ExecutorConfig{
-				TargetBranch: "staging",
-			},
-			expected: "main",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			exec := NewFinalizeExecutor(nil,
-				WithFinalizeOrcConfig(tt.orcConfig),
-				WithFinalizeConfig(tt.execConfig),
-			)
-			got := exec.getTargetBranch()
-			if got != tt.expected {
-				t.Errorf("getTargetBranch() = %s, want %s", got, tt.expected)
-			}
-		})
-	}
-}
 
 func TestFinalizeExecutor_Execute_DisabledPhase(t *testing.T) {
 	t.Parallel()
@@ -497,7 +438,7 @@ func TestBuildConflictResolutionPrompt(t *testing.T) {
 	}
 }
 
-func TestBuildTestFixPrompt(t *testing.T) {
+func TestBuildTestFixPromptWithAttempt_Basic(t *testing.T) {
 	t.Parallel()
 	tsk := task.NewProtoTask("TASK-001", "Test task")
 	testResult := &ParsedTestResult{
@@ -508,7 +449,7 @@ func TestBuildTestFixPrompt(t *testing.T) {
 		},
 	}
 
-	prompt := buildTestFixPrompt(tsk, testResult)
+	prompt := buildTestFixPromptWithAttempt(tsk, testResult, 1, 1)
 
 	// Check that prompt contains key elements
 	if !strings.Contains(prompt, "TASK-001") {
@@ -525,6 +466,10 @@ func TestBuildTestFixPrompt(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "Do NOT remove tests") {
 		t.Error("prompt should contain instruction not to remove tests")
+	}
+	// First attempt should not have retry context
+	if strings.Contains(prompt, "Retry Context") {
+		t.Error("first attempt should not contain retry context")
 	}
 }
 
@@ -991,7 +936,7 @@ func TestBuildConflictResolutionPrompt_NoCustomInstructions(t *testing.T) {
 	}
 }
 
-func TestBuildTestFixPrompt_ManyFailures(t *testing.T) {
+func TestBuildTestFixPromptWithAttempt_ManyFailures(t *testing.T) {
 	t.Parallel()
 	tsk := task.NewProtoTask("TASK-001", "Test")
 	testResult := &ParsedTestResult{
@@ -1010,7 +955,7 @@ func TestBuildTestFixPrompt_ManyFailures(t *testing.T) {
 		},
 	}
 
-	prompt := buildTestFixPrompt(tsk, testResult)
+	prompt := buildTestFixPromptWithAttempt(tsk, testResult, 1, 1)
 
 	// Should show first 5 and "... and N more"
 	if !strings.Contains(prompt, "and 5 more failures") {

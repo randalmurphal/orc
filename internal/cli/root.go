@@ -121,6 +121,7 @@ func init() {
 	// Planning & Orchestration
 	addCmd(newSetupCmd(), groupPlanning)
 	addCmd(newInitiativeCmd(), groupPlanning)
+	addCmd(newWorkflowsCmd(), groupPlanning)
 
 	// Configuration
 	addCmd(newConfigCmd(), groupConfig)

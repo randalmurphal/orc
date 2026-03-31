@@ -121,47 +121,6 @@ func (e *FinalizeExecutor) tryFixTests(
 	return false, fmt.Errorf("tests still failing after %d fix attempts: %d failures remain", maxFixAttempts, currentResult.Failed)
 }
 
-// buildTestFixPrompt creates the prompt for fixing test failures.
-func buildTestFixPrompt(t *orcv1.Task, testResult *ParsedTestResult) string {
-	var sb strings.Builder
-
-	sb.WriteString("# Test Failure Fix Task\n\n")
-	sb.WriteString("You are fixing test failures for task: ")
-	sb.WriteString(t.Id)
-	sb.WriteString(" - ")
-	sb.WriteString(t.Title)
-	sb.WriteString("\n\n")
-
-	sb.WriteString("## Test Failures\n\n")
-	for i, f := range testResult.Failures {
-		if i >= 5 {
-			sb.WriteString(fmt.Sprintf("... and %d more failures\n", len(testResult.Failures)-5))
-			break
-		}
-		sb.WriteString(fmt.Sprintf("### %s\n", f.Test))
-		if f.File != "" {
-			sb.WriteString(fmt.Sprintf("**File**: `%s:%d`\n", f.File, f.Line))
-		}
-		if f.Message != "" {
-			sb.WriteString(fmt.Sprintf("**Error**: %s\n", f.Message))
-		}
-		sb.WriteString("\n")
-	}
-
-	sb.WriteString("## Instructions\n\n")
-	sb.WriteString("1. Analyze each failing test\n")
-	sb.WriteString("2. Fix the code or test as appropriate\n")
-	sb.WriteString("3. The fix should preserve all intended functionality\n")
-	sb.WriteString("4. Do NOT remove tests to fix failures\n")
-	sb.WriteString("5. When done, output ONLY this JSON:\n")
-	sb.WriteString(`{"status": "complete", "summary": "Fixed X test failures"}`)
-	sb.WriteString("\n\nIf you cannot fix the tests, output ONLY this JSON:\n")
-	sb.WriteString(`{"status": "blocked", "reason": "[explanation]"}`)
-	sb.WriteString("\n")
-
-	return sb.String()
-}
-
 // buildTestFixPromptWithAttempt creates the prompt for fixing test failures with retry context.
 func buildTestFixPromptWithAttempt(t *orcv1.Task, testResult *ParsedTestResult, attempt, maxAttempts int) string {
 	var sb strings.Builder
