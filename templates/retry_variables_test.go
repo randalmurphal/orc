@@ -44,7 +44,7 @@ func TestImplementTemplate_ContainsAllStructuredRetryVars(t *testing.T) {
 	t.Parallel()
 	content := readPromptTemplate(t, "implement.md")
 
-	retryVars := []string{"{{RETRY_ATTEMPT}}", "{{RETRY_FROM_PHASE}}", "{{RETRY_REASON}}"}
+	retryVars := []string{"{{RETRY_ATTEMPT}}", "{{RETRY_FROM_PHASE}}", "{{RETRY_REASON}}", "{{RETRY_FEEDBACK}}"}
 	for _, v := range retryVars {
 		if !strings.Contains(content, v) {
 			t.Errorf("implement.md must contain %s in retry block", v)
@@ -78,7 +78,7 @@ func TestReviewTemplate_ContainsAllStructuredRetryVars_SC2(t *testing.T) {
 	t.Parallel()
 	content := readPromptTemplate(t, "review.md")
 
-	retryVars := []string{"{{RETRY_ATTEMPT}}", "{{RETRY_FROM_PHASE}}", "{{RETRY_REASON}}"}
+	retryVars := []string{"{{RETRY_ATTEMPT}}", "{{RETRY_FROM_PHASE}}", "{{RETRY_REASON}}", "{{RETRY_FEEDBACK}}"}
 	for _, v := range retryVars {
 		if !strings.Contains(content, v) {
 			t.Errorf("review.md must contain %s in retry block", v)
@@ -98,6 +98,7 @@ func TestImplementTemplate_RetryBlockRendersWithVars(t *testing.T) {
 		"RETRY_ATTEMPT":    "2",
 		"RETRY_FROM_PHASE": "review",
 		"RETRY_REASON":     "Missing error handling in API layer",
+		"RETRY_FEEDBACK":   "Reviewer note: handle timeout path and preserve context",
 		"OUTPUT_REVIEW":    "Found 3 issues in error handling",
 		"TASK_ID":          "TASK-099",
 		"TASK_TITLE":       "Test task",
@@ -123,6 +124,10 @@ func TestImplementTemplate_RetryBlockRendersWithVars(t *testing.T) {
 	// The retry reason should be rendered
 	if !strings.Contains(rendered, "Missing error handling in API layer") {
 		t.Error("rendered implement template should contain retry reason")
+	}
+
+	if !strings.Contains(rendered, "Reviewer note: handle timeout path and preserve context") {
+		t.Error("rendered implement template should contain retry feedback")
 	}
 
 	// The retry block XML tag should be present (content inside conditional was kept)
@@ -168,7 +173,7 @@ func TestImplementTemplate_RetryBlockStrippedWhenNoRetry(t *testing.T) {
 	}
 
 	// No unresolved retry variable references
-	for _, v := range []string{"RETRY_ATTEMPT", "RETRY_FROM_PHASE", "RETRY_REASON"} {
+	for _, v := range []string{"RETRY_ATTEMPT", "RETRY_FROM_PHASE", "RETRY_REASON", "RETRY_FEEDBACK"} {
 		if strings.Contains(rendered, "{{"+v+"}}") {
 			t.Errorf("rendered implement template should not contain unresolved {{%s}}", v)
 		}
@@ -187,6 +192,7 @@ func TestReviewTemplate_RetryBlockRendersOnReReview(t *testing.T) {
 		"RETRY_ATTEMPT":    "3",
 		"RETRY_FROM_PHASE": "review",
 		"RETRY_REASON":     "Dead code detected in handler.go",
+		"RETRY_FEEDBACK":   "Re-check cleanup after removing dead paths.",
 		"TASK_ID":          "TASK-099",
 		"TASK_TITLE":       "Test task",
 		"WEIGHT":           "medium",
@@ -206,6 +212,10 @@ func TestReviewTemplate_RetryBlockRendersOnReReview(t *testing.T) {
 	// Retry reason should be rendered
 	if !strings.Contains(rendered, "Dead code detected in handler.go") {
 		t.Error("rendered review template should contain retry reason on re-review")
+	}
+
+	if !strings.Contains(rendered, "Re-check cleanup after removing dead paths.") {
+		t.Error("rendered review template should contain retry feedback on re-review")
 	}
 
 	// The retry block XML tag should be present
@@ -247,7 +257,7 @@ func TestReviewTemplate_RetryBlockStrippedOnFirstReview(t *testing.T) {
 	}
 
 	// No unresolved retry variable references
-	for _, v := range []string{"RETRY_ATTEMPT", "RETRY_FROM_PHASE", "RETRY_REASON"} {
+	for _, v := range []string{"RETRY_ATTEMPT", "RETRY_FROM_PHASE", "RETRY_REASON", "RETRY_FEEDBACK"} {
 		if strings.Contains(rendered, "{{"+v+"}}") {
 			t.Errorf("rendered review template should not contain unresolved {{%s}}", v)
 		}

@@ -251,6 +251,12 @@ This is retry attempt **{{RETRY_ATTEMPT}}**, triggered from the **{{RETRY_FROM_P
 
 **Reason for retry:** {{RETRY_REASON}}
 
+{{#if RETRY_FEEDBACK}}
+### Retry Feedback
+
+{{RETRY_FEEDBACK}}
+{{/if}}
+
 {{#if OUTPUT_REVIEW}}
 ### Previous Review Findings
 

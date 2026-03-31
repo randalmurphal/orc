@@ -835,6 +835,7 @@ func TestResolveAllRetryVariables(t *testing.T) {
 		RetryAttempt:   2,
 		RetryFromPhase: "review",
 		RetryReason:    "Gate rejected: 3 issues found",
+		RetryFeedback:  "Issue list:\n- missing test coverage",
 	}
 
 	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
@@ -846,6 +847,7 @@ func TestResolveAllRetryVariables(t *testing.T) {
 		"RETRY_ATTEMPT":    "2",
 		"RETRY_FROM_PHASE": "review",
 		"RETRY_REASON":     "Gate rejected: 3 issues found",
+		"RETRY_FEEDBACK":   "Issue list:\n- missing test coverage",
 	}
 
 	for name, expected := range tests {
@@ -881,6 +883,9 @@ func TestResolveAllRetryVariables_EmptyWhenNoRetry(t *testing.T) {
 	}
 	if val, exists := vars["RETRY_REASON"]; exists && val != "" {
 		t.Errorf("RETRY_REASON should be empty when no retry active, got %q", val)
+	}
+	if val, exists := vars["RETRY_FEEDBACK"]; exists && val != "" {
+		t.Errorf("RETRY_FEEDBACK should be empty when no retry active, got %q", val)
 	}
 }
 

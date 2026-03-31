@@ -18,8 +18,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { create } from '@bufbuild/protobuf';
 import { EditWorkflowModal } from './EditWorkflowModal';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
+import { ListAgentsResponseSchema, ListHooksResponseSchema, ListSkillsResponseSchema } from '@/gen/orc/v1/config_pb';
+import { GetMCPServerResponseSchema, ListMCPServersResponseSchema, MCPServerSchema } from '@/gen/orc/v1/mcp_pb';
 import {
 	createMockWorkflow,
 	createMockWorkflowWithDetails,
@@ -43,6 +46,15 @@ vi.mock('@/lib/client', () => ({
 		removePhase: vi.fn(),
 		listPhaseTemplates: vi.fn(),
 	},
+	configClient: {
+		listAgents: vi.fn(),
+		listHooks: vi.fn(),
+		listSkills: vi.fn(),
+	},
+	mcpClient: {
+		listMCPServers: vi.fn(),
+		getMCPServer: vi.fn(),
+	},
 }));
 
 // Mock toast
@@ -54,7 +66,7 @@ vi.mock('@/stores/uiStore', () => ({
 }));
 
 // Import mocked modules for assertions
-import { workflowClient } from '@/lib/client';
+import { workflowClient, configClient, mcpClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 
 // NOTE: Browser API mocks (ResizeObserver, IntersectionObserver, Element.prototype methods,
@@ -104,6 +116,23 @@ describe('EditWorkflowModal', () => {
 		// Default mocks
 		vi.mocked(workflowClient.listPhaseTemplates).mockResolvedValue(
 			createMockListPhaseTemplatesResponse(mockPhaseTemplates)
+		);
+		vi.mocked(configClient.listAgents).mockResolvedValue(create(ListAgentsResponseSchema, { agents: [] }));
+		vi.mocked(configClient.listHooks).mockResolvedValue(create(ListHooksResponseSchema, { hooks: [] }));
+		vi.mocked(configClient.listSkills).mockResolvedValue(create(ListSkillsResponseSchema, { skills: [] }));
+		vi.mocked(mcpClient.listMCPServers).mockResolvedValue(create(ListMCPServersResponseSchema, { servers: [] }));
+		vi.mocked(mcpClient.getMCPServer).mockResolvedValue(
+			create(GetMCPServerResponseSchema, {
+				server: create(MCPServerSchema, {
+					name: 'filesystem',
+					type: 'stdio',
+					command: 'npx fs-server',
+					args: [],
+					env: {},
+					headers: [],
+					disabled: false,
+				}),
+			})
 		);
 	});
 

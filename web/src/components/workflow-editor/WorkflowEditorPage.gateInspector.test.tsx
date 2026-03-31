@@ -42,6 +42,7 @@ vi.mock('@/lib/client', () => ({
 	},
 	mcpClient: {
 		listMCPServers: vi.fn().mockResolvedValue({ servers: [] }),
+		getMCPServer: vi.fn().mockResolvedValue({ server: undefined }),
 	},
 }));
 

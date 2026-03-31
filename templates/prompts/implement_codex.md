@@ -37,6 +37,10 @@ Target: {{TARGET_BRANCH}}
 <retry>
 Attempt {{RETRY_ATTEMPT}}, triggered from {{RETRY_FROM_PHASE}}.
 Reason: {{RETRY_REASON}}
+{{#if RETRY_FEEDBACK}}
+Feedback:
+{{RETRY_FEEDBACK}}
+{{/if}}
 {{#if OUTPUT_REVIEW}}
 Previous review findings:
 {{OUTPUT_REVIEW}}

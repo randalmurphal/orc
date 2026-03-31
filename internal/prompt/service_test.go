@@ -314,7 +314,7 @@ func TestGetVariableReference(t *testing.T) {
 		"{{TASK_ID}}", "{{TASK_TITLE}}", "{{TASK_DESCRIPTION}}",
 		"{{TASK_CATEGORY}}", "{{WEIGHT}}",
 		"{{PHASE}}", "{{ITERATION}}",
-		"{{RETRY_ATTEMPT}}", "{{RETRY_FROM_PHASE}}", "{{RETRY_REASON}}",
+		"{{RETRY_ATTEMPT}}", "{{RETRY_FROM_PHASE}}", "{{RETRY_REASON}}", "{{RETRY_FEEDBACK}}",
 		"{{WORKTREE_PATH}}", "{{PROJECT_ROOT}}", "{{TASK_BRANCH}}", "{{TARGET_BRANCH}}",
 		"{{LANGUAGE}}", "{{HAS_FRONTEND}}", "{{HAS_TESTS}}", "{{FRAMEWORKS}}",
 		"{{TEST_COMMAND}}", "{{LINT_COMMAND}}", "{{BUILD_COMMAND}}",
@@ -336,6 +336,7 @@ func TestGetVariableReference_StructuredRetryVars(t *testing.T) {
 		"{{RETRY_ATTEMPT}}",
 		"{{RETRY_FROM_PHASE}}",
 		"{{RETRY_REASON}}",
+		"{{RETRY_FEEDBACK}}",
 	}
 	for _, v := range structuredRetryVars {
 		if _, ok := vars[v]; !ok {

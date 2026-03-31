@@ -143,6 +143,9 @@ func TestPostgresMigrations_SameTableCount(t *testing.T) {
 
 	// Check that all SQLite tables exist in PostgreSQL
 	for table := range sqliteTables {
+		if tempTableNames[table] {
+			continue
+		}
 		if !postgresTables[table] {
 			t.Errorf("table %s exists in SQLite but not in PostgreSQL migrations", table)
 		}
@@ -150,6 +153,9 @@ func TestPostgresMigrations_SameTableCount(t *testing.T) {
 
 	// Check for extra tables in PostgreSQL (shouldn't happen)
 	for table := range postgresTables {
+		if tempTableNames[table] {
+			continue
+		}
 		if !sqliteTables[table] {
 			t.Errorf("table %s exists in PostgreSQL but not in SQLite migrations", table)
 		}
@@ -805,6 +811,8 @@ func TestPostgresMigrations_ProjectUsesCorrectSyntax(t *testing.T) {
 // PostgreSQL uses ALTER TABLE RENAME COLUMN instead, so these tables don't
 // need PostgreSQL equivalents.
 var tempTableNames = map[string]bool{
+	// Global range
+	"workflows_new": true, // 013: recreated to remove dead workflow columns
 	// 021-040 range
 	"review_findings_new": true,
 	// 041-056 range: SQLite table-recreation patterns replaced by ALTER TABLE in PG

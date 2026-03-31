@@ -154,12 +154,13 @@ When phases fail, they can retry from an earlier phase:
 | test, test_unit, test_e2e | implement | Test failures need code fixes |
 | validate | implement | Validation issues need code changes |
 
-### Retry Context
+### Retry Variables
 
-When retrying, `{{RETRY_CONTEXT}}` template variable contains:
-- Which phase failed and why
-- The failure output (test errors, validation messages)
-- Attempt number
+When retrying, templates receive structured variables instead of a single blob:
+- `{{RETRY_ATTEMPT}}`: attempt number
+- `{{RETRY_FROM_PHASE}}`: which phase triggered the retry
+- `{{RETRY_REASON}}`: why the retry was triggered
+- `{{RETRY_FEEDBACK}}`: detailed failure output, review findings, manual retry instructions, or autofix comment content
 
 ---
 

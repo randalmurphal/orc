@@ -19,6 +19,7 @@ const BUILTIN_VARIABLES = {
 		{ name: 'RETRY_ATTEMPT', description: 'Retry attempt number (e.g., 2, 3)' },
 		{ name: 'RETRY_FROM_PHASE', description: 'Phase that triggered the retry' },
 		{ name: 'RETRY_REASON', description: 'Reason the retry was triggered' },
+		{ name: 'RETRY_FEEDBACK', description: 'Detailed retry feedback for manual retries, autofix comments, or prior failure output' },
 	],
 	'Git Context': [
 		{ name: 'WORKTREE_PATH', description: 'Path to git worktree' },

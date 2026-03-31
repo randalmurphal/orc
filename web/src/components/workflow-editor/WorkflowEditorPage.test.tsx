@@ -46,6 +46,10 @@ vi.mock('@/lib/client', () => ({
 		listHooks: vi.fn().mockResolvedValue({ hooks: [] }),
 		listSkills: vi.fn().mockResolvedValue({ skills: [] }),
 	},
+	mcpClient: {
+		listMCPServers: vi.fn().mockResolvedValue({ servers: [] }),
+		getMCPServer: vi.fn().mockResolvedValue({ server: undefined }),
+	},
 }));
 
 // Import mocked module for assertions

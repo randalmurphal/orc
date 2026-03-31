@@ -312,6 +312,9 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 		vars["RETRY_ATTEMPT"] = fmt.Sprintf("%d", rctx.RetryAttempt)
 		vars["RETRY_FROM_PHASE"] = rctx.RetryFromPhase
 		vars["RETRY_REASON"] = rctx.RetryReason
+		if rctx.RetryFeedback != "" {
+			vars["RETRY_FEEDBACK"] = rctx.RetryFeedback
+		}
 	}
 
 	// Git context

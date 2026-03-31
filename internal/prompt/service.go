@@ -258,6 +258,7 @@ func GetVariableReference() map[string]string {
 		"{{RETRY_ATTEMPT}}":    "Retry attempt number (e.g., 2, 3)",
 		"{{RETRY_FROM_PHASE}}": "Phase that triggered the retry (e.g., review)",
 		"{{RETRY_REASON}}":     "Reason the retry was triggered",
+		"{{RETRY_FEEDBACK}}":   "Detailed retry feedback or prior failure output for manual retries, autofix comments, and loop retries",
 
 		// Git context
 		"{{WORKTREE_PATH}}": "Absolute path to the isolated worktree directory",

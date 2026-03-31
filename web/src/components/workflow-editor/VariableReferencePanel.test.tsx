@@ -7,7 +7,7 @@
  * - SC-7: Frontend VariableReferencePanel lists structured retry variables
  *
  * Behaviors:
- * - Panel displays RETRY_ATTEMPT, RETRY_FROM_PHASE, RETRY_REASON variables
+ * - Panel displays RETRY_ATTEMPT, RETRY_FROM_PHASE, RETRY_REASON, RETRY_FEEDBACK variables
  * - Panel does NOT display the old RETRY_CONTEXT variable
  */
 
@@ -31,6 +31,11 @@ describe('VariableReferencePanel - SC-7: Structured retry variables', () => {
 		expect(screen.getByText('{{RETRY_REASON}}')).toBeInTheDocument();
 	});
 
+	it('displays RETRY_FEEDBACK variable', () => {
+		render(<VariableReferencePanel />);
+		expect(screen.getByText('{{RETRY_FEEDBACK}}')).toBeInTheDocument();
+	});
+
 	it('does not display RETRY_CONTEXT variable', () => {
 		render(<VariableReferencePanel />);
 		expect(screen.queryByText('{{RETRY_CONTEXT}}')).not.toBeInTheDocument();
@@ -43,5 +48,6 @@ describe('VariableReferencePanel - SC-7: Structured retry variables', () => {
 		expect(text).toContain('RETRY_ATTEMPT');
 		expect(text).toContain('RETRY_FROM_PHASE');
 		expect(text).toContain('RETRY_REASON');
+		expect(text).toContain('RETRY_FEEDBACK');
 	});
 });

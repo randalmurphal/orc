@@ -6,7 +6,7 @@
  * - Prompt source toggle: Inline (DB) or File
  * - Inline prompt editor with {{VARIABLE}} highlighting
  * - Data flow: Input Variables (with suggestions), Output Variable Name
- * - Execution settings: Agent, Gate Type, Max Iterations, Thinking, Checkpoint
+ * - Execution settings: Agent, Gate Type, Thinking, Checkpoint
  * - 7 collapsible runtime config sections (same as EditPhaseTemplateModal)
  */
 
@@ -55,7 +55,10 @@ const VARIABLE_SUGGESTIONS = [
 	'WORKTREE_PATH',
 	'INITIATIVE_VISION',
 	'INITIATIVE_DECISIONS',
-	'RETRY_CONTEXT',
+	'RETRY_ATTEMPT',
+	'RETRY_FROM_PHASE',
+	'RETRY_REASON',
+	'RETRY_FEEDBACK',
 	'TDD_TEST_CONTENT',
 	'BREAKDOWN_CONTENT',
 ];

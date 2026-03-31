@@ -777,8 +777,9 @@ func (s *hostingServer) AutofixComment(
 	}), nil
 }
 
-// buildAutofixRetryContext builds the retry context string from a PR comment.
-// This is what gets injected into the {{RETRY_CONTEXT}} template variable.
+// buildAutofixRetryContext builds the detailed retry feedback string from a PR comment.
+// This is stored in RetryState.FailureOutput and exposed to templates via
+// {{RETRY_FEEDBACK}} when the retry starts.
 func buildAutofixRetryContext(comment *hosting.PRComment) string {
 	var sb strings.Builder
 

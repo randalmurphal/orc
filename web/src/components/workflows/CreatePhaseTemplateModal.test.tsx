@@ -732,7 +732,7 @@ describe('CreatePhaseTemplateModal', () => {
 			});
 		});
 
-		it('shows common variable suggestions: SPEC_CONTENT, PROJECT_ROOT, TASK_DESCRIPTION, WORKTREE_PATH', async () => {
+		it('shows common variable suggestions: SPEC_CONTENT, PROJECT_ROOT, TASK_DESCRIPTION, WORKTREE_PATH, retry vars', async () => {
 			const user = userEvent.setup();
 
 			render(
@@ -763,8 +763,35 @@ describe('CreatePhaseTemplateModal', () => {
 						expect.stringContaining('PROJECT_ROOT'),
 						expect.stringContaining('TASK_DESCRIPTION'),
 						expect.stringContaining('WORKTREE_PATH'),
+						expect.stringContaining('RETRY_ATTEMPT'),
+						expect.stringContaining('RETRY_FEEDBACK'),
 					])
 				);
+			});
+		});
+
+		it('does not suggest removed RETRY_CONTEXT variable', async () => {
+			const user = userEvent.setup();
+
+			render(
+				<CreatePhaseTemplateModal
+					open={true}
+					onClose={mockOnClose}
+					onCreated={mockOnCreated}
+				/>
+			);
+
+			await waitFor(() => {
+				expect(configClient.listAgents).toHaveBeenCalled();
+			});
+
+			const inputVarsField = screen.getByLabelText(/input variables/i) ||
+				screen.getByPlaceholderText(/add variable/i);
+			await user.click(inputVarsField);
+
+			await waitFor(() => {
+				const suggestionTexts = Array.from(document.querySelectorAll('[role="option"]')).map(s => s.textContent);
+				expect(suggestionTexts).not.toEqual(expect.arrayContaining([expect.stringContaining('RETRY_CONTEXT')]));
 			});
 		});
 

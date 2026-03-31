@@ -1302,7 +1302,7 @@ POST /api/tasks/:id/github/pr/comments/:commentId/autofix
 **Behavior:**
 - Returns immediately (~10ms) after spawning executor
 - Task status changes to `running`
-- Comment content is injected into `{{RETRY_CONTEXT}}` template variable
+- Comment content is stored as retry feedback and exposed via `{{RETRY_FEEDBACK}}`
 - Long comments (>10KB) are truncated
 
 **Error responses:**

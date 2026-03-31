@@ -198,10 +198,11 @@ retry:
     validate: implement  # Validation failures retry from implement
 ```
 
-The agent receives a `{{RETRY_CONTEXT}}` with:
+The agent receives structured retry variables such as `{{RETRY_ATTEMPT}}`,
+`{{RETRY_FROM_PHASE}}`, `{{RETRY_REASON}}`, and `{{RETRY_FEEDBACK}}` covering:
 - What phase failed
 - Why it failed (error or gate rejection)
-- Output from the failed phase
+- Output or detailed feedback from the failed phase
 - Which retry attempt this is
 
 ### Automation Profiles

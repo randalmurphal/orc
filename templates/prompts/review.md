@@ -162,6 +162,12 @@ This is re-review attempt **{{RETRY_ATTEMPT}}**, triggered from the **{{RETRY_FR
 
 **Reason for retry:** {{RETRY_REASON}}
 
+{{#if RETRY_FEEDBACK}}
+### Retry Feedback
+
+{{RETRY_FEEDBACK}}
+{{/if}}
+
 Pay special attention to whether the issues from the previous review have been addressed.
 </retry_context>
 {{/if}}

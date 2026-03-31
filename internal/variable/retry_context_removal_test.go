@@ -9,7 +9,7 @@ import (
 // TestResolveAll_RetryContextVariableRemoved verifies that RETRY_CONTEXT is NOT
 // present in the resolved variable set. The pre-formatted RETRY_CONTEXT string
 // has been replaced by structured variables (RETRY_ATTEMPT, RETRY_FROM_PHASE,
-// RETRY_REASON) which templates consume directly.
+// RETRY_REASON, RETRY_FEEDBACK) which templates consume directly.
 //
 // This test FAILS if resolver.go still sets vars["RETRY_CONTEXT"].
 func TestResolveAll_RetryContextVariableRemoved(t *testing.T) {
@@ -23,6 +23,7 @@ func TestResolveAll_RetryContextVariableRemoved(t *testing.T) {
 		RetryAttempt:   2,
 		RetryFromPhase: "review",
 		RetryReason:    "Gate rejected: 3 issues found",
+		RetryFeedback:  "Detailed gate output",
 	}
 
 	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
@@ -45,6 +46,9 @@ func TestResolveAll_RetryContextVariableRemoved(t *testing.T) {
 	}
 	if vars["RETRY_REASON"] != "Gate rejected: 3 issues found" {
 		t.Errorf("RETRY_REASON: want %q, got %q", "Gate rejected: 3 issues found", vars["RETRY_REASON"])
+	}
+	if vars["RETRY_FEEDBACK"] != "Detailed gate output" {
+		t.Errorf("RETRY_FEEDBACK: want %q, got %q", "Detailed gate output", vars["RETRY_FEEDBACK"])
 	}
 }
 

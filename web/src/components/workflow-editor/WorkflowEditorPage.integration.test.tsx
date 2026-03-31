@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { vi, beforeEach, describe, it, expect, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { WorkflowEditorPage } from './WorkflowEditorPage';
-import { workflowClient, configClient } from '@/lib/client';
+import { workflowClient, configClient, mcpClient } from '@/lib/client';
 import type { WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
 import type { Agent } from '@/gen/orc/v1/config_pb';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
@@ -38,6 +38,12 @@ vi.mock('@/lib/client', () => ({
 	},
 	configClient: {
 		listAgents: vi.fn(),
+		listHooks: vi.fn(),
+		listSkills: vi.fn(),
+	},
+	mcpClient: {
+		listMCPServers: vi.fn(),
+		getMCPServer: vi.fn(),
 	},
 }));
 
@@ -81,6 +87,10 @@ describe('WorkflowEditorPage Integration', () => {
 		(workflowClient.listPhaseTemplates as ReturnType<typeof vi.fn>).mockResolvedValue({ templates: [], sources: {} });
 		(workflowClient.listWorkflowRuns as ReturnType<typeof vi.fn>).mockResolvedValue({ runs: [] });
 		(configClient.listAgents as ReturnType<typeof vi.fn>).mockResolvedValue({ agents: mockAgents });
+		(configClient.listHooks as ReturnType<typeof vi.fn>).mockResolvedValue({ hooks: [] });
+		(configClient.listSkills as ReturnType<typeof vi.fn>).mockResolvedValue({ skills: [] });
+		(mcpClient.listMCPServers as ReturnType<typeof vi.fn>).mockResolvedValue({ servers: [] });
+		(mcpClient.getMCPServer as ReturnType<typeof vi.fn>).mockResolvedValue({ server: undefined });
 	});
 
 	afterEach(() => {

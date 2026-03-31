@@ -169,7 +169,8 @@ Finalize escalates back to implement when issues persist:
 | >5 test failures after fix attempts | Escalate with test failure details |
 | Complex merge conflicts | Escalate for manual resolution |
 
-The implement phase receives retry context via `{{RETRY_CONTEXT}}` containing:
+The implement phase receives retry metadata via `{{RETRY_ATTEMPT}}`, `{{RETRY_FROM_PHASE}}`,
+`{{RETRY_REASON}}`, and detailed context via `{{RETRY_FEEDBACK}}`, including:
 - List of conflicted files that couldn't be resolved
 - Test failures with error messages
 - Guidance to fix and retry finalize

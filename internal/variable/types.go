@@ -191,6 +191,10 @@ type ResolutionContext struct {
 	// RetryReason is the reason for the retry.
 	RetryReason string
 
+	// RetryFeedback carries detailed retry context for manual retries, autofix
+	// comments, and other retry paths that do not have a prior phase output variable.
+	RetryFeedback string
+
 	// WorkingDir is the current working directory (worktree or project root).
 	WorkingDir string
 

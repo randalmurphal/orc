@@ -395,6 +395,17 @@ export function EditPhaseTemplateModal({
 		onClose();
 	}, [onClose]);
 
+	const suggestedInputVariables = [
+		'SPEC_CONTENT',
+		'PROJECT_ROOT',
+		'TASK_DESCRIPTION',
+		'WORKTREE_PATH',
+		'RETRY_ATTEMPT',
+		'RETRY_FROM_PHASE',
+		'RETRY_REASON',
+		'RETRY_FEEDBACK',
+	].filter((varName) => !inputVariables.includes(varName));
+
 	// Built-in template message
 	if (isBuiltin) {
 		return (
@@ -651,20 +662,18 @@ export function EditPhaseTemplateModal({
 							placeholder="Add variable name..."
 						/>
 						<div className="edit-template-suggestions">
-							{['SPEC_CONTENT', 'PROJECT_ROOT', 'TASK_DESCRIPTION', 'WORKTREE_PATH']
-								.filter((varName) => !inputVariables.includes(varName))
-								.map((varName) => (
-									<button
-										key={varName}
-										type="button"
-										className="edit-template-suggestion-btn"
-										onClick={() => {
-											setInputVariables([...inputVariables, varName]);
-										}}
-									>
-										{varName}
-									</button>
-								))}
+							{suggestedInputVariables.map((varName) => (
+								<button
+									key={varName}
+									type="button"
+									className="edit-template-suggestion-btn"
+									onClick={() => {
+										setInputVariables([...inputVariables, varName]);
+									}}
+								>
+									{varName}
+								</button>
+							))}
 						</div>
 					</div>
 
