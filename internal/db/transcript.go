@@ -11,8 +11,8 @@ import (
 	"github.com/randalmurphal/orc/internal/db/driver"
 )
 
-// Transcript represents a single message from a Claude JSONL session file.
-// This stores the full message data including per-message token usage.
+// Transcript represents a single streamed transcript entry captured by orc.
+// Content may be structured JSON or plain text depending on provider/message type.
 type Transcript struct {
 	ID            int64
 	TaskID        string
@@ -23,7 +23,7 @@ type Transcript struct {
 	ParentUUID    *string // Links to parent message (threading)
 	Type          string  // "user", "assistant", "queue-operation", "hook"
 	Role          string  // from message.role
-	Content       string  // Full content JSON (preserves structure)
+	Content       string  // Structured JSON when available, otherwise provider text
 	Model         string  // Model used (assistant messages only)
 
 	// Per-message token tracking

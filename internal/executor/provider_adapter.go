@@ -209,6 +209,7 @@ func (a *codexAdapter) BuildTurnExecutorConfig(cfg *PhaseExecutionConfig, pctx *
 		RunID:                     cfg.RunID,
 		ReviewRound:               cfg.ReviewRound,
 		ProducesArtifact:          cfg.PhaseTemplate != nil && cfg.PhaseTemplate.ProducesArtifact,
+		RuntimeConfig:             cfg.RuntimeConfig,
 		Backend:                   we.backend,
 		Logger:                    we.logger,
 		Publisher:                 we.publisher,
@@ -239,6 +240,19 @@ func (a *codexAdapter) BuildTurnExecutorConfig(cfg *PhaseExecutionConfig, pctx *
 	// (continued from above — wire remaining Codex-specific settings)
 	if cfg.RuntimeConfig != nil && cfg.RuntimeConfig.Providers.Codex != nil {
 		cc := cfg.RuntimeConfig.Providers.Codex
+		if cc.SandboxMode != "" {
+			teCfg.SandboxMode = cc.SandboxMode
+			teCfg.BypassApprovalsAndSandbox = false
+		}
+		if cc.ApprovalMode != "" {
+			teCfg.ApprovalMode = cc.ApprovalMode
+			teCfg.BypassApprovalsAndSandbox = false
+		}
+		if cc.BypassApprovalsAndSandbox {
+			teCfg.BypassApprovalsAndSandbox = true
+			teCfg.SandboxMode = ""
+			teCfg.ApprovalMode = ""
+		}
 		if cc.WebSearchMode != "" {
 			teCfg.WebSearchMode = cc.WebSearchMode
 		}

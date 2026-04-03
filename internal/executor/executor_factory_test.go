@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"testing"
 
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 )
 
@@ -58,14 +59,20 @@ func TestNewTurnExecutor_ClaudeOptions(t *testing.T) {
 
 func TestNewTurnExecutor_CodexOptions(t *testing.T) {
 	te := NewTurnExecutor(TurnExecutorConfig{
-		Provider:        "codex",
-		CodexPath:       "/usr/bin/codex",
-		Model:           "gpt-5",
-		Resume:          true,
-		ReviewRound:     1,
-		ReasoningEffort: "high",
-		WebSearchMode:   "cached",
-		Logger:          slog.Default(),
+		Provider:                  "codex",
+		CodexPath:                 "/usr/bin/codex",
+		Model:                     "gpt-5",
+		Resume:                    true,
+		ReviewRound:               1,
+		ReasoningEffort:           "high",
+		WebSearchMode:             "cached",
+		SandboxMode:               "workspace-write",
+		ApprovalMode:              "on-request",
+		BypassApprovalsAndSandbox: false,
+		RuntimeConfig: &PhaseRuntimeConfig{
+			Shared: llmkit.SharedRuntimeConfig{SystemPrompt: "Use the shared prompt"},
+		},
+		Logger: slog.Default(),
 	})
 	ce, ok := te.(*CodexExecutor)
 	if !ok {
@@ -75,6 +82,12 @@ func TestNewTurnExecutor_CodexOptions(t *testing.T) {
 		t.Fatalf("unexpected codex executor config: %+v", ce)
 	}
 	if !ce.resume || ce.reviewRound != 1 || ce.reasoningEffort != "high" || ce.webSearchMode != "cached" {
+		t.Fatalf("unexpected codex executor options: %+v", ce)
+	}
+	if ce.bypassApprovalsAndSandbox || ce.sandboxMode != "workspace-write" || ce.approvalMode != "on-request" {
+		t.Fatalf("unexpected codex policy options: %+v", ce)
+	}
+	if ce.phaseConfig == nil || ce.phaseConfig.Shared.SystemPrompt != "Use the shared prompt" {
 		t.Fatalf("unexpected codex executor options: %+v", ce)
 	}
 }

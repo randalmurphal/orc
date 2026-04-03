@@ -242,6 +242,55 @@ func TestCodexAdapter_PostTurn_FailsWhenSessionMetadataPersistenceFails(t *testi
 	}
 }
 
+func TestCodexAdapter_BuildTurnExecutorConfig_HonorsRuntimePolicyAndSharedSettings(t *testing.T) {
+	t.Parallel()
+
+	adapter := &codexAdapter{}
+	runtimeCfg := &PhaseRuntimeConfig{
+		Shared: llmkit.SharedRuntimeConfig{
+			SystemPrompt: "Use the shared system prompt",
+			Env:          map[string]string{"FOO": "bar"},
+			AddDirs:      []string{"/repo/shared"},
+		},
+		Providers: PhaseRuntimeProviderConfig{
+			Codex: &llmkit.CodexRuntimeConfig{
+				ReasoningEffort: "high",
+				WebSearchMode:   "cached",
+				SandboxMode:     "workspace-write",
+				ApprovalMode:    "on-request",
+			},
+		},
+	}
+
+	teCfg := adapter.BuildTurnExecutorConfig(&PhaseExecutionConfig{
+		Provider:      ProviderCodex,
+		Model:         "gpt-5",
+		WorkingDir:    "/repo",
+		PhaseID:       "implement_codex",
+		TaskID:        "TASK-001",
+		RunID:         "run-1",
+		RuntimeConfig: runtimeCfg,
+	}, &ProviderExecContext{}, &WorkflowExecutor{
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	if teCfg.RuntimeConfig != runtimeCfg {
+		t.Fatal("runtime config pointer was not propagated to codex executor")
+	}
+	if teCfg.BypassApprovalsAndSandbox {
+		t.Fatal("expected explicit sandbox/approval policy to disable bypass mode")
+	}
+	if teCfg.SandboxMode != "workspace-write" || teCfg.ApprovalMode != "on-request" {
+		t.Fatalf("unexpected codex policy settings: %+v", teCfg)
+	}
+	if teCfg.ReasoningEffort != "high" || teCfg.WebSearchMode != "cached" {
+		t.Fatalf("unexpected codex model settings: %+v", teCfg)
+	}
+	if teCfg.Env["FOO"] != "bar" || len(teCfg.AddDirs) != 1 || teCfg.AddDirs[0] != "/repo/shared" {
+		t.Fatalf("shared runtime settings not propagated: %+v", teCfg)
+	}
+}
+
 func mustSessionMetadata(t *testing.T, provider, sessionID string) string {
 	t.Helper()
 	metadata, err := llmkit.MarshalSessionMetadata(llmkit.SessionMetadataForID(provider, sessionID))

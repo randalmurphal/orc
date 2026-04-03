@@ -30,7 +30,9 @@ type TurnExecutorConfig struct {
 	RuntimeConfig    *PhaseRuntimeConfig
 
 	// Codex-specific
-	BypassApprovalsAndSandbox bool              // Always true for orc execution
+	BypassApprovalsAndSandbox bool // Default Codex mode unless runtime policy overrides it
+	SandboxMode               string
+	ApprovalMode              string
 	ReasoningEffort           string            // Codex model_reasoning_effort
 	WebSearchMode             string            // Codex web_search mode
 	Env                       map[string]string // Additional env vars for codex process
@@ -99,8 +101,17 @@ func newCodexTurnExecutor(cfg TurnExecutorConfig) TurnExecutor {
 	if cfg.ReviewRound > 0 {
 		opts = append(opts, WithCodexReviewRound(cfg.ReviewRound))
 	}
-	if cfg.BypassApprovalsAndSandbox {
-		opts = append(opts, WithCodexBypassApprovalsAndSandbox(true))
+	if cfg.RuntimeConfig != nil {
+		opts = append(opts, WithCodexPhaseRuntimeConfig(cfg.RuntimeConfig))
+	}
+	if cfg.BypassApprovalsAndSandbox || cfg.SandboxMode != "" || cfg.ApprovalMode != "" {
+		opts = append(opts, WithCodexBypassApprovalsAndSandbox(cfg.BypassApprovalsAndSandbox))
+	}
+	if cfg.SandboxMode != "" {
+		opts = append(opts, WithCodexSandboxMode(cfg.SandboxMode))
+	}
+	if cfg.ApprovalMode != "" {
+		opts = append(opts, WithCodexApprovalMode(cfg.ApprovalMode))
 	}
 	if cfg.Resume {
 		opts = append(opts, WithCodexResume(true))

@@ -191,7 +191,16 @@ func (h *TranscriptStreamHandler) OnChunk(chunk llmkit.StreamChunk) {
 // Claude streams multiple events with the same message ID - we only store the first one
 // since later events for the same ID are just partial updates that we already have.
 func (h *TranscriptStreamHandler) storeAssistantMessage(chunk llmkit.StreamChunk) {
-	if chunk.Content == "" {
+	content, publishText, err := assistantTranscriptContent(chunk)
+	if err != nil {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		if h.err == nil {
+			h.err = fmt.Errorf("marshal assistant transcript content: %w", err)
+		}
+		return
+	}
+	if content == "" {
 		return
 	}
 
@@ -226,7 +235,7 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(chunk llmkit.StreamChunk
 		MessageUUID:         messageUUID,
 		Type:                "assistant",
 		Role:                "assistant",
-		Content:             chunk.Content,
+		Content:             content,
 		Model:               model,
 		InputTokens:         usageValue(chunk.Usage, func(u *llmkit.TokenUsage) int { return u.InputTokens }),
 		OutputTokens:        usageValue(chunk.Usage, func(u *llmkit.TokenUsage) int { return u.OutputTokens }),
@@ -245,7 +254,7 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(chunk llmkit.StreamChunk
 			h.phaseID,
 			1,
 			"response",
-			chunk.Content,
+			publishText,
 			model,
 			&events.TokenUpdate{
 				Phase:                    h.phaseID,
@@ -257,6 +266,22 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(chunk llmkit.StreamChunk
 			},
 		)
 	}
+}
+
+func assistantTranscriptContent(chunk llmkit.StreamChunk) (string, string, error) {
+	if len(chunk.Metadata) > 0 {
+		if blocks, ok := chunk.Metadata["content_blocks"]; ok && blocks != nil {
+			data, err := json.Marshal(blocks)
+			if err != nil {
+				return "", "", err
+			}
+			return string(data), chunk.Content, nil
+		}
+	}
+	if chunk.Content == "" {
+		return "", "", nil
+	}
+	return chunk.Content, chunk.Content, nil
 }
 
 // shouldCaptureHook checks if a hook event should be captured based on config.

@@ -113,6 +113,90 @@ func TestCodexExecutor_AllOptions(t *testing.T) {
 	}
 }
 
+func TestCodexExecutor_BuildClientConfig_HonorsPhaseRuntime(t *testing.T) {
+	exec := NewCodexExecutor(
+		WithCodexWorkdir("/repo"),
+		WithCodexModel("gpt-5"),
+		WithCodexPhaseRuntimeConfig(&PhaseRuntimeConfig{
+			Shared: llmkit.SharedRuntimeConfig{
+				SystemPrompt: "Use the shared system prompt",
+				Env:          map[string]string{"FOO": "bar"},
+				AddDirs:      []string{"/shared"},
+			},
+			Providers: PhaseRuntimeProviderConfig{
+				Codex: &llmkit.CodexRuntimeConfig{
+					ReasoningEffort: "medium",
+					WebSearchMode:   "live",
+					SandboxMode:     "workspace-write",
+					ApprovalMode:    "on-request",
+				},
+			},
+		}),
+		WithCodexReasoningEffort("high"),
+		WithCodexWebSearchMode("cached"),
+		WithCodexSandboxMode("read-only"),
+		WithCodexApprovalMode("never"),
+		WithCodexBypassApprovalsAndSandbox(false),
+	)
+
+	cfg, err := exec.buildClientConfig()
+	if err != nil {
+		t.Fatalf("buildClientConfig() error = %v", err)
+	}
+	if cfg.SystemPrompt != "Use the shared system prompt" {
+		t.Fatalf("system prompt = %q", cfg.SystemPrompt)
+	}
+	if cfg.Env["FOO"] != "bar" {
+		t.Fatalf("env = %#v", cfg.Env)
+	}
+	if len(cfg.AddDirs) != 1 || cfg.AddDirs[0] != "/shared" {
+		t.Fatalf("add_dirs = %#v", cfg.AddDirs)
+	}
+	if cfg.ReasoningEffort != "high" {
+		t.Fatalf("reasoning effort = %q, want high", cfg.ReasoningEffort)
+	}
+	if cfg.WebSearchMode != "cached" {
+		t.Fatalf("web search mode = %q, want cached", cfg.WebSearchMode)
+	}
+	if cfg.Runtime.Providers.Codex == nil {
+		t.Fatal("expected codex runtime config")
+	}
+	if cfg.Runtime.Providers.Codex.SandboxMode != "read-only" || cfg.Runtime.Providers.Codex.ApprovalMode != "never" {
+		t.Fatalf("policy = %+v", cfg.Runtime.Providers.Codex)
+	}
+	if cfg.Runtime.Providers.Codex.BypassApprovalsAndSandbox {
+		t.Fatalf("bypass should be false when explicit policy is configured: %+v", cfg.Runtime.Providers.Codex)
+	}
+}
+
+func TestCodexExecutor_BuildClientConfig_BypassClearsPolicyModes(t *testing.T) {
+	exec := NewCodexExecutor(
+		WithCodexPhaseRuntimeConfig(&PhaseRuntimeConfig{
+			Providers: PhaseRuntimeProviderConfig{
+				Codex: &llmkit.CodexRuntimeConfig{
+					SandboxMode:  "workspace-write",
+					ApprovalMode: "on-request",
+				},
+			},
+		}),
+		WithCodexBypassApprovalsAndSandbox(true),
+	)
+
+	cfg, err := exec.buildClientConfig()
+	if err != nil {
+		t.Fatalf("buildClientConfig() error = %v", err)
+	}
+	if cfg.Runtime.Providers.Codex == nil {
+		t.Fatal("expected codex runtime config")
+	}
+	if !cfg.Runtime.Providers.Codex.BypassApprovalsAndSandbox {
+		t.Fatalf("expected bypass mode: %+v", cfg.Runtime.Providers.Codex)
+	}
+	if cfg.Runtime.Providers.Codex.SandboxMode != "" || cfg.Runtime.Providers.Codex.ApprovalMode != "" {
+		t.Fatalf("expected bypass mode to clear explicit policy fields: %+v", cfg.Runtime.Providers.Codex)
+	}
+}
+
 func TestIsJSONParseError(t *testing.T) {
 	tests := []struct {
 		name string

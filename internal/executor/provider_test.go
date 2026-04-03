@@ -1,10 +1,14 @@
 package executor
 
 import (
+	"fmt"
+	"sync/atomic"
 	"testing"
 
 	llmkit "github.com/randalmurphal/llmkit/v2"
 )
+
+var providerTestSequence atomic.Uint64
 
 func TestParseProviderModel(t *testing.T) {
 	tests := []struct {
@@ -107,7 +111,7 @@ func TestValidateProvider(t *testing.T) {
 }
 
 func TestValidateProvider_RejectsFutureLLMKitProvidersUntilOrcAdoptsThem(t *testing.T) {
-	const provider = "future-test-provider"
+	provider := fmt.Sprintf("future-test-provider-%d", providerTestSequence.Add(1))
 	llmkit.RegisterProviderDefinition(llmkit.ProviderDefinition{
 		Name:      provider,
 		Supported: true,

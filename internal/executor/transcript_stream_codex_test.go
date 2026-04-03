@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 )
@@ -223,5 +224,61 @@ func TestStoreToolResult(t *testing.T) {
 	}
 	if tr.Content == "" {
 		t.Fatal("expected preview content to be stored")
+	}
+}
+
+func TestTranscriptStreamHandler_OnChunk_PreservesClaudeStructuredAssistantContent(t *testing.T) {
+	backend := &mockTranscriptBackend{}
+	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "review", "sess-1", "run-1", "sonnet", nil, nil)
+
+	h.OnChunk(llmkit.StreamChunk{
+		Type:      "assistant",
+		MessageID: "msg-1",
+		Content:   "hello",
+		Model:     "sonnet",
+		Metadata: map[string]any{
+			"content_blocks": []map[string]any{
+				{"type": "text", "text": "hello"},
+				{"type": "tool_use", "id": "tool-1", "name": "Read", "input": map[string]any{"file_path": "main.go"}},
+			},
+		},
+	})
+
+	if len(backend.transcripts) != 1 {
+		t.Fatalf("expected 1 transcript, got %d", len(backend.transcripts))
+	}
+	tr := backend.transcripts[0]
+	if tr.Type != "assistant" {
+		t.Fatalf("type = %q, want assistant", tr.Type)
+	}
+	var blocks []map[string]any
+	if err := json.Unmarshal([]byte(tr.Content), &blocks); err != nil {
+		t.Fatalf("expected structured assistant content JSON, got error: %v\ncontent=%s", err, tr.Content)
+	}
+	if len(blocks) != 2 || blocks[1]["type"] != "tool_use" {
+		t.Fatalf("unexpected structured assistant content: %#v", blocks)
+	}
+}
+
+func TestTranscriptStreamHandler_OnChunk_PreservesClaudeToolOnlyAssistantMessage(t *testing.T) {
+	backend := &mockTranscriptBackend{}
+	h := NewTranscriptStreamHandler(backend, slog.Default(), "TASK-001", "review", "sess-1", "run-1", "sonnet", nil, nil)
+
+	h.OnChunk(llmkit.StreamChunk{
+		Type:      "assistant",
+		MessageID: "msg-1",
+		Model:     "sonnet",
+		Metadata: map[string]any{
+			"content_blocks": []map[string]any{
+				{"type": "tool_use", "id": "tool-1", "name": "Read", "input": map[string]any{"file_path": "main.go"}},
+			},
+		},
+	})
+
+	if len(backend.transcripts) != 1 {
+		t.Fatalf("expected tool-only assistant message to be stored, got %d transcripts", len(backend.transcripts))
+	}
+	if backend.transcripts[0].Content == "" {
+		t.Fatal("expected structured content for tool-only assistant message")
 	}
 }

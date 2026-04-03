@@ -66,6 +66,12 @@ type CodexExecutor struct {
 	webSearchMode   string            // web_search mode
 	env             map[string]string // extra env vars for process
 	addDirs         []string          // additional accessible directories
+	sandboxMode     string
+	approvalMode    string
+
+	// phaseConfig carries the full runtime contract so the root llmkit
+	// client can apply shared settings consistently for Codex too.
+	phaseConfig *PhaseRuntimeConfig
 
 	// CLI-level timeout (default: 30 minutes). The llmkit default (5m) is too
 	// short for extended reasoning on large repos.
@@ -179,6 +185,21 @@ func WithCodexEnv(env map[string]string) CodexExecutorOption {
 // WithCodexAddDirs sets additional accessible directories.
 func WithCodexAddDirs(dirs []string) CodexExecutorOption {
 	return func(e *CodexExecutor) { e.addDirs = dirs }
+}
+
+// WithCodexSandboxMode sets the Codex sandbox mode when approvals/sandbox are not bypassed.
+func WithCodexSandboxMode(mode string) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.sandboxMode = mode }
+}
+
+// WithCodexApprovalMode sets the Codex approval mode when approvals/sandbox are not bypassed.
+func WithCodexApprovalMode(mode string) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.approvalMode = mode }
+}
+
+// WithCodexPhaseRuntimeConfig sets the full per-phase runtime configuration.
+func WithCodexPhaseRuntimeConfig(cfg *PhaseRuntimeConfig) CodexExecutorOption {
+	return func(e *CodexExecutor) { e.phaseConfig = cfg }
 }
 
 // WithCodexTimeout sets the CLI-level timeout for codex commands.
@@ -601,18 +622,36 @@ func buildCodexStallRetryPrompt(originalPrompt string, stalled *codexTurnStalled
 }
 
 func (e *CodexExecutor) buildClientConfig() (llmkit.Config, error) {
-	runtime := llmkit.RuntimeConfig{
-		Shared: llmkit.SharedRuntimeConfig{
-			Env:     e.env,
-			AddDirs: e.addDirs,
-		},
-		Providers: llmkit.RuntimeProviderConfig{
-			Codex: &llmkit.CodexRuntimeConfig{
-				ReasoningEffort:           e.reasoningEffort,
-				WebSearchMode:             e.webSearchMode,
-				BypassApprovalsAndSandbox: e.bypassApprovalsAndSandbox,
-			},
-		},
+	runtime := llmkit.RuntimeConfig{}
+	if e.phaseConfig != nil {
+		runtime = e.phaseConfig.ToLLMKit()
+	}
+	if len(e.env) > 0 {
+		runtime.Shared.Env = cloneCodexEnv(e.env)
+	}
+	if len(e.addDirs) > 0 {
+		runtime.Shared.AddDirs = append([]string(nil), e.addDirs...)
+	}
+	if runtime.Providers.Codex == nil {
+		runtime.Providers.Codex = &llmkit.CodexRuntimeConfig{}
+	}
+	if e.reasoningEffort != "" {
+		runtime.Providers.Codex.ReasoningEffort = e.reasoningEffort
+	}
+	if e.webSearchMode != "" {
+		runtime.Providers.Codex.WebSearchMode = e.webSearchMode
+	}
+	if e.bypassApprovalsAndSandbox {
+		runtime.Providers.Codex.BypassApprovalsAndSandbox = true
+		runtime.Providers.Codex.SandboxMode = ""
+		runtime.Providers.Codex.ApprovalMode = ""
+	} else {
+		if e.sandboxMode != "" {
+			runtime.Providers.Codex.SandboxMode = e.sandboxMode
+		}
+		if e.approvalMode != "" {
+			runtime.Providers.Codex.ApprovalMode = e.approvalMode
+		}
 	}
 
 	var session *llmkit.SessionMetadata
@@ -658,4 +697,15 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+func cloneCodexEnv(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }
