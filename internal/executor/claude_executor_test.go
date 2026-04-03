@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	llmkit "github.com/randalmurphal/llmkit/v2"
-	"github.com/randalmurphal/llmkit/v2/claude"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,25 +27,23 @@ func TestWithPhaseRuntimeConfig(t *testing.T) {
 	assert.Equal(t, 5.0, exec.phaseConfig.Shared.MaxBudgetUSD)
 }
 
-func TestClaudeExecutor_ApplyPhaseConfig_NilAndEmpty(t *testing.T) {
-	t.Run("nil phase config returns unchanged options", func(t *testing.T) {
+func TestClaudeExecutor_BuildClientConfig_NilAndEmpty(t *testing.T) {
+	t.Run("nil phase config returns default config", func(t *testing.T) {
 		exec := NewClaudeExecutor()
-		opts := []claude.ClaudeOption{}
-		result, err := exec.applyPhaseConfig(opts)
+		result, err := exec.buildClientConfig()
 		require.NoError(t, err)
-		assert.Empty(t, result)
+		assert.Equal(t, ProviderClaude, result.Provider)
 	})
 
-	t.Run("empty phase config returns unchanged options", func(t *testing.T) {
+	t.Run("empty phase config returns default config", func(t *testing.T) {
 		exec := NewClaudeExecutor(WithPhaseRuntimeConfig(&PhaseRuntimeConfig{}))
-		opts := []claude.ClaudeOption{}
-		result, err := exec.applyPhaseConfig(opts)
+		result, err := exec.buildClientConfig()
 		require.NoError(t, err)
-		assert.Empty(t, result)
+		assert.Equal(t, ProviderClaude, result.Provider)
 	})
 }
 
-func TestClaudeExecutor_BuildBaseCLIOptions_WithSharedRuntimeConfig(t *testing.T) {
+func TestClaudeExecutor_BuildClientConfig_WithSharedRuntimeConfig(t *testing.T) {
 	exec := NewClaudeExecutor(
 		WithClaudeWorkdir("/tmp"),
 		WithClaudeModel("opus"),
@@ -85,12 +82,17 @@ func TestClaudeExecutor_BuildBaseCLIOptions_WithSharedRuntimeConfig(t *testing.T
 		}),
 	)
 
-	opts, err := exec.buildBaseCLIOptions()
+	cfg, err := exec.buildClientConfig()
 	require.NoError(t, err)
-	assert.NotEmpty(t, opts)
+	assert.Equal(t, ProviderClaude, cfg.Provider)
+	assert.Equal(t, "opus", cfg.Model)
+	assert.Equal(t, "/tmp", cfg.WorkDir)
+	assert.Equal(t, []string{"Read"}, cfg.AllowedTools)
+	assert.Equal(t, []string{"Write"}, cfg.DisallowedTools)
+	assert.Equal(t, 5.0, cfg.MaxBudgetUSD)
 }
 
-func TestClaudeExecutor_BuildBaseCLIOptions_WithToolRestrictionVariants(t *testing.T) {
+func TestClaudeExecutor_BuildClientConfig_WithToolRestrictionVariants(t *testing.T) {
 	tests := []struct {
 		name string
 		cfg  *PhaseRuntimeConfig
@@ -118,14 +120,14 @@ func TestClaudeExecutor_BuildBaseCLIOptions_WithToolRestrictionVariants(t *testi
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			exec := NewClaudeExecutor(WithPhaseRuntimeConfig(tt.cfg))
-			opts, err := exec.buildBaseCLIOptions()
+			cfg, err := exec.buildClientConfig()
 			require.NoError(t, err)
-			assert.NotEmpty(t, opts)
+			assert.Equal(t, ProviderClaude, cfg.Provider)
 		})
 	}
 }
 
-func TestClaudeExecutor_BuildBaseCLIOptions_LoadsPromptFilesViaLLMKit(t *testing.T) {
+func TestClaudeExecutor_BuildClientConfig_LoadsPromptFilesViaLLMKit(t *testing.T) {
 	root := t.TempDir()
 	systemPath := filepath.Join(root, "system.txt")
 	appendPath := filepath.Join(root, "append.txt")
@@ -144,12 +146,13 @@ func TestClaudeExecutor_BuildBaseCLIOptions_LoadsPromptFilesViaLLMKit(t *testing
 		}),
 	)
 
-	opts, err := exec.buildBaseCLIOptions()
+	cfg, err := exec.buildClientConfig()
 	require.NoError(t, err)
-	assert.NotEmpty(t, opts)
+	assert.Contains(t, cfg.SystemPrompt, "base")
+	assert.Contains(t, cfg.SystemPrompt, "append")
 }
 
-func TestClaudeExecutor_BuildBaseCLIOptions_ErrorsOnMissingPromptFile(t *testing.T) {
+func TestClaudeExecutor_BuildClientConfig_ErrorsOnMissingPromptFile(t *testing.T) {
 	exec := NewClaudeExecutor(
 		WithClaudeWorkdir(t.TempDir()),
 		WithPhaseRuntimeConfig(&PhaseRuntimeConfig{
@@ -161,7 +164,7 @@ func TestClaudeExecutor_BuildBaseCLIOptions_ErrorsOnMissingPromptFile(t *testing
 		}),
 	)
 
-	_, err := exec.buildBaseCLIOptions()
+	_, err := exec.buildClientConfig()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "build claude runtime config")
 	assert.Contains(t, err.Error(), "read prompt file")

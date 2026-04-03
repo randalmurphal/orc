@@ -5,12 +5,13 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	llmkit "github.com/randalmurphal/llmkit/v2"
-	"github.com/randalmurphal/llmkit/v2/claude"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -238,27 +239,6 @@ type TurnResult struct {
 func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error) {
 	start := time.Now()
 
-	// Store prompt before execution (if transcript handler is configured)
-	if e.transcriptHandler != nil {
-		e.transcriptHandler.StoreUserPrompt(prompt)
-		if err := e.transcriptHandler.Err(); err != nil {
-			return &TurnResult{
-				Duration:  time.Since(start),
-				IsError:   true,
-				ErrorText: err.Error(),
-			}, err
-		}
-	}
-
-	// Build CLI options using consolidated helper, then add JSON schema
-	cliOpts, err := e.buildBaseCLIOptions()
-	if err != nil {
-		return &TurnResult{
-			Duration:  time.Since(start),
-			IsError:   true,
-			ErrorText: err.Error(),
-		}, err
-	}
 	// Select schema using loop-aware selection (falls back to round-based for backward compat)
 	// Priority: loopIteration > reviewRound > 1
 	iteration := e.loopIteration
@@ -269,62 +249,15 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 		iteration = 1
 	}
 	schema := GetSchemaForIteration(e.loopConfig, iteration, e.phaseID, e.producesArtifact)
-	cliOpts = append(cliOpts, claude.WithJSONSchema(schema))
-
-	cli := claude.NewClaudeCLI(cliOpts...)
-
-	// Build completion request with streaming callback for real-time transcript capture
-	req := claude.CompletionRequest{
-		Messages: []claude.Message{{Role: claude.RoleUser, Content: prompt}},
-	}
-	watchCtx, watchCancel := context.WithCancel(ctx)
-	defer watchCancel()
-	watchdog := NewTurnWatchdog(e.inactivityTimeout, watchCancel)
-	watchdog.Start(watchCtx)
-	req.OnEvent = e.wrapClaudeOnEvent(watchdog, watchCancel)
-
-	resp, err := cli.Complete(watchCtx, req)
+	result, err := e.executeStream(ctx, prompt, schema, start)
 	if err != nil {
-		if transcriptErr := e.transcriptHandler.Err(); transcriptErr != nil {
-			err = transcriptErr
-		}
-		if stallErr := watchdog.Error("claude"); stallErr != nil {
-			err = stallErr
-		}
-		return &TurnResult{
-			Duration:  time.Since(start),
-			IsError:   true,
-			ErrorText: err.Error(),
-		}, fmt.Errorf("claude complete: %w", err)
-	}
-	if transcriptErr := e.transcriptHandler.Err(); transcriptErr != nil {
-		return &TurnResult{
-			Duration:  time.Since(start),
-			IsError:   true,
-			ErrorText: transcriptErr.Error(),
-		}, transcriptErr
-	}
-
-	// Build turn result
-	result := &TurnResult{
-		Content:   resp.Content,
-		NumTurns:  resp.NumTurns,
-		CostUSD:   resp.CostUSD,
-		SessionID: resp.SessionID,
-		Duration:  time.Since(start),
-		Usage: &orcv1.TokenUsage{
-			InputTokens:              int32(resp.Usage.InputTokens),
-			OutputTokens:             int32(resp.Usage.OutputTokens),
-			TotalTokens:              int32(resp.Usage.TotalTokens),
-			CacheCreationInputTokens: int32(resp.Usage.CacheCreationInputTokens),
-			CacheReadInputTokens:     int32(resp.Usage.CacheReadInputTokens),
-		},
+		return result, err
 	}
 
 	// Parse completion status from JSON response using phase-specific parser
 	// Different phases use different schemas (review has findings/decision, QA has its own, etc.)
 	// Error on parse failure - no silent continue
-	status, reason, parseErr := ParsePhaseSpecificResponse(e.phaseID, e.reviewRound, resp.Content)
+	status, reason, parseErr := ParsePhaseSpecificResponse(e.phaseID, e.reviewRound, result.Content)
 	result.Status = status
 	result.Reason = reason
 
@@ -333,12 +266,6 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 		result.IsError = true
 		result.ErrorText = parseErr.Error()
 		return result, fmt.Errorf("phase completion JSON parse failed: %w", parseErr)
-	}
-
-	// Check for error response
-	if resp.FinishReason == "error" {
-		result.IsError = true
-		result.ErrorText = resp.Content
 	}
 
 	return result, nil
@@ -350,7 +277,31 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt string) (*TurnResult, error) {
 	start := time.Now()
 
-	// Store prompt before execution (if transcript handler is configured)
+	result, err := e.executeStream(ctx, prompt, "", start)
+	if err != nil {
+		return result, err
+	}
+	result.Status = PhaseStatusContinue // Default - caller determines actual status
+	return result, nil
+}
+
+// UpdateSessionID updates the session ID for subsequent calls.
+// Used after getting a session ID from the first response.
+func (e *ClaudeExecutor) UpdateSessionID(id string) {
+	e.logger.Debug("updating session ID", "old_id", e.sessionID, "new_id", id, "old_resume", e.resume)
+	e.sessionID = id
+	e.resume = true // Enable resume mode for subsequent calls
+	if e.transcriptHandler != nil {
+		e.transcriptHandler.UpdateSessionID(id)
+	}
+}
+
+// SessionID returns the current session ID.
+func (e *ClaudeExecutor) SessionID() string {
+	return e.sessionID
+}
+
+func (e *ClaudeExecutor) executeStream(ctx context.Context, prompt, schema string, start time.Time) (*TurnResult, error) {
 	if e.transcriptHandler != nil {
 		e.transcriptHandler.StoreUserPrompt(prompt)
 		if err := e.transcriptHandler.Err(); err != nil {
@@ -362,8 +313,7 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 		}
 	}
 
-	// Build CLI options using consolidated helper (no JSON schema)
-	cliOpts, err := e.buildBaseCLIOptions()
+	clientCfg, err := e.buildClientConfig()
 	if err != nil {
 		return &TurnResult{
 			Duration:  time.Since(start),
@@ -372,218 +322,165 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 		}, err
 	}
 
-	cli := claude.NewClaudeCLI(cliOpts...)
-
-	// Build completion request with streaming callback for real-time transcript capture
-	req := claude.CompletionRequest{
-		Messages: []claude.Message{{Role: claude.RoleUser, Content: prompt}},
-	}
-	watchCtx, watchCancel := context.WithCancel(ctx)
-	defer watchCancel()
-	watchdog := NewTurnWatchdog(e.inactivityTimeout, watchCancel)
-	watchdog.Start(watchCtx)
-	req.OnEvent = e.wrapClaudeOnEvent(watchdog, watchCancel)
-
-	resp, err := cli.Complete(watchCtx, req)
+	client, err := llmkit.New(ProviderClaude, clientCfg)
 	if err != nil {
-		if transcriptErr := e.transcriptHandler.Err(); transcriptErr != nil {
-			err = transcriptErr
-		}
-		if stallErr := watchdog.Error("claude"); stallErr != nil {
-			err = stallErr
-		}
 		return &TurnResult{
 			Duration:  time.Since(start),
 			IsError:   true,
 			ErrorText: err.Error(),
-		}, fmt.Errorf("claude complete: %w", err)
+		}, fmt.Errorf("create llmkit claude client: %w", err)
 	}
+	defer client.Close()
+
+	req := llmkit.Request{
+		Messages: []llmkit.Message{llmkit.NewTextMessage(llmkit.RoleUser, prompt)},
+	}
+	if schema != "" {
+		req.JSONSchema = json.RawMessage(schema)
+	}
+
+	watchCtx, watchCancel := context.WithCancel(ctx)
+	defer watchCancel()
+	watchdog := NewTurnWatchdog(e.inactivityTimeout, watchCancel)
+	watchdog.Start(watchCtx)
+
+	stream, err := client.Stream(watchCtx, req)
+	if err != nil {
+		return &TurnResult{
+			Duration:  time.Since(start),
+			IsError:   true,
+			ErrorText: err.Error(),
+		}, fmt.Errorf("claude stream: %w", err)
+	}
+
+	var (
+		contentBuilder strings.Builder
+		finalContent   string
+		usage          *llmkit.TokenUsage
+		sessionID      = e.sessionID
+		numTurns       int
+		costUSD        float64
+	)
+
+	for chunk := range stream {
+		watchdog.RecordActivity()
+		if chunk.SessionID != "" && chunk.SessionID != sessionID {
+			sessionID = chunk.SessionID
+			e.UpdateSessionID(sessionID)
+		}
+		if e.transcriptHandler != nil {
+			e.transcriptHandler.OnChunk(chunk)
+			if transcriptErr := e.transcriptHandler.Err(); transcriptErr != nil {
+				watchCancel()
+			}
+		}
+		if chunk.Content != "" {
+			contentBuilder.WriteString(chunk.Content)
+		}
+		if chunk.FinalContent != "" {
+			finalContent = chunk.FinalContent
+		}
+		if chunk.Usage != nil {
+			usage = chunk.Usage
+		}
+		if chunk.NumTurns > 0 {
+			numTurns = chunk.NumTurns
+		}
+		if chunk.CostUSD > 0 {
+			costUSD = chunk.CostUSD
+		}
+		if chunk.Error != nil {
+			err := chunk.Error
+			if transcriptErr := e.transcriptHandler.Err(); transcriptErr != nil {
+				err = transcriptErr
+			}
+			if stallErr := watchdog.Error("claude"); stallErr != nil {
+				err = stallErr
+			}
+			content := strings.TrimSpace(contentBuilder.String())
+			if finalContent != "" {
+				content = strings.TrimSpace(finalContent)
+			}
+			return &TurnResult{
+				Content:   content,
+				Duration:  time.Since(start),
+				IsError:   true,
+				ErrorText: err.Error(),
+				SessionID: sessionID,
+			}, fmt.Errorf("claude stream: %w", err)
+		}
+	}
+
 	if transcriptErr := e.transcriptHandler.Err(); transcriptErr != nil {
 		return &TurnResult{
 			Duration:  time.Since(start),
 			IsError:   true,
 			ErrorText: transcriptErr.Error(),
+			SessionID: sessionID,
 		}, transcriptErr
 	}
-
-	// Build turn result (no completion parsing - caller handles it)
-	result := &TurnResult{
-		Content:   resp.Content,
-		NumTurns:  resp.NumTurns,
-		CostUSD:   resp.CostUSD,
-		SessionID: resp.SessionID,
-		Duration:  time.Since(start),
-		Status:    PhaseStatusContinue, // Default - caller determines actual status
-		Usage: &orcv1.TokenUsage{
-			InputTokens:              int32(resp.Usage.InputTokens),
-			OutputTokens:             int32(resp.Usage.OutputTokens),
-			TotalTokens:              int32(resp.Usage.TotalTokens),
-			CacheCreationInputTokens: int32(resp.Usage.CacheCreationInputTokens),
-			CacheReadInputTokens:     int32(resp.Usage.CacheReadInputTokens),
-		},
+	if stallErr := watchdog.Error("claude"); stallErr != nil {
+		return &TurnResult{
+			Duration:  time.Since(start),
+			IsError:   true,
+			ErrorText: stallErr.Error(),
+			SessionID: sessionID,
+		}, stallErr
 	}
 
-	if resp.FinishReason == "error" {
-		result.IsError = true
-		result.ErrorText = resp.Content
+	content := strings.TrimSpace(contentBuilder.String())
+	if finalContent != "" {
+		content = strings.TrimSpace(finalContent)
+	}
+
+	result := &TurnResult{
+		Content:   content,
+		NumTurns:  numTurns,
+		CostUSD:   costUSD,
+		SessionID: sessionID,
+		Duration:  time.Since(start),
+	}
+	if usage != nil {
+		result.Usage = &orcv1.TokenUsage{
+			InputTokens:              int32(usage.InputTokens),
+			OutputTokens:             int32(usage.OutputTokens),
+			TotalTokens:              int32(usage.TotalTokens),
+			CacheCreationInputTokens: int32(usage.CacheCreationInputTokens),
+			CacheReadInputTokens:     int32(usage.CacheReadInputTokens),
+		}
 	}
 
 	return result, nil
 }
 
-// UpdateSessionID updates the session ID for subsequent calls.
-// Used after getting a session ID from the first response.
-func (e *ClaudeExecutor) UpdateSessionID(id string) {
-	e.logger.Debug("updating session ID", "old_id", e.sessionID, "new_id", id, "old_resume", e.resume)
-	e.sessionID = id
-	e.resume = true // Enable resume mode for subsequent calls
-}
-
-// SessionID returns the current session ID.
-func (e *ClaudeExecutor) SessionID() string {
-	return e.sessionID
-}
-
-// buildBaseCLIOptions builds the common set of CLI options shared by all execution methods.
-// This consolidates the option building that was previously duplicated.
-func (e *ClaudeExecutor) buildBaseCLIOptions() ([]claude.ClaudeOption, error) {
-	opts := []claude.ClaudeOption{
-		claude.WithWorkdir(e.workdir),
-		claude.WithOutputFormat(claude.OutputFormatJSON),
-		claude.WithDangerouslySkipPermissions(),
-		claude.WithSettingSources([]string{"project", "local", "user"}),
-	}
-
-	if e.claudePath != "" {
-		opts = append(opts, claude.WithClaudePath(e.claudePath))
-	}
-
-	if e.model != "" {
-		opts = append(opts, claude.WithModel(e.model))
-	}
-
-	// Session ID handling:
-	// - First call: pass --session-id so Claude uses OUR UUID (not generate its own)
-	// - Resume call: pass --resume to continue existing session
-	if e.sessionID != "" {
-		if e.resume {
-			opts = append(opts, claude.WithResume(e.sessionID))
-			e.logger.Debug("resuming existing session", "session_id", e.sessionID)
-		} else {
-			opts = append(opts, claude.WithSessionID(e.sessionID))
-			e.logger.Debug("starting new session with ID", "session_id", e.sessionID)
-		}
-	}
-
-	if e.maxTurns > 0 {
-		opts = append(opts, claude.WithMaxTurns(e.maxTurns))
-	}
-
-	// Apply phase-specific Claude configuration
-	// Priority: phaseConfig overrides executor-level settings
+func (e *ClaudeExecutor) buildClientConfig() (llmkit.Config, error) {
+	runtime := llmkit.RuntimeConfig{}
 	if e.phaseConfig != nil {
-		var err error
-		opts, err = e.applyPhaseConfig(opts)
-		if err != nil {
-			return nil, err
-		}
+		runtime = e.phaseConfig.ToLLMKit()
+	}
+	if runtime.Shared.MaxTurns == 0 && e.maxTurns > 0 {
+		runtime.Shared.MaxTurns = e.maxTurns
+	}
+	if runtime.Providers.Claude == nil {
+		runtime.Providers.Claude = &llmkit.ClaudeRuntimeConfig{}
+	}
+	runtime.Providers.Claude.DangerouslySkipPermissions = true
+	if len(runtime.Providers.Claude.SettingSources) == 0 {
+		runtime.Providers.Claude.SettingSources = []string{"project", "local", "user"}
 	}
 
-	return opts, nil
-}
-
-func (e *ClaudeExecutor) wrapClaudeOnEvent(watchdog *TurnWatchdog, cancel context.CancelFunc) func(claude.StreamEvent) {
-	return func(event claude.StreamEvent) {
-		if watchdog != nil {
-			watchdog.RecordActivity()
-		}
-		if e.transcriptHandler != nil {
-			e.transcriptHandler.OnEvent(event)
-			if err := e.transcriptHandler.Err(); err != nil && cancel != nil {
-				cancel()
-			}
-		}
-	}
-}
-
-// applyPhaseConfig applies PhaseRuntimeConfig options to the CLI options.
-// Returns the updated options slice.
-func (e *ClaudeExecutor) applyPhaseConfig(opts []claude.ClaudeOption) ([]claude.ClaudeOption, error) {
-	cfg := e.phaseConfig
-	if cfg == nil {
-		return opts, nil
+	var session *llmkit.SessionMetadata
+	if e.sessionID != "" {
+		session = llmkit.SessionMetadataForID(ProviderClaude, e.sessionID)
 	}
 
-	llmkitCfg, err := llmkit.BuildConfig(ProviderClaude, e.model, e.workdir, cfg.ToLLMKit(), nil)
+	cfg, err := llmkit.BuildConfig(ProviderClaude, e.model, e.workdir, runtime, session)
 	if err != nil {
-		return nil, fmt.Errorf("build claude runtime config: %w", err)
+		return llmkit.Config{}, fmt.Errorf("build claude runtime config: %w", err)
 	}
-
-	// System prompts
-	if llmkitCfg.SystemPrompt != "" {
-		opts = append(opts, claude.WithSystemPrompt(llmkitCfg.SystemPrompt))
-	}
-
-	// Tool control
-	if len(llmkitCfg.AllowedTools) > 0 {
-		opts = append(opts, claude.WithAllowedTools(llmkitCfg.AllowedTools))
-	}
-	if len(llmkitCfg.DisallowedTools) > 0 {
-		opts = append(opts, claude.WithDisallowedTools(llmkitCfg.DisallowedTools))
-	}
-	if len(llmkitCfg.Tools) > 0 {
-		opts = append(opts, claude.WithTools(llmkitCfg.Tools))
-	}
-
-	// MCP servers
-	if len(llmkitCfg.MCPServers) > 0 {
-		servers := make(map[string]claude.MCPServerConfig, len(llmkitCfg.MCPServers))
-		for name, server := range llmkitCfg.MCPServers {
-			servers[name] = claude.MCPServerConfig{
-				Type:    server.Type,
-				Command: server.Command,
-				Args:    append([]string(nil), server.Args...),
-				Env:     cloneStringMap(server.Env),
-				URL:     server.URL,
-				Headers: mapHeadersToSlice(server.Headers),
-			}
-		}
-		opts = append(opts, claude.WithMCPServers(servers))
-	}
-	if llmkitCfg.StrictMCPConfig {
-		opts = append(opts, claude.WithStrictMCPConfig())
-	}
-
-	// Budget and limits - only apply if explicitly set in phase config
-	// (0 means "not set", not "unlimited")
-	if llmkitCfg.MaxBudgetUSD > 0 {
-		opts = append(opts, claude.WithMaxBudgetUSD(llmkitCfg.MaxBudgetUSD))
-	}
-	if llmkitCfg.MaxTurns > 0 {
-		// Phase config max_turns overrides executor-level maxTurns
-		opts = append(opts, claude.WithMaxTurns(llmkitCfg.MaxTurns))
-	}
-
-	// Environment
-	if len(llmkitCfg.Env) > 0 {
-		opts = append(opts, claude.WithEnv(llmkitCfg.Env))
-	}
-	if len(llmkitCfg.AddDirs) > 0 {
-		opts = append(opts, claude.WithAddDirs(llmkitCfg.AddDirs))
-	}
-
-	// Agent assignment (--agent and --agents)
-	if cfg.Providers.Claude != nil && cfg.Providers.Claude.AgentRef != "" {
-		opts = append(opts, claude.WithAgent(cfg.Providers.Claude.AgentRef))
-	}
-	if cfg.Providers.Claude != nil && len(cfg.Providers.Claude.InlineAgents) > 0 {
-		opts = append(opts, claude.WithAgentsJSON(cfg.InlineAgentsJSON()))
-	}
-
-	// Skills are resolved before this point - content injected into AppendSystemPrompt
-	// Hook events are handled by the transcript handler
-
-	return opts, nil
+	cfg.ResumeSession = e.resume
+	cfg.BinaryPath = e.claudePath
+	return cfg, nil
 }
 
 func cloneStringMap(in map[string]string) map[string]string {

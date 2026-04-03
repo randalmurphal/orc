@@ -13,7 +13,6 @@ import (
 	"time"
 
 	llmkit "github.com/randalmurphal/llmkit/v2"
-	"github.com/randalmurphal/llmkit/v2/codex"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
@@ -328,7 +327,7 @@ func (e *CodexExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnRe
 
 type codexTurnStalledError struct {
 	timeout        time.Duration
-	lastToolResult *codex.ToolResult
+	lastToolResult *llmkit.ToolResult
 }
 
 func (e *codexTurnStalledError) Error() string {
@@ -407,11 +406,33 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schema st
 		}
 	}
 
-	cli := codex.NewCodexCLI(e.buildCLIOptions()...)
-	stream, err := cli.Stream(ctx, codex.CompletionRequest{
-		Messages:   []codex.Message{{Role: codex.RoleUser, Content: prompt}},
-		JSONSchema: json.RawMessage(schema),
-	})
+	clientCfg, err := e.buildClientConfig()
+	if err != nil {
+		return &TurnResult{
+			Duration:  time.Since(start),
+			IsError:   true,
+			ErrorText: err.Error(),
+		}, err
+	}
+
+	client, err := llmkit.New(ProviderCodex, clientCfg)
+	if err != nil {
+		return &TurnResult{
+			Duration:  time.Since(start),
+			IsError:   true,
+			ErrorText: err.Error(),
+		}, fmt.Errorf("create llmkit codex client: %w", err)
+	}
+	defer client.Close()
+
+	req := llmkit.Request{
+		Messages: []llmkit.Message{llmkit.NewTextMessage(llmkit.RoleUser, prompt)},
+	}
+	if schema != "" {
+		req.JSONSchema = json.RawMessage(schema)
+	}
+
+	stream, err := client.Stream(ctx, req)
 	if err != nil {
 		return &TurnResult{
 			Duration:  time.Since(start),
@@ -423,10 +444,10 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schema st
 	var (
 		contentBuilder strings.Builder
 		finalContent   string
-		usage          *codex.TokenUsage
+		usage          *llmkit.TokenUsage
 		sessionID      = e.sessionID
 		numTurns       int
-		lastToolResult *codex.ToolResult
+		lastToolResult *llmkit.ToolResult
 		sawTerminal    bool
 	)
 
@@ -444,48 +465,22 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schema st
 				}, err
 			}
 		}
-		if chunk.Content != "" {
-			contentBuilder.WriteString(chunk.Content)
-			if e.transcriptHandler != nil {
-				e.transcriptHandler.StoreChunkText(chunk.Content, e.model)
-				if err := e.transcriptHandler.Err(); err != nil {
-					return &TurnResult{
-						Duration:  time.Since(start),
-						IsError:   true,
-						ErrorText: err.Error(),
-						SessionID: sessionID,
-					}, err
-				}
+		if e.transcriptHandler != nil {
+			e.transcriptHandler.OnChunk(chunk)
+			if err := e.transcriptHandler.Err(); err != nil {
+				return &TurnResult{
+					Duration:  time.Since(start),
+					IsError:   true,
+					ErrorText: err.Error(),
+					SessionID: sessionID,
+				}, err
 			}
 		}
-		if len(chunk.ToolCalls) > 0 && e.transcriptHandler != nil {
-			for _, toolCall := range chunk.ToolCalls {
-				e.transcriptHandler.StoreToolCall(toolCall.Name, toolCall.Arguments, e.model)
-				if err := e.transcriptHandler.Err(); err != nil {
-					return &TurnResult{
-						Duration:  time.Since(start),
-						IsError:   true,
-						ErrorText: err.Error(),
-						SessionID: sessionID,
-					}, err
-				}
-			}
+		if chunk.Content != "" {
+			contentBuilder.WriteString(chunk.Content)
 		}
 		if len(chunk.ToolResults) > 0 {
 			lastToolResult = &chunk.ToolResults[len(chunk.ToolResults)-1]
-			if e.transcriptHandler != nil {
-				for _, toolResult := range chunk.ToolResults {
-					e.transcriptHandler.StoreToolResult(toolResult.Name, toolResult.Output, toolResult.Status, toolResult.ExitCode, e.model)
-					if err := e.transcriptHandler.Err(); err != nil {
-						return &TurnResult{
-							Duration:  time.Since(start),
-							IsError:   true,
-							ErrorText: err.Error(),
-							SessionID: sessionID,
-						}, err
-					}
-				}
-			}
 		}
 		if chunk.FinalContent != "" {
 			finalContent = chunk.FinalContent
@@ -551,24 +546,6 @@ func (e *CodexExecutor) executeSingleTurn(ctx context.Context, prompt, schema st
 			TotalTokens:              int32(usage.TotalTokens),
 		}
 	}
-	if e.transcriptHandler != nil {
-		inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens := 0, 0, 0, 0
-		if usage != nil {
-			inputTokens = usage.InputTokens
-			outputTokens = usage.OutputTokens
-			cacheCreationTokens = usage.CacheCreationInputTokens
-			cacheReadTokens = usage.CacheReadInputTokens
-		}
-		e.transcriptHandler.StoreAssistantTextWithUsage(content, e.model, "", inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens)
-		if err := e.transcriptHandler.Err(); err != nil {
-			return &TurnResult{
-				Duration:  time.Since(start),
-				IsError:   true,
-				ErrorText: err.Error(),
-				SessionID: sessionID,
-			}, err
-		}
-	}
 
 	return result, nil
 }
@@ -623,36 +600,34 @@ func buildCodexStallRetryPrompt(originalPrompt string, stalled *codexTurnStalled
 	return prompt.String()
 }
 
-func (e *CodexExecutor) buildCLIOptions() []codex.CodexOption {
-	opts := []codex.CodexOption{
-		codex.WithWorkdir(e.workdir),
-		codex.WithTimeout(e.timeout),
+func (e *CodexExecutor) buildClientConfig() (llmkit.Config, error) {
+	runtime := llmkit.RuntimeConfig{
+		Shared: llmkit.SharedRuntimeConfig{
+			Env:     e.env,
+			AddDirs: e.addDirs,
+		},
+		Providers: llmkit.RuntimeProviderConfig{
+			Codex: &llmkit.CodexRuntimeConfig{
+				ReasoningEffort:           e.reasoningEffort,
+				WebSearchMode:             e.webSearchMode,
+				BypassApprovalsAndSandbox: e.bypassApprovalsAndSandbox,
+			},
+		},
 	}
-	if e.bypassApprovalsAndSandbox {
-		opts = append(opts, codex.WithDangerouslyBypassApprovalsAndSandbox())
-	}
-	if e.codexPath != "" {
-		opts = append(opts, codex.WithCodexPath(e.codexPath))
-	}
-	if e.model != "" {
-		opts = append(opts, codex.WithModel(e.model))
-	}
+
+	var session *llmkit.SessionMetadata
 	if e.resume && e.sessionID != "" {
-		opts = append(opts, codex.WithSessionID(e.sessionID))
+		session = llmkit.SessionMetadataForID(ProviderCodex, e.sessionID)
 	}
-	if e.reasoningEffort != "" {
-		opts = append(opts, codex.WithReasoningEffort(e.reasoningEffort))
+
+	cfg, err := llmkit.BuildConfig(ProviderCodex, e.model, e.workdir, runtime, session)
+	if err != nil {
+		return llmkit.Config{}, err
 	}
-	if e.webSearchMode != "" {
-		opts = append(opts, codex.WithWebSearchMode(codex.WebSearchMode(e.webSearchMode)))
-	}
-	if len(e.env) > 0 {
-		opts = append(opts, codex.WithEnv(e.env))
-	}
-	if len(e.addDirs) > 0 {
-		opts = append(opts, codex.WithAddDirs(e.addDirs))
-	}
-	return opts
+	cfg.ResumeSession = e.resume
+	cfg.BinaryPath = e.codexPath
+	cfg.Timeout = e.timeout
+	return cfg, nil
 }
 
 func (e *CodexExecutor) codexContextWithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {

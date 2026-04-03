@@ -158,6 +158,15 @@ func mergeClaudeRuntimeConfig(base, override *llmkit.ClaudeRuntimeConfig) *llmki
 		}
 		result.Hooks = merged
 	}
+	if override.DangerouslySkipPermissions {
+		result.DangerouslySkipPermissions = true
+	}
+	if override.PermissionMode != "" {
+		result.PermissionMode = override.PermissionMode
+	}
+	if len(override.SettingSources) > 0 {
+		result.SettingSources = append([]string(nil), override.SettingSources...)
+	}
 
 	return &result
 }
@@ -176,6 +185,15 @@ func mergeCodexRuntimeConfig(base, override *llmkit.CodexRuntimeConfig) *llmkit.
 	}
 	if override.WebSearchMode != "" {
 		result.WebSearchMode = override.WebSearchMode
+	}
+	if override.SandboxMode != "" {
+		result.SandboxMode = override.SandboxMode
+	}
+	if override.ApprovalMode != "" {
+		result.ApprovalMode = override.ApprovalMode
+	}
+	if override.BypassApprovalsAndSandbox {
+		result.BypassApprovalsAndSandbox = true
 	}
 	return &result
 }
@@ -223,7 +241,10 @@ func claudeRuntimeConfigEmpty(cfg *llmkit.ClaudeRuntimeConfig) bool {
 		len(cfg.SkillRefs) == 0 &&
 		cfg.AgentRef == "" &&
 		len(cfg.InlineAgents) == 0 &&
-		len(cfg.Hooks) == 0
+		len(cfg.Hooks) == 0 &&
+		!cfg.DangerouslySkipPermissions &&
+		cfg.PermissionMode == "" &&
+		len(cfg.SettingSources) == 0
 }
 
 func codexRuntimeConfigEmpty(cfg *llmkit.CodexRuntimeConfig) bool {
@@ -231,7 +252,10 @@ func codexRuntimeConfigEmpty(cfg *llmkit.CodexRuntimeConfig) bool {
 		return true
 	}
 	return cfg.ReasoningEffort == "" &&
-		cfg.WebSearchMode == ""
+		cfg.WebSearchMode == "" &&
+		cfg.SandboxMode == "" &&
+		cfg.ApprovalMode == "" &&
+		!cfg.BypassApprovalsAndSandbox
 }
 
 // JSON returns the config as a JSON string for database storage.

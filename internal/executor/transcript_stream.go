@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/randalmurphal/llmkit/v2/claude"
+	llmkit "github.com/randalmurphal/llmkit/v2"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
 )
@@ -114,55 +114,75 @@ func (h *TranscriptStreamHandler) Err() error {
 	return h.err
 }
 
-// OnEvent handles streaming events from Claude and stores transcripts in real-time.
-// This is passed to CompletionRequest.OnEvent for immediate capture.
-func (h *TranscriptStreamHandler) OnEvent(event claude.StreamEvent) {
+// OnChunk handles normalized llmkit streaming chunks and stores transcripts in real-time.
+func (h *TranscriptStreamHandler) OnChunk(chunk llmkit.StreamChunk) {
 	if h.backend == nil || h.taskID == "" {
 		return
 	}
 
-	switch event.Type {
-	case claude.StreamEventAssistant:
-		h.storeAssistantMessage(event)
-	case claude.StreamEventInit:
-		// Could log session start if needed
-		h.logger.Debug("claude session initialized",
-			"session_id", event.SessionID,
+	if chunk.SessionID != "" {
+		h.UpdateSessionID(chunk.SessionID)
+	}
+
+	switch chunk.Type {
+	case "assistant":
+		if chunk.MessageID != "" {
+			h.storeAssistantMessage(chunk)
+			return
+		}
+		if chunk.Content != "" {
+			h.StoreChunkText(chunk.Content, chunk.Model)
+		}
+	case "session":
+		h.logger.Debug("llm session initialized",
+			"session_id", chunk.SessionID,
 			"task", h.taskID,
 			"phase", h.phaseID,
 		)
-	case claude.StreamEventResult:
-		// Final result - log structured output status for debugging
-		hasStructuredOutput := len(event.Result.StructuredOutput) > 0
-		h.logger.Debug("claude execution complete",
-			"session_id", event.SessionID,
+	case "final":
+		h.logger.Debug("llm execution complete",
+			"session_id", chunk.SessionID,
 			"task", h.taskID,
 			"phase", h.phaseID,
-			"num_turns", event.Result.NumTurns,
-			"cost_usd", event.Result.TotalCostUSD,
-			"has_structured_output", hasStructuredOutput,
-			"subtype", event.Result.Subtype,
+			"num_turns", chunk.NumTurns,
+			"cost_usd", chunk.CostUSD,
+			"has_final_content", chunk.FinalContent != "",
 		)
-		if !hasStructuredOutput && event.Result.Subtype != "success" {
-			h.logger.Warn("claude result without structured output",
-				"task", h.taskID,
-				"phase", h.phaseID,
-				"subtype", event.Result.Subtype,
-				"is_error", event.Result.IsError,
+		if chunk.FinalContent != "" && chunk.Session != nil && chunk.Session.Provider == ProviderCodex {
+			inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens := 0, 0, 0, 0
+			if chunk.Usage != nil {
+				inputTokens = chunk.Usage.InputTokens
+				outputTokens = chunk.Usage.OutputTokens
+				cacheCreationTokens = chunk.Usage.CacheCreationInputTokens
+				cacheReadTokens = chunk.Usage.CacheReadInputTokens
+			}
+			h.StoreAssistantTextWithUsage(
+				chunk.FinalContent,
+				chunk.Model,
+				chunk.MessageID,
+				inputTokens,
+				outputTokens,
+				cacheCreationTokens,
+				cacheReadTokens,
 			)
 		}
-	case claude.StreamEventHook:
-		// Hook execution - store based on captureHookEvents config
-		if event.Hook != nil {
-			if h.shouldCaptureHook(event.Hook.HookEvent) {
-				h.storeHookEvent(event)
-			}
+	case "hook":
+		if h.shouldCaptureHook(metadataString(chunk.Metadata, "hook_event")) {
+			h.storeHookEvent(chunk)
 		}
-	case claude.StreamEventError:
-		h.logger.Error("claude streaming error",
+	case "tool_call":
+		for _, toolCall := range chunk.ToolCalls {
+			h.StoreToolCall(toolCall.Name, toolCall.Arguments, chunk.Model)
+		}
+	case "tool_result":
+		for _, toolResult := range chunk.ToolResults {
+			h.StoreToolResult(toolResult.Name, toolResult.Output, toolResult.Status, toolResult.ExitCode, chunk.Model)
+		}
+	case "error":
+		h.logger.Error("llm streaming error",
 			"task", h.taskID,
 			"phase", h.phaseID,
-			"error", event.Error,
+			"error", chunk.Error,
 		)
 	}
 }
@@ -170,8 +190,8 @@ func (h *TranscriptStreamHandler) OnEvent(event claude.StreamEvent) {
 // storeAssistantMessage stores a single assistant message from the stream.
 // Claude streams multiple events with the same message ID - we only store the first one
 // since later events for the same ID are just partial updates that we already have.
-func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent) {
-	if event.Assistant == nil {
+func (h *TranscriptStreamHandler) storeAssistantMessage(chunk llmkit.StreamChunk) {
+	if chunk.Content == "" {
 		return
 	}
 
@@ -182,7 +202,7 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent
 	}
 
 	// Use the API message ID if available, otherwise generate one
-	messageUUID := event.Assistant.MessageID
+	messageUUID := chunk.MessageID
 	if messageUUID == "" {
 		messageUUID = uuid.NewString()
 	}
@@ -193,15 +213,7 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent
 	}
 	h.storedMessageIDs[messageUUID] = true
 
-	// Serialize content blocks to JSON for storage
-	contentJSON, err := json.Marshal(event.Assistant.Content)
-	if err != nil {
-		h.err = fmt.Errorf("marshal assistant transcript content: %w", err)
-		return
-	}
-
-	// Determine model - use from event if available, fall back to handler default
-	model := event.Assistant.Model
+	model := chunk.Model
 	if model == "" {
 		model = h.model
 	}
@@ -214,12 +226,12 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent
 		MessageUUID:         messageUUID,
 		Type:                "assistant",
 		Role:                "assistant",
-		Content:             string(contentJSON),
+		Content:             chunk.Content,
 		Model:               model,
-		InputTokens:         event.Assistant.Usage.InputTokens,
-		OutputTokens:        event.Assistant.Usage.OutputTokens,
-		CacheCreationTokens: event.Assistant.Usage.CacheCreationInputTokens,
-		CacheReadTokens:     event.Assistant.Usage.CacheReadInputTokens,
+		InputTokens:         usageValue(chunk.Usage, func(u *llmkit.TokenUsage) int { return u.InputTokens }),
+		OutputTokens:        usageValue(chunk.Usage, func(u *llmkit.TokenUsage) int { return u.OutputTokens }),
+		CacheCreationTokens: usageValue(chunk.Usage, func(u *llmkit.TokenUsage) int { return u.CacheCreationInputTokens }),
+		CacheReadTokens:     usageValue(chunk.Usage, func(u *llmkit.TokenUsage) int { return u.CacheReadInputTokens }),
 		Timestamp:           time.Now().UnixMilli(),
 	}
 
@@ -233,15 +245,15 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent
 			h.phaseID,
 			1,
 			"response",
-			event.Assistant.Text,
+			chunk.Content,
 			model,
 			&events.TokenUpdate{
 				Phase:                    h.phaseID,
-				InputTokens:              event.Assistant.Usage.InputTokens,
-				OutputTokens:             event.Assistant.Usage.OutputTokens,
-				CacheCreationInputTokens: event.Assistant.Usage.CacheCreationInputTokens,
-				CacheReadInputTokens:     event.Assistant.Usage.CacheReadInputTokens,
-				TotalTokens:              event.Assistant.Usage.InputTokens + event.Assistant.Usage.OutputTokens + event.Assistant.Usage.CacheCreationInputTokens + event.Assistant.Usage.CacheReadInputTokens,
+				InputTokens:              usageValue(chunk.Usage, func(u *llmkit.TokenUsage) int { return u.InputTokens }),
+				OutputTokens:             usageValue(chunk.Usage, func(u *llmkit.TokenUsage) int { return u.OutputTokens }),
+				CacheCreationInputTokens: usageValue(chunk.Usage, func(u *llmkit.TokenUsage) int { return u.CacheCreationInputTokens }),
+				CacheReadInputTokens:     usageValue(chunk.Usage, func(u *llmkit.TokenUsage) int { return u.CacheReadInputTokens }),
+				TotalTokens:              usageValue(chunk.Usage, func(u *llmkit.TokenUsage) int { return u.TotalTokens }),
 			},
 		)
 	}
@@ -258,7 +270,7 @@ func (h *TranscriptStreamHandler) shouldCaptureHook(hookEvent string) bool {
 }
 
 // storeHookEvent stores hook execution details for debugging.
-func (h *TranscriptStreamHandler) storeHookEvent(event claude.StreamEvent) {
+func (h *TranscriptStreamHandler) storeHookEvent(chunk llmkit.StreamChunk) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.err != nil {
@@ -267,11 +279,11 @@ func (h *TranscriptStreamHandler) storeHookEvent(event claude.StreamEvent) {
 
 	// Serialize hook details
 	hookData := map[string]any{
-		"hook_name":  event.Hook.HookName,
-		"hook_event": event.Hook.HookEvent,
-		"stdout":     event.Hook.Stdout,
-		"stderr":     event.Hook.Stderr,
-		"exit_code":  event.Hook.ExitCode,
+		"hook_name":  metadataString(chunk.Metadata, "hook_name"),
+		"hook_event": metadataString(chunk.Metadata, "hook_event"),
+		"stdout":     metadataString(chunk.Metadata, "stdout"),
+		"stderr":     metadataString(chunk.Metadata, "stderr"),
+		"exit_code":  metadataInt(chunk.Metadata, "exit_code"),
 	}
 	contentJSON, err := json.Marshal(hookData)
 	if err != nil {
@@ -292,8 +304,51 @@ func (h *TranscriptStreamHandler) storeHookEvent(event claude.StreamEvent) {
 	}
 
 	if err := h.backend.AddTranscript(transcript); err != nil {
-		h.err = fmt.Errorf("store hook transcript %s: %w", event.Hook.HookName, err)
+		h.err = fmt.Errorf("store hook transcript %s: %w", metadataString(chunk.Metadata, "hook_name"), err)
 	}
+}
+
+func metadataString(metadata map[string]any, key string) string {
+	if len(metadata) == 0 {
+		return ""
+	}
+	value, ok := metadata[key]
+	if !ok || value == nil {
+		return ""
+	}
+	if s, ok := value.(string); ok {
+		return s
+	}
+	return fmt.Sprintf("%v", value)
+}
+
+func metadataInt(metadata map[string]any, key string) int {
+	if len(metadata) == 0 {
+		return 0
+	}
+	value, ok := metadata[key]
+	if !ok || value == nil {
+		return 0
+	}
+	switch v := value.(type) {
+	case int:
+		return v
+	case int32:
+		return int(v)
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	default:
+		return 0
+	}
+}
+
+func usageValue(usage *llmkit.TokenUsage, getter func(*llmkit.TokenUsage) int) int {
+	if usage == nil {
+		return 0
+	}
+	return getter(usage)
 }
 
 // StoreAssistantText stores a plain text assistant response.

@@ -3,6 +3,7 @@ package executor
 import (
 	"log/slog"
 
+	_ "github.com/randalmurphal/llmkit/v2/providers"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
 )

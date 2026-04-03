@@ -439,7 +439,7 @@ sleep 30
 		WithCodexBackend(backend),
 		WithCodexTaskID("TASK-001"),
 		WithCodexRunID("RUN-001"),
-		WithCodexInactivityTimeout(250*time.Millisecond),
+		WithCodexInactivityTimeout(750*time.Millisecond),
 	)
 
 	_, err := exec.executeSingleTurn(context.Background(), "do the thing", "", time.Now())
